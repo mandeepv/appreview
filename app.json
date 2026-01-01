@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Mamalearn",
+    "slug": "mamalearn",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#EC4899"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mamalearn.app",
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "This allows us to personalize your parenting journey and show you relevant content.",
+        "NSCameraUsageDescription": "We need access to your camera to let you add profile photos.",
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library to let you add profile photos."
+      },
+      "usesAppleSignIn": true
+    },
+    "android": {
+      "package": "com.mamalearn.app",
+      "permissions": [
+        "android.permission.NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "color": "#EC4899"
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
+    "privacy": "public"
+  }
+}
