@@ -28,9 +28,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   }, [navigation]);
 
   const getMessage = () => {
-    if (progress < 30) return 'Analyzing your family profile...';
-    if (progress < 60) return 'Selecting expert recommendations...';
-    if (progress < 90) return 'Personalizing your lesson plan...';
+    if (progress < 25) return 'Analyzing your family profile...';
+    if (progress < 50) return 'Designing lessons for tantrums and connection...';
+    if (progress < 75) return 'Balancing science with real-life parenting...';
+    if (progress < 95) return 'Keeping it practical, not preachy...';
     return 'Almost ready!';
   };
 

@@ -25,6 +25,8 @@ import { ProgramReadyScreen } from '../screens/onboarding/ProgramReadyScreen';
 import { LessonDetailsScreen } from '../screens/onboarding/LessonDetailsScreen';
 import { LessonPreviewScreen } from '../screens/onboarding/LessonPreviewScreen';
 import { PaywallScreen } from '../screens/onboarding/PaywallScreen';
+import PremiumUnlockedScreen from '../screens/PremiumUnlockedScreen';
+import MainTabNavigator from './MainTabNavigator';
 
 export type OnboardingStackParamList = {
   Splash: undefined;
@@ -50,6 +52,8 @@ export type OnboardingStackParamList = {
   LessonDetails: undefined;
   LessonPreview: undefined;
   Paywall: undefined;
+  PremiumUnlocked: undefined;
+  MainTabs: undefined;
 };
 
 const Stack = createNativeStackNavigator<OnboardingStackParamList>();
@@ -86,6 +90,8 @@ export const OnboardingNavigator: React.FC = () => {
       <Stack.Screen name="LessonDetails" component={LessonDetailsScreen} />
       <Stack.Screen name="LessonPreview" component={LessonPreviewScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
+      <Stack.Screen name="PremiumUnlocked" component={PremiumUnlockedScreen} />
+      <Stack.Screen name="MainTabs" component={MainTabNavigator} />
     </Stack.Navigator>
   );
 };

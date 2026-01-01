@@ -35,8 +35,7 @@ export const InvitePartnerScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.illustrationEmoji}>👨‍👩‍👧‍👦</Text>
           </View>
 
-          <Text style={styles.title}>Parenting is a</Text>
-          <Text style={styles.highlight}>team sport</Text>
+          <Text style={styles.title}>Want to grow together?</Text>
 
           <Text style={styles.description}>
             Sync your lessons and track milestones together.{' '}

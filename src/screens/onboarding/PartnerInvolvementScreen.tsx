@@ -23,16 +23,16 @@ export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
 
   const involvementLevels: { value: PartnerInvolvement; label: string }[] = [
     { value: 'very-involved', label: 'Very involved' },
-    { value: 'moderately-involved', label: 'Moderately involved' },
-    { value: 'somewhat-involved', label: 'Somewhat involved' },
+    { value: 'involved-sometimes', label: 'Involved sometimes' },
+    { value: 'rarely-involved', label: 'Rarely involved' },
     { value: 'not-involved', label: 'Not involved' },
-    { value: 'no-partner', label: "I don't have a partner" },
+    { value: 'no-partner', label: 'No partner' },
   ];
 
   return (
     <OnboardingContainer
       title="How involved is your partner?"
-      subtitle="This helps us tailor advice and examples"
+      subtitle="So we can tailor advice that fits your family dynamic."
       currentStep={8}
       onBack={() => navigation.goBack()}
       scrollable={false}

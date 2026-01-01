@@ -14,7 +14,8 @@ export const PaywallScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleSubscribe = () => {
     setSelectedPlan(selectedPlan);
-    Alert.alert('Success', 'Subscription successful! (This is a placeholder)');
+    // Navigate to Premium Unlocked screen after successful payment
+    navigation.navigate('PremiumUnlocked');
   };
 
   const handleRestore = () => {

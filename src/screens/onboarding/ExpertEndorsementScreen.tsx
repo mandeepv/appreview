@@ -1,9 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, Dimensions } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
+import { Heading2, BodyText, Label } from '../../components/Typography';
+import { Colors, Spacing, BorderRadius, Typography, Animation as AnimationConfig } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ExpertEndorsement'>;
 
@@ -16,20 +19,30 @@ const EXPERTS = [
 ];
 
 export const ExpertEndorsementScreen: React.FC<Props> = ({ navigation }) => {
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: AnimationConfig.duration.slow,
+            useNativeDriver: true,
+        }).start();
+    }, []);
+
     const handleContinue = () => {
         navigation.navigate('Educational');
     };
 
     return (
         <OnboardingContainer
-            currentStep={7} // Incremented step? ImprovementGoals was 6. NotificationPermission was 7. I'll adjust steps later or keep it 7 for now? Let's use 7 and bump others if needed. Or just 6.5? No, let's call it 7.
+            currentStep={7}
             onBack={() => navigation.goBack()}
             centerTitle={true}
-            title="" // Custom title layout
+            title=""
         >
-            <View style={styles.container}>
+            <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
                 <View style={styles.cardContainer}>
-                    <Text style={styles.headerTitle}>80+ doctors and experts</Text>
+                    <Label style={styles.headerTitle}>80+ doctors and experts</Label>
 
                     <View style={styles.expertsList}>
                         {EXPERTS.map((expert, index) => (
@@ -45,22 +58,30 @@ export const ExpertEndorsementScreen: React.FC<Props> = ({ navigation }) => {
                         ))}
                     </View>
 
-                    <View style={styles.fadeOverlay} />
+                    <LinearGradient
+                        colors={['rgba(249, 250, 251, 0)', Colors.background]}
+                        style={styles.fadeOverlay}
+                        pointerEvents="none"
+                    />
                 </View>
 
                 <View style={styles.contentContainer}>
-                    <Text style={styles.headline}>You’re in good hands</Text>
-                    <Text style={styles.body}>
+                    <Heading2 center>You're in good hands</Heading2>
+                    <Label center style={styles.credibilityAnchor}>
+                        Built with guidance from pediatricians, child psychologists, and parenting researchers.
+                    </Label>
+                    <BodyText center style={styles.body}>
                         Mamalearn blends insights from 80+ child psychologists, pediatricians, and parenting experts — turning complex research into simple, practical lessons you can actually use.
-                    </Text>
+                    </BodyText>
                 </View>
 
                 <Button
                     title="Sounds good →"
                     onPress={handleContinue}
+                    variant="gradient"
                     style={styles.button}
                 />
-            </View>
+            </Animated.View>
         </OnboardingContainer>
     );
 };
@@ -71,23 +92,21 @@ const styles = StyleSheet.create({
         paddingTop: 0,
     },
     cardContainer: {
-        backgroundColor: '#F9FAFB', // Light gray background for the list
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 24,
+        backgroundColor: Colors.background,
+        borderRadius: BorderRadius['2xl'],
+        padding: Spacing.xl,
+        marginBottom: Spacing['2xl'],
         position: 'relative',
         overflow: 'hidden',
     },
     headerTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#EC4899',
+        color: Colors.primary,
         textAlign: 'center',
-        marginBottom: 20,
-        marginTop: 8,
+        marginBottom: Spacing.xl,
+        marginTop: Spacing.sm,
     },
     expertsList: {
-        gap: 16,
+        gap: Spacing.lg,
     },
     expertRow: {
         flexDirection: 'row',
@@ -97,27 +116,27 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.borderLight,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
+        marginRight: Spacing.md,
     },
     avatarText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#6B7280',
+        fontSize: Typography.sizes.base,
+        fontWeight: Typography.weights.semibold,
+        color: Colors.textMuted,
     },
     expertInfo: {
         flex: 1,
     },
     expertName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#111827',
+        fontSize: Typography.sizes.base,
+        fontWeight: Typography.weights.semibold,
+        color: Colors.textPrimary,
     },
     expertRole: {
-        fontSize: 13,
-        color: '#6B7280',
+        fontSize: Typography.sizes.sm,
+        color: Colors.textMuted,
         marginTop: 2,
     },
     fadeOverlay: {
@@ -126,29 +145,23 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 100,
-        backgroundColor: 'rgba(249, 250, 251, 0.5)', // Match card background but transparent to opaque? 
-        // Actually, gradient would be better but simple transparency works or just white fade.
-        // React Native doesn't have LinearGradient out of the box without expo-linear-gradient.
-        // I will simulate with opacity or just leave it. The image shows a fade.
-        // Since I can't use LinearGradient without verifying dependencies, I'll omit the fade for now or use a simple hack if needed.
     },
     contentContainer: {
         alignItems: 'center',
-        paddingHorizontal: 16,
-        marginBottom: 24,
-    },
-    headline: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#111827',
-        textAlign: 'center',
-        marginBottom: 16,
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing['2xl'],
+        gap: Spacing.lg,
     },
     body: {
-        fontSize: 16,
-        color: '#4B5563',
+        marginTop: Spacing.sm,
+    },
+    credibilityAnchor: {
+        color: Colors.textMuted,
         textAlign: 'center',
-        lineHeight: 24,
+        fontSize: Typography.sizes.sm,
+        marginTop: -Spacing.xs,
+        marginBottom: Spacing.xs,
+        paddingHorizontal: Spacing.md,
     },
     button: {
         marginTop: 'auto',

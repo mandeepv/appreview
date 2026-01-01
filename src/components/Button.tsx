@@ -1,13 +1,17 @@
-import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
+import React, { useRef } from 'react';
+import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, ViewStyle, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { Colors, Spacing, BorderRadius, Shadows, Animation, Typography } from '../constants/theme';
 
 interface ButtonProps {
   onPress: () => void;
   title: string;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'gradient';
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
+  hapticFeedback?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -17,7 +21,35 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   loading = false,
   style,
+  hapticFeedback = true,
 }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: Animation.pressScale,
+      damping: Animation.spring.damping,
+      stiffness: Animation.spring.stiffness,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      damping: Animation.spring.damping,
+      stiffness: Animation.spring.stiffness,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = () => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    onPress();
+  };
+
   const getButtonStyle = () => {
     switch (variant) {
       case 'primary':
@@ -26,6 +58,8 @@ export const Button: React.FC<ButtonProps> = ({
         return styles.secondaryButton;
       case 'outline':
         return styles.outlineButton;
+      case 'gradient':
+        return styles.gradientButton;
       default:
         return styles.primaryButton;
     }
@@ -34,6 +68,7 @@ export const Button: React.FC<ButtonProps> = ({
   const getTextStyle = () => {
     switch (variant) {
       case 'primary':
+      case 'gradient':
         return styles.primaryText;
       case 'secondary':
         return styles.secondaryText;
@@ -44,72 +79,111 @@ export const Button: React.FC<ButtonProps> = ({
     }
   };
 
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={[
-        styles.button,
-        getButtonStyle(),
-        disabled && styles.disabled,
-        style,
-      ]}
-    >
+  const buttonContent = (
+    <>
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? 'white' : '#EC4899'} />
+        <ActivityIndicator color={variant === 'primary' || variant === 'gradient' ? 'white' : Colors.primary} />
       ) : (
         <Text style={[styles.text, getTextStyle()]}>{title}</Text>
       )}
-    </TouchableOpacity>
+    </>
+  );
+
+  if (variant === 'gradient' && !disabled) {
+    return (
+      <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, style]}>
+        <TouchableOpacity
+          onPress={handlePress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          disabled={disabled || loading}
+          activeOpacity={0.9}
+          style={styles.touchable}
+        >
+          <LinearGradient
+            colors={[Colors.gradientStart, Colors.gradientEnd]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.button, getButtonStyle(), disabled && styles.disabled]}
+          >
+            {buttonContent}
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+        activeOpacity={0.8}
+        style={[
+          styles.button,
+          getButtonStyle(),
+          disabled && styles.disabled,
+          style,
+        ]}
+      >
+        {buttonContent}
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
+  touchable: {
+    borderRadius: 16,
+  },
   button: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 50,
+    paddingVertical: 20,
+    paddingHorizontal: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    minHeight: 60,
+    ...Shadows.lg,
   },
   primaryButton: {
-    backgroundColor: '#EC4899',
-    shadowColor: '#EC4899',
-    shadowOpacity: 0.25,
+    backgroundColor: Colors.primary,
+    ...Shadows.primaryStrong,
   },
   secondaryButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    ...Shadows.md,
   },
   outlineButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#EC4899',
-    shadowOpacity: 0,
-    elevation: 0,
+    borderColor: Colors.primary,
+    ...Shadows.none,
+  },
+  gradientButton: {
+    backgroundColor: 'transparent',
+    ...Shadows.primaryStrong,
   },
   disabled: {
     opacity: 0.5,
   },
   text: {
-    fontWeight: '600',
-    fontSize: 16,
+    fontWeight: Typography.weights.bold,
+    fontSize: 17,
     letterSpacing: 0.5,
   },
   primaryText: {
-    color: 'white',
+    color: Colors.surface,
   },
   secondaryText: {
-    color: '#1F2937',
+    color: Colors.textPrimary,
+    fontWeight: Typography.weights.bold,
   },
   outlineText: {
-    color: '#EC4899',
+    color: Colors.primary,
+    fontWeight: Typography.weights.bold,
   },
 });

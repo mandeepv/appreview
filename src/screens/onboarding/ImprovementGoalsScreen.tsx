@@ -29,7 +29,7 @@ export const ImprovementGoalsScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
-      title="What do you want to improve related to parenting/children?"
+      title="What feels hardest right now?"
       subtitle="Select all that apply"
       currentStep={6}
       onBack={() => navigation.goBack()}

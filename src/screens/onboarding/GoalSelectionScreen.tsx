@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
@@ -48,11 +48,14 @@ export const GoalSelectionScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
 
-        <Button
-          title="Continue"
-          onPress={handleContinue}
-          disabled={!learningGoal}
-        />
+        <View>
+          <Button
+            title="Continue"
+            onPress={handleContinue}
+            disabled={!learningGoal}
+          />
+          <Text style={styles.reassurance}>You can change this anytime.</Text>
+        </View>
       </View>
     </OnboardingContainer>
   );
@@ -63,5 +66,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     paddingVertical: 24,
+  },
+  reassurance: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginTop: 12,
   },
 });
