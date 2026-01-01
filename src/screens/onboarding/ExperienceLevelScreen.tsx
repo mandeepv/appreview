@@ -36,7 +36,7 @@ export const ExperienceLevelScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
-      title="Which best describes you?"
+      title="How familiar are you with modern parenting ideas?"
       currentStep={11}
       onBack={() => navigation.goBack()}
       scrollable={false}

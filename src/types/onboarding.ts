@@ -15,8 +15,8 @@ export type ImprovementGoal =
 
 export type PartnerInvolvement =
   | 'very-involved'
-  | 'moderately-involved'
-  | 'somewhat-involved'
+  | 'involved-sometimes'
+  | 'rarely-involved'
   | 'not-involved'
   | 'no-partner';
 

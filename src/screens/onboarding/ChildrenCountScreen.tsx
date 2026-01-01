@@ -104,7 +104,7 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
-      title="Tell us about your child(ren)"
+      title="Let’s personalize this for your child(ren)"
       currentStep={3}
       onBack={() => navigation.goBack()}
       centerTitle={true}
@@ -134,6 +134,11 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
                   <Text style={styles.buttonTextPlus}>+</Text>
                 </TouchableOpacity>
               </View>
+              {childrenCount === 0 && (
+                <TouchableOpacity onPress={incrementCount} style={styles.expectingContainer}>
+                  <Text style={styles.expectingText}>Expecting or caregiving for a child?</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -407,5 +412,16 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  expectingContainer: {
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  expectingText: {
+    fontSize: 16,
+    color: '#EC4899',
+    textAlign: 'center',
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });

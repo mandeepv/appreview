@@ -15,6 +15,7 @@ interface OnboardingContainerProps {
   onSkip?: () => void;
   scrollable?: boolean;
   centerTitle?: boolean;
+  backgroundColor?: string;
 }
 
 export const OnboardingContainer: React.FC<OnboardingContainerProps> = ({
@@ -29,17 +30,23 @@ export const OnboardingContainer: React.FC<OnboardingContainerProps> = ({
   onSkip,
   scrollable = true,
   centerTitle = false,
+  backgroundColor,
 }) => {
   const Content = scrollable ? ScrollView : View;
   const contentProps = scrollable
     ? { contentContainerStyle: styles.scrollContent, showsVerticalScrollIndicator: false, keyboardShouldPersistTaps: 'handled' as const }
     : {};
 
+  const containerStyle = [
+    styles.container,
+    backgroundColor ? { backgroundColor } : null,
+  ];
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={containerStyle} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
+        style={[styles.flex, backgroundColor ? { backgroundColor } : null]}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -93,7 +100,7 @@ export const OnboardingContainer: React.FC<OnboardingContainerProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   flex: {
     flex: 1,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, Text, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
@@ -74,6 +74,7 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
 
       <View style={styles.buttonContainer}>
         <Button title="Continue" onPress={handleContinue} />
+        <Text style={styles.reassurance}>You’re in control of what you share.</Text>
       </View>
     </OnboardingContainer>
   );
@@ -88,5 +89,11 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     paddingVertical: 16,
+  },
+  reassurance: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginTop: 12,
   },
 });

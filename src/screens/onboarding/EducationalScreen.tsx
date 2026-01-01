@@ -1,16 +1,36 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, ScrollView, StyleSheet, Animated } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
+import { EducationIllustration } from '../../components/illustrations';
+import { Heading3, BodyText } from '../../components/Typography';
+import { IconCircle } from '../../components/IconCircle';
+import { Colors, Spacing, BorderRadius, Animation } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Educational'>;
 
 export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: Animation.duration.slow,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
   const handleContinue = () => {
     navigation.navigate('ParentingReality');
   };
+
+  const features = [
+    { icon: '📖', text: 'Evidence-based lessons from 80+ parenting experts' },
+    { icon: '⏱️', text: 'As little as 5 minutes a day to become a better parent' },
+    { icon: '🎯', text: 'Personalized to your family\'s unique needs' },
+  ];
 
   return (
     <OnboardingContainer
@@ -20,51 +40,46 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
     >
       <View style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-          <View style={styles.illustrationContainer}>
-            <View style={styles.illustration}>
-              <Text style={styles.illustrationEmoji}>🎓</Text>
-            </View>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>The Mamalearn Approach</Text>
-
-            <Text style={styles.cardText}>
-              Mamalearn takes the best of all parenting styles and with{' '}
-              <Text style={styles.bold}>80+ experts</Text> onboard, our daily lessons have been
-              developed to help you be the best version of your parent self.
-            </Text>
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerIcon}>✨</Text>
-              <View style={styles.dividerLine} />
+          <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+            <View style={styles.illustrationContainer}>
+              <EducationIllustration width={192} height={192} />
             </View>
 
-            <View style={styles.features}>
-              <View style={styles.featureRow}>
-                <Text style={styles.featureIcon}>📖</Text>
-                <Text style={styles.featureText}>
-                  Evidence-based lessons from 80+ parenting experts
-                </Text>
+            <View style={styles.card}>
+              <Heading3 center style={styles.cardTitle}>
+                The Mamalearn Approach
+              </Heading3>
+
+              <BodyText style={styles.cardText}>
+                Mamalearn takes the best of all parenting styles and with{' '}
+                <BodyText style={styles.bold}>80+ experts</BodyText> onboard, our daily lessons have been
+                developed to help you be the best version of your parent self.
+              </BodyText>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <IconCircle icon="✨" size="sm" backgroundColor={Colors.primary} iconColor={Colors.surface} style={styles.dividerIcon} />
+                <View style={styles.dividerLine} />
               </View>
-              <View style={styles.featureRow}>
-                <Text style={styles.featureIcon}>⏱️</Text>
-                <Text style={styles.featureText}>
-                  Just 5-20 minutes a day to become a better parent
-                </Text>
-              </View>
-              <View style={styles.featureRow}>
-                <Text style={styles.featureIcon}>🎯</Text>
-                <Text style={styles.featureText}>
-                  Personalized to your family's unique needs
-                </Text>
+
+              <View style={styles.features}>
+                {features.map((feature, index) => (
+                  <View key={index} style={styles.featureRow}>
+                    <IconCircle
+                      icon={feature.icon}
+                      size="sm"
+                      backgroundColor={Colors.surface}
+                      iconSize={20}
+                    />
+                    <BodyText style={styles.featureText}>{feature.text}</BodyText>
+                  </View>
+                ))}
               </View>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
 
-        <Button title="Continue" onPress={handleContinue} />
+        <Button title="Continue" onPress={handleContinue} variant="gradient" />
       </View>
     </OnboardingContainer>
   );
@@ -74,45 +89,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingVertical: 24,
+    paddingVertical: Spacing['2xl'],
   },
   scrollView: {
+    flex: 1,
+  },
+  content: {
     flex: 1,
   },
   illustrationContainer: {
     width: '100%',
     alignItems: 'center',
-    marginBottom: 32,
-  },
-  illustration: {
-    width: 192,
-    height: 192,
-    backgroundColor: '#FCE7F3',
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  illustrationEmoji: {
-    fontSize: 72,
+    marginBottom: Spacing['3xl'],
   },
   card: {
-    backgroundColor: '#FDF2F8',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 24,
+    backgroundColor: Colors.primaryBg,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing['2xl'],
+    marginBottom: Spacing['2xl'],
   },
   cardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 16,
-    textAlign: 'center',
+    marginBottom: Spacing.lg,
   },
   cardText: {
-    fontSize: 16,
-    color: '#374151',
-    lineHeight: 24,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   bold: {
     fontWeight: 'bold',
@@ -120,33 +120,27 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    marginVertical: Spacing.lg,
   },
   dividerLine: {
     flex: 1,
-    height: 4,
-    backgroundColor: '#FBCFE8',
-    borderRadius: 50,
+    height: 3,
+    backgroundColor: Colors.primaryAccent,
+    borderRadius: BorderRadius.full,
   },
   dividerIcon: {
-    color: '#EC4899',
-    marginHorizontal: 12,
-    fontWeight: '600',
+    marginHorizontal: Spacing.md,
   },
   features: {
-    marginTop: 24,
+    marginTop: Spacing['2xl'],
+    gap: Spacing.lg,
   },
   featureRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 12,
-  },
-  featureIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   featureText: {
     flex: 1,
-    color: '#374151',
   },
 });

@@ -23,8 +23,8 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
-      title="Let's start with you"
-      subtitle="This helps us tailor lessons to you and your child."
+      title="Welcome to Mamalearn"
+      subtitle="Who are you parenting as?"
       currentStep={1}
       showBackButton={false}
       scrollable={false}

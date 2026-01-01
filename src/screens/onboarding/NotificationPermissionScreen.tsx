@@ -1,15 +1,36 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
+import { NotificationIllustration } from '../../components/illustrations';
+import { Heading2, Subtitle } from '../../components/Typography';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { Spacing, Animation, Shadows } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'NotificationPermission'>;
 
 export const NotificationPermissionScreen: React.FC<Props> = ({ navigation }) => {
   const { setNotificationsEnabled } = useOnboardingStore();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: Animation.duration.slow,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        damping: Animation.spring.damping,
+        stiffness: Animation.spring.stiffness,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleEnable = async () => {
     setNotificationsEnabled(true);
@@ -28,20 +49,32 @@ export const NotificationPermissionScreen: React.FC<Props> = ({ navigation }) =>
       scrollable={false}
     >
       <View style={styles.container}>
-        <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <Text style={styles.icon}>🔔</Text>
-          </View>
+        <Animated.View style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          }
+        ]}>
+          <NotificationIllustration width={140} height={140} />
 
-          <Text style={styles.title}>Enable Notifications</Text>
+          <Heading2 center style={styles.title}>
+            Your daily 5-minute reminder
+          </Heading2>
 
-          <Text style={styles.description}>
-            Get daily reminders for your parenting lessons and track your progress with timely nudges.
-          </Text>
-        </View>
+          <Subtitle center style={styles.description}>
+            We’ll remind you once a day — no spam, no pressure.
+          </Subtitle>
+        </Animated.View>
 
-        <View>
-          <Button title="Enable Notifications" onPress={handleEnable} />
+        <View style={styles.buttonContainer}>
+          <Button title="Enable Notifications" onPress={handleEnable} variant="gradient" />
+          <Button
+            title="I’ll set this up later"
+            onPress={handleSkip}
+            variant="secondary"
+            style={styles.secondaryButton}
+          />
         </View>
       </View>
     </OnboardingContainer>
@@ -52,39 +85,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingVertical: 24,
+    paddingVertical: Spacing['2xl'],
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  iconContainer: {
-    width: 128,
-    height: 128,
-    backgroundColor: '#FCE7F3',
-    borderRadius: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  icon: {
-    fontSize: 64,
+    gap: Spacing['2xl'],
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 12,
-    textAlign: 'center',
+    marginTop: Spacing.md,
   },
   description: {
-    fontSize: 16,
-    color: '#4B5563',
-    textAlign: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
+  },
+  buttonContainer: {
+    gap: Spacing.md,
   },
   secondaryButton: {
-    marginTop: 12,
+    ...Shadows.none,
   },
 });

@@ -1,5 +1,7 @@
-import React from 'react';
-import { TouchableOpacity, Text, View, StyleSheet, ViewStyle } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { TouchableOpacity, Text, View, StyleSheet, ViewStyle, Animated } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Colors, Spacing, BorderRadius, Shadows, Typography, Animation } from '../constants/theme';
 
 interface SelectableCardProps {
   title: string;
@@ -9,6 +11,7 @@ interface SelectableCardProps {
   variant?: 'default' | 'small' | 'text-only';
   icon?: string;
   style?: ViewStyle;
+  hapticFeedback?: boolean;
 }
 
 export const SelectableCard: React.FC<SelectableCardProps> = ({
@@ -19,10 +22,56 @@ export const SelectableCard: React.FC<SelectableCardProps> = ({
   variant = 'default',
   icon,
   style,
+  hapticFeedback = true,
 }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const checkmarkScale = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (selected) {
+      Animated.spring(checkmarkScale, {
+        toValue: 1,
+        damping: Animation.spring.damping,
+        stiffness: Animation.spring.stiffness,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(checkmarkScale, {
+        toValue: 0,
+        duration: Animation.duration.fast,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [selected]);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      damping: Animation.spring.damping,
+      stiffness: Animation.spring.stiffness,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      damping: Animation.spring.damping,
+      stiffness: Animation.spring.stiffness,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = () => {
+    if (hapticFeedback) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onPress();
+  };
+
   if (variant === 'text-only') {
     return (
-      <TouchableOpacity onPress={onPress} style={[styles.textOnly, style]}>
+      <TouchableOpacity onPress={handlePress} style={[styles.textOnly, style]}>
         <Text style={[styles.textOnlyLabel, selected && styles.textOnlyLabelSelected]}>
           {title}
         </Text>
@@ -31,88 +80,85 @@ export const SelectableCard: React.FC<SelectableCardProps> = ({
   }
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[
-        styles.card,
-        variant === 'small' ? styles.cardSmall : styles.cardDefault,
-        selected ? styles.cardSelected : styles.cardUnselected,
-        style,
-      ]}
-      activeOpacity={0.7}
-    >
-      <View style={styles.content}>
-        {icon && (
-          <View style={[styles.iconContainer, selected && styles.iconContainerSelected]}>
-            <Text style={styles.icon}>{icon}</Text>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[
+          styles.card,
+          variant === 'small' ? styles.cardSmall : styles.cardDefault,
+          selected ? styles.cardSelected : styles.cardUnselected,
+          style,
+        ]}
+        activeOpacity={0.9}
+      >
+        <View style={styles.content}>
+          {icon && (
+            <View style={[styles.iconContainer, selected && styles.iconContainerSelected]}>
+              <Text style={styles.icon}>{icon}</Text>
+            </View>
+          )}
+          <View style={styles.textContainer}>
+            <Text style={[
+              styles.title,
+              variant === 'small' && styles.titleSmall,
+              selected ? styles.titleSelected : styles.titleUnselected,
+            ]}>
+              {title}
+            </Text>
+            {subtitle && (
+              <Text style={styles.subtitle}>{subtitle}</Text>
+            )}
           </View>
-        )}
-        <View style={styles.textContainer}>
-          <Text style={[
-            styles.title,
-            variant === 'small' && styles.titleSmall,
-            selected ? styles.titleSelected : styles.titleUnselected,
-          ]}>
-            {title}
-          </Text>
-          {subtitle && (
-            <Text style={styles.subtitle}>{subtitle}</Text>
+          {selected && (
+            <Animated.View style={[
+              styles.checkmark,
+              { transform: [{ scale: checkmarkScale }] }
+            ]}>
+              <Text style={styles.checkmarkText}>✓</Text>
+            </Animated.View>
           )}
         </View>
-        {selected && (
-          <View style={styles.checkmark}>
-            <Text style={styles.checkmarkText}>✓</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   textOnly: {
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm,
   },
   textOnlyLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: Typography.sizes.md,
+    color: Colors.textMuted,
   },
   textOnlyLabelSelected: {
-    color: '#EC4899',
-    fontWeight: '600',
+    color: Colors.primary,
+    fontWeight: Typography.weights.bold,
   },
   card: {
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    borderRadius: 20,
+    marginBottom: Spacing.lg,
+    borderWidth: 2.5,
+    ...Shadows.lg,
   },
   cardDefault: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 24,
   },
   cardSmall: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
   },
   cardSelected: {
-    borderColor: '#EC4899',
-    backgroundColor: '#FDF2F8',
-    shadowColor: '#EC4899',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryBg,
+    ...Shadows.primary,
   },
   cardUnselected: {
-    borderColor: '#E5E7EB',
-    backgroundColor: 'white',
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
   },
   content: {
     flexDirection: 'row',
@@ -124,53 +170,58 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: Spacing.lg,
   },
   iconContainerSelected: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.primary,
   },
   icon: {
-    fontSize: 20,
+    fontSize: 26,
   },
   title: {
-    fontWeight: '600',
-    fontSize: 16,
-    lineHeight: 22,
+    fontWeight: Typography.weights.bold,
+    fontSize: 18,
+    lineHeight: 26,
+    letterSpacing: -0.2,
   },
   titleSmall: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: Typography.sizes.base,
+    lineHeight: 24,
   },
   titleSelected: {
-    color: '#DB2777',
+    color: Colors.primary,
   },
   titleUnselected: {
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   subtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-    lineHeight: 18,
+    fontSize: Typography.sizes.sm,
+    color: Colors.textMuted,
+    marginTop: 6,
+    lineHeight: 20,
+    letterSpacing: 0.1,
   },
   checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#EC4899',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 12,
+    marginLeft: Spacing.md,
+    ...Shadows.md,
   },
   checkmarkText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
+    color: Colors.surface,
+    fontSize: 16,
+    fontWeight: Typography.weights.bold,
   },
 });

@@ -34,7 +34,7 @@ export const ParentingRealityScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
 
                     <Text style={styles.bodyBold}>
-                        Millions of parents feel this way. You’re not alone.
+                        Many parents feel this way — especially when trying to do better.
                     </Text>
                 </View>
 
