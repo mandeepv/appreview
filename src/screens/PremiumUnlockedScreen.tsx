@@ -18,7 +18,7 @@ export default function PremiumUnlockedScreen({ navigation }: PremiumUnlockedScr
   }, []);
 
   const handleStartLearning = () => {
-    navigation.navigate('MainTabs');
+    navigation.navigate('Root');
   };
 
   return (

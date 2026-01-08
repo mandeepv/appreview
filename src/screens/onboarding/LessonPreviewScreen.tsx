@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
@@ -13,13 +14,14 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'LessonPreview'>;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
+    const insets = useSafeAreaInsets();
+
     const handleContinue = () => {
         navigation.navigate('Paywall');
     };
 
     return (
         <OnboardingContainer
-            currentStep={18}
             onBack={() => navigation.goBack()}
             centerTitle={true}
             title=""
@@ -114,16 +116,16 @@ export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
                             </View>
                         </View>
                     </View>
-
-                    {/* CTA Button at the bottom of scroll */}
-                    <View style={styles.buttonWrapper}>
-                        <Button
-                            title="See My Full Plan →"
-                            onPress={handleContinue}
-                            variant="gradient"
-                        />
-                    </View>
                 </ScrollView>
+
+                {/* Fixed Button at Bottom */}
+                <View style={[styles.fixedButtonContainer, { paddingBottom: insets.bottom || 20 }]}>
+                    <Button
+                        title="See My Full Plan →"
+                        onPress={handleContinue}
+                        variant="gradient"
+                    />
+                </View>
             </View>
         </OnboardingContainer>
     );
@@ -136,7 +138,16 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 24,
-        paddingBottom: 40,
+        paddingBottom: 120, // Add padding to prevent content from being hidden behind button
+    },
+    fixedButtonContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: Colors.background,
+        paddingHorizontal: 20,
+        paddingTop: 16,
     },
     mainTitle: {
         fontSize: 32,
@@ -267,8 +278,5 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Colors.textMuted,
         fontWeight: Typography.weights.semibold,
-    },
-    buttonWrapper: {
-        marginTop: 20,
     },
 });
