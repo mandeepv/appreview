@@ -47,6 +47,7 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
             onBack={() => navigation.goBack()}
             scrollable={false}
             centerTitle={true}
+            avoidKeyboard={false}
         >
             <View style={styles.container}>
                 <Animated.View style={[styles.content, { opacity: fadeAnim }]}>

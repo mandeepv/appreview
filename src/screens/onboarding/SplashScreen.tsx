@@ -53,7 +53,7 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
           }
         ]}>
           <WelcomeIllustration width={220} height={220} />
-          <Heading1 style={styles.title}>Mamalearn</Heading1>
+          <Heading1 style={styles.title}>Kinderwell</Heading1>
           <Subtitle style={styles.subtitle}>Your parenting journey starts here</Subtitle>
         </Animated.View>
       </SafeAreaView>

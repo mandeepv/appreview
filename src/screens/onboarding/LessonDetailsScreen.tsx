@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
@@ -9,6 +10,7 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'LessonDetails'>;
 
 export const LessonDetailsScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { learningGoal, improvementGoals } = useOnboardingStore();
 
   const handleContinue = () => {
@@ -42,44 +44,47 @@ export const LessonDetailsScreen: React.FC<Props> = ({ navigation }) => {
       currentStep={17}
       onBack={() => navigation.goBack()}
     >
-      <View style={styles.container}>
-        <Text style={styles.title}>Your Personalized Program</Text>
-        <Text style={styles.subtitle}>{getLessonTime()} per day • Evidence-based lessons</Text>
+      <View style={styles.outerContainer}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Your Personalized Program</Text>
+          <Text style={styles.subtitle}>{getLessonTime()} per day • Evidence-based lessons</Text>
 
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-          {improvementGoals.length > 0 && (
-            <View style={styles.goalsCard}>
-              <Text style={styles.goalsTitle}>Focused on your goals:</Text>
-              <Text style={styles.goalsText}>
-                {improvementGoals.slice(0, 3).join(' • ')}
-                {improvementGoals.length > 3 && ` and ${improvementGoals.length - 3} more`}
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+            {improvementGoals.length > 0 && (
+              <View style={styles.goalsCard}>
+                <Text style={styles.goalsTitle}>Focused on your goals:</Text>
+                <Text style={styles.goalsText}>
+                  {improvementGoals.slice(0, 3).join(' • ')}
+                  {improvementGoals.length > 3 && ` and ${improvementGoals.length - 3} more`}
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.sectionTitle}>Your First Month</Text>
+
+            {sampleLessons.map((lesson, index) => (
+              <View key={index} style={styles.lessonCard}>
+                <View style={styles.lessonHeader}>
+                  <Text style={styles.lessonIcon}>{lesson.icon}</Text>
+                  <View style={styles.lessonInfo}>
+                    <Text style={styles.lessonWeek}>{lesson.week}</Text>
+                    <Text style={styles.lessonTitle}>{lesson.title}</Text>
+                  </View>
+                </View>
+                <Text style={styles.lessonCount}>{lesson.lessons} daily lessons</Text>
+              </View>
+            ))}
+
+            <View style={styles.infoCard}>
+              <Text style={styles.infoText}>
+                <Text style={styles.bold}>100+ lessons</Text> tailored to your family's journey
               </Text>
             </View>
-          )}
+          </ScrollView>
+        </View>
 
-          <Text style={styles.sectionTitle}>Your First Month</Text>
-
-          {sampleLessons.map((lesson, index) => (
-            <View key={index} style={styles.lessonCard}>
-              <View style={styles.lessonHeader}>
-                <Text style={styles.lessonIcon}>{lesson.icon}</Text>
-                <View style={styles.lessonInfo}>
-                  <Text style={styles.lessonWeek}>{lesson.week}</Text>
-                  <Text style={styles.lessonTitle}>{lesson.title}</Text>
-                </View>
-              </View>
-              <Text style={styles.lessonCount}>{lesson.lessons} daily lessons</Text>
-            </View>
-          ))}
-
-          <View style={styles.infoCard}>
-            <Text style={styles.infoText}>
-              <Text style={styles.bold}>100+ lessons</Text> tailored to your family's journey
-            </Text>
-          </View>
-        </ScrollView>
-
-        <View style={styles.buttonContainer}>
+        {/* Fixed Button at Bottom */}
+        <View style={[styles.fixedButtonContainer, { paddingBottom: insets.bottom || 20 }]}>
           <Button title="Start My Journey" onPress={handleContinue} />
         </View>
       </View>
@@ -88,6 +93,9 @@ export const LessonDetailsScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
@@ -104,6 +112,18 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Add padding to prevent content from being hidden behind button
+  },
+  fixedButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   goalsCard: {
     backgroundColor: '#FDF2F8',
@@ -191,8 +211,5 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: '600',
-  },
-  buttonContainer: {
-    paddingVertical: 16,
   },
 });

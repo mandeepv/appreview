@@ -71,7 +71,7 @@ export const ExpertEndorsementScreen: React.FC<Props> = ({ navigation }) => {
                         Built with guidance from pediatricians, child psychologists, and parenting researchers.
                     </Label>
                     <BodyText center style={styles.body}>
-                        Mamalearn blends insights from 80+ child psychologists, pediatricians, and parenting experts — turning complex research into simple, practical lessons you can actually use.
+                        Kinderwell blends insights from 80+ child psychologists, pediatricians, and parenting experts — turning complex research into simple, practical lessons you can actually use.
                     </BodyText>
                 </View>
 

@@ -1,0 +1,138 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { OnboardingStackParamList } from '../navigation/OnboardingNavigator';
+import { Colors, Typography, BorderRadius, Shadows } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+
+export const DevMenuScreen: React.FC = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.emoji}>🛠️</Text>
+          <Text style={styles.title}>Developer Menu</Text>
+          <Text style={styles.subtitle}>Choose where to start</Text>
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate('Splash')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons name="play-outline" size={32} color={Colors.primary} />
+            </View>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>Start Onboarding</Text>
+              <Text style={styles.buttonDescription}>Go through the full onboarding flow</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate('Root')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: '#E8F5E9' }]}>
+              <Ionicons name="book-outline" size={32} color="#4CAF50" />
+            </View>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>Skip to Main App</Text>
+              <Text style={styles.buttonDescription}>Go directly to the learning screen</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            This screen is for development testing only
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.backgroundGray,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
+  emoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: Typography.weights.bold,
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textSecondary,
+  },
+  buttonContainer: {
+    gap: 16,
+  },
+  button: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...Shadows.md,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primaryBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
+  buttonTitle: {
+    fontSize: 18,
+    fontWeight: Typography.weights.bold,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  buttonDescription: {
+    fontSize: 14,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  footer: {
+    marginTop: 48,
+    paddingHorizontal: 24,
+  },
+  footerText: {
+    fontSize: 13,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+});

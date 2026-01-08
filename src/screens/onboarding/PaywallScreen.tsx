@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
@@ -9,6 +10,7 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Paywall'>;
 
 export const PaywallScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { setSelectedPlan } = useOnboardingStore();
   const [selectedPlan, setLocalSelectedPlan] = useState<'free-trial' | 'monthly'>('free-trial');
 
@@ -24,11 +26,11 @@ export const PaywallScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
-      currentStep={18}
       showBackButton={false}
       scrollable={false}
     >
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <View style={styles.container}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.closeButton}
@@ -98,26 +100,45 @@ export const PaywallScreen: React.FC<Props> = ({ navigation }) => {
             {selectedPlan === 'monthly' && <Text style={styles.radioCheck}>✓</Text>}
           </View>
         </TouchableOpacity>
+        </ScrollView>
 
-        <Button title="Try Free and Subscribe" onPress={handleSubscribe} />
+        {/* Fixed Button at Bottom */}
+        <View style={[styles.fixedButtonContainer, { paddingBottom: insets.bottom || 20 }]}>
+          <Button title="Try Free and Subscribe" onPress={handleSubscribe} />
 
-        <Text style={styles.noPayment}>No payment now</Text>
+          <Text style={styles.noPayment}>No payment now</Text>
 
-        <Text style={styles.terms}>
-          Subscribe and cancel anytime. Auto-renews at the end of the current period.
-        </Text>
+          <Text style={styles.terms}>
+            Subscribe and cancel anytime. Auto-renews at the end of the current period.
+          </Text>
 
-        <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
-          <Text style={styles.restoreButtonText}>Restore Purchases</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
+            <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </OnboardingContainer>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 280, // Add padding to prevent content from being hidden behind button
+  },
+  fixedButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   header: {
     alignItems: 'center',

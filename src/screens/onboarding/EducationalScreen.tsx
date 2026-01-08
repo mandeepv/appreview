@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
@@ -12,6 +13,7 @@ import { Colors, Spacing, BorderRadius, Animation } from '../../constants/theme'
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Educational'>;
 
 export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
       scrollable={false}
     >
       <View style={styles.container}>
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
             <View style={styles.illustrationContainer}>
               <EducationIllustration width={192} height={192} />
@@ -47,11 +49,11 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.card}>
               <Heading3 center style={styles.cardTitle}>
-                The Mamalearn Approach
+                The Kinderwell Approach
               </Heading3>
 
               <BodyText style={styles.cardText}>
-                Mamalearn takes the best of all parenting styles and with{' '}
+                Kinderwell takes the best of all parenting styles and with{' '}
                 <BodyText style={styles.bold}>80+ experts</BodyText> onboard, our daily lessons have been
                 developed to help you be the best version of your parent self.
               </BodyText>
@@ -79,7 +81,10 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
           </Animated.View>
         </ScrollView>
 
-        <Button title="Continue" onPress={handleContinue} variant="gradient" />
+        {/* Fixed Button at Bottom */}
+        <View style={[styles.fixedButtonContainer, { paddingBottom: insets.bottom || 20 }]}>
+          <Button title="Continue" onPress={handleContinue} variant="gradient" />
+        </View>
       </View>
     </OnboardingContainer>
   );
@@ -88,11 +93,22 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'space-between',
     paddingVertical: Spacing['2xl'],
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Add padding to prevent content from being hidden behind button
+  },
+  fixedButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.background,
+    paddingHorizontal: Spacing['2xl'],
+    paddingTop: 16,
   },
   content: {
     flex: 1,

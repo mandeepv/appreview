@@ -16,7 +16,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         if (prev >= 100) {
           clearInterval(interval);
           setTimeout(() => {
-            navigation.replace('ProgramReady');
+            navigation.replace('LessonPreview');
           }, 500);
           return 100;
         }

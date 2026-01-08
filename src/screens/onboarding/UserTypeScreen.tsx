@@ -23,7 +23,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
-      title="Welcome to Mamalearn"
+      title="Welcome to Kinderwell"
       subtitle="Who are you parenting as?"
       currentStep={1}
       showBackButton={false}
