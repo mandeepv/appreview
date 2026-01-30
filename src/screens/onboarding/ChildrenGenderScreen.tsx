@@ -6,6 +6,7 @@ import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildGender } from '../../types/onboarding';
+import { Colors } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ChildrenGender'>;
 
@@ -24,6 +25,7 @@ export const ChildrenGenderScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
+      screenName="ChildrenGender"
       title="What are the genders of your children?"
       subtitle="Select for each child"
       currentStep={4}
@@ -86,7 +88,7 @@ const styles = StyleSheet.create({
   childLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   optionsRow: {
@@ -103,12 +105,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   genderButtonSelected: {
-    backgroundColor: '#EC4899',
-    borderColor: '#EC4899',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   genderButtonUnselected: {
-    backgroundColor: 'white',
-    borderColor: '#E5E7EB',
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
   },
   genderIcon: {
     fontSize: 24,
@@ -119,10 +121,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   genderLabelSelected: {
-    color: 'white',
+    color: Colors.surface,
   },
   genderLabelUnselected: {
-    color: '#1F2937',
+    color: Colors.textPrimary,
   },
   preferNotToSay: {
     paddingVertical: 8,
@@ -130,10 +132,10 @@ const styles = StyleSheet.create({
   preferNotToSayText: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#6B7280',
+    color: Colors.textTertiary,
   },
   preferNotToSayTextSelected: {
-    color: '#EC4899',
+    color: Colors.primary,
   },
   buttonContainer: {
     paddingVertical: 16,

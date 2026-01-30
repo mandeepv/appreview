@@ -7,6 +7,7 @@ interface FormInputProps extends TextInputProps {
   error?: string;
   success?: boolean;
   characterLimit?: number;
+  showCharacterCount?: boolean;
 }
 
 export const FormInput: React.FC<FormInputProps> = ({
@@ -14,6 +15,7 @@ export const FormInput: React.FC<FormInputProps> = ({
   error,
   success = false,
   characterLimit,
+  showCharacterCount = true,
   value,
   style,
   ...props
@@ -27,7 +29,7 @@ export const FormInput: React.FC<FormInputProps> = ({
     return Colors.border;
   };
 
-  const showCharacterCount = characterLimit && value;
+  const shouldShowCount = showCharacterCount && characterLimit && value;
   const remainingChars = characterLimit && value ? characterLimit - value.length : 0;
 
   return (
@@ -58,7 +60,7 @@ export const FormInput: React.FC<FormInputProps> = ({
         {error && (
           <Text style={styles.errorText}>{error}</Text>
         )}
-        {showCharacterCount && !error && (
+        {shouldShowCount && !error && (
           <Text style={[
             styles.characterCount,
             remainingChars < 10 && styles.characterCountLow

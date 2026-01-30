@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Button } from '../components/Button';
+import { Colors, Typography, Spacing, Shadows } from '../constants/theme';
 
 interface PremiumUnlockedScreenProps {
   navigation: any;
@@ -9,9 +10,26 @@ interface PremiumUnlockedScreenProps {
 
 export default function PremiumUnlockedScreen({ navigation }: PremiumUnlockedScreenProps) {
   const confettiRef = useRef<any>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
-    // Trigger confetti animation on mount
+    // Gentle fade-in and scale animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Trigger subtle confetti animation
     if (confettiRef.current) {
       confettiRef.current.start();
     }
@@ -25,27 +43,36 @@ export default function PremiumUnlockedScreen({ navigation }: PremiumUnlockedScr
     <View style={styles.container}>
       <ConfettiCannon
         ref={confettiRef}
-        count={200}
+        count={80}
         origin={{ x: -10, y: 0 }}
         autoStart={false}
         fadeOut={true}
+        colors={[Colors.primary, Colors.primaryLight, Colors.success, Colors.accent]}
       />
 
-      <View style={styles.content}>
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
         <View style={styles.iconContainer}>
           <Text style={styles.checkmark}>✓</Text>
         </View>
 
-        <Text style={styles.title}>You're all set!</Text>
-        <Text style={styles.subtitle}>Premium unlocked</Text>
+        <Text style={styles.title}>You're All Set!</Text>
+        <Text style={styles.subtitle}>Your journey begins now</Text>
 
         <Text style={styles.description}>
-          This is your first step to be a better parent.
+          You're taking an important step toward becoming the parent you want to be.
         </Text>
-      </View>
+      </Animated.View>
 
       <View style={styles.buttonContainer}>
-        <Button onPress={handleStartLearning} title="START LEARNING" />
+        <Button onPress={handleStartLearning} title="Start Learning" variant="gradient" />
       </View>
     </View>
   );
@@ -54,50 +81,54 @@ export default function PremiumUnlockedScreen({ navigation }: PremiumUnlockedScr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: Spacing['4xl'],
   },
   iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#E94B8F',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Spacing['5xl'],
+    ...Shadows.primary,
   },
   checkmark: {
-    fontSize: 50,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontSize: 56,
+    color: Colors.surface,
+    fontWeight: Typography.weights.bold,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 8,
+    fontSize: Typography.sizes['4xl'],
+    fontWeight: Typography.weights.bold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#E94B8F',
-    marginBottom: 24,
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.primary,
+    marginBottom: Spacing['3xl'],
     textAlign: 'center',
   },
   description: {
-    fontSize: 18,
-    color: '#666666',
+    fontSize: Typography.sizes.lg,
+    color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: Typography.sizes.lg * Typography.lineHeights.relaxed,
+    paddingHorizontal: Spacing.md,
+    fontWeight: Typography.weights.medium,
   },
   buttonContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingHorizontal: Spacing['2xl'],
+    paddingBottom: Spacing['5xl'],
   },
 });

@@ -1,16 +1,23 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { UserType } from '../../types/onboarding';
+import { Colors } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'UserType'>;
 
 const { width } = Dimensions.get('window');
 const cardSize = (width - 48) * 0.48;
+
+const Illustrations = {
+  mother: require('../../../assets/onboarding/mother_illustration.png'),
+  father: require('../../../assets/onboarding/father_illustration.png'),
+  guardian: require('../../../assets/onboarding/guardian_illustration.png'),
+};
 
 export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
   const { userType, updateUserType } = useOnboardingStore();
@@ -29,6 +36,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
       showBackButton={false}
       scrollable={false}
       centerTitle={true}
+      screenName="UserType"
     >
       <View style={styles.container}>
         <View>
@@ -48,7 +56,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
               )}
               <View style={styles.iconCircle}>
-                <Text style={styles.iconEmoji}>👩‍👧</Text>
+                <Image source={Illustrations.mother} style={styles.illustrationSquare} resizeMode="contain" />
               </View>
               <Text style={styles.squareCardLabel}>Mother</Text>
             </TouchableOpacity>
@@ -67,7 +75,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
               )}
               <View style={styles.iconCircle}>
-                <Text style={styles.iconEmoji}>👨‍👧</Text>
+                <Image source={Illustrations.father} style={styles.illustrationSquare} resizeMode="contain" />
               </View>
               <Text style={styles.squareCardLabel}>Father</Text>
             </TouchableOpacity>
@@ -88,7 +96,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             )}
             <View style={styles.iconCircleSmall}>
-              <Text style={styles.iconEmojiSmall}>👤</Text>
+              <Image source={Illustrations.guardian} style={styles.illustrationHorizontal} resizeMode="contain" />
             </View>
             <View style={styles.horizontalCardText}>
               <Text style={styles.horizontalCardTitle}>Other / Guardian</Text>
@@ -105,7 +113,6 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
             onPress={handleContinue}
             disabled={!userType}
           />
-          <Text style={styles.microcopy}>You can change this later</Text>
         </View>
       </View>
     </OnboardingContainer>
@@ -126,10 +133,10 @@ const styles = StyleSheet.create({
   squareCard: {
     width: '48%',
     aspectRatio: 1,
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderRadius: 20,
     borderWidth: 3,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -143,9 +150,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   squareCardSelected: {
-    borderColor: '#EC4899',
-    backgroundColor: '#FDF2F8',
-    shadowColor: '#EC4899',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryBg,
+    shadowColor: Colors.primary,
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
@@ -154,7 +161,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.backgroundGray,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -162,19 +169,24 @@ const styles = StyleSheet.create({
   iconEmoji: {
     fontSize: 48,
   },
+  illustrationSquare: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
   squareCardLabel: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
   },
   horizontalCard: {
     height: cardSize,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderRadius: 20,
     borderWidth: 3,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
     padding: 20,
     shadowColor: '#000',
     shadowOffset: {
@@ -187,18 +199,18 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   horizontalCardSelected: {
-    borderColor: '#EC4899',
-    backgroundColor: '#FDF2F8',
-    shadowColor: '#EC4899',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryBg,
+    shadowColor: Colors.primary,
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   iconCircleSmall: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#F9FAFB',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.backgroundGray,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -206,18 +218,23 @@ const styles = StyleSheet.create({
   iconEmojiSmall: {
     fontSize: 28,
   },
+  illustrationHorizontal: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
   horizontalCardText: {
     flex: 1,
   },
   horizontalCardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   horizontalCardSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
   checkmark: {
@@ -227,11 +244,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#EC4899',
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
-    shadowColor: '#EC4899',
+    shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -241,13 +258,13 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   checkmarkText: {
-    color: 'white',
+    color: Colors.surface,
     fontSize: 14,
     fontWeight: 'bold',
   },
   microcopy: {
     textAlign: 'center',
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     fontSize: 13,
     marginTop: 12,
   },

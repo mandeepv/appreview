@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { TouchableOpacity, Text, View, StyleSheet, ViewStyle, Animated } from 'react-native';
+import { TouchableOpacity, Text, View, StyleSheet, ViewStyle, Animated, Image, ImageSourcePropType } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, BorderRadius, Shadows, Typography, Animation } from '../constants/theme';
 
@@ -10,6 +10,7 @@ interface SelectableCardProps {
   onPress: () => void;
   variant?: 'default' | 'small' | 'text-only';
   icon?: string;
+  imageSource?: ImageSourcePropType;
   style?: ViewStyle;
   hapticFeedback?: boolean;
 }
@@ -21,6 +22,7 @@ export const SelectableCard: React.FC<SelectableCardProps> = ({
   onPress,
   variant = 'default',
   icon,
+  imageSource,
   style,
   hapticFeedback = true,
 }) => {
@@ -94,11 +96,15 @@ export const SelectableCard: React.FC<SelectableCardProps> = ({
         activeOpacity={0.9}
       >
         <View style={styles.content}>
-          {icon && (
+          {imageSource ? (
+            <View style={[styles.imageContainer, selected && styles.imageContainerSelected]}>
+              <Image source={imageSource} style={styles.cardImage} resizeMode="contain" />
+            </View>
+          ) : icon ? (
             <View style={[styles.iconContainer, selected && styles.iconContainerSelected]}>
               <Text style={styles.icon}>{icon}</Text>
             </View>
-          )}
+          ) : null}
           <View style={styles.textContainer}>
             <Text style={[
               styles.title,
@@ -141,7 +147,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: Spacing.lg,
     borderWidth: 2.5,
-    ...Shadows.lg,
   },
   cardDefault: {
     paddingVertical: 22,
@@ -154,7 +159,6 @@ const styles = StyleSheet.create({
   cardSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryBg,
-    ...Shadows.primary,
   },
   cardUnselected: {
     borderColor: Colors.border,
@@ -182,6 +186,23 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 2,
     borderColor: Colors.primary,
+  },
+  imageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30, // Circle
+    backgroundColor: Colors.backgroundGray, // Or transparent if the image has bg
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.lg,
+    overflow: 'hidden',
+  },
+  imageContainerSelected: {
+    backgroundColor: Colors.surface,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
   },
   icon: {
     fontSize: 26,
@@ -217,7 +238,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Spacing.md,
-    ...Shadows.md,
   },
   checkmarkText: {
     color: Colors.surface,

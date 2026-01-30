@@ -1,14 +1,12 @@
 import React, { useRef, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Animated } from 'react-native';
+import { View, ScrollView, StyleSheet, Animated, Text, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
-import { EducationIllustration } from '../../components/illustrations';
-import { Heading3, BodyText } from '../../components/Typography';
-import { IconCircle } from '../../components/IconCircle';
-import { Colors, Spacing, BorderRadius, Animation } from '../../constants/theme';
+import { Heading3, Heading2, BodyText } from '../../components/Typography';
+import { Colors, Spacing, BorderRadius, Animation, Typography } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Educational'>;
 
@@ -25,65 +23,85 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
   }, []);
 
   const handleContinue = () => {
-    navigation.navigate('ParentingReality');
+    navigation.navigate('PartnerInvolvement');
   };
 
   const features = [
-    { icon: '📖', text: 'Evidence-based lessons from 80+ parenting experts' },
-    { icon: '⏱️', text: 'As little as 5 minutes a day to become a better parent' },
-    { icon: '🎯', text: 'Personalized to your family\'s unique needs' },
+    {
+      image: require('../../../assets/onboarding/expert_backed_illo.jpg'),
+      title: 'Expert-backed lessons',
+      text: 'Learn from 50+ child psychologists and parenting specialists'
+    },
+    {
+      image: require('../../../assets/onboarding/quick_effective_illo.jpg'),
+      title: 'Quick & effective',
+      text: 'Just 5-10 minutes a day to see real progress'
+    },
+    {
+      image: require('../../../assets/onboarding/personalized_illo.jpg'),
+      title: 'Personalized for you',
+      text: 'Tailored to your child\'s age and your parenting goals'
+    },
   ];
 
   return (
     <OnboardingContainer
+      screenName="Educational"
       currentStep={8}
       onBack={() => navigation.goBack()}
       scrollable={false}
     >
       <View style={styles.container}>
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <Animated.View style={{ opacity: fadeAnim }}>
+            {/* Illustration Space */}
             <View style={styles.illustrationContainer}>
-              <EducationIllustration width={192} height={192} />
+              <View style={styles.illustrationPlaceholder}>
+                <Image
+                  source={require('../../../assets/onboarding/kinderwell_approach_illo.jpg')}
+                  style={styles.mainIllustration}
+                  resizeMode="cover"
+                />
+              </View>
             </View>
 
-            <View style={styles.card}>
-              <Heading3 center style={styles.cardTitle}>
-                The Kinderwell Approach
-              </Heading3>
+            {/* Main Heading */}
+            <Heading2 center style={styles.mainTitle}>
+              The Kinderwell Approach
+            </Heading2>
 
-              <BodyText style={styles.cardText}>
-                Kinderwell takes the best of all parenting styles and with{' '}
-                <BodyText style={styles.bold}>80+ experts</BodyText> onboard, our daily lessons have been
-                developed to help you be the best version of your parent self.
-              </BodyText>
+            <BodyText center style={styles.subtitle}>
+              Science-backed parenting wisdom, made simple and actionable for your everyday life.
+            </BodyText>
 
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <IconCircle icon="✨" size="sm" backgroundColor={Colors.primary} iconColor={Colors.surface} style={styles.dividerIcon} />
-                <View style={styles.dividerLine} />
-              </View>
-
-              <View style={styles.features}>
-                {features.map((feature, index) => (
-                  <View key={index} style={styles.featureRow}>
-                    <IconCircle
-                      icon={feature.icon}
-                      size="sm"
-                      backgroundColor={Colors.surface}
-                      iconSize={20}
+            {/* Feature Cards */}
+            <View style={styles.featuresContainer}>
+              {features.map((feature, index) => (
+                <View key={index} style={styles.featureCard}>
+                  <View style={styles.featureIcon}>
+                    <Image
+                      source={feature.image}
+                      style={styles.featureImage}
+                      resizeMode="cover"
                     />
-                    <BodyText style={styles.featureText}>{feature.text}</BodyText>
                   </View>
-                ))}
-              </View>
+                  <View style={styles.featureContent}>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureText}>{feature.text}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
           </Animated.View>
         </ScrollView>
 
         {/* Fixed Button at Bottom */}
-        <View style={[styles.fixedButtonContainer, { paddingBottom: insets.bottom || 20 }]}>
-          <Button title="Continue" onPress={handleContinue} variant="gradient" />
+        <View style={[styles.buttonContainer, { paddingBottom: insets.bottom || 20 }]}>
+          <Button title="Continue" onPress={handleContinue} />
         </View>
       </View>
     </OnboardingContainer>
@@ -93,70 +111,85 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingVertical: Spacing['2xl'],
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100, // Add padding to prevent content from being hidden behind button
-  },
-  fixedButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.background,
-    paddingHorizontal: Spacing['2xl'],
-    paddingTop: 16,
-  },
-  content: {
-    flex: 1,
+    paddingTop: Spacing.sm,
+    paddingBottom: 10,
   },
   illustrationContainer: {
-    width: '100%',
     alignItems: 'center',
-    marginBottom: Spacing['3xl'],
-  },
-  card: {
-    backgroundColor: Colors.primaryBg,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing['2xl'],
     marginBottom: Spacing['2xl'],
   },
-  cardTitle: {
-    marginBottom: Spacing.lg,
-  },
-  cardText: {
-    marginBottom: Spacing.lg,
-  },
-  bold: {
-    fontWeight: 'bold',
-  },
-  divider: {
-    flexDirection: 'row',
+  illustrationPlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    // backgroundColor: Colors.primaryBg, // Removed bg color as image has it
     alignItems: 'center',
-    marginVertical: Spacing.lg,
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  dividerLine: {
-    flex: 1,
-    height: 3,
-    backgroundColor: Colors.primaryAccent,
-    borderRadius: BorderRadius.full,
+  mainIllustration: {
+    width: '100%',
+    height: '100%',
   },
-  dividerIcon: {
-    marginHorizontal: Spacing.md,
+  mainTitle: {
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
-  features: {
-    marginTop: Spacing['2xl'],
+  subtitle: {
+    color: Colors.textSecondary,
+    marginBottom: Spacing['2xl'],
+    paddingHorizontal: Spacing.xl,
+    lineHeight: 24,
+  },
+  featuresContainer: {
     gap: Spacing.lg,
+    paddingHorizontal: Spacing.md,
   },
-  featureRow: {
+  featureCard: {
     flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center', // Changed from flex-start to center vertically
+  },
+  featureIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    // backgroundColor: Colors.primaryBg, // Removed bg color
     alignItems: 'center',
-    gap: Spacing.md,
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+    overflow: 'hidden',
+  },
+  featureImage: {
+    width: '100%',
+    height: '100%',
+  },
+  featureContent: {
+    flex: 1,
+    paddingTop: 4,
+  },
+  featureTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
+    color: Colors.textPrimary,
+    marginBottom: 4,
   },
   featureText: {
-    flex: 1,
+    fontSize: Typography.sizes.sm,
+    lineHeight: 20,
+    color: Colors.textSecondary,
+  },
+  buttonContainer: {
+    paddingHorizontal: Spacing['2xl'],
+    paddingTop: Spacing.md,
   },
 });

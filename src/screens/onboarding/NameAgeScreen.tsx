@@ -41,6 +41,7 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
 
     return (
         <OnboardingContainer
+            screenName="NameAge"
             title="Let's personalize this for you"
             subtitle="So examples feel relevant to your life"
             currentStep={2}
@@ -59,6 +60,7 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
                         autoFocus
                         returnKeyType="done"
                         characterLimit={50}
+                        showCharacterCount={false}
                         success={hasName}
                     />
 

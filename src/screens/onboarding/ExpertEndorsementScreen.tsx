@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, ScrollView, Image, ImageSourcePropType } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
@@ -10,12 +10,48 @@ import { Colors, Spacing, BorderRadius, Typography, Animation as AnimationConfig
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ExpertEndorsement'>;
 
-const EXPERTS = [
-    { name: 'Dr. Cynthia DeTata', role: 'OB-GYN', initials: 'CD' },
-    { name: 'Kathryn Macapagal', role: 'Child Psychologist', initials: 'KM' },
-    { name: 'Dr. Tiffanny Jones', role: 'Pediatric Endocrinologist', initials: 'TJ' },
-    { name: 'Lauren Talbert', role: 'Clinical Dietitian', initials: 'LT' },
-    { name: 'Dr. Sara Twogood', role: 'Sleep Specialist', initials: 'ST' },
+interface ExpertProfiles {
+    name: string;
+    role: string;
+    initials: string;
+    image?: ImageSourcePropType;
+}
+
+const EXPERTS: ExpertProfiles[] = [
+    {
+        name: 'Dr. Michael Chen, PhD',
+        role: 'Child Development Specialist',
+        initials: 'MC',
+        image: require('../../../assets/experts/Michael.png'),
+    },
+    {
+        name: 'Dr. Emily Watson, PsyD',
+        role: 'Clinical Psychologist',
+        initials: 'EW',
+        image: require('../../../assets/experts/Emily.jpg'),
+    },
+    {
+        name: 'Dr. James Morrison, MD',
+        role: 'Child Psychiatrist',
+        initials: 'JM',
+        image: require('../../../assets/experts/James.jpg'),
+    },
+    {
+        name: 'Sarah Rodriguez, LCSW',
+        role: 'Family Therapist',
+        initials: 'SR',
+        image: require('../../../assets/experts/Sarah.jpg'),
+    },
+    {
+        name: 'Dr. David Kumar, PhD',
+        role: 'Behavioral Researcher',
+        initials: 'DK',
+    },
+    {
+        name: 'Dr. Lisa Chang, MD',
+        role: 'Pediatrician',
+        initials: 'LC',
+    },
 ];
 
 export const ExpertEndorsementScreen: React.FC<Props> = ({ navigation }) => {
@@ -39,92 +75,146 @@ export const ExpertEndorsementScreen: React.FC<Props> = ({ navigation }) => {
             onBack={() => navigation.goBack()}
             centerTitle={true}
             title=""
+            scrollable={false}
         >
-            <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-                <View style={styles.cardContainer}>
-                    <Label style={styles.headerTitle}>80+ doctors and experts</Label>
-
-                    <View style={styles.expertsList}>
-                        {EXPERTS.map((expert, index) => (
-                            <View key={index} style={styles.expertRow}>
-                                <View style={styles.avatar}>
-                                    <Text style={styles.avatarText}>{expert.initials}</Text>
-                                </View>
-                                <View style={styles.expertInfo}>
-                                    <Text style={styles.expertName}>{expert.name}</Text>
-                                    <Text style={styles.expertRole}>{expert.role}</Text>
+            <View style={styles.wrapper}>
+                <ScrollView
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <Animated.View style={{ opacity: fadeAnim }}>
+                        <View style={styles.cardContainer}>
+                            <View style={styles.headerRow}>
+                                <View style={styles.verifiedBadge}>
+                                    <View style={styles.verifiedDot} />
+                                    <Label style={styles.headerTitle}>Our Expert Council</Label>
                                 </View>
                             </View>
-                        ))}
-                    </View>
 
-                    <LinearGradient
-                        colors={['rgba(249, 250, 251, 0)', Colors.background]}
-                        style={styles.fadeOverlay}
-                        pointerEvents="none"
+                            <View style={styles.expertsList}>
+                                {EXPERTS.map((expert, index) => (
+                                    <View key={index} style={styles.expertRow}>
+                                        <View style={styles.avatar}>
+                                            {expert.image ? (
+                                                <Image source={expert.image} style={styles.avatarImage} />
+                                            ) : (
+                                                <Text style={styles.avatarText}>{expert.initials}</Text>
+                                            )}
+                                        </View>
+                                        <View style={styles.expertInfo}>
+                                            <Text style={styles.expertName}>{expert.name}</Text>
+                                            <View style={styles.roleContainer}>
+                                                <Text style={styles.expertRole}>{expert.role}</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 0)', Colors.background]}
+                                style={styles.fadeOverlay}
+                                pointerEvents="none"
+                            />
+                        </View>
+
+                        <View style={styles.contentContainer}>
+                            <Heading2 center>Backed by science, designed for real life</Heading2>
+                            <BodyText center style={styles.body}>
+                                We've partnered with 50+ child psychologists and behavioral experts to turn complex research into simple, actionable advice.
+                            </BodyText>
+                        </View>
+                    </Animated.View>
+                </ScrollView>
+
+                <View style={styles.buttonContainer}>
+                    <Button
+                        title="Continue"
+                        onPress={handleContinue}
+                        variant="gradient"
                     />
                 </View>
-
-                <View style={styles.contentContainer}>
-                    <Heading2 center>You're in good hands</Heading2>
-                    <Label center style={styles.credibilityAnchor}>
-                        Built with guidance from pediatricians, child psychologists, and parenting researchers.
-                    </Label>
-                    <BodyText center style={styles.body}>
-                        Kinderwell blends insights from 80+ child psychologists, pediatricians, and parenting experts — turning complex research into simple, practical lessons you can actually use.
-                    </BodyText>
-                </View>
-
-                <Button
-                    title="Sounds good →"
-                    onPress={handleContinue}
-                    variant="gradient"
-                    style={styles.button}
-                />
-            </Animated.View>
+            </View>
         </OnboardingContainer>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    wrapper: {
         flex: 1,
-        paddingTop: 0,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingBottom: Spacing.md,
     },
     cardContainer: {
-        backgroundColor: Colors.background,
+        backgroundColor: Colors.surface, // Changed to surface for better contrast if background is different
         borderRadius: BorderRadius['2xl'],
-        padding: Spacing.xl,
-        marginBottom: Spacing['2xl'],
+        padding: Spacing.lg,
+        paddingBottom: 0, // Let overlay handle the bottom fade visual
+        marginBottom: Spacing.xl,
         position: 'relative',
+        height: 320, // Fixed height to ensure fade effect is useful and content scrolls visually
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: Colors.borderLight,
+    },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginBottom: Spacing.lg,
+    },
+    verifiedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.primaryLight + '20', // 20% opacity
+        paddingVertical: 4,
+        paddingHorizontal: 12,
+        borderRadius: BorderRadius.full,
+    },
+    verifiedDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: Colors.primary,
+        marginRight: 8,
     },
     headerTitle: {
         color: Colors.primary,
-        textAlign: 'center',
-        marginBottom: Spacing.xl,
-        marginTop: Spacing.sm,
+        fontSize: Typography.sizes.sm,
+        fontWeight: Typography.weights.bold,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     expertsList: {
-        gap: Spacing.lg,
+        gap: Spacing.xl,
+        paddingBottom: 80, // Space for fade
     },
     expertRow: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     avatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: Colors.borderLight,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: Colors.primaryBg,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: Spacing.md,
+        marginRight: Spacing.lg,
+    },
+    avatarImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 22,
     },
     avatarText: {
-        fontSize: Typography.sizes.base,
-        fontWeight: Typography.weights.semibold,
-        color: Colors.textMuted,
+        fontSize: Typography.sizes.sm,
+        fontWeight: Typography.weights.bold,
+        color: Colors.primary,
     },
     expertInfo: {
         flex: 1,
@@ -133,37 +223,46 @@ const styles = StyleSheet.create({
         fontSize: Typography.sizes.base,
         fontWeight: Typography.weights.semibold,
         color: Colors.textPrimary,
+        marginBottom: 2,
+    },
+    roleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
     },
     expertRole: {
-        fontSize: Typography.sizes.sm,
+        fontSize: Typography.sizes.xs,
         color: Colors.textMuted,
-        marginTop: 2,
+        fontWeight: Typography.weights.medium,
+    },
+    dotSeparator: {
+        fontSize: Typography.sizes.xs,
+        color: Colors.textLight,
+        marginHorizontal: 4,
+    },
+    affiliation: {
+        fontSize: Typography.sizes.xs,
+        color: Colors.textLight,
     },
     fadeOverlay: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        height: 100,
+        height: 120,
     },
     contentContainer: {
         alignItems: 'center',
-        paddingHorizontal: Spacing.lg,
-        marginBottom: Spacing['2xl'],
-        gap: Spacing.lg,
+        paddingHorizontal: Spacing.md,
+        marginBottom: Spacing.lg,
+        gap: Spacing.md,
     },
     body: {
-        marginTop: Spacing.sm,
+        lineHeight: 24,
+        color: Colors.textSecondary,
     },
-    credibilityAnchor: {
-        color: Colors.textMuted,
-        textAlign: 'center',
-        fontSize: Typography.sizes.sm,
-        marginTop: -Spacing.xs,
-        marginBottom: Spacing.xs,
-        paddingHorizontal: Spacing.md,
-    },
-    button: {
-        marginTop: 'auto',
+    buttonContainer: {
+        paddingTop: Spacing.md,
+        paddingBottom: Spacing.xl,
     },
 });

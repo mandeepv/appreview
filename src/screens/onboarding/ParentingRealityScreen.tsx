@@ -1,90 +1,151 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
+import { Colors, Spacing, Typography } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ParentingReality'>;
 
 export const ParentingRealityScreen: React.FC<Props> = ({ navigation }) => {
+    const insets = useSafeAreaInsets();
+
     const handleContinue = () => {
         navigation.navigate('NotificationPermission');
     };
 
     return (
         <OnboardingContainer
+            screenName="ParentingReality"
             currentStep={9}
             onBack={() => navigation.goBack()}
             centerTitle={true}
             title=""
+            scrollable={false}
         >
-            <View style={styles.container}>
-                <View style={styles.contentContainer}>
-                    {/* Optional: Add an icon or illustration here if consistent with other screens, 
-              but user didn't specify one. A heart or supportive icon might be nice. */}
-                    <Text style={styles.icon}>❤️</Text>
+            <View style={styles.wrapper}>
+                <ScrollView
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.contentContainer}>
+                        {/* Icon */}
+                        <View style={styles.iconContainer}>
+                            <Text style={styles.icon}>💙</Text>
+                        </View>
 
-                    <Text style={styles.headline}>Parenting is hard — and that’s normal</Text>
+                        {/* Headline */}
+                        <Text style={styles.headline}>
+                            Parenting is hard —{'\n'}and that's normal
+                        </Text>
 
-                    <Text style={styles.body}>
-                        Feeling overwhelmed, confused, or unsure doesn’t mean you’re failing.
-                        {'\n'}
-                        It means you care.
-                    </Text>
+                        {/* Message Card */}
+                        <View style={styles.messageCard}>
+                            <Text style={styles.messageText}>
+                                Feeling overwhelmed, confused, or unsure doesn't mean you're failing.
+                            </Text>
+                            <Text style={styles.emphasisText}>
+                                It means you care.
+                            </Text>
+                        </View>
 
-                    <Text style={styles.bodyBold}>
-                        Many parents feel this way — especially when trying to do better.
-                    </Text>
+                        {/* Reassurance */}
+                        <View style={styles.reassuranceCard}>
+                            <Text style={styles.reassuranceText}>
+                                You're not alone. Many parents feel this way — especially when trying to do better.
+                            </Text>
+                        </View>
+                    </View>
+                </ScrollView>
+
+                <View style={[styles.buttonContainer, { paddingBottom: insets.bottom || 20 }]}>
+                    <Button
+                        title="Continue"
+                        onPress={handleContinue}
+                    />
                 </View>
-
-                <Button
-                    title="Continue →"
-                    onPress={handleContinue}
-                    style={styles.button}
-                />
             </View>
         </OnboardingContainer>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    wrapper: {
         flex: 1,
-        paddingTop: 40,
-        justifyContent: 'space-between',
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingTop: Spacing['3xl'],
+        paddingBottom: 100,
     },
     contentContainer: {
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingHorizontal: Spacing.xl,
+    },
+    iconContainer: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        backgroundColor: Colors.primaryBg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: Spacing['2xl'],
     },
     icon: {
-        fontSize: 48,
-        marginBottom: 24,
+        fontSize: 52,
     },
     headline: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#111827',
+        fontSize: 30,
+        fontWeight: Typography.weights.bold,
+        color: Colors.textPrimary,
         textAlign: 'center',
-        marginBottom: 32,
-        lineHeight: 36,
+        marginBottom: Spacing['2xl'],
+        lineHeight: 38,
+        letterSpacing: -0.5,
     },
-    body: {
+    messageCard: {
+        backgroundColor: Colors.surface,
+        borderRadius: 20,
+        padding: Spacing['2xl'],
+        marginBottom: Spacing.xl,
+        borderWidth: 2,
+        borderColor: Colors.border,
+    },
+    messageText: {
+        fontSize: 17,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 26,
+        marginBottom: Spacing.md,
+    },
+    emphasisText: {
         fontSize: 18,
-        color: '#4B5563',
+        color: Colors.primary,
         textAlign: 'center',
-        lineHeight: 28,
-        marginBottom: 24,
+        fontWeight: Typography.weights.bold,
+        lineHeight: 26,
     },
-    bodyBold: {
-        fontSize: 18,
-        color: '#111827',
+    reassuranceCard: {
+        backgroundColor: Colors.primaryBg,
+        borderRadius: 16,
+        padding: Spacing.lg,
+        paddingHorizontal: Spacing.xl,
+    },
+    reassuranceText: {
+        fontSize: 16,
+        color: Colors.textPrimary,
         textAlign: 'center',
-        lineHeight: 28,
-        fontWeight: '600',
+        lineHeight: 24,
+        fontWeight: Typography.weights.semibold,
     },
-    button: {
-        marginTop: 'auto',
+    buttonContainer: {
+        paddingHorizontal: Spacing['2xl'],
+        paddingTop: Spacing.md,
     },
 });

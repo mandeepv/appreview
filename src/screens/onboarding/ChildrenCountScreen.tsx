@@ -6,6 +6,7 @@ import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildAgeRange, ChildGender } from '../../types/onboarding';
+import { Colors } from '../../constants/theme';
 
 if (Platform.OS === 'android') {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -20,7 +21,8 @@ const AGE_RANGES: { label: string; value: ChildAgeRange }[] = [
   { label: '2–4', value: '2-4' },
   { label: '5–7', value: '5-7' },
   { label: '8–12', value: '8-12' },
-  { label: 'Teen', value: 'teen' },
+  { label: '13–17', value: '13-17' },
+  { label: '18+', value: '18+' },
 ];
 
 const GENDER_OPTIONS: { label: string; value: ChildGender }[] = [
@@ -71,10 +73,15 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
 
   const toggleAge = (age: ChildAgeRange) => {
     const newAges = new Set(selectedAges);
+    const currentCount = childrenCount || 0;
+
     if (newAges.has(age)) {
       newAges.delete(age);
     } else {
-      newAges.add(age);
+      // Only allow selection if we haven't reached the limit
+      if (newAges.size < currentCount) {
+        newAges.add(age);
+      }
     }
     setSelectedAges(newAges);
   };
@@ -104,7 +111,8 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
-      title="Let’s personalize this for your child(ren)"
+      screenName="ChildrenCount"
+      title="Let's personalize this for your child(ren)"
       currentStep={3}
       onBack={() => navigation.goBack()}
       centerTitle={true}
@@ -134,11 +142,6 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
                   <Text style={styles.buttonTextPlus}>+</Text>
                 </TouchableOpacity>
               </View>
-              {childrenCount === 0 && (
-                <TouchableOpacity onPress={incrementCount} style={styles.expectingContainer}>
-                  <Text style={styles.expectingText}>Expecting or caregiving for a child?</Text>
-                </TouchableOpacity>
-              )}
             </View>
           </View>
 
@@ -168,7 +171,7 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
               </View>
 
               {/* Personalization Trigger */}
-              <View style={styles.divider} />
+              {/* <View style={styles.divider} />
               <TouchableOpacity
                 style={styles.expandButton}
                 onPress={togglePersonalization}
@@ -176,7 +179,7 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
               >
                 <Text style={styles.expandText}>Additional info (Optional)</Text>
                 <Text style={styles.expandIcon}>{showPersonalization ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               {/* Gender Section - Optional Expand */}
               {showPersonalization && (
@@ -211,10 +214,6 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
               )}
             </View>
           )}
-
-          <Text style={styles.microcopy}>
-            You can always update this later.
-          </Text>
         </View>
 
         <Button
@@ -241,7 +240,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.backgroundGray,
     marginVertical: 16,
   },
   ageGrid: {
@@ -254,22 +253,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 100,
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
     marginBottom: 8,
   },
   ageOptionSelected: {
-    borderColor: '#EC4899',
-    backgroundColor: '#FDF2F8',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryBg,
   },
   ageOptionText: {
     fontSize: 16,
-    color: '#374151',
+    color: Colors.textSecondary,
     fontWeight: '500',
   },
   ageOptionTextSelected: {
-    color: '#EC4899',
+    color: Colors.primary,
     fontWeight: '600',
   },
   expandButton: {
@@ -280,24 +279,24 @@ const styles = StyleSheet.create({
   },
   expandText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textTertiary,
     fontWeight: '500',
     marginRight: 6,
   },
   expandIcon: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.textTertiary,
   },
   personalizationSection: {
     marginTop: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.backgroundGray,
     borderRadius: 16,
     padding: 16,
   },
   subLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: Colors.textSecondary,
     marginBottom: 12,
   },
   childRow: {
@@ -308,7 +307,7 @@ const styles = StyleSheet.create({
   },
   childLabel: {
     fontSize: 14,
-    color: '#4B5563',
+    color: Colors.textSecondary,
     fontWeight: '500',
   },
   genderRow: {
@@ -319,28 +318,28 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
   },
   genderButtonWide: {
     paddingHorizontal: 8,
   },
   genderButtonSelected: {
-    borderColor: '#EC4899',
-    backgroundColor: '#FDF2F8',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryBg,
   },
   genderText: {
     fontSize: 13,
-    color: '#4B5563',
+    color: Colors.textSecondary,
   },
   genderTextSelected: {
-    color: '#EC4899',
+    color: Colors.primary,
     fontWeight: '600',
   },
   microcopy: {
     textAlign: 'center',
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     fontSize: 13,
     marginTop: 'auto',
     marginBottom: 8,
@@ -348,7 +347,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -359,7 +358,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderRadius: 100,
     padding: 8,
     width: '100%',
@@ -379,13 +378,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonMinus: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border,
   },
   buttonPlus: {
-    backgroundColor: '#EC4899',
-    shadowColor: '#EC4899',
+    backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -393,13 +392,13 @@ const styles = StyleSheet.create({
   },
   buttonTextMinus: {
     fontSize: 24,
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     fontWeight: '500',
     lineHeight: 28,
   },
   buttonTextPlus: {
     fontSize: 24,
-    color: 'white',
+    color: Colors.surface,
     fontWeight: '500',
     lineHeight: 28,
   },
@@ -411,17 +410,6 @@ const styles = StyleSheet.create({
   displayText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
-  },
-  expectingContainer: {
-    marginTop: 16,
-    paddingVertical: 8,
-  },
-  expectingText: {
-    fontSize: 16,
-    color: '#EC4899',
-    textAlign: 'center',
-    fontWeight: '500',
-    textDecorationLine: 'underline',
+    color: Colors.textPrimary,
   },
 });

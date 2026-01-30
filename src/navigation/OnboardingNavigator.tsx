@@ -4,13 +4,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // Import all screens
 import { DevMenuScreen } from '../screens/DevMenuScreen';
 import { SplashScreen } from '../screens/onboarding/SplashScreen';
+import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
+import { SignInScreen } from '../screens/onboarding/SignInScreen';
 import { UserTypeScreen } from '../screens/onboarding/UserTypeScreen';
 import { NameAgeScreen } from '../screens/onboarding/NameAgeScreen';
 import { ChildrenCountScreen } from '../screens/onboarding/ChildrenCountScreen';
 import { ChildrenGenderScreen } from '../screens/onboarding/ChildrenGenderScreen';
 import { ChildrenAgeScreen } from '../screens/onboarding/ChildrenAgeScreen';
 import { ImprovementGoalsScreen } from '../screens/onboarding/ImprovementGoalsScreen';
-import { ExpertEndorsementScreen } from '../screens/onboarding/ExpertEndorsementScreen';
 import { ParentingRealityScreen } from '../screens/onboarding/ParentingRealityScreen';
 import { NotificationPermissionScreen } from '../screens/onboarding/NotificationPermissionScreen';
 import { PartnerInvolvementScreen } from '../screens/onboarding/PartnerInvolvementScreen';
@@ -31,13 +32,14 @@ import { RootNavigator } from './RootNavigator';
 export type OnboardingStackParamList = {
   DevMenu: undefined;
   Splash: undefined;
+  Welcome: undefined;
+  SignIn: undefined;
   UserType: undefined;
   NameAge: undefined;
   ChildrenCount: undefined;
   ChildrenGender: undefined;
   ChildrenAge: undefined;
   ImprovementGoals: undefined;
-  ExpertEndorsement: undefined;
   Educational: undefined;
   ParentingReality: undefined;
   NotificationPermission: undefined;
@@ -65,17 +67,18 @@ export const OnboardingNavigator: React.FC = () => {
         headerShown: false,
         animation: 'slide_from_right',
       }}
-      initialRouteName="DevMenu"
+      initialRouteName="Splash"
     >
-      <Stack.Screen name="DevMenu" component={DevMenuScreen} />
+      {__DEV__ && <Stack.Screen name="DevMenu" component={DevMenuScreen} />}
       <Stack.Screen name="Splash" component={SplashScreen} />
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="SignIn" component={SignInScreen} />
       <Stack.Screen name="UserType" component={UserTypeScreen} />
       <Stack.Screen name="NameAge" component={NameAgeScreen} />
       <Stack.Screen name="ChildrenCount" component={ChildrenCountScreen} />
       <Stack.Screen name="ChildrenGender" component={ChildrenGenderScreen} />
       <Stack.Screen name="ChildrenAge" component={ChildrenAgeScreen} />
       <Stack.Screen name="ImprovementGoals" component={ImprovementGoalsScreen} />
-      <Stack.Screen name="ExpertEndorsement" component={ExpertEndorsementScreen} />
       <Stack.Screen name="Educational" component={EducationalScreen} />
       <Stack.Screen name="ParentingReality" component={ParentingRealityScreen} />
       <Stack.Screen name="NotificationPermission" component={NotificationPermissionScreen} />
@@ -85,7 +88,14 @@ export const OnboardingNavigator: React.FC = () => {
       <Stack.Screen name="ExperienceLevel" component={ExperienceLevelScreen} />
       <Stack.Screen name="ParentingStyles" component={ParentingStylesScreen} />
       <Stack.Screen name="EmotionalChallenges" component={EmotionalChallengesScreen} />
-      <Stack.Screen name="Auth" component={AuthScreen} />
+      <Stack.Screen
+        name="Auth"
+        component={AuthScreen}
+        options={{
+          gestureEnabled: false,
+          headerBackVisible: false,
+        }}
+      />
       <Stack.Screen name="Loading" component={LoadingScreen} />
       <Stack.Screen name="LessonDetails" component={LessonDetailsScreen} />
       <Stack.Screen name="LessonPreview" component={LessonPreviewScreen} />

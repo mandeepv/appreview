@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, ScrollView, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, Text, StyleSheet, ImageSourcePropType, Animated } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
@@ -7,11 +7,26 @@ import { SelectableCard } from '../../components/SelectableCard';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { EmotionalChallenge } from '../../types/onboarding';
+import { Colors } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'EmotionalChallenges'>;
 
 export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
   const { emotionalChallenges, toggleEmotionalChallenge } = useOnboardingStore();
+  const [showScrollHint, setShowScrollHint] = useState(true);
+  const scrollHintOpacity = React.useRef(new Animated.Value(1)).current;
+
+  const handleScroll = (event: any) => {
+    const { contentOffset } = event.nativeEvent;
+    if (contentOffset.y > 20 && showScrollHint) {
+      // User has scrolled, hide the hint
+      Animated.timing(scrollHintOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setShowScrollHint(false));
+    }
+  };
 
   const handleContinue = () => {
     navigation.navigate('Auth');
@@ -21,26 +36,40 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('Auth');
   };
 
-  const challenges: { value: EmotionalChallenge; label: string; icon: string }[] = [
-    { value: 'overwhelmed', label: 'Feeling overwhelmed', icon: '�' },
-    { value: 'anxious', label: 'Feeling anxious', icon: '�' },
-    { value: 'burned-out', label: 'Feeling burned out', icon: '�' },
-    { value: 'emotionally-distant', label: 'Feeling emotionally distant', icon: '�' },
-    { value: 'okay', label: "I’m doing okay right now", icon: '�' },
+  const challenges: { value: EmotionalChallenge; label: string; icon?: string; image?: ImageSourcePropType }[] = [
+    {
+      value: 'overwhelmed',
+      label: 'Feeling overwhelmed',
+      image: require('../../../assets/onboarding/emotional_overwhelmed.png')
+    },
+    {
+      value: 'anxious',
+      label: 'Feeling anxious',
+      image: require('../../../assets/onboarding/emotional_anxious.png')
+    },
+    {
+      value: 'burned-out',
+      label: 'Feeling burned out',
+      image: require('../../../assets/onboarding/emotional_burned_out.png')
+    },
+    {
+      value: 'emotionally-distant',
+      label: 'Feeling emotionally distant',
+      image: require('../../../assets/onboarding/emotional_distant.png')
+    },
+    {
+      value: 'okay',
+      label: "I’m doing okay right now",
+      image: require('../../../assets/onboarding/emotional_okay.png')
+    },
   ];
 
   const handleChallengeToggle = (challenge: EmotionalChallenge) => {
     if (challenge === 'okay') {
-      // If selecting 'okay', clear others (handled by store usually just toggle, so we might need reset? 
-      // Since I cannot change store easily here, I will assume toggleEmotionalChallenge works by strictly toggling.
-      // So to clear others, I need to know what's selected. 
-      // I can iterate and toggle off everything else?
       if (emotionalChallenges.includes('okay')) {
         toggleEmotionalChallenge('okay');
       } else {
-        // Deselect all current
         emotionalChallenges.forEach(c => toggleEmotionalChallenge(c));
-        // Select okay
         toggleEmotionalChallenge('okay');
       }
     } else {
@@ -53,46 +82,100 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
+      screenName="EmotionalChallenges"
       title="How have you been feeling lately?"
       subtitle="This stays private. It helps us support you better."
       currentStep={14}
       onBack={() => navigation.goBack()}
+      centerTitle={true}
+      scrollable={false}
     >
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        <View style={styles.cardsContainer}>
-          {challenges.map((challenge) => (
-            <SelectableCard
-              key={challenge.value}
-              title={challenge.label}
-              icon={challenge.icon}
-              selected={emotionalChallenges.includes(challenge.value)}
-              onPress={() => handleChallengeToggle(challenge.value)}
-            />
-          ))}
-        </View>
-      </ScrollView>
+      <View style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.scrollView}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
+          <View style={styles.cardsContainer}>
+            {challenges.map((challenge) => (
+              <SelectableCard
+                key={challenge.value}
+                title={challenge.label}
+                icon={challenge.icon}
+                imageSource={challenge.image}
+                selected={emotionalChallenges.includes(challenge.value)}
+                onPress={() => handleChallengeToggle(challenge.value)}
+              />
+            ))}
+          </View>
 
-      <View style={styles.buttonContainer}>
-        <Button title="Continue" onPress={handleContinue} />
-        <Text style={styles.reassurance}>You’re in control of what you share.</Text>
+          {emotionalChallenges.length > 0 && (
+            <Text style={styles.selectionCount}>
+              {emotionalChallenges.length} {emotionalChallenges.length === 1 ? 'feeling' : 'feelings'} selected
+            </Text>
+          )}
+        </ScrollView>
+
+        {/* Scroll hint indicator */}
+        {showScrollHint && (
+          <Animated.View style={[styles.scrollHint, { opacity: scrollHintOpacity }]}>
+            <Text style={styles.scrollHintText}>↓ Scroll for more options</Text>
+          </Animated.View>
+        )}
+
+        <View style={styles.bottomSection}>
+          <Button
+            title="Continue"
+            onPress={handleContinue}
+            disabled={emotionalChallenges.length === 0}
+          />
+        </View>
       </View>
     </OnboardingContainer>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
   cardsContainer: {
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
-  buttonContainer: {
-    paddingVertical: 16,
+  selectionCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.primaryBg,
+    borderRadius: 100,
+    alignSelf: 'center',
+    overflow: 'hidden',
+  },
+  scrollHint: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  scrollHintText: {
+    fontSize: 13,
+    color: Colors.textTertiary,
+    fontWeight: '500',
+  },
+  bottomSection: {
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   reassurance: {
     textAlign: 'center',
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     fontSize: 13,
     marginTop: 12,
   },

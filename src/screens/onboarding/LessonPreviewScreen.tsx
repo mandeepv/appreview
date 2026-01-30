@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,7 +7,7 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
 import { Colors, Spacing, BorderRadius, Typography, Shadows } from '../../constants/theme';
-import { PartnerIllustration } from '../../components/illustrations';
+
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'LessonPreview'>;
 
@@ -34,10 +34,10 @@ export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
                 >
                     {/* Main Title */}
                     <Text style={styles.mainTitle}>
-                        Your <Text style={styles.highlightText}>Day 1</Text> Lesson is ready
+                        Your First Lesson <Text style={styles.highlightText}>Awaits</Text>
                     </Text>
                     <Text style={styles.subtitle}>
-                        Here's what you'll learn first
+                        Let's build the foundation together
                     </Text>
 
                     {/* Content Card */}
@@ -50,7 +50,11 @@ export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
                                 end={{ x: 1, y: 1 }}
                                 style={styles.illustrationContainer}
                             >
-                                <PartnerIllustration width={SCREEN_WIDTH * 0.6} height={180} />
+                                <Image
+                                    source={require('../../../assets/onboarding/brain-science-foundation.png')}
+                                    style={styles.illustrationImage}
+                                    resizeMode="cover"
+                                />
                             </LinearGradient>
                         </View>
 
@@ -59,16 +63,13 @@ export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
                             {/* Badge */}
                             <View style={styles.badge}>
                                 <View style={styles.badgeDot} />
-                                <Text style={styles.badgeText}>DAY 1 • EMOTIONAL REGULATION</Text>
+                                <Text style={styles.badgeText}>LESSON 1 • FOUNDATION</Text>
                             </View>
 
                             {/* Lesson Title */}
                             <Text style={styles.lessonTitle}>
                                 What changed parenting science?
                             </Text>
-
-                            {/* Divider */}
-                            <View style={styles.divider} />
 
                             {/* What You'll Learn */}
                             <Text style={styles.learnHeader}>What You'll Learn</Text>
@@ -81,7 +82,7 @@ export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
                                         </View>
                                     </View>
                                     <Text style={styles.learnText}>
-                                        Why many traditional parenting approaches had limited success
+                                        Why traditional parenting had limited success
                                     </Text>
                                 </View>
 
@@ -92,7 +93,7 @@ export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
                                         </View>
                                     </View>
                                     <Text style={styles.learnText}>
-                                        What recent brain research revealed about stress, connection, and bonding
+                                        What brain research revealed about stress & bonding
                                     </Text>
                                 </View>
 
@@ -103,16 +104,9 @@ export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
                                         </View>
                                     </View>
                                     <Text style={styles.learnText}>
-                                        The new understanding science introduced about supporting children and families
+                                        New science-backed approaches to support families
                                     </Text>
                                 </View>
-                            </View>
-
-                            {/* Bottom tag */}
-                            <View style={styles.bottomTag}>
-                                <Text style={styles.bottomTagText}>
-                                    ⭐ Loved by 98% of parents
-                                </Text>
                             </View>
                         </View>
                     </View>
@@ -121,7 +115,7 @@ export const LessonPreviewScreen: React.FC<Props> = ({ navigation }) => {
                 {/* Fixed Button at Bottom */}
                 <View style={[styles.fixedButtonContainer, { paddingBottom: insets.bottom || 20 }]}>
                     <Button
-                        title="See My Full Plan →"
+                        title="Start My First Lesson"
                         onPress={handleContinue}
                         variant="gradient"
                     />
@@ -137,8 +131,8 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: 20,
-        paddingTop: 24,
-        paddingBottom: 120, // Add padding to prevent content from being hidden behind button
+        paddingTop: 16,
+        paddingBottom: 100,
     },
     fixedButtonContainer: {
         position: 'absolute',
@@ -150,23 +144,23 @@ const styles = StyleSheet.create({
         paddingTop: 16,
     },
     mainTitle: {
-        fontSize: 32,
+        fontSize: 30,
         fontWeight: Typography.weights.bold,
         color: Colors.textPrimary,
         textAlign: 'center',
-        lineHeight: 40,
-        marginBottom: 8,
+        lineHeight: 36,
+        marginBottom: 6,
         letterSpacing: -0.8,
     },
     highlightText: {
         color: Colors.primary,
     },
     subtitle: {
-        fontSize: 17,
+        fontSize: 16,
         color: Colors.textTertiary,
         textAlign: 'center',
-        marginBottom: 28,
-        lineHeight: 24,
+        marginBottom: 20,
+        lineHeight: 22,
         fontWeight: Typography.weights.medium,
     },
     card: {
@@ -182,14 +176,18 @@ const styles = StyleSheet.create({
     },
     illustrationContainer: {
         width: '100%',
-        height: 240,
+        height: 140,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 30,
+        paddingVertical: 20,
+    },
+    illustrationImage: {
+        width: '100%',
+        height: 140,
     },
     contentSection: {
-        padding: 24,
-        paddingTop: 20,
+        padding: 20,
+        paddingTop: 16,
     },
     badge: {
         flexDirection: 'row',
@@ -199,7 +197,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 8,
         borderRadius: 20,
-        marginBottom: 16,
+        marginBottom: 12,
     },
     badgeDot: {
         width: 6,
@@ -215,28 +213,23 @@ const styles = StyleSheet.create({
         letterSpacing: 0.8,
     },
     lessonTitle: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: Typography.weights.bold,
         color: Colors.textPrimary,
-        lineHeight: 32,
-        marginBottom: 20,
+        lineHeight: 28,
+        marginBottom: 16,
         letterSpacing: -0.5,
     },
-    divider: {
-        height: 1,
-        backgroundColor: Colors.borderLight,
-        marginBottom: 20,
-    },
     learnHeader: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: Typography.weights.bold,
         color: Colors.textMuted,
         letterSpacing: 1.2,
-        marginBottom: 18,
+        marginBottom: 14,
         textTransform: 'uppercase',
     },
     learnList: {
-        gap: 18,
+        gap: 14,
     },
     learnItem: {
         flexDirection: 'row',
@@ -262,21 +255,9 @@ const styles = StyleSheet.create({
     },
     learnText: {
         flex: 1,
-        fontSize: 16,
+        fontSize: 15,
         color: Colors.textSecondary,
-        lineHeight: 26,
+        lineHeight: 22,
         fontWeight: Typography.weights.medium,
-    },
-    bottomTag: {
-        marginTop: 24,
-        paddingTop: 20,
-        borderTopWidth: 1,
-        borderTopColor: Colors.borderLight,
-        alignItems: 'center',
-    },
-    bottomTagText: {
-        fontSize: 14,
-        color: Colors.textMuted,
-        fontWeight: Typography.weights.semibold,
     },
 });

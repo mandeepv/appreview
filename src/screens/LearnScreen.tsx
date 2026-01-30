@@ -21,7 +21,7 @@ const learningModules: LearningModule[] = [
     label: 'FOUNDATION',
     title: 'What changed parenting Science?',
     description: 'Learn how to deeply fuel their correcting behavior.',
-    color: '#FFE4ED',
+    color: Colors.primaryTint, // All lessons use Soft Sage Teal tint
   },
   {
     id: '2',
@@ -29,7 +29,7 @@ const learningModules: LearningModule[] = [
     label: 'WELLNESS',
     title: 'Happiness Chemicals',
     description: 'Happiness is really a set of chemicals in our body that we need to understand if we want to increase long term well being.',
-    color: '#FFF4E6',
+    color: Colors.primaryTint,
   },
   {
     id: '3',
@@ -37,7 +37,7 @@ const learningModules: LearningModule[] = [
     label: 'HEALTH',
     title: 'The Long-Term Unhappiness Chemical',
     description: 'Which chemical should we focus on decreasing in ourselves and our children.',
-    color: '#E3F2FF',
+    color: Colors.primaryTint,
   },
   {
     id: '4',
@@ -45,7 +45,7 @@ const learningModules: LearningModule[] = [
     label: 'WELLNESS',
     title: 'The Long-Term Happiness Chemical',
     description: 'Which chemical should we focus on increasing in ourselves and our children?',
-    color: '#FFE4ED',
+    color: Colors.primaryTint,
   },
   {
     id: '5',
@@ -53,7 +53,7 @@ const learningModules: LearningModule[] = [
     label: 'FOUNDATION',
     title: 'The Importance of Labeling Emotions',
     description: 'This lesson will teach you why it is important to learn to label emotions and how to do it.',
-    color: '#E8F5E9',
+    color: Colors.primaryTint,
   },
   {
     id: '6',
@@ -61,7 +61,7 @@ const learningModules: LearningModule[] = [
     label: 'SKILL',
     title: 'Naming our Emotions',
     description: 'In this exercise you will recall past situations, name your emotions during that situation and explain the reasons you might have felt that way. Think of specific events, not general time periods of life.',
-    color: '#FFF4E6',
+    color: Colors.primaryTint,
   },
   {
     id: '7',
@@ -69,7 +69,7 @@ const learningModules: LearningModule[] = [
     label: 'FOUNDATION',
     title: 'Sprinklers: Building Deep Bonds',
     description: 'This lesson will teach you how to build deep bonds with loved ones by recognizing "sprinklers".',
-    color: '#FFE4ED',
+    color: Colors.primaryTint,
   },
   {
     id: '8',
@@ -77,7 +77,7 @@ const learningModules: LearningModule[] = [
     label: 'SKILL',
     title: 'Emotional Sandbags',
     description: 'Now that we know the importance of labeling emotions, how do we use this knowledge to help our relationships?',
-    color: '#E3F2FF',
+    color: Colors.primaryTint,
   },
   {
     id: '9',
@@ -85,7 +85,7 @@ const learningModules: LearningModule[] = [
     label: 'SKILL',
     title: 'Communication Mistakes',
     description: 'This lesson will give you examples of how NOT to build a deep bond with your loved one.',
-    color: '#FFF4E6',
+    color: Colors.primaryTint,
   },
   {
     id: '10',
@@ -93,7 +93,7 @@ const learningModules: LearningModule[] = [
     label: 'SKILL',
     title: 'Helping Someone Process Emotions',
     description: 'How should we help our upset loved ones?',
-    color: '#FFE4ED',
+    color: Colors.primaryTint,
   },
   {
     id: '11',
@@ -101,7 +101,7 @@ const learningModules: LearningModule[] = [
     label: 'FOUNDATION',
     title: 'Dissociation',
     description: 'This lesson will train you in an important concept called dissociation. This frequently happens with our loved ones.',
-    color: '#F5E6FF',
+    color: Colors.primaryTint,
   },
   {
     id: '12',
@@ -109,7 +109,7 @@ const learningModules: LearningModule[] = [
     label: 'SKILL',
     title: 'Serve and Return',
     description: 'This lesson will teach you a simple communication technique that improves well-being.',
-    color: '#E8F5E9',
+    color: Colors.primaryTint,
   },
   {
     id: '13',
@@ -117,7 +117,7 @@ const learningModules: LearningModule[] = [
     label: 'WELLNESS',
     title: 'Recording Deep Bond Moments',
     description: 'This lesson will change the way you think about recording memories.',
-    color: '#FFF9E6',
+    color: Colors.primaryTint,
   },
 ];
 
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   illustrationPlaceholder: {
     width: '100%',
     height: 200,
-    backgroundColor: '#F5E6D8',
+    backgroundColor: Colors.primaryBg,
     borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: Colors.textMuted,
+    backgroundColor: Colors.accent, // Muted Sky Blue
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BorderRadius.sm,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   comingSoonText: {
     fontSize: 11,
     fontWeight: Typography.weights.semibold,
-    color: Colors.surface,
+    color: Colors.textPrimary,
     letterSpacing: 0.5,
   },
 });

@@ -5,6 +5,7 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { Colors } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'InvitePartner'>;
 
@@ -23,6 +24,7 @@ export const InvitePartnerScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
+      screenName="InvitePartner"
       currentStep={9}
       onBack={() => navigation.goBack()}
       showSkipButton
@@ -71,12 +73,12 @@ const styles = StyleSheet.create({
   illustration: {
     width: 256,
     height: 256,
-    backgroundColor: '#FDF2F8',
+    backgroundColor: Colors.primaryBg,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: '#EC4899',
+    shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -91,20 +93,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   highlight: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#EC4899',
+    color: Colors.primary,
     marginBottom: 16,
     textAlign: 'center',
   },
   description: {
     fontSize: 16,
-    color: '#4B5563',
+    color: Colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 24,
   },

@@ -7,6 +7,7 @@ import { SelectableCard } from '../../components/SelectableCard';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { LearningGoal } from '../../types/onboarding';
+import { Colors } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'GoalSelection'>;
 
@@ -28,6 +29,7 @@ export const GoalSelectionScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
+      screenName="GoalSelection"
       title="Pick a goal"
       subtitle="How would you like to grow as a parent?"
       currentStep={10}
@@ -69,7 +71,7 @@ const styles = StyleSheet.create({
   },
   reassurance: {
     textAlign: 'center',
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     fontSize: 13,
     marginTop: 12,
   },
