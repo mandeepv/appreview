@@ -1,18 +1,21 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { WelcomeIllustration } from '../../components/illustrations';
 import { Heading1, Subtitle } from '../../components/Typography';
 import { Colors, Spacing, Animation } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
+import { useOnboardingStore } from '../../store/onboardingStore';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Splash'>;
 
 export const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const { user, isLoading } = useAuthStore();
+  const { loadState, getLastScreen, hasReachedAuth } = useOnboardingStore();
 
   useEffect(() => {
     // Entrance animation
@@ -29,13 +32,42 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
+  }, []);
 
-    const timer = setTimeout(() => {
-      navigation.replace('UserType');
-    }, 2000);
+  // Wait for auth to finish loading, then navigate
+  useEffect(() => {
+    if (!isLoading) {
+      const timer = setTimeout(async () => {
+        if (user) {
+          // User is logged in, go directly to app
+          console.log('User already authenticated, navigating to Root');
+          navigation.replace('Root');
+        } else {
+          // User not logged in - check onboarding state
+          const hasReachedAuthScreen = await hasReachedAuth();
+          const lastScreen = await getLastScreen();
 
-    return () => clearTimeout(timer);
-  }, [navigation]);
+          if (hasReachedAuthScreen) {
+            // User completed onboarding before, go to Auth screen
+            console.log('User has completed onboarding, navigating to Auth');
+            await loadState(); // Load their saved onboarding data
+            navigation.replace('Auth');
+          } else if (lastScreen) {
+            // User was in middle of onboarding, resume where they left off
+            console.log('Resuming onboarding at:', lastScreen);
+            await loadState(); // Load their saved answers
+            navigation.replace(lastScreen as any);
+          } else {
+            // Brand new user, show welcome screen
+            console.log('New user, showing Welcome screen');
+            navigation.replace('Welcome');
+          }
+        }
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [navigation, user, isLoading]);
 
   return (
     <LinearGradient
@@ -52,7 +84,13 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
             transform: [{ scale: scaleAnim }],
           }
         ]}>
-          <WelcomeIllustration width={220} height={220} />
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../../assets/splash.png')}
+              style={styles.logo}
+              resizeMode="cover"
+            />
+          </View>
           <Heading1 style={styles.title}>Kinderwell</Heading1>
           <Subtitle style={styles.subtitle}>Your parenting journey starts here</Subtitle>
         </Animated.View>
@@ -73,6 +111,17 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     gap: Spacing.lg,
+  },
+  logoContainer: {
+    width: 220,
+    height: 220,
+    borderRadius: 40,
+    overflow: 'hidden',
+    backgroundColor: Colors.surface,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     color: Colors.surface,

@@ -25,11 +25,26 @@ export const DevMenuScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             <View style={styles.iconCircle}>
-              <Ionicons name="play-outline" size={32} color={Colors.primary} />
+              <Ionicons name="sparkles-outline" size={32} color={Colors.primary} />
             </View>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitle}>Start Onboarding</Text>
-              <Text style={styles.buttonDescription}>Go through the full onboarding flow</Text>
+              <Text style={styles.buttonTitle}>Splash Screen</Text>
+              <Text style={styles.buttonDescription}>View the app splash/intro screen</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate('Loading')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: '#FFF3E0' }]}>
+              <Ionicons name="hourglass-outline" size={32} color="#FF9800" />
+            </View>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>Creating Lessons Screen</Text>
+              <Text style={styles.buttonDescription}>Progress bar and lesson creation</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>

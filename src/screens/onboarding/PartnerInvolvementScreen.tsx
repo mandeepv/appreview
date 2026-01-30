@@ -14,11 +14,7 @@ export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
   const { partnerInvolvement, updatePartnerInvolvement } = useOnboardingStore();
 
   const handleContinue = () => {
-    if (partnerInvolvement && partnerInvolvement !== 'no-partner') {
-      navigation.navigate('InvitePartner');
-    } else {
-      navigation.navigate('GoalSelection');
-    }
+    navigation.navigate('ExperienceLevel');
   };
 
   const involvementLevels: { value: PartnerInvolvement; label: string }[] = [
@@ -31,6 +27,7 @@ export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
+      screenName="PartnerInvolvement"
       title="How involved is your partner?"
       subtitle="So we can tailor advice that fits your family dynamic."
       currentStep={8}

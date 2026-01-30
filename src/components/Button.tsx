@@ -89,6 +89,7 @@ export const Button: React.FC<ButtonProps> = ({
     </>
   );
 
+  // Gradient variant now uses solid color for cleaner aesthetic
   if (variant === 'gradient' && !disabled) {
     return (
       <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, style]}>
@@ -97,17 +98,14 @@ export const Button: React.FC<ButtonProps> = ({
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           disabled={disabled || loading}
-          activeOpacity={0.9}
-          style={styles.touchable}
+          activeOpacity={0.8}
+          style={[
+            styles.button,
+            styles.primaryButton,
+            disabled && styles.disabled,
+          ]}
         >
-          <LinearGradient
-            colors={[Colors.gradientStart, Colors.gradientEnd]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.button, getButtonStyle(), disabled && styles.disabled]}
-          >
-            {buttonContent}
-          </LinearGradient>
+          {buttonContent}
         </TouchableOpacity>
       </Animated.View>
     );

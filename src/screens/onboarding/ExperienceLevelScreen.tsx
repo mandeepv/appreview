@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Image, ImageSourcePropType } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
@@ -15,40 +15,47 @@ export const ExperienceLevelScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleContinue = () => {
     if (experienceLevel) {
-      navigation.navigate('ParentingStyles');
+      navigation.navigate('EmotionalChallenges');
     }
   };
 
-  const levels: { value: ExperienceLevel; label: string; subtitle: string; icon: string }[] = [
+  const levels: { value: ExperienceLevel; label: string; subtitle: string; image: ImageSourcePropType }[] = [
     {
       value: 'new-to-science',
-      label: "I'm new to parenting science",
+      label: "I'm completely new to parenting science",
       subtitle: 'Start from the basics',
-      icon: '📚',
+      image: require('../../../assets/onboarding/experience_level_new.png'),
+    },
+    {
+      value: 'somewhat-familiar',
+      label: "I am somewhat familiar with it",
+      subtitle: "I've read a few books or blogs",
+      image: require('../../../assets/onboarding/experience_level_somewhat.png'),
     },
     {
       value: 'know-a-lot',
       label: 'I know a lot about parenting science',
       subtitle: 'Advanced concepts and techniques',
-      icon: '🎓',
+      image: require('../../../assets/onboarding/experience_level_expert.png'),
     },
   ];
 
   return (
     <OnboardingContainer
+      screenName="ExperienceLevel"
       title="How familiar are you with modern parenting ideas?"
       currentStep={11}
       onBack={() => navigation.goBack()}
       scrollable={false}
     >
       <View style={styles.container}>
-        <View>
+        <View style={styles.cardsContainer}>
           {levels.map((level) => (
             <SelectableCard
               key={level.value}
               title={level.label}
               subtitle={level.subtitle}
-              icon={level.icon}
+              imageSource={level.image}
               selected={experienceLevel === level.value}
               onPress={() => updateExperienceLevel(level.value)}
             />
@@ -70,5 +77,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     paddingVertical: 24,
+  },
+  cardsContainer: {
+    gap: 16,
   },
 });

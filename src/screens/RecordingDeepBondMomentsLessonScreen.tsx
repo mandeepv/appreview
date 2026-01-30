@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFF9E6',
+    backgroundColor: Colors.successBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFF9E6',
+    backgroundColor: Colors.successBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   completeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: Colors.successBg,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BorderRadius.sm,
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     color: Colors.success,
   },
   comingSoonBadge: {
-    backgroundColor: Colors.textMuted,
+    backgroundColor: Colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BorderRadius.sm,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   comingSoonText: {
     fontSize: 11,
     fontWeight: Typography.weights.semibold,
-    color: Colors.surface,
+    color: Colors.textPrimary,
   },
   bottomInfo: {
     paddingHorizontal: 24,
