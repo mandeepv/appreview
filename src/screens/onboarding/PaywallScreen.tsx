@@ -6,6 +6,7 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { Colors } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Paywall'>;
 
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     paddingHorizontal: 20,
     paddingTop: 16,
   },
@@ -152,23 +153,23 @@ const styles = StyleSheet.create({
   },
   closeIcon: {
     fontSize: 24,
-    color: '#6B7280',
+    color: Colors.textTertiary,
   },
   restoreText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.textTertiary,
     marginBottom: 8,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginBottom: 24,
   },
   illustration: {
     width: 160,
     height: 160,
-    backgroundColor: '#FDF2F8',
+    backgroundColor: Colors.primaryBg,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
   },
   review: {
     fontSize: 14,
-    color: '#374151',
+    color: Colors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingHorizontal: 24,
@@ -194,7 +195,7 @@ const styles = StyleSheet.create({
   },
   reviewer: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.textTertiary,
     marginBottom: 32,
   },
   planCard: {
@@ -214,16 +215,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   planCardSelected: {
-    backgroundColor: '#FDF2F8',
-    borderColor: '#EC4899',
-    shadowColor: '#EC4899',
+    backgroundColor: Colors.primaryBg,
+    borderColor: Colors.primary,
+    shadowColor: Colors.primary,
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
   },
   planCardUnselected: {
-    backgroundColor: 'white',
-    borderColor: '#E5E7EB',
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
   },
   planContent: {
     flex: 1,
@@ -236,23 +237,23 @@ const styles = StyleSheet.create({
   planTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: Colors.textPrimary,
     marginRight: 8,
   },
   saveBadge: {
-    backgroundColor: '#EC4899',
+    backgroundColor: Colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   saveBadgeText: {
-    color: 'white',
+    color: Colors.surface,
     fontSize: 12,
     fontWeight: 'bold',
   },
   planPrice: {
     fontSize: 14,
-    color: '#4B5563',
+    color: Colors.textSecondary,
   },
   radio: {
     width: 24,
@@ -262,27 +263,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioSelected: {
-    backgroundColor: '#EC4899',
+    backgroundColor: Colors.primary,
   },
   radioUnselected: {
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: Colors.borderDark,
   },
   radioCheck: {
-    color: 'white',
+    color: Colors.surface,
     fontSize: 12,
   },
   noPayment: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.textTertiary,
     marginTop: 16,
     marginBottom: 8,
   },
   terms: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#9CA3AF',
+    color: Colors.textMuted,
     paddingHorizontal: 32,
     lineHeight: 20,
   },
@@ -293,6 +294,6 @@ const styles = StyleSheet.create({
   restoreButtonText: {
     textAlign: 'center',
     fontSize: 14,
-    color: '#EC4899',
+    color: Colors.primary,
   },
 });

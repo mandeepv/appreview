@@ -44,6 +44,7 @@ export const NotificationPermissionScreen: React.FC<Props> = ({ navigation }) =>
 
   return (
     <OnboardingContainer
+      screenName="NotificationPermission"
       currentStep={7}
       onBack={() => navigation.goBack()}
       scrollable={false}

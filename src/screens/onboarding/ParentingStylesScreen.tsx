@@ -38,8 +38,9 @@ export const ParentingStylesScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingContainer
+      screenName="ParentingStyles"
       title="Have you heard of any of these?"
-      subtitle="Totally okay if you haven’t."
+      subtitle="Totally okay if you haven't."
       currentStep={12}
       onBack={() => navigation.goBack()}
     >

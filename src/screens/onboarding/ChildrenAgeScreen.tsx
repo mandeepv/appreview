@@ -7,6 +7,7 @@ import { SelectableCard } from '../../components/SelectableCard';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildAgeRange } from '../../types/onboarding';
+import { Colors } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ChildrenAge'>;
 
@@ -22,11 +23,13 @@ export const ChildrenAgeScreen: React.FC<Props> = ({ navigation }) => {
     { value: '2-4', label: '2-4 years' },
     { value: '5-7', label: '5-7 years' },
     { value: '8-12', label: '8-12 years' },
-    { value: 'teen', label: 'Teen' },
+    { value: '13-17', label: '13-17 years' },
+    { value: '18+', label: '18+' },
   ];
 
   return (
     <OnboardingContainer
+      screenName="ChildrenAge"
       title="How old are your children?"
       subtitle="Select the age ranges that apply"
       currentStep={5}
@@ -66,7 +69,7 @@ const styles = StyleSheet.create({
   childLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.textPrimary,
     marginBottom: 12,
   },
   buttonContainer: {

@@ -6,36 +6,77 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#EC4899"
+      "backgroundColor": "#4F8F8B"
+    },
+    "icon": "./assets/icon.png",
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#4F8F8B"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.kinderwell.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSUserTrackingUsageDescription": "This allows us to personalize your parenting journey and show you relevant content.",
         "NSCameraUsageDescription": "We need access to your camera to let you add profile photos.",
-        "NSPhotoLibraryUsageDescription": "We need access to your photo library to let you add profile photos."
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library to let you add profile photos.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.kinderwell.app"
+            ]
+          }
+        ]
       },
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "associatedDomains": [
+        "applinks:zqwzdyjfxytvedghujsd.supabase.co"
+      ]
     },
     "android": {
       "package": "com.kinderwell.app",
+      "versionCode": 1,
       "permissions": [
         "android.permission.NOTIFICATIONS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "zqwzdyjfxytvedghujsd.supabase.co"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
+    "scheme": "kinderwell",
     "plugins": [
       "expo-apple-authentication",
       [
         "expo-notifications",
         {
-          "color": "#EC4899"
+          "color": "#4F8F8B"
         }
       ],
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
-    "privacy": "public"
+    "privacy": "public",
+    "extra": {
+      "eas": {
+        "projectId": "e663a1d9-f73c-414f-8e61-de69e013c972"
+      }
+    }
   }
 }

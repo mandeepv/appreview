@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { ProgressBar } from './ProgressBar';
+import { useOnboardingStore } from '../store/onboardingStore';
 
 interface OnboardingContainerProps {
   children: React.ReactNode;
@@ -17,6 +19,7 @@ interface OnboardingContainerProps {
   centerTitle?: boolean;
   backgroundColor?: string;
   avoidKeyboard?: boolean;
+  screenName?: string; // Name of the current screen for persistence
 }
 
 export const OnboardingContainer: React.FC<OnboardingContainerProps> = ({
@@ -33,7 +36,23 @@ export const OnboardingContainer: React.FC<OnboardingContainerProps> = ({
   centerTitle = false,
   backgroundColor,
   avoidKeyboard = true,
+  screenName,
 }) => {
+  const { saveState, setLastScreen } = useOnboardingStore();
+
+  // Auto-save onboarding state when screen loses focus or unmounts
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // This runs when screen loses focus or unmounts
+        if (screenName) {
+          saveState();
+          setLastScreen(screenName);
+        }
+      };
+    }, [screenName])
+  );
+
   const Content = scrollable ? ScrollView : View;
   const contentProps = scrollable
     ? { contentContainerStyle: styles.scrollContent, showsVerticalScrollIndicator: false, keyboardShouldPersistTaps: 'handled' as const }

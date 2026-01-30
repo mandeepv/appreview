@@ -4,62 +4,62 @@
  */
 
 export const Colors = {
-  // Primary Brand Colors - Premium gradient-ready palette
-  primary: '#FF3B7F',       // Vibrant pink - Commands attention
-  primaryDark: '#D91A5E',   // Deep magenta - For depth
-  primaryLight: '#FF6B9D',  // Lighter pink - For highlights
-  primaryBg: '#FFF0F5',     // Barely-there pink - Subtle backgrounds
-  primaryTint: '#FFE0EB',   // Light pink tint - Icon containers
-  primaryAccent: '#FFC2D9', // Soft pink accent - Dividers
+  // Primary Brand Colors - Soft Sage Teal "Calm Growth"
+  primary: '#4F8F8B',       // Soft Sage Teal - Trust + care
+  primaryDark: '#3D7470',   // Darker teal - For depth
+  primaryLight: '#6BA8A4',  // Lighter teal - For highlights
+  primaryBg: '#E8F2F1',     // Light teal tint - Subtle backgrounds
+  primaryTint: '#D4E7E5',   // Teal tint - Icon containers
+  primaryAccent: '#A5C9C7', // Soft teal accent - Dividers
 
-  // Gradient combinations
-  gradientStart: '#FF3B7F',
-  gradientEnd: '#FF6B9D',
-  gradientAccent: '#B24592', // Purple-pink for variety
+  // Gradient combinations (using solid primary for now)
+  gradientStart: '#4F8F8B',
+  gradientEnd: '#6BA8A4',
+  gradientAccent: '#3D7470',
 
-  // Sophisticated neutrals - True professional grade
-  textPrimary: '#0F172A',   // Slate 900 - Crisp, modern black
-  textSecondary: '#1E293B', // Slate 800 - Strong body text
-  textTertiary: '#475569',  // Slate 600 - Muted text
-  textMuted: '#64748B',     // Slate 500 - Helper text
-  textLight: '#94A3B8',     // Slate 400 - Placeholder
-  textDisabled: '#CBD5E1',  // Slate 300 - Disabled
+  // Text Colors - Deep Charcoal "Quiet Confidence"
+  textPrimary: '#2E2E2E',   // Deep Charcoal - Authority without harshness
+  textSecondary: '#4A4A4A', // Medium charcoal - Strong body text
+  textTertiary: '#6B6B6B',  // Light charcoal - Muted text
+  textMuted: '#8B8B8B',     // Gray - Helper text
+  textLight: '#A8A8A8',     // Light gray - Placeholder
+  textDisabled: '#CFCFCF',  // Very light gray - Disabled
 
-  // Backgrounds - Multi-layer depth system
-  background: '#FFFFFF',     // Pure white base
-  backgroundGray: '#F8FAFC', // Slate 50 - Subtle contrast
-  surface: '#FFFFFF',        // Elevated surfaces
-  surfaceHover: '#F1F5F9',   // Slate 100 - Hover states
-  surfaceElevated: '#FFFFFF', // Cards with shadows
+  // Backgrounds - Warm Cream "Safe Space"
+  background: '#FAF7F2',     // Warm Cream - Human, not clinical
+  backgroundGray: '#F5F2ED', // Slightly darker cream - Subtle contrast
+  surface: '#FFFFFF',        // Pure white - Elevated surfaces
+  surfaceHover: '#F0EDE8',   // Cream hover - Hover states
+  surfaceElevated: '#FFFFFF', // White cards with shadows
 
   // Borders - Refined and minimal
-  border: '#E2E8F0',        // Slate 200 - Default
-  borderLight: '#F1F5F9',   // Slate 100 - Subtle
-  borderDark: '#CBD5E1',    // Slate 300 - Strong
-  borderFocus: '#FF3B7F',   // Primary for focus
+  border: '#E5E1DC',        // Light warm gray - Default
+  borderLight: '#F0EDE8',   // Very light - Subtle
+  borderDark: '#D1CCC4',    // Darker warm gray - Strong
+  borderFocus: '#4F8F8B',   // Primary for focus
 
-  // Semantic colors - Balanced and professional
-  success: '#10B981',       // Emerald 500
-  successBg: '#D1FAE5',     // Emerald 100
-  successDark: '#059669',   // Emerald 600
-  error: '#EF4444',         // Red 500
-  errorBg: '#FEE2E2',       // Red 100
-  errorDark: '#DC2626',     // Red 600
-  warning: '#F59E0B',       // Amber 500
-  warningBg: '#FEF3C7',     // Amber 100
-  info: '#3B82F6',          // Blue 500
-  infoBg: '#DBEAFE',        // Blue 100
+  // Semantic colors - Soft and encouraging
+  success: '#F4C7A1',       // Soft Sun Peach - "Encouragement"
+  successBg: '#FDF5EF',     // Very light peach - Backgrounds
+  successDark: '#E8AB7A',   // Darker peach - For depth
+  error: '#D08C7A',         // Soft Terracotta - Non-alarming
+  errorBg: '#F9EBE7',       // Light terracotta - Backgrounds
+  errorDark: '#C17563',     // Darker terracotta - For depth
+  warning: '#D08C7A',       // Soft Terracotta - Same as error
+  warningBg: '#F9EBE7',     // Light terracotta - Backgrounds
+  info: '#BFD8E2',          // Muted Sky Blue - "Clarity"
+  infoBg: '#EEF6F9',        // Very light sky blue - Backgrounds
 
   // Glass morphism & overlays
-  glass: 'rgba(255, 255, 255, 0.8)',
-  glassDark: 'rgba(15, 23, 42, 0.1)',
-  overlay: 'rgba(15, 23, 42, 0.75)',
-  overlayLight: 'rgba(15, 23, 42, 0.4)',
+  glass: 'rgba(250, 247, 242, 0.8)',
+  glassDark: 'rgba(46, 46, 46, 0.1)',
+  overlay: 'rgba(46, 46, 46, 0.75)',
+  overlayLight: 'rgba(46, 46, 46, 0.4)',
 
-  // Accent colors for variety
-  accent: '#8B5CF6',        // Purple 500
-  accentLight: '#C4B5FD',   // Purple 300
-  accentDark: '#7C3AED',    // Purple 600
+  // Accent colors - Secondary palette
+  accent: '#BFD8E2',        // Muted Sky Blue - Secondary accent
+  accentLight: '#D9E8ED',   // Lighter sky blue
+  accentDark: '#A5C4D0',    // Darker sky blue
 } as const;
 
 export const Typography = {
@@ -170,28 +170,28 @@ export const Shadows = {
   },
   // Colored glow shadows for emphasis
   primary: {
-    shadowColor: '#FF3B7F',
+    shadowColor: '#4F8F8B',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 5,
   },
   primaryStrong: {
-    shadowColor: '#FF3B7F',
+    shadowColor: '#4F8F8B',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.35,
     shadowRadius: 30,
     elevation: 8,
   },
   accent: {
-    shadowColor: '#8B5CF6',
+    shadowColor: '#BFD8E2',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 5,
   },
   success: {
-    shadowColor: '#10B981',
+    shadowColor: '#F4C7A1',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,

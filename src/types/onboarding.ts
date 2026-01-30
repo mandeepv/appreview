@@ -2,7 +2,7 @@ export type UserType = 'father' | 'mother' | 'other';
 
 export type ChildGender = 'boy' | 'girl' | 'expecting' | 'prefer-not-to-say';
 
-export type ChildAgeRange = '0-1' | '2-4' | '5-7' | '8-12' | 'teen';
+export type ChildAgeRange = '0-1' | '2-4' | '5-7' | '8-12' | '13-17' | '18+';
 
 export type ImprovementGoal =
   | 'behavior-issues'
@@ -22,7 +22,7 @@ export type PartnerInvolvement =
 
 export type LearningGoal = 'casual' | 'regular' | 'serious' | 'tireless';
 
-export type ExperienceLevel = 'new-to-science' | 'know-a-lot';
+export type ExperienceLevel = 'new-to-science' | 'somewhat-familiar' | 'know-a-lot';
 
 export type ParentingStyle =
   | 'authoritative'
@@ -105,4 +105,12 @@ export interface OnboardingStore extends OnboardingData {
   setAuthMethod: (method: 'google' | 'apple') => void;
   setSelectedPlan: (plan: 'free-trial' | 'monthly') => void;
   reset: () => void;
+  // Persistence methods
+  saveState: () => Promise<void>;
+  loadState: () => Promise<any>;
+  clearState: () => Promise<void>;
+  setLastScreen: (screenName: string) => Promise<void>;
+  getLastScreen: () => Promise<string | null>;
+  markAuthReached: () => Promise<void>;
+  hasReachedAuth: () => Promise<boolean>;
 }

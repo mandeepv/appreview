@@ -6,6 +6,7 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { Colors } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'LessonDetails'>;
 
@@ -33,10 +34,9 @@ export const LessonDetailsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const sampleLessons = [
-    { week: 'Week 1', title: "Understanding Your Child's Emotions", lessons: 7, icon: '❤️' },
-    { week: 'Week 2', title: 'Building Strong Communication', lessons: 7, icon: '💬' },
-    { week: 'Week 3', title: 'Setting Healthy Boundaries', lessons: 7, icon: '🎯' },
-    { week: 'Week 4', title: 'Positive Discipline Techniques', lessons: 7, icon: '✨' },
+    { week: 'Week 1', title: "Understanding Your Child's Emotions", icon: '❤️' },
+    { week: 'Week 2', title: 'Building Strong Communication', icon: '💬' },
+    { week: 'Week 3', title: 'Setting Healthy Boundaries', icon: '🎯' },
   ];
 
   return (
@@ -46,46 +46,36 @@ export const LessonDetailsScreen: React.FC<Props> = ({ navigation }) => {
     >
       <View style={styles.outerContainer}>
         <View style={styles.container}>
-          <Text style={styles.title}>Your Personalized Program</Text>
-          <Text style={styles.subtitle}>{getLessonTime()} per day • Evidence-based lessons</Text>
+          <Text style={styles.title}>Your Day 1 Lesson</Text>
+          <Text style={styles.subtitle}>is ready</Text>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            {improvementGoals.length > 0 && (
-              <View style={styles.goalsCard}>
-                <Text style={styles.goalsTitle}>Focused on your goals:</Text>
-                <Text style={styles.goalsText}>
-                  {improvementGoals.slice(0, 3).join(' • ')}
-                  {improvementGoals.length > 3 && ` and ${improvementGoals.length - 3} more`}
-                </Text>
-              </View>
-            )}
+            <View style={styles.highlightCard}>
+              <Text style={styles.highlightTime}>{getLessonTime()}</Text>
+              <Text style={styles.highlightLabel}>daily</Text>
+            </View>
 
-            <Text style={styles.sectionTitle}>Your First Month</Text>
+            <Text style={styles.sectionTitle}>Coming up next</Text>
 
-            {sampleLessons.map((lesson, index) => (
-              <View key={index} style={styles.lessonCard}>
-                <View style={styles.lessonHeader}>
+            <View style={styles.lessonsContainer}>
+              {sampleLessons.map((lesson, index) => (
+                <View key={index} style={styles.lessonCard}>
                   <Text style={styles.lessonIcon}>{lesson.icon}</Text>
                   <View style={styles.lessonInfo}>
                     <Text style={styles.lessonWeek}>{lesson.week}</Text>
                     <Text style={styles.lessonTitle}>{lesson.title}</Text>
                   </View>
                 </View>
-                <Text style={styles.lessonCount}>{lesson.lessons} daily lessons</Text>
-              </View>
-            ))}
-
-            <View style={styles.infoCard}>
-              <Text style={styles.infoText}>
-                <Text style={styles.bold}>100+ lessons</Text> tailored to your family's journey
-              </Text>
+              ))}
             </View>
+
+            <Text style={styles.footerText}>100+ lessons personalized for your family</Text>
           </ScrollView>
         </View>
 
         {/* Fixed Button at Bottom */}
         <View style={[styles.fixedButtonContainer, { paddingBottom: insets.bottom || 20 }]}>
-          <Button title="Start My Journey" onPress={handleContinue} />
+          <Button title="Start Learning" onPress={handleContinue} />
         </View>
       </View>
     </OnboardingContainer>
@@ -100,116 +90,106 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: 36,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    lineHeight: 42,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#4B5563',
-    marginBottom: 24,
+    fontSize: 36,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 32,
+    lineHeight: 42,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100, // Add padding to prevent content from being hidden behind button
+    paddingBottom: 100,
   },
   fixedButtonContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: Colors.surface,
     paddingHorizontal: 20,
     paddingTop: 16,
   },
-  goalsCard: {
-    backgroundColor: '#FDF2F8',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-    shadowColor: '#EC4899',
+  highlightCard: {
+    backgroundColor: Colors.primaryBg,
+    borderRadius: 24,
+    padding: 32,
+    marginBottom: 40,
+    alignItems: 'center',
+    shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  goalsTitle: {
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+  highlightTime: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 4,
   },
-  goalsText: {
-    fontSize: 14,
-    color: '#374151',
+  highlightLabel: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: Colors.textSecondary,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: 20,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  lessonsContainer: {
+    gap: 16,
+    marginBottom: 32,
   },
   lessonCard: {
-    backgroundColor: 'white',
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  lessonHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 16,
+    padding: 16,
   },
   lessonIcon: {
-    fontSize: 28,
-    marginRight: 12,
+    fontSize: 32,
+    marginRight: 16,
   },
   lessonInfo: {
     flex: 1,
   },
   lessonWeek: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 11,
+    color: Colors.textTertiary,
     marginBottom: 4,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   lessonTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.textPrimary,
+    lineHeight: 20,
   },
-  lessonCount: {
+  footerText: {
     fontSize: 14,
-    color: '#4B5563',
-    marginLeft: 40,
-  },
-  infoCard: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#374151',
+    color: Colors.textSecondary,
     textAlign: 'center',
-  },
-  bold: {
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

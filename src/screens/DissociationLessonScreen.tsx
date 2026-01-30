@@ -173,8 +173,8 @@ export default function DissociationLessonScreen() {
                     </View>
                   )}
                   {isCompleted && (
-                    <View style={[styles.comingSoonBadge, { backgroundColor: '#E8F5E9' }]}>
-                      <Text style={[styles.comingSoonText, { color: '#4CAF50' }]}>Done</Text>
+                    <View style={styles.completeBadge}>
+                      <Text style={styles.completeText}>Done</Text>
                     </View>
                   )}
                 </View>
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F5E6FF',
+    backgroundColor: Colors.primaryBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F5E6FF',
+    backgroundColor: Colors.primaryBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   comingSoonBadge: {
-    backgroundColor: Colors.textMuted,
+    backgroundColor: Colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BorderRadius.sm,
@@ -360,7 +360,19 @@ const styles = StyleSheet.create({
   comingSoonText: {
     fontSize: 11,
     fontWeight: Typography.weights.semibold,
-    color: Colors.surface,
+    color: Colors.textPrimary,
+  },
+  completeBadge: {
+    backgroundColor: Colors.successBg,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  completeText: {
+    fontSize: 11,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.success,
   },
   bottomInfo: {
     paddingHorizontal: 24,
