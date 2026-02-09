@@ -16,7 +16,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
 export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const [progress, setProgress] = useState(0);
   const [scaleAnim] = useState(new Animated.Value(1));
-  const { user } = useAuthStore();
+  const { user, isDemoUser } = useAuthStore();
   const onboardingStore = useOnboardingStore();
   const { identify } = useUser();
   const { registerPlacement } = usePlacement({
@@ -42,27 +42,32 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     const saveOnboardingData = async () => {
       if (user?.id) {
         try {
-          const onboardingData = {
-            userType: onboardingStore.userType,
-            name: onboardingStore.name,
-            age: onboardingStore.age,
-            childrenCount: onboardingStore.childrenCount,
-            children: onboardingStore.children,
-            improvementGoals: onboardingStore.improvementGoals,
-            notificationsEnabled: onboardingStore.notificationsEnabled,
-            partnerInvolvement: onboardingStore.partnerInvolvement,
-            partnerInvited: onboardingStore.partnerInvited,
-            learningGoal: onboardingStore.learningGoal,
-            experienceLevel: onboardingStore.experienceLevel,
-            familiarParentingStyles: onboardingStore.familiarParentingStyles,
-            emotionalChallenges: onboardingStore.emotionalChallenges,
-            authMethod: onboardingStore.authMethod,
-            selectedPlan: onboardingStore.selectedPlan,
-          };
+          // Skip Supabase save for demo users
+          if (!isDemoUser) {
+            const onboardingData = {
+              userType: onboardingStore.userType,
+              name: onboardingStore.name,
+              age: onboardingStore.age,
+              childrenCount: onboardingStore.childrenCount,
+              children: onboardingStore.children,
+              improvementGoals: onboardingStore.improvementGoals,
+              notificationsEnabled: onboardingStore.notificationsEnabled,
+              partnerInvolvement: onboardingStore.partnerInvolvement,
+              partnerInvited: onboardingStore.partnerInvited,
+              learningGoal: onboardingStore.learningGoal,
+              experienceLevel: onboardingStore.experienceLevel,
+              familiarParentingStyles: onboardingStore.familiarParentingStyles,
+              emotionalChallenges: onboardingStore.emotionalChallenges,
+              authMethod: onboardingStore.authMethod,
+              selectedPlan: onboardingStore.selectedPlan,
+            };
 
-          await saveUserOnboardingData(user.id, onboardingData);
+            await saveUserOnboardingData(user.id, onboardingData);
+          } else {
+            console.log('📝 Demo user - skipping Supabase save');
+          }
 
-          // Clear local onboarding state after saving to Supabase
+          // Clear local onboarding state after saving
           await onboardingStore.clearState();
         } catch (error) {
           console.error('Error saving onboarding data:', error);
@@ -72,17 +77,18 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     };
 
     saveOnboardingData();
-  }, [user]);
+  }, [user, isDemoUser]);
 
   const showPaywall = async () => {
     const shouldSkipPaywall = SKIP_PAYWALL === 'true';
 
     console.log('=== 🚀 SHOWING PAYWALL ===');
     console.log('SKIP_PAYWALL:', SKIP_PAYWALL);
+    console.log('Is Demo User:', isDemoUser);
     console.log('User ID:', user?.id);
 
-    if (shouldSkipPaywall) {
-      console.log('⏩ Skipping paywall');
+    if (shouldSkipPaywall || isDemoUser) {
+      console.log('⏩ Skipping paywall', isDemoUser ? '(Demo User)' : '(SKIP_PAYWALL)');
       navigation.replace('Root');
       return;
     }
