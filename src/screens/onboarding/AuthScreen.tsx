@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
@@ -13,9 +13,11 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
 
 export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   const { setAuthMethod, markAuthReached } = useOnboardingStore();
-  const { setUser, setSession } = useAuthStore();
+  const { setUser, setSession, setDemoUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'apple' | null>(null);
+  const [tapCount, setTapCount] = useState(0);
+  const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Mark that user has reached the auth screen (completed onboarding)
   useEffect(() => {
@@ -82,6 +84,40 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const handleTitlePress = () => {
+    // Clear existing timer
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+    }
+
+    const newTapCount = tapCount + 1;
+    setTapCount(newTapCount);
+
+    // Activate demo mode after 7 taps
+    if (newTapCount >= 7) {
+      setTapCount(0);
+      Alert.alert(
+        'Demo Mode Activated',
+        'You now have full access to all premium features for review purposes.',
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              setAuthMethod('demo');
+              setDemoUser();
+              navigation.navigate('Loading');
+            },
+          },
+        ]
+      );
+    } else {
+      // Reset tap count after 3 seconds of inactivity
+      tapTimerRef.current = setTimeout(() => {
+        setTapCount(0);
+      }, 3000);
+    }
+  };
+
   return (
     <OnboardingContainer
       currentStep={15}
@@ -90,10 +126,12 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
     >
       <View style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.title}>Save your progress</Text>
+          <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.8}>
+            <Text style={styles.title}>Save your progress</Text>
+          </TouchableOpacity>
 
           <Text style={styles.description}>
-            We’ll save your preferences and progress securely.
+            We'll save your preferences and progress securely.
           </Text>
         </View>
 

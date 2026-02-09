@@ -7,10 +7,12 @@ interface AuthState {
   session: Session | null;
   isLoading: boolean;
   isSubscribed: boolean;
+  isDemoUser: boolean;
   setUser: (user: User | null) => void;
   setSession: (session: Session | null) => void;
   setIsLoading: (loading: boolean) => void;
   setIsSubscribed: (subscribed: boolean) => void;
+  setDemoUser: () => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   isLoading: true,
   isSubscribed: false,
+  isDemoUser: false,
 
   setUser: (user) => set({ user }),
 
@@ -29,10 +32,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setIsSubscribed: (subscribed) => set({ isSubscribed: subscribed }),
 
+  setDemoUser: () => {
+    const demoUser = {
+      id: 'demo-reviewer-user',
+      email: 'demo@kinderwell.app',
+      app_metadata: {},
+      user_metadata: { full_name: 'Demo Reviewer' },
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+    } as User;
+
+    console.log('🎭 Demo mode activated!');
+    set({
+      user: demoUser,
+      session: null,
+      isSubscribed: true,
+      isDemoUser: true,
+    });
+  },
+
   signOut: async () => {
     try {
       await supabaseSignOut();
-      set({ user: null, session: null, isSubscribed: false });
+      set({ user: null, session: null, isSubscribed: false, isDemoUser: false });
     } catch (error) {
       console.error('Error signing out:', error);
       throw error;
@@ -76,7 +98,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             set({
               user: null,
               session: null,
-              isSubscribed: false
+              isSubscribed: false,
+              isDemoUser: false
             });
           }
         }
