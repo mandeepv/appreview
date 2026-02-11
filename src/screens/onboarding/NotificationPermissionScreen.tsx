@@ -47,7 +47,7 @@ export const NotificationPermissionScreen: React.FC<Props> = ({ navigation }) =>
       screenName="NotificationPermission"
       currentStep={7}
       onBack={() => navigation.goBack()}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <Animated.View style={[

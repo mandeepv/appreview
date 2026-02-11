@@ -49,7 +49,7 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
       screenName="Educational"
       currentStep={8}
       onBack={() => navigation.goBack()}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <ScrollView

@@ -34,7 +34,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
       subtitle="Who are you parenting as?"
       currentStep={1}
       showBackButton={false}
-      scrollable={false}
+      scrollable={true}
       centerTitle={true}
       screenName="UserType"
     >

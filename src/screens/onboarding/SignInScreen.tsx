@@ -104,7 +104,7 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
     <OnboardingContainer
       currentStep={1}
       onBack={() => navigation.goBack()}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <View style={styles.content}>

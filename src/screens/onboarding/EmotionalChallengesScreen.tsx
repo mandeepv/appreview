@@ -88,7 +88,7 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
       currentStep={14}
       onBack={() => navigation.goBack()}
       centerTitle={true}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <ScrollView

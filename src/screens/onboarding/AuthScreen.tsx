@@ -122,7 +122,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
     <OnboardingContainer
       currentStep={15}
       showBackButton={false}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <View style={styles.content}>

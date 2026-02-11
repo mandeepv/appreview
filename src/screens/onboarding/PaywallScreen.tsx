@@ -28,7 +28,7 @@ export const PaywallScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <OnboardingContainer
       showBackButton={false}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
