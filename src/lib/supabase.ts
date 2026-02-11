@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
+import Constants from 'expo-constants';
+
+const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl;
+const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase configuration. Please check your environment variables.');
+}
 
 // Initialize Supabase client with AsyncStorage for session persistence
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // Use AsyncStorage to persist sessions across app restarts
     storage: AsyncStorage,

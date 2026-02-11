@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { OnboardingNavigator, OnboardingStackParamList } from './src/navigation/OnboardingNavigator';
 import { useAuthStore } from './src/store/authStore';
 import { SuperwallProvider } from 'expo-superwall';
-import { SUPERWALL_API_KEY } from '@env';
+import Constants from 'expo-constants';
 
 function AppContent() {
   const initialize = useAuthStore(state => state.initialize);
@@ -49,10 +49,12 @@ function AppContent() {
 }
 
 export default function App() {
-  console.log('📝 Superwall API Key:', SUPERWALL_API_KEY ? `${SUPERWALL_API_KEY.substring(0, 10)}...` : 'MISSING');
+  const superwallApiKey = Constants.expoConfig?.extra?.superwallApiKey;
+
+  console.log('📝 Superwall API Key:', superwallApiKey ? `${superwallApiKey.substring(0, 10)}...` : 'MISSING');
 
   return (
-    <SuperwallProvider apiKeys={{ ios: SUPERWALL_API_KEY }}>
+    <SuperwallProvider apiKeys={{ ios: superwallApiKey || '' }}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AppContent />
       </GestureHandlerRootView>
