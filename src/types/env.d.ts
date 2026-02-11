@@ -1,6 +1,15 @@
-declare module '@env' {
-  export const SUPABASE_URL: string;
-  export const SUPABASE_ANON_KEY: string;
-  export const SUPERWALL_API_KEY: string;
-  export const SKIP_PAYWALL: string;
+// Type definitions for expo-constants extra configuration
+declare module 'expo-constants' {
+  export interface AppConfig {
+    extra?: {
+      supabaseUrl?: string;
+      supabaseAnonKey?: string;
+      superwallApiKey?: string;
+      skipPaywall?: string;
+      showDemoButton?: string;
+      eas?: {
+        projectId?: string;
+      };
+    };
+  }
 }

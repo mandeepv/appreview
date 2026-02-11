@@ -9,7 +9,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { saveUserOnboardingData } from '../../services/onboardingService';
 import { usePlacement, useUser } from 'expo-superwall';
-import { SKIP_PAYWALL } from '@env';
+import Constants from 'expo-constants';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
 
@@ -80,10 +80,11 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   }, [user, isDemoUser]);
 
   const showPaywall = async () => {
-    const shouldSkipPaywall = SKIP_PAYWALL === 'true';
+    const skipPaywall = Constants.expoConfig?.extra?.skipPaywall;
+    const shouldSkipPaywall = skipPaywall === 'true';
 
     console.log('=== 🚀 SHOWING PAYWALL ===');
-    console.log('SKIP_PAYWALL:', SKIP_PAYWALL);
+    console.log('SKIP_PAYWALL:', skipPaywall);
     console.log('Is Demo User:', isDemoUser);
     console.log('User ID:', user?.id);
 

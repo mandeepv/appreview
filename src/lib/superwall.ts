@@ -1,13 +1,13 @@
 // This file will be populated during Superwall integration
 // Template for now
 
-import { SUPERWALL_API_KEY } from '@env';
+import Constants from 'expo-constants';
 
 // Superwall will be initialized in App.tsx
 // This file can contain helper functions for Superwall
 
 export const SUPERWALL_CONFIG = {
-  apiKey: SUPERWALL_API_KEY,
+  apiKey: Constants.expoConfig?.extra?.superwallApiKey || '',
 };
 
 // Example: Show paywall
