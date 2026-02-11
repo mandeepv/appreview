@@ -23,7 +23,7 @@ export const ParentingRealityScreen: React.FC<Props> = ({ navigation }) => {
             onBack={() => navigation.goBack()}
             centerTitle={true}
             title=""
-            scrollable={false}
+            scrollable={true}
         >
             <View style={styles.wrapper}>
                 <ScrollView

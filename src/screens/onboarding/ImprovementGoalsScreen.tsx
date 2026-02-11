@@ -61,7 +61,7 @@ export const ImprovementGoalsScreen: React.FC<Props> = ({ navigation }) => {
       currentStep={6}
       onBack={() => navigation.goBack()}
       centerTitle={true}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <ScrollView
