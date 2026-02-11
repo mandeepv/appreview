@@ -32,7 +32,7 @@ export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
       subtitle="So we can tailor advice that fits your family dynamic."
       currentStep={8}
       onBack={() => navigation.goBack()}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <View>

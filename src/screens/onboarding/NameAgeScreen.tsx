@@ -46,7 +46,7 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
             subtitle="So examples feel relevant to your life"
             currentStep={2}
             onBack={() => navigation.goBack()}
-            scrollable={false}
+            scrollable={true}
             centerTitle={true}
             avoidKeyboard={false}
         >

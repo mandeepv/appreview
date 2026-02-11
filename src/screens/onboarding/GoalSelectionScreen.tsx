@@ -34,7 +34,7 @@ export const GoalSelectionScreen: React.FC<Props> = ({ navigation }) => {
       subtitle="How would you like to grow as a parent?"
       currentStep={10}
       onBack={() => navigation.goBack()}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <View>

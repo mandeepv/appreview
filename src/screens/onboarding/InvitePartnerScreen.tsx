@@ -29,7 +29,7 @@ export const InvitePartnerScreen: React.FC<Props> = ({ navigation }) => {
       onBack={() => navigation.goBack()}
       showSkipButton
       onSkip={handleSkip}
-      scrollable={false}
+      scrollable={true}
     >
       <View style={styles.container}>
         <View style={styles.content}>
