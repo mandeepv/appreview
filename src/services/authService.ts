@@ -125,10 +125,15 @@ export const signInWithApple = async () => {
         ],
       });
 
+      // Verify we received an identity token
+      if (!credential.identityToken) {
+        throw new Error('Apple Sign-In failed: No identity token received');
+      }
+
       // Sign in to Supabase with Apple credential
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
-        token: credential.identityToken!,
+        token: credential.identityToken,
       });
 
       if (error) throw error;
@@ -192,30 +197,34 @@ export const signOut = async () => {
 
 /**
  * Delete user account and all associated data
+ * This calls a Supabase Edge Function that uses the service role key
+ * to completely delete the user account (GDPR/CCPA compliant)
  */
-export const deleteAccount = async (userId: string) => {
+export const deleteAccount = async () => {
   try {
-    // Delete lesson progress
-    const { error: progressError } = await supabase
-      .from('lesson_progress')
-      .delete()
-      .eq('user_id', userId);
+    // Get the current session token
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (progressError) throw progressError;
+    if (!session) {
+      throw new Error('No active session');
+    }
 
-    // Delete user profile
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .delete()
-      .eq('id', userId);
+    // Call the Edge Function to delete the account
+    // The Edge Function uses the service role key to delete the auth user
+    const { data, error } = await supabase.functions.invoke('delete-account', {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
 
-    if (profileError) throw profileError;
+    if (error) {
+      console.error('Edge Function error:', error);
+      throw error;
+    }
 
-    // Note: Deleting the auth user requires the service role key
-    // This should be done via a Supabase Edge Function or admin API
-    // For now, we'll just sign out after deleting data
-    // You'll need to set up a server-side function to actually delete the auth user
+    console.log('Account deletion response:', data);
 
+    // Sign out locally (auth user is already deleted on the server)
     await signOut();
   } catch (error) {
     console.error('Error deleting account:', error);

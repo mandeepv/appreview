@@ -8,7 +8,7 @@ import { Colors, Spacing, Typography } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { saveUserOnboardingData } from '../../services/onboardingService';
-import { usePlacement, useUser } from 'expo-superwall';
+import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
@@ -16,15 +16,35 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
 export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const [progress, setProgress] = useState(0);
   const [scaleAnim] = useState(new Animated.Value(1));
-  const { user, isDemoUser } = useAuthStore();
+  const { user, isDemoUser, setIsSubscribed } = useAuthStore();
   const onboardingStore = useOnboardingStore();
   const { identify } = useUser();
+
+  // Listen for Superwall subscription status changes
+  useSuperwallEvents({
+    onSubscriptionStatusChange: (subscriptionStatus) => {
+      console.log('💰 Subscription status changed:', subscriptionStatus.status);
+      if (subscriptionStatus.status === 'ACTIVE') {
+        setIsSubscribed(true);
+      } else if (subscriptionStatus.status === 'INACTIVE') {
+        setIsSubscribed(false);
+      }
+    },
+  });
+
   const { registerPlacement } = usePlacement({
     onPresent: (paywallInfo) => {
       console.log('✅ Paywall presented:', paywallInfo.name);
     },
     onDismiss: (paywallInfo, result) => {
       console.log('👋 Paywall dismissed:', result.type);
+
+      // Check if user completed a purchase
+      if (result.type === 'purchased') {
+        console.log('💰 Purchase completed! Updating subscription status...');
+        setIsSubscribed(true);
+      }
+
       navigation.replace('Root');
     },
     onSkip: (reason) => {
