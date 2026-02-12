@@ -26,8 +26,7 @@
         "SUPABASE_URL": "https://REDACTED_PROD_SUPABASE_PROJECT_REF.supabase.co",
         "SUPABASE_ANON_KEY": "REDACTED_PROD_SUPABASE_ANON_KEY",
         "SUPERWALL_API_KEY": "REDACTED_SUPERWALL_API_KEY",
-        "SKIP_PAYWALL": "false",
-        "SHOW_DEMO_BUTTON": "true"
+        "SKIP_PAYWALL": "false"
       }
     }
   }

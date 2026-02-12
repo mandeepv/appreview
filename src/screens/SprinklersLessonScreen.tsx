@@ -72,7 +72,7 @@ export default function SprinklersLessonScreen() {
         setCompletedSections(JSON.parse(stored));
       }
     } catch (error) {
-      console.error('Error loading progress:', error);
+      if (__DEV__) console.error('Error loading progress:', error);
     }
   };
 

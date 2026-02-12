@@ -44,7 +44,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         setLoadingProvider(null);
       }
     } catch (error: any) {
-      console.error('Google sign-in error:', error);
+      if (__DEV__) console.error('Google sign-in error:', error);
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(
@@ -73,7 +73,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         setLoadingProvider(null);
       }
     } catch (error: any) {
-      console.error('Apple sign-in error:', error);
+      if (__DEV__) console.error('Apple sign-in error:', error);
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(

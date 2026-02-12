@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       created_at: new Date().toISOString(),
     } as User;
 
-    console.log('🎭 Demo mode activated!');
+    if (__DEV__) console.log('🎭 Demo mode activated!');
     set({
       user: demoUser,
       session: null,
@@ -56,7 +56,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await supabaseSignOut();
       set({ user: null, session: null, isSubscribed: false, isDemoUser: false });
     } catch (error) {
-      console.error('Error signing out:', error);
+      if (__DEV__) console.error('Error signing out:', error);
       throw error;
     }
   },
@@ -69,7 +69,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
-        console.error('Error getting session:', error);
+        if (__DEV__) console.error('Error getting session:', error);
         set({ isLoading: false });
         return;
       }
@@ -87,7 +87,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Listen for auth changes
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          console.log('Auth state changed:', event, session?.user?.email);
+          if (__DEV__) console.log('Auth state changed:', event, session?.user?.email);
 
           if (session) {
             set({
@@ -108,7 +108,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Cleanup subscription on unmount would be handled by the component
       return subscription;
     } catch (error) {
-      console.error('Error initializing auth:', error);
+      if (__DEV__) console.error('Error initializing auth:', error);
       set({ isLoading: false });
     }
   },

@@ -30,10 +30,10 @@ export const saveUserOnboardingData = async (userId: string, onboardingData: Par
 
     if (error) throw error;
 
-    console.log('Onboarding data saved to Supabase successfully');
+    if (__DEV__) console.log('Onboarding data saved to Supabase successfully');
     return data;
   } catch (error) {
-    console.error('Error saving onboarding data to Supabase:', error);
+    if (__DEV__) console.error('Error saving onboarding data to Supabase:', error);
     throw error;
   }
 };
@@ -52,16 +52,16 @@ export const getUserOnboardingData = async (userId: string) => {
     if (error) {
       // If no data found (404), return null instead of throwing
       if (error.code === 'PGRST116') {
-        console.log('No onboarding data found for user');
+        if (__DEV__) console.log('No onboarding data found for user');
         return null;
       }
       throw error;
     }
 
-    console.log('Onboarding data loaded from Supabase');
+    if (__DEV__) console.log('Onboarding data loaded from Supabase');
     return data;
   } catch (error) {
-    console.error('Error loading onboarding data from Supabase:', error);
+    if (__DEV__) console.error('Error loading onboarding data from Supabase:', error);
     throw error;
   }
 };
@@ -75,7 +75,7 @@ export const hasUserCompletedOnboarding = async (userId: string): Promise<boolea
     // Consider onboarding complete if user_type exists (minimum required field)
     return data !== null && data.user_type !== null;
   } catch (error) {
-    console.error('Error checking onboarding status:', error);
+    if (__DEV__) console.error('Error checking onboarding status:', error);
     return false;
   }
 };
