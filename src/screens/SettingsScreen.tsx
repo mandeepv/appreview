@@ -135,14 +135,12 @@ export const SettingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               setIsLoading(true);
-              if (user?.id) {
-                await deleteAccount(user.id);
-                Alert.alert(
-                  'Account Deleted',
-                  'Your account and all data have been deleted.',
-                  [{ text: 'OK' }]
-                );
-              }
+              await deleteAccount();
+              Alert.alert(
+                'Account Deleted',
+                'Your account and all data have been deleted.',
+                [{ text: 'OK' }]
+              );
             } catch (error) {
               console.error('Error deleting account:', error);
               Alert.alert(
