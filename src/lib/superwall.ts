@@ -13,5 +13,5 @@ export const SUPERWALL_CONFIG = {
 // Example: Show paywall
 export const showPaywall = async () => {
   // Implementation will come during integration phase
-  console.log('Paywall will be shown here');
+  if (__DEV__) console.log('Paywall will be shown here');
 };

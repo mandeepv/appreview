@@ -12,7 +12,7 @@ export const markSubLessonComplete = async (subLessonId: string): Promise<void> 
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completedSubLessons));
     }
   } catch (error) {
-    console.error('Error marking sub-lesson complete:', error);
+    if (__DEV__) console.error('Error marking sub-lesson complete:', error);
   }
 };
 
@@ -21,7 +21,7 @@ export const getCompletedSubLessons = async (): Promise<string[]> => {
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch (error) {
-    console.error('Error getting completed sub-lessons:', error);
+    if (__DEV__) console.error('Error getting completed sub-lessons:', error);
     return [];
   }
 };
@@ -31,7 +31,7 @@ export const areAllSubLessonsComplete = async (): Promise<boolean> => {
     const completed = await getCompletedSubLessons();
     return completed.length === 4; // 4 sub-lessons total
   } catch (error) {
-    console.error('Error checking if all sub-lessons complete:', error);
+    if (__DEV__) console.error('Error checking if all sub-lessons complete:', error);
     return false;
   }
 };
@@ -40,6 +40,6 @@ export const resetNamingEmotionsProgress = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    console.error('Error resetting progress:', error);
+    if (__DEV__) console.error('Error resetting progress:', error);
   }
 };

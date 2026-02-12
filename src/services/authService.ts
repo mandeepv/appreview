@@ -19,7 +19,7 @@ export const signInWithGoogle = async () => {
       path: 'auth/callback',
     });
 
-    console.log('Redirect URL:', redirectUrl);
+    if (__DEV__) console.log('Redirect URL:', redirectUrl);
 
     // Start the OAuth flow
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -33,7 +33,7 @@ export const signInWithGoogle = async () => {
     if (error) throw error;
     if (!data?.url) throw new Error('No URL returned from Supabase');
 
-    console.log('Opening auth URL...');
+    if (__DEV__) console.log('Opening auth URL...');
 
     // Open the OAuth URL in the browser
     const result = await WebBrowser.openAuthSessionAsync(
@@ -42,11 +42,11 @@ export const signInWithGoogle = async () => {
       { showInRecents: true }
     );
 
-    console.log('Auth session result type:', result.type);
+    if (__DEV__) console.log('Auth session result type:', result.type);
 
     if (result.type === 'success') {
       const { url } = result;
-      console.log('Success! Got redirect URL:', url);
+      if (__DEV__) console.log('Success! Got redirect URL:', url);
 
       // Parse the URL to check for tokens or code
       const urlObj = new URL(url);
@@ -60,20 +60,20 @@ export const signInWithGoogle = async () => {
       const refreshToken = hashParams.get('refresh_token');
 
       if (code) {
-        console.log('Found authorization code, exchanging for session...');
+        if (__DEV__) console.log('Found authorization code, exchanging for session...');
         // Exchange the code for a session (PKCE flow)
         const { data: sessionData, error: sessionError } =
           await supabase.auth.exchangeCodeForSession(code);
 
         if (sessionError) {
-          console.error('Session error:', sessionError);
+          if (__DEV__) console.error('Session error:', sessionError);
           throw sessionError;
         }
 
-        console.log('Session created successfully!');
+        if (__DEV__) console.log('Session created successfully!');
         return sessionData?.session || null;
       } else if (accessToken) {
-        console.log('Found tokens in URL, setting session...');
+        if (__DEV__) console.log('Found tokens in URL, setting session...');
         // Tokens were returned directly (implicit flow)
         const { data: sessionData, error: sessionError } =
           await supabase.auth.setSession({
@@ -82,24 +82,24 @@ export const signInWithGoogle = async () => {
           });
 
         if (sessionError) {
-          console.error('Session error:', sessionError);
+          if (__DEV__) console.error('Session error:', sessionError);
           throw sessionError;
         }
 
-        console.log('Session created successfully!');
+        if (__DEV__) console.log('Session created successfully!');
         return sessionData?.session || null;
       } else {
-        console.error('No code or tokens found in URL');
+        if (__DEV__) console.error('No code or tokens found in URL');
         throw new Error('No authorization code or tokens found in redirect URL');
       }
     } else if (result.type === 'cancel') {
-      console.log('User cancelled');
+      if (__DEV__) console.log('User cancelled');
       return null;
     }
 
     return null;
   } catch (error) {
-    console.error('Error in signInWithGoogle:', error);
+    if (__DEV__) console.error('Error in signInWithGoogle:', error);
     throw error;
   }
 };
@@ -160,10 +160,10 @@ export const signInWithApple = async () => {
   } catch (error: any) {
     if (error.code === 'ERR_REQUEST_CANCELED') {
       // User cancelled the sign-in
-      console.log('User cancelled Apple Sign-In');
+      if (__DEV__) console.log('User cancelled Apple Sign-In');
       return null;
     }
-    console.error('Error signing in with Apple:', error);
+    if (__DEV__) console.error('Error signing in with Apple:', error);
     throw error;
   }
 };
@@ -177,7 +177,7 @@ export const getCurrentSession = async () => {
     if (error) throw error;
     return session;
   } catch (error) {
-    console.error('Error getting current session:', error);
+    if (__DEV__) console.error('Error getting current session:', error);
     return null;
   }
 };
@@ -190,7 +190,7 @@ export const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   } catch (error) {
-    console.error('Error signing out:', error);
+    if (__DEV__) console.error('Error signing out:', error);
     throw error;
   }
 };
@@ -218,16 +218,16 @@ export const deleteAccount = async () => {
     });
 
     if (error) {
-      console.error('Edge Function error:', error);
+      if (__DEV__) console.error('Edge Function error:', error);
       throw error;
     }
 
-    console.log('Account deletion response:', data);
+    if (__DEV__) console.log('Account deletion response:', data);
 
     // Sign out locally (auth user is already deleted on the server)
     await signOut();
   } catch (error) {
-    console.error('Error deleting account:', error);
+    if (__DEV__) console.error('Error deleting account:', error);
     throw error;
   }
 };

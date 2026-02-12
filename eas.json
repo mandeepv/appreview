@@ -26,8 +26,7 @@
         "SUPABASE_URL": "https://zqwzdyjfxytvedghujsd.supabase.co",
         "SUPABASE_ANON_KEY": "sb_publishable_R4zEITMwYsgHqiPj4FbP-g_o4G3b6sd",
         "SUPERWALL_API_KEY": "pk_FkXYLnmCtS4lGjBnjkBHR",
-        "SKIP_PAYWALL": "false",
-        "SHOW_DEMO_BUTTON": "true"
+        "SKIP_PAYWALL": "false"
       }
     }
   }

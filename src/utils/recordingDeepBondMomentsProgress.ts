@@ -10,7 +10,7 @@ export const markSectionComplete = async (sectionId: string): Promise<void> => {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
     }
   } catch (error) {
-    console.error('Error marking section complete:', error);
+    if (__DEV__) console.error('Error marking section complete:', error);
   }
 };
 
@@ -19,7 +19,7 @@ export const getCompletedSections = async (): Promise<string[]> => {
     const completed = await AsyncStorage.getItem(STORAGE_KEY);
     return completed ? JSON.parse(completed) : [];
   } catch (error) {
-    console.error('Error getting completed sections:', error);
+    if (__DEV__) console.error('Error getting completed sections:', error);
     return [];
   }
 };
@@ -28,6 +28,6 @@ export const resetRecordingDeepBondMomentsProgress = async (): Promise<void> => 
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    console.error('Error resetting progress:', error);
+    if (__DEV__) console.error('Error resetting progress:', error);
   }
 };

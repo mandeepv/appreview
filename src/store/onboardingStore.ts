@@ -123,7 +123,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
       };
       await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (error) {
-      console.error('Error saving onboarding state:', error);
+      if (__DEV__) console.error('Error saving onboarding state:', error);
     }
   },
 
@@ -137,7 +137,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
       }
       return null;
     } catch (error) {
-      console.error('Error loading onboarding state:', error);
+      if (__DEV__) console.error('Error loading onboarding state:', error);
       return null;
     }
   },
@@ -151,7 +151,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
       ]);
       set(initialState);
     } catch (error) {
-      console.error('Error clearing onboarding state:', error);
+      if (__DEV__) console.error('Error clearing onboarding state:', error);
     }
   },
 
@@ -159,7 +159,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
     try {
       await AsyncStorage.setItem(LAST_SCREEN_KEY, screenName);
     } catch (error) {
-      console.error('Error saving last screen:', error);
+      if (__DEV__) console.error('Error saving last screen:', error);
     }
   },
 
@@ -167,7 +167,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
     try {
       return await AsyncStorage.getItem(LAST_SCREEN_KEY);
     } catch (error) {
-      console.error('Error getting last screen:', error);
+      if (__DEV__) console.error('Error getting last screen:', error);
       return null;
     }
   },
@@ -176,7 +176,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
     try {
       await AsyncStorage.setItem(HAS_REACHED_AUTH_KEY, 'true');
     } catch (error) {
-      console.error('Error marking auth reached:', error);
+      if (__DEV__) console.error('Error marking auth reached:', error);
     }
   },
 
@@ -185,7 +185,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
       const value = await AsyncStorage.getItem(HAS_REACHED_AUTH_KEY);
       return value === 'true';
     } catch (error) {
-      console.error('Error checking auth reached:', error);
+      if (__DEV__) console.error('Error checking auth reached:', error);
       return false;
     }
   },

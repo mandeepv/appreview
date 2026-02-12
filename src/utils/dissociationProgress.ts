@@ -12,7 +12,7 @@ export const markSectionComplete = async (sectionId: string): Promise<void> => {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
     }
   } catch (error) {
-    console.error('Error marking section complete:', error);
+    if (__DEV__) console.error('Error marking section complete:', error);
   }
 };
 
@@ -21,7 +21,7 @@ export const getCompletedSections = async (): Promise<string[]> => {
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch (error) {
-    console.error('Error getting completed sections:', error);
+    if (__DEV__) console.error('Error getting completed sections:', error);
     return [];
   }
 };
@@ -30,6 +30,6 @@ export const resetDissociationProgress = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    console.error('Error resetting progress:', error);
+    if (__DEV__) console.error('Error resetting progress:', error);
   }
 };

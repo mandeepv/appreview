@@ -40,7 +40,7 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
       const timer = setTimeout(async () => {
         if (user) {
           // User is logged in, go directly to app
-          console.log('User already authenticated, navigating to Root');
+          if (__DEV__) console.log('User already authenticated, navigating to Root');
           navigation.replace('Root');
         } else {
           // User not logged in - check onboarding state
@@ -49,17 +49,17 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
 
           if (hasReachedAuthScreen) {
             // User completed onboarding before, go to Auth screen
-            console.log('User has completed onboarding, navigating to Auth');
+            if (__DEV__) console.log('User has completed onboarding, navigating to Auth');
             await loadState(); // Load their saved onboarding data
             navigation.replace('Auth');
           } else if (lastScreen) {
             // User was in middle of onboarding, resume where they left off
-            console.log('Resuming onboarding at:', lastScreen);
+            if (__DEV__) console.log('Resuming onboarding at:', lastScreen);
             await loadState(); // Load their saved answers
             navigation.replace(lastScreen as any);
           } else {
             // Brand new user, show welcome screen
-            console.log('New user, showing Welcome screen');
+            if (__DEV__) console.log('New user, showing Welcome screen');
             navigation.replace('Welcome');
           }
         }
