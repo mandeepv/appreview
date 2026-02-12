@@ -18,10 +18,8 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.kinderwell.app",
-      "buildNumber": "1",
+      "buildNumber": "7",
       "infoPlist": {
-        "NSCameraUsageDescription": "We need access to your camera to let you add profile photos.",
-        "NSPhotoLibraryUsageDescription": "We need access to your photo library to let you add profile photos.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [

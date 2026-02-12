@@ -38,7 +38,7 @@ export const markLessonComplete = async (lessonId: string): Promise<void> => {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error marking lesson complete:', error);
+    if (__DEV__) console.error('Error marking lesson complete:', error);
     throw error;
   }
 };
@@ -71,7 +71,7 @@ export const isLessonCompleted = async (lessonId: string): Promise<boolean> => {
 
     return data?.completed || false;
   } catch (error) {
-    console.error('Error checking lesson completion:', error);
+    if (__DEV__) console.error('Error checking lesson completion:', error);
     return false;
   }
 };
@@ -97,7 +97,7 @@ export const getCompletedLessons = async (): Promise<string[]> => {
 
     return data?.map((item) => item.lesson_id) || [];
   } catch (error) {
-    console.error('Error getting completed lessons:', error);
+    if (__DEV__) console.error('Error getting completed lessons:', error);
     return [];
   }
 };
@@ -129,7 +129,7 @@ export const getLessonProgress = async (lessonId: string): Promise<LessonProgres
 
     return data as LessonProgress;
   } catch (error) {
-    console.error('Error getting lesson progress:', error);
+    if (__DEV__) console.error('Error getting lesson progress:', error);
     return null;
   }
 };
@@ -153,7 +153,7 @@ export const resetLessonProgress = async (lessonId: string): Promise<void> => {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error resetting lesson progress:', error);
+    if (__DEV__) console.error('Error resetting lesson progress:', error);
     throw error;
   }
 };
@@ -176,7 +176,7 @@ export const resetAllProgress = async (): Promise<void> => {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error resetting all progress:', error);
+    if (__DEV__) console.error('Error resetting all progress:', error);
     throw error;
   }
 };
@@ -218,7 +218,7 @@ export const getProgressStats = async (): Promise<{
       percentComplete,
     };
   } catch (error) {
-    console.error('Error getting progress stats:', error);
+    if (__DEV__) console.error('Error getting progress stats:', error);
     return {
       totalCompleted: 0,
       totalLessons: 13,

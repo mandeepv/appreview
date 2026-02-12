@@ -35,11 +35,11 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
 
         if (hasOnboarding) {
           // Returning user with onboarding data - go directly to app
-          console.log('Returning user with onboarding data, navigating to Root');
+          if (__DEV__) console.log('Returning user with onboarding data, navigating to Root');
           navigation.replace('Root');
         } else {
           // User has no onboarding data - force them through onboarding
-          console.log('User has no onboarding data, starting onboarding');
+          if (__DEV__) console.log('User has no onboarding data, starting onboarding');
           navigation.replace('UserType');
         }
       } else {
@@ -48,7 +48,7 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
         setLoadingProvider(null);
       }
     } catch (error: any) {
-      console.error('Google sign-in error:', error);
+      if (__DEV__) console.error('Google sign-in error:', error);
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(
@@ -76,11 +76,11 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
 
         if (hasOnboarding) {
           // Returning user with onboarding data - go directly to app
-          console.log('Returning user with onboarding data, navigating to Root');
+          if (__DEV__) console.log('Returning user with onboarding data, navigating to Root');
           navigation.replace('Root');
         } else {
           // User has no onboarding data - force them through onboarding
-          console.log('User has no onboarding data, starting onboarding');
+          if (__DEV__) console.log('User has no onboarding data, starting onboarding');
           navigation.replace('UserType');
         }
       } else {
@@ -89,7 +89,7 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
         setLoadingProvider(null);
       }
     } catch (error: any) {
-      console.error('Apple sign-in error:', error);
+      if (__DEV__) console.error('Apple sign-in error:', error);
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(

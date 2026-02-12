@@ -21,14 +21,14 @@ export const SprinklersSec5Screen7: React.FC<Props> = ({ navigation }) => {
                 await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
             }
         } catch (error) {
-            console.error('Error saving progress:', error);
+            if (__DEV__) console.error('Error saving progress:', error);
         }
         navigation.navigate('SprinklersLesson' as any);
     };
 
     const handleReview = () => {
         // In a real app, this would open the store link
-        console.log('Opening Play Market...');
+        if (__DEV__) console.log('Opening Play Market...');
     };
 
     return (

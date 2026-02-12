@@ -45,7 +45,7 @@ export const Lesson1Complete: React.FC<Props> = ({ navigation: lessonNavigation 
         message: 'Great parenting app you might like: https://www.kinderwell.com',
       });
     } catch (error) {
-      console.error('Error sharing:', error);
+      if (__DEV__) console.error('Error sharing:', error);
     }
   };
 

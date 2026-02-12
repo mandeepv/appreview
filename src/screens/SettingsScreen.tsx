@@ -46,7 +46,7 @@ export const SettingsScreen: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error('Error opening subscription management:', error);
+      if (__DEV__) console.error('Error opening subscription management:', error);
     }
   };
 
@@ -57,10 +57,10 @@ export const SettingsScreen: React.FC = () => {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert('Coming Soon', 'Privacy Policy will be available soon.');
+        Alert.alert('Unable to Open Link', 'Please visit https://mandeepv.github.io/kinderwell-legal/privacy.html in your browser.');
       }
     } catch (error) {
-      console.error('Error opening privacy policy:', error);
+      if (__DEV__) console.error('Error opening privacy policy:', error);
     }
   };
 
@@ -71,10 +71,10 @@ export const SettingsScreen: React.FC = () => {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert('Coming Soon', 'Terms of Service will be available soon.');
+        Alert.alert('Unable to Open Link', 'Please visit https://mandeepv.github.io/kinderwell-legal/terms.html in your browser.');
       }
     } catch (error) {
-      console.error('Error opening terms:', error);
+      if (__DEV__) console.error('Error opening terms:', error);
     }
   };
 
@@ -93,7 +93,7 @@ export const SettingsScreen: React.FC = () => {
             try {
               await signOut();
             } catch (error) {
-              console.error('Error logging out:', error);
+              if (__DEV__) console.error('Error logging out:', error);
               Alert.alert('Error', 'Could not log out. Please try again.');
             }
           },
@@ -142,7 +142,7 @@ export const SettingsScreen: React.FC = () => {
                 [{ text: 'OK' }]
               );
             } catch (error) {
-              console.error('Error deleting account:', error);
+              if (__DEV__) console.error('Error deleting account:', error);
               Alert.alert(
                 'Delete Failed',
                 'Could not delete account. Please try again or contact support.',
@@ -175,7 +175,7 @@ export const SettingsScreen: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error('Error opening email:', error);
+      if (__DEV__) console.error('Error opening email:', error);
     }
   };
 

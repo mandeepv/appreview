@@ -22,7 +22,7 @@ export const SandbagsSec2Screen10: React.FC<Props> = ({ navigation }) => {
                 await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
             }
         } catch (error) {
-            console.error('Error saving progress:', error);
+            if (__DEV__) console.error('Error saving progress:', error);
         }
 
         // Return to the Emotional Sandbags hub

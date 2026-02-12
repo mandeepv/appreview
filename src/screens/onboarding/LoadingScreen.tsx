@@ -23,7 +23,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // Listen for Superwall subscription status changes
   useSuperwallEvents({
     onSubscriptionStatusChange: (subscriptionStatus) => {
-      console.log('💰 Subscription status changed:', subscriptionStatus.status);
+      if (__DEV__) console.log('💰 Subscription status changed:', subscriptionStatus.status);
       if (subscriptionStatus.status === 'ACTIVE') {
         setIsSubscribed(true);
       } else if (subscriptionStatus.status === 'INACTIVE') {
@@ -34,25 +34,25 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
 
   const { registerPlacement } = usePlacement({
     onPresent: (paywallInfo) => {
-      console.log('✅ Paywall presented:', paywallInfo.name);
+      if (__DEV__) console.log('✅ Paywall presented:', paywallInfo.name);
     },
     onDismiss: (paywallInfo, result) => {
-      console.log('👋 Paywall dismissed:', result.type);
+      if (__DEV__) console.log('👋 Paywall dismissed:', result.type);
 
       // Check if user completed a purchase
       if (result.type === 'purchased') {
-        console.log('💰 Purchase completed! Updating subscription status...');
+        if (__DEV__) console.log('💰 Purchase completed! Updating subscription status...');
         setIsSubscribed(true);
       }
 
       navigation.replace('Root');
     },
     onSkip: (reason) => {
-      console.log('⏭️ Paywall skipped:', reason.type);
+      if (__DEV__) console.log('⏭️ Paywall skipped:', reason.type);
       navigation.replace('Root');
     },
     onError: (error) => {
-      console.error('❌ Paywall error:', error);
+      if (__DEV__) console.error('❌ Paywall error:', error);
       navigation.replace('Root');
     },
   });
@@ -84,13 +84,13 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
 
             await saveUserOnboardingData(user.id, onboardingData);
           } else {
-            console.log('📝 Demo user - skipping Supabase save');
+            if (__DEV__) console.log('📝 Demo user - skipping Supabase save');
           }
 
           // Clear local onboarding state after saving
           await onboardingStore.clearState();
         } catch (error) {
-          console.error('Error saving onboarding data:', error);
+          if (__DEV__) console.error('Error saving onboarding data:', error);
           // Continue anyway - don't block user from entering app
         }
       }
@@ -103,13 +103,13 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     const skipPaywall = Constants.expoConfig?.extra?.skipPaywall;
     const shouldSkipPaywall = skipPaywall === 'true';
 
-    console.log('=== 🚀 SHOWING PAYWALL ===');
-    console.log('SKIP_PAYWALL:', skipPaywall);
-    console.log('Is Demo User:', isDemoUser);
-    console.log('User ID:', user?.id);
+    if (__DEV__) console.log('=== 🚀 SHOWING PAYWALL ===');
+    if (__DEV__) console.log('SKIP_PAYWALL:', skipPaywall);
+    if (__DEV__) console.log('Is Demo User:', isDemoUser);
+    if (__DEV__) console.log('User ID:', user?.id);
 
     if (shouldSkipPaywall || isDemoUser) {
-      console.log('⏩ Skipping paywall', isDemoUser ? '(Demo User)' : '(SKIP_PAYWALL)');
+      if (__DEV__) console.log('⏩ Skipping paywall', isDemoUser ? '(Demo User)' : '(SKIP_PAYWALL)');
       navigation.replace('Root');
       return;
     }
@@ -117,18 +117,18 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     try {
       // Identify user with Superwall
       if (user?.id) {
-        console.log('👤 Identifying user:', user.id);
+        if (__DEV__) console.log('👤 Identifying user:', user.id);
         await identify(user.id);
       }
 
-      console.log('📱 Registering placement: show_paywall');
+      if (__DEV__) console.log('📱 Registering placement: show_paywall');
       await registerPlacement({
         placement: 'show_paywall',
       });
 
-      console.log('✅ Placement registered');
+      if (__DEV__) console.log('✅ Placement registered');
     } catch (error) {
-      console.error('❌ Error showing paywall:', error);
+      if (__DEV__) console.error('❌ Error showing paywall:', error);
       navigation.replace('Root');
     }
   };

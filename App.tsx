@@ -15,7 +15,7 @@ function AppContent() {
   const isInitialMount = useRef(true);
 
   useEffect(() => {
-    console.log('🚀 Initializing app...');
+    if (__DEV__) console.log('🚀 Initializing app...');
     initialize();
   }, []);
 
@@ -30,7 +30,7 @@ function AppContent() {
 
     // User signed out (had user before, now null)
     if (prevUserRef.current && !user && navigationRef.current?.isReady()) {
-      console.log('User signed out, navigating to Welcome screen');
+      if (__DEV__) console.log('User signed out, navigating to Welcome screen');
       navigationRef.current.reset({
         index: 0,
         routes: [{ name: 'Welcome' }],
@@ -51,7 +51,7 @@ function AppContent() {
 export default function App() {
   const superwallApiKey = Constants.expoConfig?.extra?.superwallApiKey;
 
-  console.log('📝 Superwall API Key:', superwallApiKey ? `${superwallApiKey.substring(0, 10)}...` : 'MISSING');
+  if (__DEV__) console.log('📝 Superwall API Key:', superwallApiKey ? `${superwallApiKey.substring(0, 10)}...` : 'MISSING');
 
   return (
     <SuperwallProvider apiKeys={{ ios: superwallApiKey || '' }}>

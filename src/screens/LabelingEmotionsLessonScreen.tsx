@@ -65,7 +65,7 @@ export default function LabelingEmotionsLessonScreen() {
         setCompletedSections(JSON.parse(stored));
       }
     } catch (error) {
-      console.error('Error loading completed sections:', error);
+      if (__DEV__) console.error('Error loading completed sections:', error);
     }
   };
 
