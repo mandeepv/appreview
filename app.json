@@ -29,6 +29,14 @@
         ]
       },
       "usesAppleSignIn": true,
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
+      },
       "associatedDomains": [
         "applinks:zqwzdyjfxytvedghujsd.supabase.co"
       ]
@@ -59,12 +67,6 @@
     "scheme": "kinderwell",
     "plugins": [
       "expo-apple-authentication",
-      [
-        "expo-notifications",
-        {
-          "color": "#4F8F8B"
-        }
-      ],
       "expo-asset",
       "expo-font",
       "expo-web-browser"
