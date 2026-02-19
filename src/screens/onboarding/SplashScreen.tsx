@@ -56,7 +56,11 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
             // User was in middle of onboarding, resume where they left off
             if (__DEV__) console.log('Resuming onboarding at:', lastScreen);
             await loadState(); // Load their saved answers
-            navigation.replace(lastScreen as any);
+            try {
+              navigation.replace(lastScreen as any);
+            } catch {
+              navigation.replace('Welcome');
+            }
           } else {
             // Brand new user, show welcome screen
             if (__DEV__) console.log('New user, showing Welcome screen');

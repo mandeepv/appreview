@@ -40,6 +40,11 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
     >
       <View style={styles.container}>
         <View>
+          <Text style={styles.microcopy}>
+            The next few questions help us personalize lessons for your family.{'\n'}
+            All responses are stored securely and used only to customize your experience.
+          </Text>
+
           {/* Mother and Father cards side by side */}
           <View style={styles.squareCardsRow}>
             <TouchableOpacity

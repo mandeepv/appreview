@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { AntDesign } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { useOnboardingStore } from '../../store/onboardingStore';
@@ -146,7 +147,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
               <ActivityIndicator color="#DB4437" />
             ) : (
               <>
-                <View style={styles.iconContainer}>
+                <View style={styles.googleIconContainer}>
                   <AntDesign name="google" size={22} color="#DB4437" />
                 </View>
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
@@ -154,24 +155,27 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.appleButton, isLoading && styles.buttonDisabled]}
-            onPress={handleAppleSignIn}
-            activeOpacity={0.7}
-            disabled={isLoading}
-          >
-            {loadingProvider === 'apple' ? (
+          {loadingProvider === 'apple' ? (
+            <View style={styles.appleLoadingContainer}>
               <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <View style={styles.iconContainer}>
-                  <Ionicons name="logo-apple" size={24} color="#FFFFFF" />
-                </View>
-                <Text style={styles.appleButtonText}>Continue with Apple</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            </View>
+          ) : (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={12}
+              style={styles.appleButton}
+              onPress={handleAppleSignIn}
+            />
+          )}
         </View>
+
+        <Text style={styles.terms}>
+          By continuing you agree to our{' '}
+          <Text onPress={() => Linking.openURL('https://mandeepv.github.io/kinderwell-legal/terms.html')} style={{ textDecorationLine: 'underline' }}>Terms</Text>
+          {' '}and{' '}
+          <Text onPress={() => Linking.openURL('https://mandeepv.github.io/kinderwell-legal/privacy.html')} style={{ textDecorationLine: 'underline' }}>Privacy Policy</Text>
+        </Text>
       </View>
     </OnboardingContainer>
   );
@@ -241,27 +245,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   appleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%',
+    height: 56,
+  },
+  appleLoadingContainer: {
+    width: '100%',
     height: 56,
     backgroundColor: '#000000',
     borderRadius: 12,
-    paddingHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  appleButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginLeft: 12,
-    letterSpacing: 0.2,
-  },
-  iconContainer: {
+  googleIconContainer: {
     width: 24,
     height: 24,
     alignItems: 'center',

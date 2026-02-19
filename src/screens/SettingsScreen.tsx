@@ -16,18 +16,25 @@ import { deleteAccount } from '../services/authService';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 
 export const SettingsScreen: React.FC = () => {
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, isDemoUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRestorePurchases = async () => {
-    // Note: Superwall handles restore purchases through the paywall UI
-    // or platform-specific mechanisms. For manual restore, direct users
-    // to manage subscription through App Store settings.
-    Alert.alert(
-      'Restore Purchases',
-      'To restore your purchases, please use the "Manage Subscription" option to access your App Store subscriptions.',
-      [{ text: 'OK' }]
-    );
+    try {
+      const url = 'https://apps.apple.com/account/subscriptions';
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(
+          'Restore Purchases',
+          'Please manage your subscriptions in the App Store app under your Apple ID settings.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      if (__DEV__) console.error('Error opening subscriptions page:', error);
+    }
   };
 
   const handleManageSubscription = async () => {
@@ -135,12 +142,17 @@ export const SettingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               setIsLoading(true);
-              await deleteAccount();
-              Alert.alert(
-                'Account Deleted',
-                'Your account and all data have been deleted.',
-                [{ text: 'OK' }]
-              );
+              if (isDemoUser) {
+                // Demo users have no Supabase session — just sign out
+                await signOut();
+              } else {
+                await deleteAccount();
+                Alert.alert(
+                  'Account Deleted',
+                  'Your account and all data have been deleted.',
+                  [{ text: 'OK' }]
+                );
+              }
             } catch (error) {
               if (__DEV__) console.error('Error deleting account:', error);
               Alert.alert(
@@ -191,9 +203,11 @@ export const SettingsScreen: React.FC = () => {
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>
-                {user?.email || 'User'}
+                {isDemoUser ? 'App Reviewer' : (user?.email || 'User')}
               </Text>
-              <Text style={styles.profileEmail}>{user?.email}</Text>
+              <Text style={styles.profileEmail}>
+                {isDemoUser ? 'Demo Mode - Full Access' : user?.email}
+              </Text>
             </View>
           </View>
         </View>
