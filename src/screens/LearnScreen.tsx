@@ -175,14 +175,14 @@ export default function LearnScreen() {
 
       <View style={styles.illustrationContainer}>
         <View style={styles.illustrationPlaceholder}>
-          <Text style={styles.illustrationEmoji}>👩‍👦</Text>
+          <Text style={styles.illustrationEmoji}>👨‍👩‍👧‍👦</Text>
         </View>
       </View>
 
       <View style={styles.titleSection}>
         <Text style={styles.title}>Your Growth Path</Text>
         <Text style={styles.subtitle}>
-          Short, 5-minute daily lessons designed for busy moms.
+          Short, 5-minute daily lessons designed for busy parents.
         </Text>
       </View>
 
@@ -217,6 +217,12 @@ export default function LearnScreen() {
             </CardWrapper>
           );
         })}
+      </View>
+
+      <View style={styles.disclaimerContainer}>
+        <Text style={styles.disclaimerText}>
+          Content is educational and based on child development research. Not medical or therapeutic advice.
+        </Text>
       </View>
     </ScrollView>
   );
@@ -335,5 +341,17 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     color: Colors.textPrimary,
     letterSpacing: 0.5,
+  },
+  disclaimerContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    paddingBottom: 32,
+  },
+  disclaimerText: {
+    fontSize: 11,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 16,
+    opacity: 0.7,
   },
 });

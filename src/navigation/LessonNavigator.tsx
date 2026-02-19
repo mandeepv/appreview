@@ -208,7 +208,6 @@ import { SprinklersSec5Screen3 } from '../screens/sprinklers/SprinklersSec5Scree
 import { SprinklersSec5Screen4 } from '../screens/sprinklers/SprinklersSec5Screen4';
 import { SprinklersSec5Screen5 } from '../screens/sprinklers/SprinklersSec5Screen5';
 import { SprinklersSec5Screen6 } from '../screens/sprinklers/SprinklersSec5Screen6';
-import { SprinklersSec5Screen7 } from '../screens/sprinklers/SprinklersSec5Screen7';
 
 // Emotional Sandbags - Sub-lesson 1
 import { SandbagsSec1Screen1 } from '../screens/emotional-sandbags/SandbagsSec1Screen1';
@@ -620,7 +619,6 @@ export type LessonStackParamList = {
   SprinklersSec5Screen4: undefined;
   SprinklersSec5Screen5: undefined;
   SprinklersSec5Screen6: undefined;
-  SprinklersSec5Screen7: undefined;
   SandbagsSec1Screen1: undefined;
   SandbagsSec1Screen2: undefined;
   SandbagsSec1Screen3: undefined;
@@ -976,7 +974,6 @@ export const LessonNavigator: React.FC = () => {
       <Stack.Screen name="SprinklersSec5Screen4" component={SprinklersSec5Screen4} />
       <Stack.Screen name="SprinklersSec5Screen5" component={SprinklersSec5Screen5} />
       <Stack.Screen name="SprinklersSec5Screen6" component={SprinklersSec5Screen6} />
-      <Stack.Screen name="SprinklersSec5Screen7" component={SprinklersSec5Screen7} />
       <Stack.Screen name="SandbagsSec1Screen1" component={SandbagsSec1Screen1} />
       <Stack.Screen name="SandbagsSec1Screen2" component={SandbagsSec1Screen2} />
       <Stack.Screen name="SandbagsSec1Screen3" component={SandbagsSec1Screen3} />

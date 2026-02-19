@@ -1,9 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Share, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { Colors, Typography, Shadows } from '../../constants/theme';
 import { LessonStackParamList } from '../../navigation/LessonNavigator';
@@ -31,16 +30,6 @@ export const Lesson4Complete: React.FC<Props> = ({ navigation }) => {
       }),
     ]).start();
   }, []);
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: 'Great parenting app you might like: https://www.kinderwell.com',
-      });
-    } catch (error) {
-      if (__DEV__) console.error('Error sharing:', error);
-    }
-  };
 
   const handleNext = () => {
     // Navigate back to the Learn screen
@@ -99,14 +88,6 @@ export const Lesson4Complete: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.nextTitle}>Creating emotional safety in everyday moments.</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.shareButton}
-            onPress={handleShare}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="share-outline" size={24} color={Colors.primary} />
-            <Text style={styles.shareText}>Share with friends</Text>
-          </TouchableOpacity>
         </Animated.View>
       </View>
 

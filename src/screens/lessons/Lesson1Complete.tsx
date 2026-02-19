@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, Share } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { Colors, Typography, Shadows, BorderRadius, IconSizes } from '../../constants/theme';
 import { LessonStackParamList } from '../../navigation/LessonNavigator';
@@ -37,16 +36,6 @@ export const Lesson1Complete: React.FC<Props> = ({ navigation: lessonNavigation 
   const handleNext = () => {
     // Navigate back to Learn screen in MainTabs
     rootNavigation.navigate('MainTabs');
-  };
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: 'Great parenting app you might like: https://www.kinderwell.com',
-      });
-    } catch (error) {
-      if (__DEV__) console.error('Error sharing:', error);
-    }
   };
 
   return (
@@ -97,16 +86,6 @@ export const Lesson1Complete: React.FC<Props> = ({ navigation: lessonNavigation 
         </Animated.View>
 
         <View style={styles.spacer} />
-
-        {/* Share Section */}
-        <Animated.View style={[styles.shareSection, { opacity: fadeAnim }]}>
-          <Text style={styles.sharePrompt}>
-            Who'd you like to text this to?
-          </Text>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={24} color={Colors.primary} />
-          </TouchableOpacity>
-        </Animated.View>
 
         {/* CTA */}
         <Animated.View style={[styles.buttonContainer, { opacity: fadeAnim }]}>

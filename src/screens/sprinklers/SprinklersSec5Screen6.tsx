@@ -12,7 +12,18 @@ type Props = NativeStackScreenProps<LessonStackParamList, 'SprinklersSec5Screen6
 
 export const SprinklersSec5Screen6: React.FC<Props> = ({ navigation }) => {
     const handleNext = async () => {
-        navigation.navigate('SprinklersSec5Screen7');
+        try {
+            const STORAGE_KEY = '@sprinklers_completed_sections';
+            const stored = await AsyncStorage.getItem(STORAGE_KEY);
+            let completedSections = stored ? JSON.parse(stored) : [];
+            if (!completedSections.includes('5')) {
+                completedSections.push('5');
+                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+            }
+        } catch (error) {
+            if (__DEV__) console.error('Error saving progress:', error);
+        }
+        navigation.navigate('SprinklersLesson' as any);
     };
 
     const handleTakeBreak = () => {
@@ -22,7 +33,7 @@ export const SprinklersSec5Screen6: React.FC<Props> = ({ navigation }) => {
     return (
         <LessonContainer
             currentStep={6}
-            totalSteps={7}
+            totalSteps={6}
             onBack={() => navigation.goBack()}
         >
             <View style={styles.container}>

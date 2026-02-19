@@ -30,7 +30,7 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
     {
       image: require('../../../assets/onboarding/expert_backed_illo.jpg'),
       title: 'Expert-backed lessons',
-      text: 'Learn from 50+ child psychologists and parenting specialists'
+      text: 'Content informed by leading child development research'
     },
     {
       image: require('../../../assets/onboarding/quick_effective_illo.jpg'),

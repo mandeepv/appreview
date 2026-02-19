@@ -27,8 +27,8 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
     }, []);
 
     const handleContinue = () => {
-        if (name.trim() && age > 0) {
-            updateNameAndAge(name.trim(), age);
+        if (age > 0) {
+            updateNameAndAge(name.trim() || 'Parent', age);
             navigation.navigate('ChildrenCount');
         }
     };
@@ -36,7 +36,7 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
     const incrementAge = () => setAge(prev => Math.min(100, prev + 1));
     const decrementAge = () => setAge(prev => Math.max(18, prev - 1));
 
-    const isValid = name.trim().length > 0 && age > 0;
+    const isValid = age > 0;
     const hasName = name.trim().length > 0;
 
     return (

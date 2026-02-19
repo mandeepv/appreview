@@ -82,7 +82,7 @@ export interface OnboardingData {
   emotionalChallenges: EmotionalChallenge[];
 
   // Screen 16
-  authMethod: 'google' | 'apple' | null;
+  authMethod: 'google' | 'apple' | 'demo' | null;
 
   // Screen 20
   selectedPlan: 'free-trial' | 'monthly' | null;
@@ -102,7 +102,7 @@ export interface OnboardingStore extends OnboardingData {
   updateExperienceLevel: (level: ExperienceLevel) => void;
   toggleParentingStyle: (style: ParentingStyle) => void;
   toggleEmotionalChallenge: (challenge: EmotionalChallenge) => void;
-  setAuthMethod: (method: 'google' | 'apple') => void;
+  setAuthMethod: (method: 'google' | 'apple' | 'demo') => void;
   setSelectedPlan: (plan: 'free-trial' | 'monthly') => void;
   reset: () => void;
   // Persistence methods

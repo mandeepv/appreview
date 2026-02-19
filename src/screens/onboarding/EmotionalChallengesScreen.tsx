@@ -84,7 +84,7 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
     <OnboardingContainer
       screenName="EmotionalChallenges"
       title="How have you been feeling lately?"
-      subtitle="This stays private. It helps us support you better."
+      subtitle="Stored securely to personalize your lessons."
       currentStep={14}
       onBack={() => navigation.goBack()}
       centerTitle={true}
