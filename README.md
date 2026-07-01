@@ -2,6 +2,16 @@
 
 A Duolingo-style parenting app helping parents learn to be better through daily 5-20 minute lessons.
 
+## 📚 Documentation
+
+All process and setup guides live in [`docs/`](./docs/README.md). Quick links:
+
+- [Dev/Prod environment switching + release workflow](./docs/DEV_PROD_ENVIRONMENTS.md)
+- [Release tagging process](./docs/RELEASE_PROCESS.md)
+- [Best practices & prioritized gap list](./docs/BEST_PRACTICES.md)
+- [Setup guide (new machine)](./docs/SETUP_GUIDE.md)
+- [Docs index](./docs/README.md)
+
 ## Tech Stack
 
 - **React Native** with Expo

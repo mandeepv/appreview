@@ -8,6 +8,13 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "SUPABASE_URL": "https://devprojectref000000x.supabase.co",
+        "SUPABASE_ANON_KEY": "sb_publishable_DEV_KEY_REDACTED",
+        "SUPERWALL_API_KEY": "pk_SUPERWALL_KEY_REDACTED",
+        "SKIP_PAYWALL": "false",
+        "SHOW_DEMO_BUTTON": "true"
       }
     },
     "preview": {
@@ -15,6 +22,13 @@
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release"
+      },
+      "env": {
+        "SUPABASE_URL": "https://devprojectref000000x.supabase.co",
+        "SUPABASE_ANON_KEY": "sb_publishable_DEV_KEY_REDACTED",
+        "SUPERWALL_API_KEY": "pk_SUPERWALL_KEY_REDACTED",
+        "SKIP_PAYWALL": "false",
+        "SHOW_DEMO_BUTTON": "true"
       }
     },
     "production": {

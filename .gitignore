@@ -34,3 +34,7 @@ yarn-error.log*
 # Temporary files
 *.orig.*
 *.~*
+.env.prod
+
+# Supabase CLI local state (which project you're linked to, cached versions, etc.)
+supabase/.temp/

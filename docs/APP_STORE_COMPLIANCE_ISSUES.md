@@ -621,5 +621,5 @@ TextInput emotion reflections confirmed local `useState` only — not sent to Su
 - [ ] Demo mode (7-tap) grants full access and all screens work without errors
 - [ ] Test on IPv6 network — iPhone Personal Hotspot (M3)
 - [ ] All Privacy, Terms, Support URLs open correctly
-- [ ] No "Sarah Johnson" visible anywhere after fix
+- [x] No "Sarah Johnson" visible anywhere after fix
 - [ ] Complete onboarding flow — no skipped screens (A8-07)
