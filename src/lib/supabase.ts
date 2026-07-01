@@ -9,6 +9,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase configuration. Please check your environment variables.');
 }
 
+if (__DEV__) {
+  const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+  const env = projectRef === 'zqwzdyjfxytvedghujsd' ? 'PROD ⚠️' : projectRef === 'xbkkjqvbsnroenqlqkmi' ? 'DEV ✅' : 'UNKNOWN';
+  console.log(`[Supabase] Env: ${env} | Project: ${projectRef}`);
+}
+
 // Initialize Supabase client with AsyncStorage for session persistence
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

@@ -1,0 +1,495 @@
+# Dev / Prod Environment Guide
+
+How to switch between the `kinderwell-dev` and `kinderwell` (prod) Supabase environments when developing, testing, and releasing the Kinderwell app.
+
+## Overview
+
+We run two Supabase projects with identical schemas:
+
+| Environment | Supabase project | Project ref | Region |
+|---|---|---|---|
+| **Prod** | `kinderwell` | `zqwzdyjfxytvedghujsd` | us-west-2 |
+| **Dev** | `kinderwell-dev` | `xbkkjqvbsnroenqlqkmi` | us-west-1 |
+
+Both projects have:
+- Same tables (`user_profiles`, `lesson_progress`) with same RLS policies
+- Same Edge Functions (`delete-account`)
+- Same Auth providers (Apple + Google, reusing prod's Apple Services ID and Google OAuth client)
+- Same allowed redirect URLs (`kinderwell://*`)
+
+Superwall and Apple IAP are **shared** across both environments — sandbox mode (debug builds, TestFlight) handles isolation automatically. No real money is charged in non-store builds.
+
+## How the app knows which env it's in
+
+The app reads Supabase creds from `Constants.expoConfig.extra` via `expo-constants`. Those values come from:
+
+- **Local dev (`npx expo start` / `expo run:ios`):** the `.env` file at repo root
+- **EAS builds (`eas build`):** the `env` block in `eas.json` for the chosen build profile
+
+`src/lib/supabase.ts` logs `[Supabase] Env: DEV ✅` or `PROD ⚠️` on launch in dev builds — check Metro/Xcode logs after startup to confirm which project the app is hitting.
+
+## The two files that control everything
+
+### 1. `.env` — used by `npx expo start` and `expo run:ios`
+
+**Default:** points to **dev**. A backup pointing at prod is stored at `.env.prod` (gitignored).
+
+### 2. `eas.json` — used by `eas build`
+
+Three build profiles:
+
+| Profile | Command | Points at |
+|---|---|---|
+| `development` | `eas build --profile development` | Dev |
+| `preview` | `eas build --profile preview` | Dev |
+| `production` | `eas build --profile production` | **Prod** |
+
+## Switching local dev to point at prod (rare — you shouldn't need to)
+
+Only do this if you specifically need to reproduce a prod-only bug locally. Otherwise leave it on dev.
+
+```bash
+# Save current dev .env, swap in prod
+cp .env .env.dev.bak
+cp .env.prod .env
+
+# ... test whatever you need ...
+
+# Switch back to dev
+cp .env.dev.bak .env
+```
+
+The app will log `[Supabase] Env: PROD ⚠️` on startup — that's your signal you're pointed at prod.
+
+## Building for a real device
+
+### Development build (dev backend, dev client)
+
+For everyday iterating on your iPhone. Fast, hot-reloadable.
+
+```bash
+# Physical device plugged in
+npx expo run:ios --device
+
+# Or via EAS (cloud build, install via internal distribution)
+eas build --profile development --platform ios
+```
+
+Check Metro logs for `[Supabase] Env: DEV ✅` — confirms dev backend.
+
+### Preview build (dev backend, release-mode client)
+
+Release-mode compile, but still pointed at dev. Use before shipping to catch release-mode-only bugs (e.g., minified code issues) without risking prod data.
+
+```bash
+eas build --profile preview --platform ios
+```
+
+### Production build (prod backend, release-mode client)
+
+**Only for App Store submission.** Never test experimental changes with this profile — you'll be hitting real users' data.
+
+```bash
+eas build --profile production --platform ios
+eas submit --profile production --platform ios
+```
+
+## Testing workflow — the standard loop
+
+1. **Local dev on Mac** — `npx expo start` (dev backend)
+2. **On-device dev** — `npx expo run:ios --device` (dev backend, iPhone)
+3. **Pre-release smoke test** — `eas build --profile preview` and install via TestFlight or ad-hoc (dev backend, release-mode)
+4. **Ship** — `eas build --profile production` → `eas submit`
+
+## Schema migrations — backward compatibility
+
+Once the app is live, users on multiple app versions coexist for weeks (App Store review + slow updaters). The DB has to work for ALL of them at once.
+
+### The rule
+
+**Every schema change must be backward compatible with every app version currently in users' hands.**
+
+### Safe changes (ship freely)
+
+- Add a new nullable column
+- Add a new table
+- Add a new index
+- Add a new Edge Function
+- Loosen an RLS policy or CHECK constraint
+
+### Breaking changes (never ship in one step)
+
+- Rename a column or table
+- Drop a column the old app reads
+- Change a column type incompatibly
+- Add `NOT NULL` column with no default
+- Tighten a CHECK constraint or FK
+- Remove/rename an enum value
+- Rename/remove an Edge Function
+- Change an Edge Function response shape
+- Tighten an RLS policy
+
+### Expand → migrate → contract
+
+For anything that looks like a breaking change:
+
+1. **Expand** — add the new thing alongside the old thing. Both work. New app writes to both.
+2. **Migrate** — ship the app update. Wait weeks/months until old-version usage is near zero.
+3. **Contract** — only then drop the old column/table/function.
+
+### Client-side hygiene
+
+- Never `SELECT *` from Supabase — always specify columns
+- Use Zod with tolerance for unknown fields
+- Version Edge Functions if response shape changes (`/foo` stays, add `/foo-v2`)
+
+## Testing schema changes safely
+
+### Recommended flow
+
+1. Make the change on **dev** first (Supabase dev dashboard SQL editor, or `psql` against the dev DB)
+2. Verify the currently-running app version still works against dev (backward compat check)
+3. Verify the new app changes work against dev
+4. Once confident, apply the SAME SQL to prod
+
+### Applying SQL to dev (from local terminal)
+
+```bash
+export DEV_DB_URL='postgresql://postgres.xbkkjqvbsnroenqlqkmi:PASSWORD@aws-1-us-west-1.pooler.supabase.com:5432/postgres'
+/opt/homebrew/opt/postgresql@17/bin/psql "$DEV_DB_URL" -f path/to/migration.sql
+```
+
+### Applying SQL to prod
+
+```bash
+export PROD_DB_URL='postgresql://postgres.zqwzdyjfxytvedghujsd:PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres'
+/opt/homebrew/opt/postgresql@17/bin/psql "$PROD_DB_URL" -f path/to/migration.sql
+```
+
+### Re-syncing dev schema from prod
+
+If dev drifts from prod (e.g., you experimented in dev and want to reset), dump prod and reapply:
+
+```bash
+# Dump prod schema (structure only)
+/opt/homebrew/opt/postgresql@17/bin/pg_dump "$PROD_DB_URL" \
+  --schema-only --no-owner --no-privileges --schema=public \
+  -f supabase/prod_schema.sql
+
+# Reset dev's public schema (destroys dev data — that's fine, it's dev)
+/opt/homebrew/opt/postgresql@17/bin/psql "$DEV_DB_URL" \
+  -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
+
+# Reapply
+/opt/homebrew/opt/postgresql@17/bin/psql "$DEV_DB_URL" -f supabase/prod_schema.sql
+```
+
+## Edge Functions
+
+Deploy to dev first, verify, then deploy to prod.
+
+```bash
+# Deploy to dev
+supabase link --project-ref xbkkjqvbsnroenqlqkmi
+supabase functions deploy delete-account --project-ref xbkkjqvbsnroenqlqkmi
+
+# Deploy to prod (after verifying on dev)
+supabase link --project-ref zqwzdyjfxytvedghujsd
+supabase functions deploy delete-account --project-ref zqwzdyjfxytvedghujsd
+```
+
+Always link back to dev after prod work so accidental commands hit dev, not prod.
+
+## Auth provider changes
+
+Apple and Google are configured on both projects, but they reuse the same underlying credentials (same Apple Services ID, same Google OAuth client). Both projects' callback URLs are registered on Apple and Google.
+
+If you rotate the Apple JWT secret or Google client secret, **update both dev AND prod Supabase**, otherwise sign-in will break on whichever one you forgot.
+
+### Regenerate Apple JWT (expires every 6 months)
+
+```bash
+npm install --no-save jsonwebtoken
+node generate_apple_jwt.js
+```
+
+Copy the printed JWT into:
+1. Dev Supabase → Auth → Providers → Apple → Secret Key
+2. Prod Supabase → Auth → Providers → Apple → Secret Key
+
+## Superwall
+
+One API key, one campaign for both environments. Debug builds and TestFlight automatically use StoreKit sandbox — no real money is charged.
+
+To test paywall config changes without affecting prod users:
+1. In Superwall dashboard, duplicate the live campaign as a test campaign
+2. Gate the test campaign to your Apple ID (audience filter)
+3. Iterate on the test campaign, promote changes to the live campaign only when ready
+
+## Sandbox Apple ID for IAP testing
+
+Create once, use forever on your test iPhone.
+
+1. App Store Connect → Users and Access → Sandbox → **Testers** → **+**
+2. Create a tester with a fresh email
+3. On iPhone: Settings → App Store → Sandbox Account → sign in with the tester email
+4. Any purchase from a debug/TestFlight build runs through sandbox
+
+## Release workflow — the standard path from idea → App Store
+
+This is the end-to-end sequence for shipping a new version safely. Kinderwell is a paid app with real users, so follow this every time — don't shortcut.
+
+### Phase 1 — Build on dev (days to weeks)
+
+1. **Start on dev.** `.env` already points at dev. Confirm with `cat .env | grep SUPABASE_URL` → should show `xbkkjqvbsnroenqlqkmi`.
+2. **Do all schema changes on dev first.** Never touch prod DB during development.
+3. **If schema changes needed, write them as a numbered SQL file** (see "Migration tracking" below). Apply to dev.
+4. **Iterate on iPhone with dev build:** `npx expo run:ios --device`. Watch for `[Supabase] Env: DEV ✅`.
+5. **Never sign up test accounts on prod during development.** If you accidentally do, delete them from prod Supabase → Authentication → Users.
+
+### Phase 2 — Pre-release verification (a few hours)
+
+Before you build for production, do all of the following on dev:
+
+1. **Backward-compat check.** If schema changed, install the *currently-live* app version (from TestFlight or a previous build) and point it at dev. Verify it still works. This catches breaking changes.
+2. **Full flow smoke test on dev:**
+   - Fresh sign-up with Apple → onboarding → paywall → sandbox purchase → complete a lesson → log out → log back in
+   - Same flow with Google
+   - Delete account flow (tests the Edge Function)
+3. **Preview build test.** Release-mode compile, still on dev backend:
+   ```bash
+   eas build --profile preview --platform ios
+   ```
+   Install via TestFlight internal or ad-hoc. Repeat the smoke test. This catches release-mode-only bugs (minification, missing prod env vars, etc.).
+
+### Phase 3 — Bump version numbers
+
+Single-source-of-truth violation to fix: right now `app.json`, `package.json`, and `ios/Kinderwell/Info.plist` all track version separately. Update ALL of them:
+
+1. **`package.json`** — `"version": "1.0.X"`
+2. **`app.json`** — `"version": "1.0.X"` AND `"ios.buildNumber": "N+1"` AND `"android.versionCode": N+1`
+3. **`ios/Kinderwell/Info.plist`** — `CFBundleShortVersionString` (marketing version) AND `CFBundleVersion` (build number, must be > last submitted to App Store)
+
+Versioning rules:
+- **Marketing version (1.0.X)** — user-visible. Bump for user-visible changes.
+  - `1.0.0` → `1.0.1` for bug fixes
+  - `1.0.0` → `1.1.0` for new features
+  - `1.0.0` → `2.0.0` for major redesigns / breaking changes
+- **Build number** — must strictly increase per submission to App Store Connect. Bump every submission, even for rejected builds. This is why the `RELEASE_PROCESS.md` tracks rejected builds in git tags.
+
+Sanity check the version numbers match:
+```bash
+grep -E "\"version\"|buildNumber" app.json package.json
+grep -A 1 "CFBundleShortVersionString\|CFBundleVersion" ios/Kinderwell/Info.plist
+```
+
+### Phase 4 — Apply schema migrations to prod (if any)
+
+**This is the highest-risk step of the whole release.**
+
+1. **Take note of the exact SQL you applied to dev.** It should be in a numbered file under `supabase/migrations/`.
+2. **Confirm the SQL is backward compatible** (see "Schema migrations" section above). If it's a breaking change, DO NOT proceed — go back and refactor into an expand-only step.
+3. **Apply to prod** during a low-traffic window:
+   ```bash
+   export PROD_DB_URL='postgresql://postgres.zqwzdyjfxytvedghujsd:PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres'
+   /opt/homebrew/opt/postgresql@17/bin/psql "$PROD_DB_URL" -f supabase/migrations/YYYYMMDD_description.sql
+   ```
+4. **Verify prod still works** by opening the currently-live App Store app on your phone and testing the affected feature. If prod is broken, you have minutes to fix or roll back before users complain.
+5. **Only proceed to Phase 5 after prod DB is stable with the new schema.**
+
+### Phase 5 — Deploy Edge Functions to prod (if changed)
+
+```bash
+supabase link --project-ref zqwzdyjfxytvedghujsd
+supabase functions deploy delete-account --project-ref zqwzdyjfxytvedghujsd
+
+# IMMEDIATELY re-link back to dev so future accidental commands hit dev
+supabase link --project-ref xbkkjqvbsnroenqlqkmi
+```
+
+### Phase 6 — Build for App Store
+
+```bash
+eas build --profile production --platform ios
+```
+
+This uses the prod env vars from `eas.json` → the app talks to prod Supabase.
+
+**Wait for the build to complete.** Do NOT submit yet.
+
+### Phase 7 — Test the production build before submitting
+
+Install the production build via TestFlight (`eas submit` with internal TestFlight, OR TestFlight from EAS auto-submit). Test the full flow one more time on prod backend. Yes, this creates a test user on prod — that's fine, just delete after.
+
+If anything is broken, you have not shipped. Fix and rebuild.
+
+### Phase 8 — Submit to App Store
+
+```bash
+eas submit --profile production --platform ios
+```
+
+Fill out the submission form in App Store Connect. Include a demo account if the app requires login (Kinderwell does — set `SHOW_DEMO_BUTTON=true` in prod env if not already).
+
+### Phase 9 — After Apple approval
+
+Follow `RELEASE_PROCESS.md`:
+- Tag build-specific: `v1.0.X-build-N`
+- Move production marker: `appstore-live-vX.Y.Z`
+- Push tags
+
+### Phase 10 — Post-release monitoring (first 24 hours)
+
+- Watch Supabase logs for spikes in errors
+- Watch App Store Connect for crash reports
+- Watch Superwall dashboard for paywall conversion drop-offs
+- If you see something bad, know your rollback path (see "Rollback" below)
+
+## Migration tracking (recommended — not yet set up)
+
+Right now schema changes go into prod via ad-hoc dashboard SQL. This won't scale and it's the biggest risk in your current setup. Set this up before your next schema change.
+
+### Setup (one-time)
+
+1. Create the folder:
+   ```bash
+   mkdir -p supabase/migrations
+   ```
+2. Save the initial prod schema as the baseline:
+   ```bash
+   cp supabase/prod_schema.sql supabase/migrations/00000000000000_initial_schema.sql
+   ```
+3. Commit that to git.
+
+### Per migration
+
+1. Create a new file: `supabase/migrations/YYYYMMDDHHMMSS_short_description.sql`
+   - Example: `20260702143000_add_streak_count_to_user_profiles.sql`
+   - Timestamp format matters — Supabase CLI applies migrations in filename order.
+2. Write the SQL. Prefer additive changes (see backward compatibility section).
+3. Apply to dev: `psql "$DEV_DB_URL" -f supabase/migrations/YYYYMMDDHHMMSS_*.sql`
+4. Test, then apply the same file to prod during release.
+5. Commit the migration file to git — this is the audit trail.
+
+### Why it matters
+
+- You have a record of every change ever made to prod
+- If dev/prod drift, you can diff migration files vs. actual schema and reconcile
+- Anyone (including future-you) can rebuild the DB from scratch by replaying migrations
+- Rollback becomes possible — you can write a reverse migration
+
+## Rollback plans
+
+### Rollback a bad schema change
+
+If a migration broke prod, you have three options in order of preference:
+
+1. **Roll forward** — write a new migration that fixes the problem, apply immediately. Usually the right answer for additive changes.
+2. **Manual reverse** — write SQL that undoes the change and apply it: `ALTER TABLE foo DROP COLUMN new_col;`
+3. **Restore from backup** — Supabase automatic backups on Pro plan (Point-in-time recovery). On Free plan, backups are less granular. **Verify you have backups before you need them.** Check: prod dashboard → Database → Backups.
+
+### Rollback a bad app release
+
+The App Store does not support rollbacks. Options:
+
+1. **Ship a fix as a new version, expedited review.** Apple allows requesting expedited review for critical bugs. Have it ready.
+2. **Kill switch.** Add a `min_supported_version` check in a config table that the app reads on launch. If the current build is broken, force users to update to the next build. (Not currently implemented — worth adding.)
+3. **Server-side toggle for the broken feature.** If you can disable the feature via a DB flag, you don't need an app release.
+
+## Best practice gaps (prioritized — biggest risk first)
+
+Since Kinderwell has real users paying real money, here are things you're NOT doing that a paid app should be. In priority order:
+
+### 🔴 High priority — should address in the next 1-2 weeks
+
+1. **Set up migration tracking** (see "Migration tracking" above). Without this, any schema change is a black-box risk.
+2. **Verify prod backups exist and know how to restore.** Free tier Supabase has limited backups — consider upgrading to Pro for point-in-time recovery. Test a restore to dev at least once so you know the process.
+3. **Add error tracking to the app.** Sentry (free tier is generous) or Bugsnag. Right now if a paid user hits a crash, you find out via a 1-star review. Not acceptable for a paid app.
+4. **Set up branch protection on `main`.** GitHub → Settings → Branches → require PR before merge. Even solo, this forces a diff review moment.
+5. **Version bump automation or checklist.** Right now `app.json` says build 7 and `Info.plist` says build 8 — they're out of sync. Either script the bump or add a pre-release checklist step to verify all three agree.
+
+### 🟡 Medium priority — next month
+
+6. **Add a `min_supported_version` config for emergency kill switch.** Read on app launch, show a "please update" screen if the user is on a bad version.
+7. **Add at least one CI check** — GitHub Actions that runs `tsc --noEmit` on every PR. Cheap to set up, catches type errors before they ship.
+8. **Rotate the shared dev/prod DB password to different values.** Currently the same — a leak of one leaks both.
+9. **Set up a status/monitoring dashboard.** Supabase logs + App Store Connect crash reports + Superwall metrics. Ideally aggregated somewhere you check daily.
+10. **Set up a Sandbox Apple ID** and document it in `STOREKIT_SETUP_GUIDE.md`. So future you doesn't have to figure it out again.
+
+### 🟢 Nice to have — someday
+
+11. **Add smoke tests.** Detox / Maestro for E2E flows. High setup cost but catches regressions before they ship.
+12. **CI-driven schema migrations.** Merge to `main` auto-applies migrations to dev; a manual approval step applies to prod.
+13. **Feature flags.** GrowthBook / PostHog for gradual rollout of risky features.
+14. **User support tooling.** A way to look up a paid user's account state without hand-crafting SQL.
+
+## Common tasks
+
+### "I want to test a new feature on my iPhone"
+
+```bash
+# Make sure .env points to dev (default)
+cat .env | grep SUPABASE_URL   # should show xbkkjqvbsnroenqlqkmi
+
+npx expo run:ios --device
+```
+
+Watch for `[Supabase] Env: DEV ✅` in Metro logs.
+
+### "I want to verify a fix works against prod data"
+
+Don't. Instead: dump the specific prod row(s) you're testing against, insert into dev, verify the fix there. If you absolutely must:
+
+```bash
+cp .env .env.dev.bak
+cp .env.prod .env
+npx expo run:ios --device
+# ... verify ...
+cp .env.dev.bak .env
+```
+
+Watch for `[Supabase] Env: PROD ⚠️` — do NOT sign up test accounts or write test data while pointed at prod.
+
+### "I want to add a new column to a table"
+
+1. Write the migration SQL (`ALTER TABLE ... ADD COLUMN ... NULL DEFAULT ...`)
+2. Apply to dev: `psql "$DEV_DB_URL" -f migration.sql`
+3. Test the currently-shipped app version against dev — should still work (backward compat check)
+4. Update the app code to use the new column, test against dev
+5. Apply the same SQL to prod: `psql "$PROD_DB_URL" -f migration.sql`
+6. Ship the app update
+
+### "I want to ship a new app version"
+
+1. Test locally on iPhone: `npx expo run:ios --device` (dev backend)
+2. Test pre-release build: `eas build --profile preview` (dev backend, release-mode)
+3. Build for store: `eas build --profile production` (prod backend)
+4. Submit: `eas submit --profile production`
+5. After Apple approval, follow `RELEASE_PROCESS.md` to tag
+
+## Danger zone — do NOT do these
+
+- **Never** point `eas.json`'s `production` profile at dev
+- **Never** run `psql` against prod for exploratory queries — use the Supabase dashboard's SQL editor with a `LIMIT` clause, or use dev
+- **Never** commit `.env`, `.env.prod`, or any file containing DB passwords / JWT secrets / OAuth secrets (all are gitignored — verify before committing)
+- **Never** delete a column from prod without waiting weeks/months for old app versions to phase out
+- **Never** paste DB passwords, service_role keys, or OAuth client secrets into chat/Slack/docs
+
+## Credentials reference
+
+Non-sensitive identifiers only. Secrets live in Supabase dashboards, `.env` files, and `eas.json`.
+
+- **Prod project ref:** `zqwzdyjfxytvedghujsd`
+- **Dev project ref:** `xbkkjqvbsnroenqlqkmi`
+- **iOS bundle ID:** `com.kinderwell.app`
+- **Apple Services ID:** `com.kinderwell.app.auth`
+- **Apple Team ID:** `DX4F38J8H4`
+- **Apple Key ID:** `8SVB695TG5`
+- **Apple private key path:** `~/Downloads/AuthKey_8SVB695TG5.p8`
+- **Google OAuth client ID:** `737394030212-cdrh1o3lomp3oi29rsovfcoion32oh9j.apps.googleusercontent.com`
+- **Superwall API key env var:** `SUPERWALL_API_KEY` (same for dev and prod)
+
+---
+
+**Last Updated:** July 1, 2026
+**Dev project created:** July 1, 2026
