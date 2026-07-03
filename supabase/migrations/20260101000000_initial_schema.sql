@@ -1,63 +1,21 @@
+-- Initial schema — baseline migration.
 --
--- PostgreSQL database dump
+-- This file describes the schema that shipped with v1.0.0 (already applied to
+-- prod, marked as applied on both dev and prod via `supabase migration repair`
+-- on 2026-07-04). It is idempotent so it can also be replayed against a fresh
+-- database if needed (e.g. spinning up a new dev environment).
 --
+-- Everything here is additive. Later migrations extend the schema.
 
-\restrict SQ0QffA5GwdmySHOpg00Ltud2DQzSi32EIAzv7Rv3CAZCWfjx23Ld2DhRPLK9Q8
+-- Required for uuid_generate_v4() default on lesson_progress.id.
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Dumped from database version 17.6
--- Dumped by pg_dump version 17.10 (Homebrew)
+-- ============================================================================
+-- Tables
+-- ============================================================================
 
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
-
---
--- Name: public; Type: SCHEMA; Schema: -; Owner: -
---
-
-CREATE SCHEMA public;
-
-
---
--- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON SCHEMA public IS 'standard public schema';
-
-
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
---
--- Name: lesson_progress; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.lesson_progress (
-    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
-    user_id uuid,
-    lesson_id text NOT NULL,
-    completed boolean DEFAULT false,
-    completed_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
-);
-
-
---
--- Name: user_profiles; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.user_profiles (
-    id uuid NOT NULL,
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+    id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     user_type text,
     name text,
     age integer,
@@ -71,115 +29,62 @@ CREATE TABLE public.user_profiles (
     experience_level text,
     familiar_parenting_styles text[],
     emotional_challenges text[],
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.lesson_progress (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+    lesson_id text NOT NULL,
+    completed boolean DEFAULT false,
+    completed_at timestamptz,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    UNIQUE (user_id, lesson_id)
+);
 
---
--- Name: lesson_progress lesson_progress_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.lesson_progress
-    ADD CONSTRAINT lesson_progress_pkey PRIMARY KEY (id);
-
-
---
--- Name: lesson_progress lesson_progress_user_id_lesson_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.lesson_progress
-    ADD CONSTRAINT lesson_progress_user_id_lesson_id_key UNIQUE (user_id, lesson_id);
-
-
---
--- Name: user_profiles user_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_profiles
-    ADD CONSTRAINT user_profiles_pkey PRIMARY KEY (id);
-
-
---
--- Name: lesson_progress lesson_progress_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.lesson_progress
-    ADD CONSTRAINT lesson_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
-
---
--- Name: user_profiles user_profiles_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_profiles
-    ADD CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
-
---
--- Name: lesson_progress Users can delete own progress; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Users can delete own progress" ON public.lesson_progress FOR DELETE USING ((auth.uid() = user_id));
-
-
---
--- Name: lesson_progress Users can insert own progress; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Users can insert own progress" ON public.lesson_progress FOR INSERT WITH CHECK ((auth.uid() = user_id));
-
-
---
--- Name: user_profiles Users can insert/update own profile; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Users can insert/update own profile" ON public.user_profiles FOR INSERT WITH CHECK ((auth.uid() = id));
-
-
---
--- Name: user_profiles Users can read own profile; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Users can read own profile" ON public.user_profiles FOR SELECT USING ((auth.uid() = id));
-
-
---
--- Name: user_profiles Users can update own profile; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Users can update own profile" ON public.user_profiles FOR UPDATE USING ((auth.uid() = id));
-
-
---
--- Name: lesson_progress Users can update own progress; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Users can update own progress" ON public.lesson_progress FOR UPDATE USING ((auth.uid() = user_id));
-
-
---
--- Name: lesson_progress Users can view own progress; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Users can view own progress" ON public.lesson_progress FOR SELECT USING ((auth.uid() = user_id));
-
-
---
--- Name: lesson_progress; Type: ROW SECURITY; Schema: public; Owner: -
---
-
-ALTER TABLE public.lesson_progress ENABLE ROW LEVEL SECURITY;
-
---
--- Name: user_profiles; Type: ROW SECURITY; Schema: public; Owner: -
---
+-- ============================================================================
+-- Row-Level Security
+-- ============================================================================
 
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lesson_progress ENABLE ROW LEVEL SECURITY;
 
---
--- PostgreSQL database dump complete
---
+-- user_profiles policies — a signed-in user can only see / modify their own row.
+DROP POLICY IF EXISTS "Users can read own profile" ON public.user_profiles;
+CREATE POLICY "Users can read own profile"
+    ON public.user_profiles FOR SELECT
+    USING (auth.uid() = id);
 
-\unrestrict SQ0QffA5GwdmySHOpg00Ltud2DQzSi32EIAzv7Rv3CAZCWfjx23Ld2DhRPLK9Q8
+DROP POLICY IF EXISTS "Users can insert/update own profile" ON public.user_profiles;
+CREATE POLICY "Users can insert/update own profile"
+    ON public.user_profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.user_profiles;
+CREATE POLICY "Users can update own profile"
+    ON public.user_profiles FOR UPDATE
+    USING (auth.uid() = id);
+
+-- lesson_progress policies — a signed-in user can only see / modify their own
+-- progress rows.
+DROP POLICY IF EXISTS "Users can view own progress" ON public.lesson_progress;
+CREATE POLICY "Users can view own progress"
+    ON public.lesson_progress FOR SELECT
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own progress" ON public.lesson_progress;
+CREATE POLICY "Users can insert own progress"
+    ON public.lesson_progress FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own progress" ON public.lesson_progress;
+CREATE POLICY "Users can update own progress"
+    ON public.lesson_progress FOR UPDATE
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own progress" ON public.lesson_progress;
+CREATE POLICY "Users can delete own progress"
+    ON public.lesson_progress FOR DELETE
+    USING (auth.uid() = user_id);

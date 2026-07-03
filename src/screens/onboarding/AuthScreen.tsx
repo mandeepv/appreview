@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { Colors } from '../../constants/theme';
 import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned } from '../../lib/analytics';
+import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
 
@@ -63,6 +64,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         auth_method: 'google',
         screen: 'AuthScreen',
       });
+      reportError(error, { auth_method: 'google', screen: 'AuthScreen' });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(
@@ -104,6 +106,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         auth_method: 'apple',
         screen: 'AuthScreen',
       });
+      reportError(error, { auth_method: 'apple', screen: 'AuthScreen' });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(

@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import { supabase } from './supabase';
 
 interface AppConfigValues {
@@ -14,16 +14,24 @@ const DEFAULT_CONFIG: AppConfigValues = {
 };
 
 /**
- * Reads the current build number for the running app.
- * On iOS this comes from Info.plist CFBundleVersion (as a string, we parse it).
- * On Android from versionCode (already a number).
+ * Reads the current build number of the actual RUNNING binary — NOT what
+ * app.json says. On iOS this is CFBundleVersion baked into the shipped .ipa
+ * at build time. On Android this is versionCode from the shipped .apk / .aab.
+ *
+ * Why not Constants.expoConfig.ios.buildNumber: that reads from app.json,
+ * which can silently drift from what actually shipped (we've hit this drift
+ * before — see docs/VERSION_MANAGEMENT.md). The kill switch has to compare
+ * against what the user actually has on their phone, not what the spec says.
  */
 export function getCurrentBuildNumber(): number {
+  const raw = Application.nativeBuildVersion;
+  if (!raw) return 0;
   if (Platform.OS === 'ios') {
-    const raw = Constants.expoConfig?.ios?.buildNumber ?? '0';
+    // nativeBuildVersion is a string on iOS (CFBundleVersion).
     return parseInt(raw, 10) || 0;
   }
-  return Constants.expoConfig?.android?.versionCode ?? 0;
+  // On Android it's still a string that wraps versionCode.
+  return parseInt(raw, 10) || 0;
 }
 
 export async function fetchAppConfig(): Promise<AppConfigValues> {

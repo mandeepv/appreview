@@ -12,6 +12,7 @@ import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { Colors } from '../../constants/theme';
 import { trackAuthAttempted, trackAuthAbandoned } from '../../lib/analytics';
+import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignIn'>;
 
@@ -68,6 +69,7 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
         auth_method: 'google',
         screen: 'SignInScreen',
       });
+      reportError(error, { auth_method: 'google', screen: 'SignInScreen' });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(
@@ -124,6 +126,7 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
         auth_method: 'apple',
         screen: 'SignInScreen',
       });
+      reportError(error, { auth_method: 'apple', screen: 'SignInScreen' });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(

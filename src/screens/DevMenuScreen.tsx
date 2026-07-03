@@ -7,6 +7,7 @@ import { Colors, Typography, BorderRadius, Shadows } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useExperimentStore } from '../store/experimentStore';
 import { overrideOnboardingVariant, OnboardingVariant } from '../lib/experiments';
+import { reportError } from '../config/sentry';
 
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
@@ -21,6 +22,17 @@ export const DevMenuScreen: React.FC = () => {
       next === null
         ? 'Cleared override. Next launch resolves from PostHog flag.'
         : `Forced to "${next}". Restart from Splash to see it.`,
+    );
+  };
+
+  const handleThrowTestError = () => {
+    reportError(new Error(`Sentry test error @ ${new Date().toISOString()}`), {
+      source: 'DevMenu',
+      trigger: 'manual_test',
+    });
+    Alert.alert(
+      'Test error sent',
+      'Check Sentry dashboard — should appear in ~30 seconds. Filter by environment=dev.',
     );
   };
 
@@ -98,6 +110,13 @@ export const DevMenuScreen: React.FC = () => {
           </View>
           <TouchableOpacity onPress={() => handleVariantSwitch(null)}>
             <Text style={styles.clearOverrideText}>Clear override</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.variantSection}>
+          <Text style={styles.variantHeader}>Sentry test</Text>
+          <TouchableOpacity style={styles.variantBtn} onPress={handleThrowTestError}>
+            <Text style={styles.variantBtnText}>Send test error to Sentry</Text>
           </TouchableOpacity>
         </View>
 
