@@ -2,10 +2,41 @@
 
 This guide ensures you can increment versions and build numbers correctly without hit-and-trial.
 
+## Current state (2026-07-03) — all synced ✅
+
+- `app.json` → `version: 1.1.0`, `ios.buildNumber = "9"`
+- `ios/Kinderwell/Info.plist` → `CFBundleShortVersionString = 1.1.0`, `CFBundleVersion = 9`
+- `ios/Kinderwell.xcodeproj/project.pbxproj` → `MARKETING_VERSION = 1.1`, `CURRENT_PROJECT_VERSION = 9`
+
+## The one command to bump versions (recommended)
+
+Use the script — it keeps all three files in sync and refuses to run if they've drifted:
+
+```bash
+./scripts/bump-version.sh <new-version> <new-build>
+```
+
+Examples:
+```bash
+./scripts/bump-version.sh 1.1.1 10   # bug fix release
+./scripts/bump-version.sh 1.2.0 10   # minor feature release
+./scripts/bump-version.sh 2.0.0 10   # major release
+```
+
+The script:
+- Reads the current state of all 3 files
+- Refuses to run if any of them are out of sync (protects against compounding drift)
+- Uses `PlistBuddy` for `Info.plist` (won't corrupt XML)
+- Uses safe JSON write for `app.json`
+- Uses `sed` for `project.pbxproj` (Xcode's format is stable)
+- Verifies after and errors loudly if anything didn't apply
+
+**On every bump, keep all THREE files in sync.** The build technically only reads from Xcode + `Info.plist`, but a stale `app.json` will confuse you or a future dev.
+
 ## Current Setup
 - **Method**: Local version control (not EAS remote)
 - **Config**: `eas.json` does NOT have `appVersionSource: "remote"`
-- **Files to edit**: 2 iOS files need manual updates
+- **Files to edit**: 2 iOS files need manual updates (plus `app.json` for parity)
 
 ---
 

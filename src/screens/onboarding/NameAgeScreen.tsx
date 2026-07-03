@@ -9,6 +9,7 @@ import { CounterSelector } from '../../components/CounterSelector';
 import { Caption } from '../../components/Typography';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { Spacing, Animation as AnimationConfig } from '../../constants/theme';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'NameAge'>;
 
@@ -28,7 +29,9 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
 
     const handleContinue = () => {
         if (age > 0) {
-            updateNameAndAge(name.trim() || 'Parent', age);
+            const finalName = name.trim() || 'Parent';
+            updateNameAndAge(finalName, age);
+            trackOnboardingStepCompleted('NameAge', { age, has_name: name.trim().length > 0 });
             navigation.navigate('ChildrenCount');
         }
     };

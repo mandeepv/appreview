@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
@@ -123,8 +124,15 @@ const learningModules: LearningModule[] = [
 
 export default function LearnScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const posthog = usePostHog();
 
   const handleModulePress = (moduleId: string) => {
+    const module = learningModules.find((m) => m.id === moduleId);
+    posthog.capture('lesson_started', {
+      lesson_id: moduleId,
+      lesson_title: module?.title ?? null,
+      lesson_label: module?.label ?? null,
+    });
     if (moduleId === '1') {
       // Navigate to Lesson 1
       navigation.navigate('LessonFlow', { screen: 'Lesson1Screen1' });

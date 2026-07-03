@@ -7,6 +7,7 @@ import { SelectableCard } from '../../components/SelectableCard';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ExperienceLevel } from '../../types/onboarding';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ExperienceLevel'>;
 
@@ -15,6 +16,7 @@ export const ExperienceLevelScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleContinue = () => {
     if (experienceLevel) {
+      trackOnboardingStepCompleted('ExperienceLevel', experienceLevel);
       navigation.navigate('EmotionalChallenges');
     }
   };

@@ -11,15 +11,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { usePostHog } from 'posthog-react-native';
 import { useAuthStore } from '../store/authStore';
 import { deleteAccount } from '../services/authService';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 
 export const SettingsScreen: React.FC = () => {
   const { user, signOut, isDemoUser } = useAuthStore();
+  const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRestorePurchases = async () => {
+    posthog.capture('purchases_restored');
     try {
       const url = 'https://apps.apple.com/account/subscriptions';
       const supported = await Linking.canOpenURL(url);
@@ -38,6 +41,7 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleManageSubscription = async () => {
+    posthog.capture('subscription_managed');
     try {
       // Open iOS subscription management
       const url = 'https://apps.apple.com/account/subscriptions';
@@ -98,6 +102,8 @@ export const SettingsScreen: React.FC = () => {
           text: 'Log Out',
           onPress: async () => {
             try {
+              posthog.capture('user_logged_out');
+              posthog.reset();
               await signOut();
             } catch (error) {
               if (__DEV__) console.error('Error logging out:', error);
@@ -142,11 +148,14 @@ export const SettingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               setIsLoading(true);
+              posthog.capture('account_deleted', { is_demo_user: isDemoUser });
               if (isDemoUser) {
                 // Demo users have no Supabase session — just sign out
+                posthog.reset();
                 await signOut();
               } else {
                 await deleteAccount();
+                posthog.reset();
                 Alert.alert(
                   'Account Deleted',
                   'Your account and all data have been deleted.',

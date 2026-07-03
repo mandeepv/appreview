@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { usePostHog } from 'posthog-react-native';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { ProgressBar } from '../../components/ProgressBar';
 import { Colors, Spacing, Typography } from '../../constants/theme';
@@ -10,6 +11,7 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 import { saveUserOnboardingData } from '../../services/onboardingService';
 import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
+import { safeCapture } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
 
@@ -19,6 +21,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const { user, isDemoUser, setIsSubscribed } = useAuthStore();
   const onboardingStore = useOnboardingStore();
   const { identify } = useUser();
+  const posthog = usePostHog();
 
   // Listen for Superwall subscription status changes
   useSuperwallEvents({
@@ -28,6 +31,27 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         setIsSubscribed(true);
       } else if (subscriptionStatus.status === 'INACTIVE') {
         setIsSubscribed(false);
+      }
+    },
+    onSuperwallEvent: (eventInfo) => {
+      // Fires when user taps a plan on the paywall (before App Store sheet appears).
+      // safeCapture swallows any error — analytics must never break the paywall flow.
+      if (eventInfo.event.event === 'transactionStart') {
+        safeCapture('paywall_option_selected', {
+          product_id: eventInfo.params?.product_id,
+          paywall_name: eventInfo.params?.paywall_name,
+        });
+      } else if (eventInfo.event.event === 'transactionAbandon') {
+        safeCapture('paywall_purchase_abandoned', {
+          product_id: eventInfo.params?.product_id,
+          paywall_name: eventInfo.params?.paywall_name,
+        });
+      } else if (eventInfo.event.event === 'transactionFail') {
+        safeCapture('paywall_purchase_failed', {
+          product_id: eventInfo.params?.product_id,
+          paywall_name: eventInfo.params?.paywall_name,
+          error: eventInfo.params?.error_message,
+        });
       }
     },
   });
@@ -43,16 +67,32 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       if (result.type === 'purchased') {
         if (__DEV__) console.log('💰 Purchase completed! Updating subscription status...');
         setIsSubscribed(true);
+        safeCapture('subscription_purchased', {
+          paywall_name: paywallInfo.name,
+        });
+      } else {
+        safeCapture('paywall_dismissed', {
+          paywall_name: paywallInfo.name,
+          dismiss_type: result.type,
+        });
       }
 
       navigation.replace('Root');
     },
     onSkip: (reason) => {
       if (__DEV__) console.log('⏭️ Paywall skipped:', reason.type);
+      safeCapture('paywall_dismissed', {
+        dismiss_type: 'skipped',
+        skip_reason: reason.type,
+      });
       navigation.replace('Root');
     },
     onError: (error) => {
       if (__DEV__) console.error('❌ Paywall error:', error);
+      posthog.captureException(new Error(typeof error === 'string' ? error : 'Paywall error'), {
+        screen: 'LoadingScreen',
+        context: 'paywall',
+      });
       navigation.replace('Root');
     },
   });

@@ -254,6 +254,37 @@ The Transaction Manager is super useful for testing different subscription state
 
 ---
 
+## Sandbox Apple ID (real-device paywall testing)
+
+**Tester account (as of 2026-07-03):** `sandeepv98@gmail.com` — set up in App Store Connect → Users and Access → Sandbox → Testers. Country: United States, subscription renewal rate: 5 minutes (accelerated for fast testing).
+
+### How to sign into sandbox on iPhone
+
+**iOS 18 (current):** The classic path (`Settings → App Store → Sandbox Account`) may not be visible until you've installed at least one dev build. Two working alternatives:
+
+**1. Live sign-in during purchase:** Install the dev build, tap "Buy" on a paywall option, iOS will prompt "Sign in with your Sandbox Apple ID." Enter `sandeepv98@gmail.com` in that popup. This is the most reliable path in iOS 18.
+
+**2. Via Settings after developer mode enabled:**
+- Install a dev build first (unlocks Developer Mode option)
+- Settings → Privacy & Security → **Developer Mode** → enable
+- iPhone reboots
+- Now try Settings → Apps → App Store → scroll to Sandbox Account
+
+### Verify sandbox is active
+
+After signing in, any paywall purchase will show `[Environment: Sandbox]` at the top of the App Store purchase sheet. If it doesn't say "Sandbox," you're about to be charged real money — DO NOT tap Buy.
+
+### If you forget the sandbox password
+
+App Store Connect → Users and Access → Sandbox → Testers → click `sandeepv98@gmail.com` → there's a password reset option in the tester detail modal. Reset, then re-sign-in on iPhone.
+
+### Sandbox limitations
+
+- Subscriptions renew every 5 minutes (per current config), so "1-year sub" completes in 5 minutes
+- Restore purchases works
+- Grace period, billing retry, and other real-App-Store edge cases don't behave identically
+- **Before real launch:** always test on TestFlight with a real (non-sandbox) purchase intent + a promo code or gift card, not just sandbox
+
 ## Next Steps
 
 After StoreKit is working:

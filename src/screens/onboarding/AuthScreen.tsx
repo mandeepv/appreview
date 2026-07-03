@@ -3,18 +3,22 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Lin
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AntDesign } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { usePostHog } from 'posthog-react-native';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useAuthStore } from '../../store/authStore';
 import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { Colors } from '../../constants/theme';
+import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
 
 export const AuthScreen: React.FC<Props> = ({ navigation }) => {
-  const { setAuthMethod, markAuthReached } = useOnboardingStore();
+  const onboardingStore = useOnboardingStore();
+  const { setAuthMethod, markAuthReached } = onboardingStore;
   const { setUser, setSession, setDemoUser } = useAuthStore();
+  const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'apple' | null>(null);
   const [tapCount, setTapCount] = useState(0);
@@ -23,6 +27,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   // Mark that user has reached the auth screen (completed onboarding)
   useEffect(() => {
     markAuthReached();
+    posthog.capture('onboarding_completed');
   }, []);
 
   const handleGoogleSignIn = async () => {
@@ -30,22 +35,34 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
       setIsLoading(true);
       setLoadingProvider('google');
       setAuthMethod('google');
+      trackAuthAttempted('google', 'new_user');
 
       const session = await signInWithGoogle();
 
       if (session) {
         setUser(session.user);
         setSession(session);
+        identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore);
+        posthog.capture('user_signed_in', {
+          auth_method: 'google',
+          user_type: 'new',
+        });
         // First-time user completing onboarding - go through Loading screen
         // Loading screen will save onboarding data to Supabase
         navigation.navigate('Loading');
       } else {
         // User cancelled or something went wrong
+        trackAuthAbandoned('google', 'new_user', 'no_session_returned');
         setIsLoading(false);
         setLoadingProvider(null);
       }
     } catch (error: any) {
       if (__DEV__) console.error('Google sign-in error:', error);
+      trackAuthAbandoned('google', 'new_user', 'error');
+      posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
+        auth_method: 'google',
+        screen: 'AuthScreen',
+      });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(
@@ -61,20 +78,32 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
       setIsLoading(true);
       setLoadingProvider('apple');
       setAuthMethod('apple');
+      trackAuthAttempted('apple', 'new_user');
 
       const session = await signInWithApple();
 
       if (session) {
         setUser(session.user);
         setSession(session);
+        identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore);
+        posthog.capture('user_signed_in', {
+          auth_method: 'apple',
+          user_type: 'new',
+        });
         navigation.navigate('Loading');
       } else {
         // User cancelled
+        trackAuthAbandoned('apple', 'new_user', 'no_session_returned');
         setIsLoading(false);
         setLoadingProvider(null);
       }
     } catch (error: any) {
       if (__DEV__) console.error('Apple sign-in error:', error);
+      trackAuthAbandoned('apple', 'new_user', 'error');
+      posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
+        auth_method: 'apple',
+        screen: 'AuthScreen',
+      });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(

@@ -38,19 +38,9 @@
 
 ## 🔴 High priority — do this month
 
-### 1. Migration tracking with `supabase/migrations/`
-**Why it matters:** Kinderwell is live. Every schema change is a change to a production system taking money. No audit trail = no accountability, no reproducibility, no way to reconcile dev/prod drift when it happens (it will). This is the single biggest risk in the current setup.
+### ~~1. Migration tracking with `supabase/migrations/`~~ ✅ DONE 2026-07-01
 
-**Effort:** S (one-time setup, ~2 hours)
-
-**What to do:**
-1. `mkdir -p supabase/migrations`
-2. Save current prod schema as baseline: `cp supabase/prod_schema.sql supabase/migrations/00000000000000_initial_schema.sql`
-3. Commit to git
-4. From now on: every schema change is a new file `YYYYMMDDHHMMSS_description.sql` — apply to dev first, then prod, commit the file
-5. See `DEV_PROD_ENVIRONMENTS.md` → "Migration tracking" for the full flow
-
-**Definition of done:** next schema change goes through the migration file workflow instead of raw dashboard SQL.
+Baseline saved at `supabase/migrations/20260101000000_initial_schema.sql`. All future schema changes go through the migrations folder. See `DEV_PROD_ENVIRONMENTS.md` → "Migration tracking" for the workflow.
 
 ---
 
@@ -86,21 +76,9 @@
 
 ---
 
-### 4. Fix version number sync + write a bump script
-**Why it matters:** Right now `app.json` says `buildNumber: 7`, `Info.plist` says `CFBundleVersion: 8`. They must match at submit time or the build is rejected. Currently kept in sync by hand — that's a bug waiting to ship.
+### ~~4. Fix version number sync + write a bump script~~ ✅ DONE 2026-07-03
 
-**Effort:** S (2–3 hours)
-
-**What to do:**
-1. Read `VERSION_MANAGEMENT.md` — it may already have a process
-2. If not, write a bump script (`scripts/bump-version.sh`):
-   - Takes new version + build number as args
-   - Updates all three files (`app.json`, `package.json`, `ios/Kinderwell/Info.plist`)
-   - Fails loudly if any of them was out of sync going in
-3. Add a "verify versions match" line to your release checklist
-4. Optional: convert `Info.plist` to reference `app.json` via a plugin so Expo manages it
-
-**Definition of done:** one command bumps versions everywhere, or a checklist step catches drift before submission.
+Sync bug fixed (1.0.0 → 1.1.0 done). `scripts/bump-version.sh` written and executable — refuses to run if files are drifted, safely updates all 3 files, verifies after. Documented in `VERSION_MANAGEMENT.md`.
 
 ---
 
@@ -122,19 +100,23 @@
 
 ## 🟡 Medium priority — next quarter
 
-### 6. Emergency kill switch (`min_supported_version`)
-**Why it matters:** If you ship a build that breaks paid features for existing users, you're stuck for the 24–72h Apple review cycle. A `min_supported_version` config row checked at app launch lets you force-upgrade users out of a bad build.
+### ~~6. Emergency kill switch (`min_supported_version`)~~ ✅ IMPLEMENTED 2026-07-03
 
-**Effort:** M (4–6 hours)
+Kill switch built. `app_config` table with `min_supported_ios_build` and `min_supported_android_build` keys, both defaulting to 0 (no minimum enforced). App fetches on launch, shows `ForceUpdateModal` if current build < minimum.
 
-**What to do:**
-1. Add `app_config` table (single row) to dev + prod: `min_supported_ios_build INT`, `updated_at`
-2. App reads it on launch. If `Info.plist CFBundleVersion < min_supported_ios_build`, show a hard "Please update" modal — no way past it
-3. Default = 0 (never blocks)
-4. Test: bump `min_supported_ios_build` in dev, confirm the old-build app forces upgrade
-5. Document the procedure: "If X broke, run this SQL on prod to force upgrade"
+**To use in an emergency:** update the row on prod:
 
-**Definition of done:** you can force any specific build to upgrade with a single SQL query on prod.
+```sql
+UPDATE public.app_config
+SET value = '10'::jsonb, updated_at = now()
+WHERE key = 'min_supported_ios_build';
+```
+
+Any user on iOS build 9 or below will get force-upgrade modal on next launch.
+
+**Migration applied to dev:** yes (2026-07-03). **Applied to prod:** no — applies with the next prod release.
+
+See `docs/DEV_PROD_ENVIRONMENTS.md` → "Kill switch" for full details.
 
 ---
 
@@ -165,18 +147,9 @@
 
 ---
 
-### 8. Rotate DB passwords to be different for dev vs prod
-**Why it matters:** Right now they're the same. A leak of one compromises both. Trivial fix, meaningful risk reduction.
+### ~~8. Rotate DB passwords~~ — DEFERRED by user, 2026-07-03
 
-**Effort:** XS (30 min)
-
-**What to do:**
-1. Rotate prod password: prod dashboard → Connect → Reset database password → save to password manager
-2. Rotate dev password to something different: same steps on dev
-3. Test each by running a `psql` command with the new password
-4. Delete `PROD_DB_URL` and `DEV_DB_URL` env vars from your shell history: `history -c` or edit `~/.zsh_history`
-
-**Definition of done:** dev and prod use different DB passwords, and both are in a password manager.
+User acknowledged the risk but explicitly deferred. Not tracked as a pending item. Revisit only if a rotation is externally forced (e.g., known leak, org policy change).
 
 ---
 
@@ -195,16 +168,9 @@
 
 ---
 
-### 10. Document sandbox Apple ID setup
-**Why it matters:** You'll need this again. Six months from now when you're setting up on a new device, you'll have forgotten. Write it down while it's fresh.
+### ~~10. Document sandbox Apple ID setup~~ ✅ DONE 2026-07-03
 
-**Effort:** XS (30 min)
-
-**What to do:**
-1. Update `STOREKIT_SETUP_GUIDE.md` with: how to create a sandbox tester in App Store Connect, how to sign in on device (Settings → App Store → Sandbox Account), which email you're using
-2. Save the sandbox tester credentials to a password manager
-
-**Definition of done:** the guide is complete enough that a new dev could pick up sandbox testing without asking you.
+`STOREKIT_SETUP_GUIDE.md` updated with sandbox tester (`sandeepv98@gmail.com`), iOS 18 sign-in path notes, and troubleshooting.
 
 ---
 
@@ -228,12 +194,9 @@
 
 ---
 
-### 13. Feature flags (GrowthBook, PostHog, LaunchDarkly)
-**Why it matters:** Ship a risky feature to 5% of users, watch metrics, expand or roll back without a new release. Standard for apps at scale.
+### ~~13. Feature flags (PostHog)~~ ✅ DONE 2026-07-01
 
-**Effort:** M (1 day)
-
-**Why it's not urgent:** Ship simple stuff first. Come back when you have a specific risky feature to gate.
+PostHog feature flags in use via `onboarding_variant` flag — see `src/lib/experiments.ts` + `useExperimentStore`. Free with PostHog account (1M requests/mo covered).
 
 ---
 
@@ -246,6 +209,23 @@
 
 ---
 
+### 15. Gate LearnScreen behind subscription check
+**Why it matters:** The paywall in `LoadingScreen.tsx` has fallback paths (`onSkip`, `onError`, `onDismiss` without purchase) that all call `navigation.replace('Root')` — meaning a paying user hitting a network glitch or Superwall outage could reach the main app without subscribing. The current paywall UX is hard, so this is largely theoretical, but the escape hatches exist in code.
+
+**Effort:** S (30 min for the perfectionist version — waits for Superwall to report a definite status before making the routing decision, so paying users never see a spurious spinner)
+
+**What to do:**
+1. Add `subscriptionStatusResolved` to auth store — starts false, flips true when Superwall fires `onSubscriptionStatusChange` at least once
+2. In `LearnScreen`, wait for `subscriptionStatusResolved` before checking `isDemoUser || isSubscribed`
+3. If resolved AND neither demo nor subscribed → bounce to `Loading` screen (re-triggers paywall)
+4. Show a soft loading state while resolving (usually <1 sec)
+
+**Why not now:** Only trips when the hard paywall fails or is misconfigured. Real-user impact currently near-zero. Fix during next paywall-related work.
+
+**Definition of done:** users can NEVER reach LearnScreen without being demo, subscribed, or having Superwall confirm their status.
+
+---
+
 ## Done — track wins here
 
 *(Move items here with date when completed.)*
@@ -254,6 +234,18 @@
 - **2026-07-01** — Startup env indicator in app (`[Supabase] Env: DEV ✅ / PROD ⚠️`)
 - **2026-07-01** — Documented environment switching (`DEV_PROD_ENVIRONMENTS.md`)
 - **2026-07-01** — Best practices audit written (this doc)
+- **2026-07-01** — Migration tracking (item #1) — baseline saved, workflow documented
+- **2026-07-03** — Bundle ID split (dev vs prod), enables parallel install on same device
+- **2026-07-03** — Version bump 1.0.0 → 1.1.0 build 9, all three files synced
+- **2026-07-03** — Kill switch (item #6) — `app_config` table + `ForceUpdateModal`, applied to dev
+- **2026-07-03** — CI yaml added — GitHub Actions runs `tsc --noEmit` on every PR + push to main
+- **2026-07-03** — RELEASE_CHECKLIST.md added — single ordered list for every release
+- **2026-07-03** — APPLE_JWT_ROTATION.md added — 6-month rotation procedure documented
+- **2026-07-03** — PostHog dev/prod separation via `environment` property (single-project workaround for free tier)
+- **2026-07-03** — Version bump script (`scripts/bump-version.sh`) — one-command safe version bumps across all 3 files
+- **2026-07-03** — `PrivacyInfo.xcprivacy` — declared all collected data types (email, user ID, device ID, product interaction, crash data, purchase history, name, other user content)
+- **2026-07-03** — Sandbox Apple ID (item #10) documented in STOREKIT_SETUP_GUIDE.md
+- **2026-07-03** — Feature flags (item #13) done via PostHog
 
 ---
 

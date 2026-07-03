@@ -7,6 +7,7 @@ import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildAgeRange, ChildGender } from '../../types/onboarding';
 import { Colors } from '../../constants/theme';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 if (Platform.OS === 'android') {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -102,6 +103,7 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
         updateChildAgeRange(i, ageToAssign);
       }
     }
+    trackOnboardingStepCompleted('ChildrenCount', { count, age_ranges: ages });
     navigation.navigate('ImprovementGoals');
   };
 

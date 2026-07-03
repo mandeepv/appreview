@@ -14,7 +14,12 @@
         "SUPABASE_ANON_KEY": "sb_publishable_vsR2RDq_4WE4KKK9f22k0Q_6BKJbwJU",
         "SUPERWALL_API_KEY": "pk_FkXYLnmCtS4lGjBnjkBHR",
         "SKIP_PAYWALL": "false",
-        "SHOW_DEMO_BUTTON": "true"
+        "SHOW_DEMO_BUTTON": "true",
+        "POSTHOG_PROJECT_TOKEN": "phc_nrGkHzpkvgHXAsCMZ2jg54rEXj88HVJZktUpmJYshBzj",
+        "POSTHOG_HOST": "https://us.i.posthog.com",
+        "IOS_BUNDLE_ID": "com.kinderwell.app.dev",
+        "ANDROID_PACKAGE": "com.kinderwell.app.dev",
+        "APP_DISPLAY_NAME": "Kinderwell Dev"
       }
     },
     "preview": {
@@ -28,7 +33,12 @@
         "SUPABASE_ANON_KEY": "sb_publishable_vsR2RDq_4WE4KKK9f22k0Q_6BKJbwJU",
         "SUPERWALL_API_KEY": "pk_FkXYLnmCtS4lGjBnjkBHR",
         "SKIP_PAYWALL": "false",
-        "SHOW_DEMO_BUTTON": "true"
+        "SHOW_DEMO_BUTTON": "true",
+        "POSTHOG_PROJECT_TOKEN": "phc_nrGkHzpkvgHXAsCMZ2jg54rEXj88HVJZktUpmJYshBzj",
+        "POSTHOG_HOST": "https://us.i.posthog.com",
+        "IOS_BUNDLE_ID": "com.kinderwell.app.dev",
+        "ANDROID_PACKAGE": "com.kinderwell.app.dev",
+        "APP_DISPLAY_NAME": "Kinderwell Dev"
       }
     },
     "production": {
@@ -40,7 +50,12 @@
         "SUPABASE_URL": "https://zqwzdyjfxytvedghujsd.supabase.co",
         "SUPABASE_ANON_KEY": "sb_publishable_R4zEITMwYsgHqiPj4FbP-g_o4G3b6sd",
         "SUPERWALL_API_KEY": "pk_FkXYLnmCtS4lGjBnjkBHR",
-        "SKIP_PAYWALL": "false"
+        "SKIP_PAYWALL": "false",
+        "POSTHOG_PROJECT_TOKEN": "phc_nrGkHzpkvgHXAsCMZ2jg54rEXj88HVJZktUpmJYshBzj",
+        "POSTHOG_HOST": "https://us.i.posthog.com",
+        "IOS_BUNDLE_ID": "com.kinderwell.app",
+        "ANDROID_PACKAGE": "com.kinderwell.app",
+        "APP_DISPLAY_NAME": "Kinderwell"
       }
     }
   }

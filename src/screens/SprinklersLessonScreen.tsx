@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,6 +64,7 @@ const STORAGE_KEY = '@sprinklers_completed_sections';
 
 export default function SprinklersLessonScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const posthog = usePostHog();
   const [completedSections, setCompletedSections] = useState<string[]>([]);
 
   const loadProgress = async () => {
@@ -134,6 +136,12 @@ export default function SprinklersLessonScreen() {
               style={styles.lessonCard}
               onPress={() => {
                 if (lesson.startScreen) {
+                  posthog.capture('lesson_section_started', {
+                    lesson_name: 'Sprinklers: Building Deep Bonds',
+                    section_id: lesson.id,
+                    section_title: lesson.title,
+                    section_number: lesson.number,
+                  });
                   navigation.navigate('LessonFlow', { screen: lesson.startScreen });
                 }
               }}
