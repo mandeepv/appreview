@@ -43,6 +43,11 @@ module.exports = ({ config }) => {
         UIRequiresFullScreen: false,
         UISupportedInterfaceOrientations: ['UIInterfaceOrientationPortrait'],
         UIUserInterfaceStyle: 'Light',
+        // Answers "Standard/exempt encryption?" upload prompt permanently so
+        // App Store submissions never re-ask. We only use standard iOS crypto
+        // (HTTPS/TLS + SHA-256 for Apple Sign In nonce via expo-crypto), no
+        // custom encryption. See US export regulations.
+        ITSAppUsesNonExemptEncryption: false,
       },
       associatedDomains: [`applinks:${supabaseHost}`],
       // Full privacy manifest — reflects everything the app actually collects
@@ -164,7 +169,16 @@ module.exports = ({ config }) => {
       'expo-notifications',
       'expo-localization',
       // Sentry native crash + JS error reporting.
-      '@sentry/react-native/expo',
+      // organization / project let the build-time sentry-cli upload sourcemaps
+      // (so prod stack traces show real file names, not minified gibberish).
+      // SENTRY_AUTH_TOKEN is provided by EAS secrets during the build.
+      [
+        '@sentry/react-native/expo',
+        {
+          organization: process.env.SENTRY_ORG || 'kinderwell',
+          project: process.env.SENTRY_PROJECT || 'react-native',
+        },
+      ],
     ],
     extra: {
       ...config.extra,

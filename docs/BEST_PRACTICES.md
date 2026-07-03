@@ -218,6 +218,12 @@ PostHog feature flags in use via `onboarding_variant` flag — see `src/lib/expe
 
 ---
 
+### ~~16. Consolidate `app.json` and `app.config.js`~~ ✅ DONE 2026-07-04
+
+Stripped `app.json` back to base (name, version, slug, icon, splash, plugins list). Moved `ITSAppUsesNonExemptEncryption: false` into `app.config.js`'s Info.plist output. `app.config.js` is now single source of truth for all dynamic config. Verified via `expo config --type public` — final resolved config identical. Documented rule in `DEV_PROD_ENVIRONMENTS.md`.
+
+---
+
 ### 15. Gate LearnScreen behind subscription check
 **Why it matters:** The paywall in `LoadingScreen.tsx` has fallback paths (`onSkip`, `onError`, `onDismiss` without purchase) that all call `navigation.replace('Root')` — meaning a paying user hitting a network glitch or Superwall outage could reach the main app without subscribing. The current paywall UX is hard, so this is largely theoretical, but the escape hatches exist in code.
 

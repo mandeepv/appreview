@@ -65,6 +65,14 @@ All three files must match. Rules in [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEM
 
 - [ ] **⚠️ Backup reality check.** As of 2026-07-04, prod has NO automated backups (Free tier). If this migration breaks something in a way we can't roll forward, there is no recovery. Review the SQL one more time; make sure `--dry-run` output matches expectations exactly. See `BEST_PRACTICES.md` item #2 for the deferred-fix options.
 - [ ] Confirm every SQL file in `supabase/migrations/` that's new since last release is backward-compatible (see [`DEV_PROD_ENVIRONMENTS.md`](./DEV_PROD_ENVIRONMENTS.md) → "Schema migrations — backward compatibility"). If it's a breaking change → STOP, refactor to expand-only.
+
+**How to actually verify backward compat (do this, don't just say it's fine):**
+- [ ] Install the CURRENTLY-LIVE App Store version of Kinderwell on your iPhone (from App Store, not TestFlight) — this is what most users are running
+- [ ] Sign in with a test account
+- [ ] Use the app normally — go through onboarding, complete a lesson, hit the paywall, etc.
+- [ ] Verify no visible errors, no data corruption, no crashes
+- [ ] **This is testing the OLD app against the NEW schema.** If the old app breaks, users on the old version WILL break the moment you push the migration.
+- [ ] Only if the old app works cleanly → proceed.
 - [ ] Link CLI to prod: `supabase link --project-ref zqwzdyjfxytvedghujsd`
 - [ ] Dry-run to see what will apply: `supabase db push --linked --dry-run`
 - [ ] Confirm the dry-run lists only the migrations you expect. If it lists something unfamiliar → STOP.

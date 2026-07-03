@@ -64,6 +64,24 @@ The `--clean` flag deletes `ios/` first. Regenerates from current env vars. Then
 
 **When to prebuild:** only when you need to inspect / build native locally. EAS builds do this automatically inside their build container.
 
+### Single source of truth: `app.config.js`
+
+**`app.json` is intentionally minimal** — name, version, slug, icon, splash, base plugin list. That's it.
+
+**`app.config.js` is the single source of truth** for everything dynamic:
+- Env-driven bundle ID and package (dev vs prod)
+- Info.plist customizations (URL schemes, ATS, orientation, ITSAppUsesNonExemptEncryption)
+- Entitlements (Sign in with Apple, Associated Domains)
+- PrivacyInfo.xcprivacy declarations
+- Plugin list for native modules (expo-notifications, expo-localization, @sentry/react-native/expo)
+- Runtime `extra` config exposed via `Constants.expoConfig.extra`
+
+**Rule:** any change to native config → edit `app.config.js`. Do NOT add fields to `app.json` beyond what's currently there. If you find `app.json` has grown fields that `app.config.js` also produces, that's drift — clean it up.
+
+**Where drift comes from:** Expo's CLI answers to interactive prompts (e.g. "encryption exempt?" during upload) sometimes write resolved config back into `app.json`. When that happens, delete the duplicated fields from `app.json` immediately — `app.config.js` produces them dynamically anyway.
+
+**Verify current state:** `npx expo config --type public | grep <field>` shows the FINAL resolved config that ships. If a field appears here, it doesn't matter which file it came from — but it should only come from ONE.
+
 ## How the app knows which env it's in
 
 The app reads Supabase creds from `Constants.expoConfig.extra` via `expo-constants`. Those values come from:
