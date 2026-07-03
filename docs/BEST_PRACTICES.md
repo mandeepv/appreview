@@ -45,34 +45,43 @@ Baseline saved at `supabase/migrations/20260101000000_initial_schema.sql`. All f
 ---
 
 ### 2. Verify backups exist and test a restore
-**Why it matters:** If prod DB corrupts (or you `DROP TABLE` in a moment of tiredness), how do you recover? On Free tier Supabase, backups are limited. On Pro tier ($25/mo) you get point-in-time recovery. Either way, you need to know what you have and prove restore works before you need it.
 
-**Effort:** S (2–3 hours including test restore)
+**⚠️ CURRENT STATUS (2026-07-04): PROD HAS ZERO BACKUPS. Deferred by user, accepting risk.**
 
-**What to do:**
-1. Check prod dashboard → Database → **Backups**. What retention do you have?
-2. If Free tier and you're taking real money, upgrade to Pro. $25/mo is nothing compared to losing user data.
-3. Restore the most recent backup to `kinderwell-dev` to prove it works.
-4. Document the restore procedure in `DEV_PROD_ENVIRONMENTS.md` → "Rollback plans"
+**The reality on Supabase Free tier:** no automatic backups at all. Zero retention. If prod DB corrupts, gets accidentally `DROP TABLE`d, or Supabase has an incident with data loss on our project → every paying user's data is unrecoverable. Sign-ups, subscription state, lesson progress — all gone.
 
-**Definition of done:** you have written notes on exactly how to restore prod from a backup, and you've done it once as a drill.
+Verified against Supabase docs (2026-07-04): "We automatically back up all Pro, Team, and Enterprise Plan projects on a daily basis" — Free tier is not covered.
+
+**Why it's currently deferred:** User made the explicit call to accept this risk for now rather than pay $25/mo for Pro tier or set up manual dump automation. Documented so the risk is conscious, not accidental.
+
+**Three ways to fix later** — pick one when this bites (or preemptively):
+
+**Option A — DIY dump automation (Free tier, ~1h + ongoing discipline):**
+1. Write `scripts/backup-prod.sh` that runs `supabase db dump` and pipes to a local or cloud file
+2. Cron / GitHub Action to run it weekly
+3. Store dumps somewhere durable (private git repo, Google Drive, S3)
+4. Test a restore against dev at least once so you know the flow
+
+**Option B — Upgrade to Pro ($25/mo, ~15 min setup):**
+1. Prod dashboard → Subscription → upgrade
+2. Automatic daily backups + 7-day retention appear
+3. Self-service restore in the dashboard
+4. Do a test restore against dev to confirm the procedure
+
+**Option C — Third-party backup service:**
+1. Services like DatabaseSpy, SimpleBackups, or a custom Python cron. Similar effort to A, lets you offload to a managed service.
+
+**Definition of done:** you have EITHER (a) automated backup dumps running + tested restore procedure, OR (b) Pro tier subscription with a verified restore drill. Right now: neither.
+
+**Cost of NOT fixing:** if you lose prod data, no recovery. Every paying user's data is gone. Real money lost + reputational damage + would-be a paying user retention crisis.
 
 ---
 
-### 3. Add error / crash tracking to the app
-**Why it matters:** Right now if a paid user crashes, you find out from a 1-star review. Sentry / Bugsnag catches JS errors, native crashes, and API failures in real time. For a paid app, this is table stakes.
+### ~~3. Add error / crash tracking to the app~~ ✅ DONE 2026-07-04
 
-**Effort:** M (3–5 hours to install, configure, filter noise)
+Sentry integrated. Single project, `environment` tag ('dev' | 'prod') derived from Supabase URL (same pattern as PostHog). SDK initialized in `App.tsx` before any other code so import-time crashes are caught. `Sentry.wrap(App)` at the export sets up ErrorBoundary + session tracking. Native iOS/Android crashes auto-captured. `reportError()` helper in `src/config/sentry.ts` used alongside existing `posthog.captureException` calls in auth + paywall paths — same error surfaces in both dashboards.
 
-**What to do:**
-1. Pick one — **Sentry** is the standard, generous free tier for React Native
-2. Install: `npx @sentry/wizard@latest -i reactNative`
-3. Wire DSN into both env profiles in `eas.json` (separate DSNs for dev and prod)
-4. Test: throw a fake error in dev, confirm it appears in Sentry dashboard
-5. Add Sentry to Superwall + Supabase failure paths (they already have hooks)
-6. Set up email alerts for `>N` errors in `Y` minutes
-
-**Definition of done:** you get an email/Slack ping if a paid user hits a crash within 5 minutes.
+DSN configured in `.env`, `.env.prod`, and all three eas.json profiles.
 
 ---
 
@@ -250,6 +259,13 @@ PostHog feature flags in use via `onboarding_variant` flag — see `src/lib/expe
 - **2026-07-04** — Removed dead `SHOW_DEMO_BUTTON` env var (Fable P0#2) — never read, cleaned from .env/eas.json/app.config.js/env.d.ts
 - **2026-07-04** — Restore Purchases now works (Fable P0#3) — calls Superwall's getSubscriptionStatus, three-outcome UI (restored/no_purchases/failed), analytics renamed to restore_purchases_tapped + restore_purchases_completed
 - **2026-07-04** — Managed workflow migration (Fable P0#4) — deleted ios/ folder, all native config in app.config.js, bundle ID split ACTUALLY works, entitlements/privacy manifest properly declared
+- **2026-07-04** — Sentry crash & error reporting (item #3, Fable P1#8) — single project + environment tag, ErrorBoundary via Sentry.wrap, native crash capture, reportError wired into auth + paywall catch blocks
+- **2026-07-04** — Supabase CLI-tracked migrations (item #12, Fable P1#10) — baselined dev + prod via `supabase migration repair`, rewrote initial migration as idempotent SQL, retired prod_schema.sql to `supabase/archive/`, updated release checklist to use `supabase db push --linked` instead of raw `psql -f`
+- **2026-07-04** — Kill switch reads real binary build (Fable P1#12) — swapped `Constants.expoConfig.ios.buildNumber` for `Application.nativeBuildVersion` so build-number drift can't silently break the kill switch
+- **2026-07-04** — Phased release + manual release documented (Fable P1#13 Part A) — RELEASE_CHECKLIST Phase 9/10/11 now cover App Store Connect toggles and phased-rollout monitoring. **Backup restore drill deferred (item #2 status: risk accepted, no automated backups on Free tier)**
+- **2026-07-04** — Privacy policy corrected (Fable P1#7) — removed false "children's data never transmitted to servers" claim, added PostHog and Sentry disclosure, replaced "may add analytics in future" with what's actually collected. Updated `legal/PRIVACY_POLICY.md`. GitHub Pages repo (`kinderwell-legal`) still needs the same update pushed. App Store Connect App Privacy questionnaire steps documented in RELEASE_CHECKLIST Phase 9a
+- **2026-07-04** — Structural prod guards (Fable P1#11, partial) — `supabase.ts` now HARD THROWS if a `__DEV__` build tries to connect to prod Supabase (unless `ALLOW_DEV_PROD_ACCESS=true` is set explicitly). `app.config.js` defaults flipped from prod-shaped to dev-shaped so a fresh clone / missing `.env` yields dev, not prod. **DB password rotation still deferred by user.**
+- **2026-07-04** — Apple Sign In fixes (Fable P1#9) — nonce added (SHA-256 to signInAsync, raw to signInWithIdToken) for replay hardening; fixed silent data loss where the post-signin upsert wrote to non-existent `full_name`/`email` columns (table has `name`). Apple only provides the user's name on FIRST authorization, so every new Apple sign-up before this fix silently lost their name forever. Now upserts to correct column with error reporting to Sentry if the write fails.
 
 ---
 

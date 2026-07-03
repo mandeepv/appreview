@@ -11,6 +11,7 @@ declare module 'expo-constants' {
       skipPaywall?: string;
       posthogProjectToken?: string;
       posthogHost?: string;
+      sentryDsn?: string;
       eas?: {
         projectId?: string;
       };

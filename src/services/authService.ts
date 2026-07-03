@@ -1,8 +1,10 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import * as Crypto from 'expo-crypto';
 import { supabase } from '../lib/supabase';
 import { Platform } from 'react-native';
+import { reportError } from '../config/sentry';
 
 // Required for web browser authentication
 WebBrowser.maybeCompleteAuthSession();
@@ -105,58 +107,116 @@ export const signInWithGoogle = async () => {
 };
 
 /**
+ * Generate a raw nonce + its SHA-256 hex for Apple Sign In replay protection.
+ * See: https://supabase.com/docs/guides/auth/social-login/auth-apple
+ *
+ * - The SHA-256 is passed to AppleAuthentication.signInAsync so Apple embeds
+ *   the hash inside the signed ID token.
+ * - The raw nonce is passed to Supabase's signInWithIdToken, which re-hashes
+ *   it internally and compares to what the token carries.
+ * - If someone intercepts the ID token, they can't reuse it — they don't have
+ *   the raw nonce.
+ */
+async function generateAppleNonce(): Promise<{ raw: string; hashed: string }> {
+  const raw = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    // Use randomUUID + timestamp so nonce is unique per attempt.
+    `${Crypto.randomUUID()}${Date.now()}`,
+    { encoding: Crypto.CryptoEncoding.HEX },
+  );
+  const hashed = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    raw,
+    { encoding: Crypto.CryptoEncoding.HEX },
+  );
+  return { raw, hashed };
+}
+
+/**
  * Apple Sign-In
- * This will work once you add Apple OAuth credentials to Supabase
  */
 export const signInWithApple = async () => {
   try {
     // Check if Apple Sign-In is available on this device
-    if (Platform.OS === 'ios') {
-      const isAvailable = await AppleAuthentication.isAvailableAsync();
-      if (!isAvailable) {
-        throw new Error('Apple Sign-In is not available on this device');
-      }
-
-      // Request Apple authentication
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-      // Verify we received an identity token
-      if (!credential.identityToken) {
-        throw new Error('Apple Sign-In failed: No identity token received');
-      }
-
-      // Sign in to Supabase with Apple credential
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'apple',
-        token: credential.identityToken,
-      });
-
-      if (error) throw error;
-
-      // Optionally update user profile with Apple user info
-      if (credential.fullName && data.user) {
-        const fullName = `${credential.fullName.givenName || ''} ${credential.fullName.familyName || ''}`.trim();
-
-        if (fullName) {
-          await supabase
-            .from('user_profiles')
-            .upsert({
-              id: data.user.id,
-              full_name: fullName,
-              email: data.user.email,
-            });
-        }
-      }
-
-      return data.session;
-    } else {
+    if (Platform.OS !== 'ios') {
       throw new Error('Apple Sign-In is only available on iOS');
     }
+    const isAvailable = await AppleAuthentication.isAvailableAsync();
+    if (!isAvailable) {
+      throw new Error('Apple Sign-In is not available on this device');
+    }
+
+    // Generate nonce for replay hardening — see generateAppleNonce comments.
+    const { raw: rawNonce, hashed: hashedNonce } = await generateAppleNonce();
+
+    // Request Apple authentication. Apple embeds the hashed nonce in the
+    // signed identity token so we can verify no one is replaying it.
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+
+    // Verify we received an identity token
+    if (!credential.identityToken) {
+      throw new Error('Apple Sign-In failed: No identity token received');
+    }
+
+    // Sign in to Supabase — pass the RAW nonce; Supabase hashes it internally
+    // to compare against what's in the token.
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+      nonce: rawNonce,
+    });
+
+    if (error) throw error;
+
+    // Save the user's name to user_profiles.
+    //
+    // ⚠️ CRITICAL: Apple only provides fullName / email on the FIRST
+    // authorization ever for a given (Apple ID, app) pair. If we fail this
+    // upsert silently, the name is gone forever — the user could uninstall,
+    // reinstall, re-authorize a hundred times, and Apple would never send
+    // the name again.
+    //
+    // We write to the `name` column (the one that actually exists in
+    // user_profiles). Previous code wrote to `full_name` and `email`, neither
+    // of which exists → silent failure → every new Apple user lost their name.
+    if (data.user && credential.fullName) {
+      const fullName = [
+        credential.fullName.givenName,
+        credential.fullName.familyName,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+      if (fullName) {
+        const { error: upsertError } = await supabase
+          .from('user_profiles')
+          .upsert(
+            { id: data.user.id, name: fullName },
+            { onConflict: 'id' },
+          );
+
+        if (upsertError) {
+          // Do NOT throw — the user is signed in successfully at this point.
+          // Losing the name is a soft failure. Log to Sentry so we notice
+          // if it happens systematically.
+          if (__DEV__) console.error('[Apple SignIn] Failed to save name:', upsertError);
+          reportError(upsertError, {
+            source: 'signInWithApple',
+            step: 'save_name',
+            user_id: data.user.id,
+          });
+        }
+      }
+    }
+
+    return data.session;
   } catch (error: any) {
     if (error.code === 'ERR_REQUEST_CANCELED') {
       // User cancelled the sign-in

@@ -93,18 +93,23 @@ Three build profiles:
 
 Only do this if you specifically need to reproduce a prod-only bug locally. Otherwise leave it on dev.
 
+**As of 2026-07-04**, the app REFUSES to run a `__DEV__` build against prod Supabase — it will throw a clear error at startup. This is to catch the "I forgot my `.env` got overwritten" mistake before you write test data to real users. To bypass explicitly:
+
 ```bash
 # Save current dev .env, swap in prod
 cp .env .env.dev.bak
 cp .env.prod .env
 
-# ... test whatever you need ...
+# Run with the explicit override so the safety throw is skipped
+ALLOW_DEV_PROD_ACCESS=true npx expo start
+
+# ... test whatever you need — every write is a live user impact ...
 
 # Switch back to dev
 cp .env.dev.bak .env
 ```
 
-The app will log `[Supabase] Env: PROD ⚠️` on startup — that's your signal you're pointed at prod.
+The app will log `[Supabase] Env: PROD ⚠️ (OVERRIDE ACTIVE)` on startup + a red-flag warning. If you see this in Metro output, you're pointed at prod. Absolutely nothing you do will be reversible from a `Ctrl+Z`.
 
 ## Building for a real device
 
@@ -192,42 +197,20 @@ For anything that looks like a breaking change:
 
 ### Recommended flow
 
-1. Make the change on **dev** first (Supabase dev dashboard SQL editor, or `psql` against the dev DB)
-2. Verify the currently-running app version still works against dev (backward compat check)
-3. Verify the new app changes work against dev
-4. Once confident, apply the SAME SQL to prod
-
-### Applying SQL to dev (from local terminal)
-
-```bash
-export DEV_DB_URL='postgresql://postgres.xbkkjqvbsnroenqlqkmi:PASSWORD@aws-1-us-west-1.pooler.supabase.com:5432/postgres'
-/opt/homebrew/opt/postgresql@17/bin/psql "$DEV_DB_URL" -f path/to/migration.sql
-```
-
-### Applying SQL to prod
-
-```bash
-export PROD_DB_URL='postgresql://postgres.zqwzdyjfxytvedghujsd:PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres'
-/opt/homebrew/opt/postgresql@17/bin/psql "$PROD_DB_URL" -f path/to/migration.sql
-```
+1. Create a migration file with `supabase migration new <name>` and write the SQL in it
+2. Apply to **dev** via `supabase db push --linked` (CLI stays linked to dev)
+3. Verify the currently-running app version still works against dev (backward compat check)
+4. Verify the new app changes work against dev
+5. Once confident, apply to prod during release — see "Migration tracking" section below for the full commands.
 
 ### Re-syncing dev schema from prod
 
-If dev drifts from prod (e.g., you experimented in dev and want to reset), dump prod and reapply:
+Since dev + prod are both tracked via Supabase migrations now, the concept of "dump prod and blast it over dev" no longer applies. If dev has drifted (extra tables, columns, etc), the correct fix is:
 
-```bash
-# Dump prod schema (structure only)
-/opt/homebrew/opt/postgresql@17/bin/pg_dump "$PROD_DB_URL" \
-  --schema-only --no-owner --no-privileges --schema=public \
-  -f supabase/prod_schema.sql
+- Are the differences intentional (e.g. `app_config` is dev-only until v1.1.0 releases)? Then leave them.
+- Are they unintentional (you experimented and want to reset)? Reset the specific table or column, or use Supabase Dashboard's SQL editor to drop what you don't want. Don't blow away everything — you'd lose tables that prod hasn't caught up to yet.
 
-# Reset dev's public schema (destroys dev data — that's fine, it's dev)
-/opt/homebrew/opt/postgresql@17/bin/psql "$DEV_DB_URL" \
-  -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
-
-# Reapply
-/opt/homebrew/opt/postgresql@17/bin/psql "$DEV_DB_URL" -f supabase/prod_schema.sql
-```
+If you truly need a fresh dev DB from scratch, re-run all migrations against a new empty Supabase project: `supabase db push --linked` will replay everything in `supabase/migrations/` in order.
 
 ## Edge Functions
 
@@ -332,12 +315,14 @@ grep -A 1 "CFBundleShortVersionString\|CFBundleVersion" ios/Kinderwell/Info.plis
 
 **This is the highest-risk step of the whole release.**
 
-1. **Take note of the exact SQL you applied to dev.** It should be in a numbered file under `supabase/migrations/`.
+1. **All the migrations that need to apply to prod should already exist as files under `supabase/migrations/`.** If dev has un-committed schema changes, STOP and create the migration file first.
 2. **Confirm the SQL is backward compatible** (see "Schema migrations" section above). If it's a breaking change, DO NOT proceed — go back and refactor into an expand-only step.
 3. **Apply to prod** during a low-traffic window:
    ```bash
-   export PROD_DB_URL='postgresql://postgres.zqwzdyjfxytvedghujsd:PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres'
-   /opt/homebrew/opt/postgresql@17/bin/psql "$PROD_DB_URL" -f supabase/migrations/YYYYMMDD_description.sql
+   supabase link --project-ref zqwzdyjfxytvedghujsd
+   supabase db push --linked --dry-run   # sanity check
+   supabase db push --linked
+   supabase link --project-ref xbkkjqvbsnroenqlqkmi   # IMMEDIATELY re-link back to dev
    ```
 4. **Verify prod still works** by opening the currently-live App Store app on your phone and testing the affected feature. If prod is broken, you have minutes to fix or roll back before users complain.
 5. **Only proceed to Phase 5 after prod DB is stable with the new schema.**
@@ -392,26 +377,66 @@ Follow `RELEASE_PROCESS.md`:
 
 ## Migration tracking
 
-**Set up on 2026-07-01.** All schema changes now go through `supabase/migrations/` as timestamped SQL files. This gives us an audit trail, keeps dev/prod reconciled, and makes rebuilds possible.
+**Set up on 2026-07-01. Migrated to Supabase CLI–driven flow on 2026-07-04** — no more manual `psql -f`. Every schema change goes through `supabase migration new` + `supabase db push --linked`. The DB has a `supabase_migrations` table that records which migrations have already been applied to each project.
 
-**Baseline:** `supabase/migrations/20260101000000_initial_schema.sql` (the prod schema as it existed on 2026-07-01).
+**Baseline:** `supabase/migrations/20260101000000_initial_schema.sql` is the state that shipped with v1.0.0. Idempotent — will run cleanly against a fresh DB. Dev and prod are both marked as having this migration applied (via `supabase migration repair` on 2026-07-04).
 
-### Per migration
+### Creating a new migration
 
-1. Create a new file: `supabase/migrations/YYYYMMDDHHMMSS_short_description.sql`
-   - Example: `20260702143000_add_streak_count_to_user_profiles.sql`
-   - Timestamp format matters — Supabase CLI applies migrations in filename order.
-2. Write the SQL. Prefer additive changes (see backward compatibility section).
-3. Apply to dev: `psql "$DEV_DB_URL" -f supabase/migrations/YYYYMMDDHHMMSS_*.sql`
-4. Test, then apply the same file to prod during release.
-5. Commit the migration file to git — this is the audit trail.
+```bash
+supabase migration new add_subscription_status_to_user_profiles
+```
+
+That drops a `supabase/migrations/YYYYMMDDHHMMSS_add_subscription_status_to_user_profiles.sql` file. Write the SQL there. **Prefer additive changes** (see the backward-compatibility section).
+
+### Applying a migration
+
+**To dev** (CLI should already be linked to dev by default — see `supabase/.temp/project-ref`):
+
+```bash
+supabase db push --linked --dry-run   # sanity-check: shows what will apply
+supabase db push --linked             # actually applies
+```
+
+**To prod** — only during a release, following `RELEASE_CHECKLIST.md`:
+
+```bash
+supabase link --project-ref zqwzdyjfxytvedghujsd
+supabase db push --linked --dry-run   # ALWAYS dry-run against prod first
+supabase db push --linked
+supabase link --project-ref xbkkjqvbsnroenqlqkmi   # IMMEDIATELY re-link back to dev
+```
+
+### Verifying migration state
+
+```bash
+supabase migration list --linked
+```
+
+Shows a Local vs Remote table. If both columns match, you're in sync. If Local has a migration that Remote doesn't → you have unpushed changes. If Remote has one Local doesn't → someone applied SQL by hand (drift).
+
+### If the tables get out of sync (dev/prod drift)
+
+Two ways:
+
+1. **Something got run by hand.** Fix: write the migration file that matches what was run, then mark it as applied without re-running: `supabase migration repair --status applied YYYYMMDDHHMMSS --linked`
+2. **A migration file exists locally but was never applied.** Fix: `supabase db push --linked` to catch up.
 
 ### Why it matters
 
-- You have a record of every change ever made to prod
-- If dev/prod drift, you can diff migration files vs. actual schema and reconcile
-- Anyone (including future-you) can rebuild the DB from scratch by replaying migrations
-- Rollback becomes possible — you can write a reverse migration
+- You have a record of every change ever made to each DB
+- If dev/prod drift, `supabase migration list --linked` shows it immediately
+- Anyone (including future-you) can rebuild the DB from scratch with a single `supabase db push --linked`
+- No forgetting to apply a migration to prod at release time — the tool tracks what's pending
+
+### The old approach (do NOT use)
+
+Raw `psql -f` against `$PROD_DB_URL` — this is what we did before 2026-07-04. Problems:
+- No record of what ran where — the `supabase_migrations` table never got a row
+- pg_dump output has psql-only directives that break under `db push`
+- The dev-resync procedure (drop + recreate `public` schema) would silently delete dev-only tables like `app_config`
+
+**Old raw pg_dump snapshots** (like the one we used to bootstrap dev) live in `supabase/archive/`. Do NOT re-apply them; they exist for historical reference only.
 
 ## Rollback plans
 
@@ -475,11 +500,13 @@ Launch dev app → should see force-update modal. Reset back to `'0'::jsonb` whe
 
 ### Applying to prod on next release
 
-The `app_config` table exists on **dev only** as of 2026-07-03. It must be applied to prod as part of the v1.1.0 release:
+The `app_config` table exists on **dev only** as of 2026-07-03. It applies to prod as part of the v1.1.0 release via the standard migration flow:
 
 ```bash
-export PROD_DB_URL='postgresql://postgres.zqwzdyjfxytvedghujsd:PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres'
-/opt/homebrew/opt/postgresql@17/bin/psql "$PROD_DB_URL" -f supabase/migrations/20260703200000_add_app_config_table.sql
+supabase link --project-ref zqwzdyjfxytvedghujsd
+supabase db push --linked --dry-run    # should show 20260703200000_add_app_config_table pending
+supabase db push --linked
+supabase link --project-ref xbkkjqvbsnroenqlqkmi   # re-link back to dev
 ```
 
 **Sequencing rule:** apply DB migration BEFORE submitting the new app build to App Store. Otherwise the new app will call an endpoint that doesn't exist on prod → fetch fails → user sees defaults → still works but skips the kill switch until the migration lands.
@@ -540,12 +567,14 @@ Watch for `[Supabase] Env: PROD ⚠️` — do NOT sign up test accounts or writ
 
 ### "I want to add a new column to a table"
 
-1. Write the migration SQL (`ALTER TABLE ... ADD COLUMN ... NULL DEFAULT ...`)
-2. Apply to dev: `psql "$DEV_DB_URL" -f migration.sql`
-3. Test the currently-shipped app version against dev — should still work (backward compat check)
-4. Update the app code to use the new column, test against dev
-5. Apply the same SQL to prod: `psql "$PROD_DB_URL" -f migration.sql`
-6. Ship the app update
+1. `supabase migration new add_something_to_user_profiles`
+2. Fill in the SQL (`ALTER TABLE ... ADD COLUMN ... NULL DEFAULT ...`)
+3. Apply to dev: `supabase db push --linked`
+4. Test the currently-shipped app version against dev — should still work (backward compat check)
+5. Update the app code to use the new column, test against dev
+6. Commit the migration file
+7. Apply to prod during release: see "Applying to prod on next release" pattern above
+8. Ship the app update
 
 ### "I want to ship a new app version"
 

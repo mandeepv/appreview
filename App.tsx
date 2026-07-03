@@ -1,7 +1,12 @@
+// Initialize Sentry BEFORE anything else so we catch import-time crashes.
+import { initSentry } from './src/config/sentry';
+initSentry();
+
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
+import * as Sentry from '@sentry/react-native';
 import { PostHogProvider } from 'posthog-react-native';
 import { OnboardingNavigator, OnboardingStackParamList } from './src/navigation/OnboardingNavigator';
 import { useAuthStore } from './src/store/authStore';
@@ -134,7 +139,7 @@ function AppContent() {
   );
 }
 
-export default function App() {
+function App() {
   const superwallApiKey = Constants.expoConfig?.extra?.superwallApiKey;
 
   if (__DEV__) console.log('📝 Superwall API Key:', superwallApiKey ? `${superwallApiKey.substring(0, 10)}...` : 'MISSING');
@@ -147,3 +152,8 @@ export default function App() {
     </SuperwallProvider>
   );
 }
+
+// Sentry.wrap sets up an ErrorBoundary around the tree so React render errors
+// are captured, plus attaches session tracking. Native iOS/Android crashes are
+// captured automatically by initSentry above.
+export default Sentry.wrap(App);

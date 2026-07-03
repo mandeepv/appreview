@@ -492,3 +492,4 @@ Set up a 50/50 A/B test between the current onboarding (`control`) and a new pla
 - `subscription_status` schema migration + Superwall webhook — wait until Saturday's iPhone tests pass
 - Rotate DB password (task #7)
 - App Store page optimization — orthogonal, do anytime
+- **Verify Sentry test error flow** — DevMenu → "Send test error to Sentry" → confirm it lands in Sentry dashboard within 30–60 sec, with `environment` tag set correctly

@@ -6,15 +6,18 @@
 // so a `development` build produces com.kinderwell.app.dev and a `production`
 // build produces com.kinderwell.app. See docs/DEV_PROD_ENVIRONMENTS.md.
 module.exports = ({ config }) => {
-  // Env-aware identity — defaults to prod values so `expo start` without any
-  // env override still points at prod-shaped config.
-  const iosBundleId = process.env.IOS_BUNDLE_ID || config.ios?.bundleIdentifier || 'com.kinderwell.app';
-  const androidPackage = process.env.ANDROID_PACKAGE || config.android?.package || 'com.kinderwell.app';
-  const appName = process.env.APP_DISPLAY_NAME || config.name || 'Kinderwell';
+  // Env-aware identity. Defaults are DEV-shaped: if nothing is set (fresh
+  // clone, missing .env, etc.) we assume dev, not prod. Prod always sets its
+  // own values explicitly via eas.json's `production` profile, so the safe
+  // default is dev. See Fable review P1 #11.
+  const iosBundleId = process.env.IOS_BUNDLE_ID || config.ios?.bundleIdentifier || 'com.kinderwell.app.dev';
+  const androidPackage = process.env.ANDROID_PACKAGE || config.android?.package || 'com.kinderwell.app.dev';
+  const appName = process.env.APP_DISPLAY_NAME || config.name || 'Kinderwell Dev';
 
   // Supabase host used for universal / app links (must match the project the
-  // dev/prod build talks to). Falls back to prod if the env var isn't set.
-  const supabaseHost = (process.env.SUPABASE_URL || 'https://zqwzdyjfxytvedghujsd.supabase.co').replace('https://', '');
+  // dev/prod build talks to). Falls back to DEV Supabase if the env var
+  // isn't set.
+  const supabaseHost = (process.env.SUPABASE_URL || 'https://xbkkjqvbsnroenqlqkmi.supabase.co').replace('https://', '');
 
   return {
     ...config,
@@ -160,6 +163,8 @@ module.exports = ({ config }) => {
       // so prebuild wires up native side.
       'expo-notifications',
       'expo-localization',
+      // Sentry native crash + JS error reporting.
+      '@sentry/react-native/expo',
     ],
     extra: {
       ...config.extra,
@@ -169,6 +174,7 @@ module.exports = ({ config }) => {
       skipPaywall: process.env.SKIP_PAYWALL,
       posthogProjectToken: process.env.POSTHOG_PROJECT_TOKEN,
       posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
+      sentryDsn: process.env.SENTRY_DSN,
     },
   };
 };

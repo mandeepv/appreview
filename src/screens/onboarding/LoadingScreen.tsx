@@ -12,6 +12,7 @@ import { saveUserOnboardingData } from '../../services/onboardingService';
 import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { safeCapture } from '../../lib/analytics';
+import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
 
@@ -84,6 +85,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     onError: (error) => {
       if (__DEV__) console.error('❌ Paywall error:', error);
       posthog.captureException(new Error(typeof error === 'string' ? error : 'Paywall error'), {
+        screen: 'LoadingScreen',
+        context: 'paywall',
+      });
+      reportError(new Error(typeof error === 'string' ? error : 'Paywall error'), {
         screen: 'LoadingScreen',
         context: 'paywall',
       });

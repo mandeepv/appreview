@@ -23,8 +23,8 @@
 ## Phase 1: Build on dev
 
 - [ ] Confirm `.env` points at dev — `cat .env | grep SUPABASE_URL` shows `xbkkjqvbsnroenqlqkmi`
-- [ ] All schema changes for this release exist as migration files in `supabase/migrations/`
-- [ ] Migration files applied to dev — verify by opening the affected tables in dev dashboard
+- [ ] All schema changes for this release exist as migration files in `supabase/migrations/` (create with `supabase migration new <name>`)
+- [ ] Migration files applied to dev via `supabase db push --linked` (currently linked to dev — verify with `supabase migration list --linked`)
 - [ ] Do NOT touch prod DB during development
 - [ ] If accidental test signups happened on prod, delete them from prod Supabase → Auth → Users
 
@@ -63,12 +63,16 @@ All three files must match. Rules in [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEM
 
 **Highest-risk step. Slow down.**
 
+- [ ] **⚠️ Backup reality check.** As of 2026-07-04, prod has NO automated backups (Free tier). If this migration breaks something in a way we can't roll forward, there is no recovery. Review the SQL one more time; make sure `--dry-run` output matches expectations exactly. See `BEST_PRACTICES.md` item #2 for the deferred-fix options.
 - [ ] Confirm every SQL file in `supabase/migrations/` that's new since last release is backward-compatible (see [`DEV_PROD_ENVIRONMENTS.md`](./DEV_PROD_ENVIRONMENTS.md) → "Schema migrations — backward compatibility"). If it's a breaking change → STOP, refactor to expand-only.
-- [ ] Note the exact SQL you applied to dev.
-- [ ] Apply to prod during a low-traffic window:
+- [ ] Link CLI to prod: `supabase link --project-ref zqwzdyjfxytvedghujsd`
+- [ ] Dry-run to see what will apply: `supabase db push --linked --dry-run`
+- [ ] Confirm the dry-run lists only the migrations you expect. If it lists something unfamiliar → STOP.
+- [ ] Apply to prod during a low-traffic window: `supabase db push --linked`
+- [ ] Verify: `supabase migration list --linked` shows both Local and Remote in sync
+- [ ] **IMMEDIATELY re-link back to dev** so accidental follow-up commands hit dev, not prod:
   ```bash
-  export PROD_DB_URL='postgresql://postgres.zqwzdyjfxytvedghujsd:PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres'
-  /opt/homebrew/opt/postgresql@17/bin/psql "$PROD_DB_URL" -f supabase/migrations/YYYYMMDD_description.sql
+  supabase link --project-ref xbkkjqvbsnroenqlqkmi
   ```
 - [ ] **Verify prod still works** — open the currently-live App Store app on your phone, test the affected feature. If broken, roll back before submitting.
 
@@ -119,14 +123,62 @@ All three files must match. Rules in [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEM
 - [ ] Fill out App Store Connect submission:
   - What to test (TestFlight notes)
   - What's new (user-facing release notes)
-  - Demo account credentials (or note that `SHOW_DEMO_BUTTON=true` + 7 taps on Auth title activates demo mode)
+  - Demo account credentials — reference [`DEMO_MODE.md`](./DEMO_MODE.md). Reviewer instructions: "On the 'Save your progress' screen at the end of onboarding, tap the title text 7 times consecutively to activate Demo Mode."
   - Screenshots up to date? If UI changed, update them
+- [ ] **Version Release** section → select **"Manually release this version"** (NOT "Automatically release"). Prevents the app from going live the second Apple approves it — you'll click a button when YOU'RE ready (early morning, low-traffic window, after final smoke test on prod build).
+- [ ] **Phased Release for Automatic Updates** section → toggle **ON** (**"Release update over a 7-day period using phased release"**). Apple auto-rolls out over 7 days — ~1% day 1, ~2% day 2, etc. If crashes / bad reviews spike in the first days, you pause the rollout and only ~10% of users saw the bad build.
+
+### 9a: App Privacy questionnaire (App Store Connect → App → App Privacy)
+
+This section MUST match `PrivacyInfo.xcprivacy` and `legal/PRIVACY_POLICY.md`. If they diverge, App Store review rejects. For **v1.1.0**, the current answers are outdated — the previous submission omitted PostHog and Sentry, and mis-stated children's data. **Update these before submitting v1.1.0.**
+
+The exact data types to declare (matching what our app actually does — see `legal/PRIVACY_POLICY.md` for full context):
+
+**Contact Info:**
+- **Email Address** — Linked to user, NOT used for tracking. Purposes: App Functionality, Analytics. (Supabase auth, PostHog identify.)
+- **Name** — Linked to user. Purposes: App Functionality. (From Google/Apple Sign-In.)
+
+**User Content:**
+- **Other User Content** — Linked to user. Purposes: App Functionality, Product Personalization. (Onboarding answers: user type, age, children's age ranges + gender, parenting styles, goals, challenges.)
+
+**Identifiers:**
+- **User ID** — Linked to user. Purposes: App Functionality, Analytics. (Supabase user id + PostHog identify.)
+- **Device ID** — NOT linked to user. Purposes: Analytics. (PostHog anonymous events.)
+
+**Purchases:**
+- **Purchase History** — Linked to user. Purposes: App Functionality. (Superwall + Apple IAP subscription state.)
+
+**Usage Data:**
+- **Product Interaction** — Linked to user. Purposes: App Functionality, Analytics, Product Personalization. (PostHog screen views, event captures.)
+
+**Diagnostics:**
+- **Crash Data** — NOT linked to user. Purposes: App Functionality. (Sentry native crashes.)
+- **Performance Data** — NOT linked to user. Purposes: App Functionality. (Sentry non-crash errors.)
+- **Other Diagnostic Data** — NOT linked to user. Purposes: App Functionality. (Sentry breadcrumbs / context.)
+
+**Data NOT collected (leave unchecked):**
+- Precise Location, Coarse Location
+- Financial Info, Payment Info (Apple handles all payments, we never see them)
+- Contacts, Health & Fitness data
+- Photos, Video, Audio, Voice
+- Sensitive Info (race, orientation, religion, etc.)
+- Browsing / Search History
+- Any "Third-Party Advertising" data category
+
+**Tracking:** Answer "No" — we do NOT use ATT-classified tracking. We don't build ad-targeting profiles or share data with data brokers.
+
+- [ ] All 10 declared data types above are set correctly in App Store Connect → App Privacy
+- [ ] Confirmed `PrivacyInfo.xcprivacy` (in `app.config.js`) declares the SAME types with matching Linked/Tracking/Purposes flags
+- [ ] Confirmed the published privacy policy at `https://mandeepv.github.io/kinderwell-legal/privacy.html` describes the same collection and purposes as above
 - [ ] Submit for review
 
 ---
 
 ## Phase 10: After Apple approval
 
+- [ ] **Do NOT click "Release" immediately.** Apple has approved; the build is now in "Pending Developer Release" state. Take a beat.
+- [ ] Install the approved build via TestFlight one more time and run the full smoke test on real device. Any last-minute issue? DO NOT release; go back and fix.
+- [ ] If clean → click **"Release This Version"** in App Store Connect at a low-traffic window (early morning your timezone is fine).
 - [ ] Follow [`RELEASE_PROCESS.md`](./RELEASE_PROCESS.md) — create build-specific tag `v1.1.0-build-9`
 - [ ] Move production marker tag `appstore-live-v1.1.0`
 - [ ] Push tags to GitHub
@@ -135,15 +187,29 @@ All three files must match. Rules in [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEM
 
 ---
 
-## Phase 11: Post-release monitoring (first 24-72 hours)
+## Phase 11: Post-release monitoring (phased rollout window — 24-72h then 7 days)
 
+**During phased release, users get the new build gradually. This is your window to catch issues affecting <10% of users before the rollout hits everyone.**
+
+Days 1-3 (heaviest monitoring):
 - [ ] Watch App Store Connect → Analytics → Crashes for spikes on the new version
+- [ ] Watch Sentry → Issues → filter to `environment=prod` and this release version
 - [ ] Watch PostHog dashboard for:
   - Funnel drop-off changes
   - Auth failure spikes (`user_signed_in` vs `auth_attempted` ratio)
   - Paywall conversion changes
 - [ ] Watch Supabase → Reports for query latency or error spikes
 - [ ] Check ratings & reviews on App Store for early user reports
+
+**If something bad shows up during phased release:**
+- [ ] App Store Connect → your version → **"Pause Phased Release"** — freezes the rollout at current % until you unpause
+- [ ] Diagnose the issue
+- [ ] Fix + submit hotfix build (see Emergency section below)
+- [ ] Once fixed, either release the hotfix build (recommended) or resume phased release with confidence
+
+Days 4-7:
+- [ ] Continue monitoring but less intensively
+- [ ] By day 7, Apple has rolled out to 100%. This is now the new "live" version.
 
 ---
 
