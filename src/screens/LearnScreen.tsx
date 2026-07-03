@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
+import { useAuthStore, canAccessPaidContent } from '../store/authStore';
 
 interface LearningModule {
   id: string;
@@ -125,6 +126,54 @@ const learningModules: LearningModule[] = [
 export default function LearnScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const posthog = usePostHog();
+
+  // Subscription gate. See docs/DEMO_MODE.md — demo users MUST always pass.
+  // Fail-open behavior:
+  //   - subscriptionStatusResolved=false → show spinner, don't route (paying
+  //     users on slow networks / cold start are not flashed to paywall)
+  //   - resolved AND canAccessPaidContent → render lessons
+  //   - resolved AND !canAccessPaidContent → bounce back to onboarding Loading
+  //     which re-triggers the Superwall paywall
+  const canAccess = useAuthStore(canAccessPaidContent);
+  const statusResolved = useAuthStore(state => state.subscriptionStatusResolved);
+
+  useEffect(() => {
+    if (statusResolved && !canAccess) {
+      if (__DEV__) console.log('[LearnScreen] not entitled — routing to paywall');
+      // Reset navigation up to the parent (OnboardingNavigator) and land on
+      // Loading, which re-triggers the paywall via Superwall's placement.
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Loading' }],
+          })
+        );
+      }
+    }
+  }, [statusResolved, canAccess, navigation]);
+
+  // While Superwall is still resolving on cold start, show a light spinner
+  // rather than either "no content" or a paywall flash. The 3s app-level
+  // fail-open timer (App.tsx) guarantees this never hangs forever.
+  if (!statusResolved) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  // If not entitled, don't render lesson content — the useEffect above is
+  // already redirecting, but this prevents a frame of paid content flashing.
+  if (!canAccess) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
   const handleModulePress = (moduleId: string) => {
     const module = learningModules.find((m) => m.id === moduleId);

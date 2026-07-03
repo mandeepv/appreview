@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider } from 'posthog-react-native';
 import { OnboardingNavigator, OnboardingStackParamList } from './src/navigation/OnboardingNavigator';
 import { useAuthStore } from './src/store/authStore';
-import { SuperwallProvider } from 'expo-superwall';
+import { SuperwallProvider, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { posthog } from './src/config/posthog';
 import { fetchAppConfig, isBelowMinimumBuild } from './src/lib/appConfig';
@@ -14,6 +14,8 @@ import { ForceUpdateModal } from './src/components/ForceUpdateModal';
 function AppContent() {
   const initialize = useAuthStore(state => state.initialize);
   const user = useAuthStore(state => state.user);
+  const setIsSubscribed = useAuthStore(state => state.setIsSubscribed);
+  const setSubscriptionStatusResolved = useAuthStore(state => state.setSubscriptionStatusResolved);
   const navigationRef = useRef<NavigationContainerRef<OnboardingStackParamList>>(null);
   const routeNameRef = useRef<string | undefined>(undefined);
   const prevUserRef = useRef(user);
@@ -24,6 +26,48 @@ function AppContent() {
     if (__DEV__) console.log('🚀 Initializing app...');
     initialize();
   }, []);
+
+  // App-level Superwall subscription-status listener. Lives for the entire app
+  // lifecycle so we notice subscription changes at any time — not just during
+  // onboarding. See docs/DEMO_MODE.md — demo users must never be flipped by
+  // this listener.
+  useSuperwallEvents({
+    onSubscriptionStatusChange: (subscriptionStatus) => {
+      const { isDemoUser } = useAuthStore.getState();
+      if (isDemoUser) {
+        // Demo users are granted access explicitly. Superwall will report
+        // INACTIVE (no real purchase attached) — do NOT propagate that,
+        // or we'd lock the Apple reviewer out of paid content mid-review.
+        setSubscriptionStatusResolved(true);
+        return;
+      }
+
+      if (__DEV__) console.log('[Subscription]', subscriptionStatus.status);
+
+      if (subscriptionStatus.status === 'ACTIVE') {
+        setIsSubscribed(true);
+      } else if (subscriptionStatus.status === 'INACTIVE') {
+        setIsSubscribed(false);
+      }
+      setSubscriptionStatusResolved(true);
+    },
+  });
+
+  // Fail-open safety net — if Superwall never reports (SDK stall, network
+  // dead, service outage), we mark status resolved after 3 s so the app is
+  // never permanently stuck on a "checking subscription" spinner. Paying
+  // users are protected because Splash treats "unresolved" as pass-through
+  // in the meantime.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const { subscriptionStatusResolved } = useAuthStore.getState();
+      if (!subscriptionStatusResolved) {
+        if (__DEV__) console.log('[Subscription] status never resolved — failing open');
+        setSubscriptionStatusResolved(true);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [setSubscriptionStatusResolved]);
 
   // Kill switch — fetch app_config on launch, force-upgrade users on bad builds.
   // Silently defaults to "not required" on any error, so a Supabase outage

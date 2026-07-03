@@ -5,18 +5,6 @@ export type OnboardingVariant = 'control' | 'variant_b';
 
 const ONBOARDING_VARIANT_KEY = '@kinderwell_onboarding_variant';
 const FLAG_KEY = 'onboarding_variant';
-
-/**
- * Resolves which onboarding variant this user should see.
- *
- * Order of resolution:
- * 1. Cached decision in AsyncStorage (sticky per install — never flip mid-flow)
- * 2. PostHog feature flag `onboarding_variant`
- * 3. Fallback to 'control' if flag is unavailable
- *
- * The result is cached to AsyncStorage so a user never flips variants
- * during onboarding, even if the PostHog flag config changes.
- */
 const FLAG_RESOLUTION_TIMEOUT_MS = 3000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -29,6 +17,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+/**
+ * Resolves which onboarding variant this user should see.
+ *
+ * Order of resolution:
+ * 1. Cached decision in AsyncStorage (sticky per install — never flip mid-flow)
+ * 2. PostHog feature flag `onboarding_variant`
+ * 3. Fallback to 'control' if flag is unavailable
+ *
+ * The result is cached to AsyncStorage so a user never flips variants
+ * during onboarding, even if the PostHog flag config changes.
+ */
 export async function resolveOnboardingVariant(): Promise<OnboardingVariant> {
   try {
     const cached = await AsyncStorage.getItem(ONBOARDING_VARIANT_KEY);

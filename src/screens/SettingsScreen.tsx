@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePostHog } from 'posthog-react-native';
+import { SuperwallExpoModule } from 'expo-superwall';
 import { useAuthStore } from '../store/authStore';
 import { deleteAccount } from '../services/authService';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
@@ -20,23 +21,52 @@ export const SettingsScreen: React.FC = () => {
   const { user, signOut, isDemoUser } = useAuthStore();
   const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const handleRestorePurchases = async () => {
-    posthog.capture('purchases_restored');
+    // Guard re-entry — tapping twice while restore is in flight must not
+    // trigger a second restore. Also tracked separately from delete-account
+    // isLoading so those buttons don't lock each other out.
+    if (isRestoring) return;
+
+    // Analytics: honest name — fires on tap, before we know outcome.
+    posthog.capture('restore_purchases_tapped');
+
+    setIsRestoring(true);
     try {
-      const url = 'https://apps.apple.com/account/subscriptions';
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
+      // Superwall's getSubscriptionStatus() re-syncs with StoreKit — checking
+      // Apple's servers for the current entitlement state under the signed-in
+      // Apple ID. "success" here means "sync completed" NOT "restored
+      // something" — we still have to check the returned status.
+      const status = await SuperwallExpoModule.getSubscriptionStatus();
+      const isActive = status?.status === 'ACTIVE';
+
+      // We deliberately DO NOT call setIsSubscribed(true) here. The app-level
+      // onSubscriptionStatusChange listener in App.tsx is the single source of
+      // truth for isSubscribed; letting the restore also write it creates a
+      // race condition between two writers.
+
+      if (isActive) {
+        posthog.capture('restore_purchases_completed', { outcome: 'restored' });
+        Alert.alert('Restored', 'Your subscription has been restored.');
       } else {
+        // Wrong Apple ID is the #1 real cause of "no purchases found." Hint at
+        // it so the user knows how to recover instead of assuming the app is broken.
+        posthog.capture('restore_purchases_completed', { outcome: 'no_purchases' });
         Alert.alert(
-          'Restore Purchases',
-          'Please manage your subscriptions in the App Store app under your Apple ID settings.',
-          [{ text: 'OK' }]
+          'No Purchases Found',
+          "No previous purchase was found for this Apple ID. Make sure you're signed in with the Apple ID you used to subscribe."
         );
       }
     } catch (error) {
-      if (__DEV__) console.error('Error opening subscriptions page:', error);
+      if (__DEV__) console.error('Restore failed:', error);
+      posthog.capture('restore_purchases_completed', { outcome: 'failed' });
+      Alert.alert(
+        'Restore Failed',
+        'Something went wrong. Please check your connection and try again.'
+      );
+    } finally {
+      setIsRestoring(false);
     }
   };
 
@@ -238,14 +268,16 @@ export const SettingsScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.menuItem}
             onPress={handleRestorePurchases}
-            disabled={isLoading}
+            disabled={isLoading || isRestoring}
           >
-            {isLoading ? (
+            {isRestoring ? (
               <ActivityIndicator size="small" color={Colors.primary} />
             ) : (
               <Ionicons name="refresh-outline" size={24} color={Colors.textSecondary} />
             )}
-            <Text style={styles.menuItemText}>Restore Purchases</Text>
+            <Text style={styles.menuItemText}>
+              {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+            </Text>
             <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
           </TouchableOpacity>
         </View>

@@ -2,7 +2,10 @@ import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const APP_STORE_URL = 'https://apps.apple.com/app/kinderwell/id0000000000';
+// Numeric App Store ID for Kinderwell (public info, from App Store Connect
+// → App Information → Apple ID). Never change this without matching what
+// Apple has on file.
+const APP_STORE_URL = 'https://apps.apple.com/app/kinderwell/id6758403231';
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.kinderwell.app';
 
 interface ForceUpdateModalProps {

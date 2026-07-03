@@ -23,16 +23,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const { identify } = useUser();
   const posthog = usePostHog();
 
-  // Listen for Superwall subscription status changes
+  // NOTE: onSubscriptionStatusChange is now handled at the app level in App.tsx
+  // so it survives across screen mounts / unmounts. LoadingScreen only listens
+  // to paywall-flow analytics events here.
   useSuperwallEvents({
-    onSubscriptionStatusChange: (subscriptionStatus) => {
-      if (__DEV__) console.log('💰 Subscription status changed:', subscriptionStatus.status);
-      if (subscriptionStatus.status === 'ACTIVE') {
-        setIsSubscribed(true);
-      } else if (subscriptionStatus.status === 'INACTIVE') {
-        setIsSubscribed(false);
-      }
-    },
     onSuperwallEvent: (eventInfo) => {
       // Fires when user taps a plan on the paywall (before App Store sheet appears).
       // safeCapture swallows any error — analytics must never break the paywall flow.

@@ -9,7 +9,6 @@ declare module 'expo-constants' {
       supabaseAnonKey?: string;
       superwallApiKey?: string;
       skipPaywall?: string;
-      showDemoButton?: string;
       posthogProjectToken?: string;
       posthogHost?: string;
       eas?: {

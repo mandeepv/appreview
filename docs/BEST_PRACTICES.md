@@ -246,6 +246,10 @@ PostHog feature flags in use via `onboarding_variant` flag — see `src/lib/expe
 - **2026-07-03** — `PrivacyInfo.xcprivacy` — declared all collected data types (email, user ID, device ID, product interaction, crash data, purchase history, name, other user content)
 - **2026-07-03** — Sandbox Apple ID (item #10) documented in STOREKIT_SETUP_GUIDE.md
 - **2026-07-03** — Feature flags (item #13) done via PostHog
+- **2026-07-04** — Subscription enforcement Option B (Fable P0#1) — app-level Superwall listener, LearnScreen gate, cold-start fail-open
+- **2026-07-04** — Removed dead `SHOW_DEMO_BUTTON` env var (Fable P0#2) — never read, cleaned from .env/eas.json/app.config.js/env.d.ts
+- **2026-07-04** — Restore Purchases now works (Fable P0#3) — calls Superwall's getSubscriptionStatus, three-outcome UI (restored/no_purchases/failed), analytics renamed to restore_purchases_tapped + restore_purchases_completed
+- **2026-07-04** — Managed workflow migration (Fable P0#4) — deleted ios/ folder, all native config in app.config.js, bundle ID split ACTUALLY works, entitlements/privacy manifest properly declared
 
 ---
 

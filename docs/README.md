@@ -24,6 +24,9 @@ Everything process-related lives in this folder. If you're looking for how to do
 - **`BEST_PRACTICES.md`** — where Kinderwell is following (and not following) best practices, prioritized
 - **`PRODUCT_ROADMAP.md`** — feature/experiment queue with prioritization
 
+### 🚨 Critical — read before touching auth or subscription code
+- **`DEMO_MODE.md`** — how the 7-tap Apple reviewer bypass works, invariants that MUST hold or App Store rejects your build
+
 ### Historical context (rarely needed)
 - **`archive/`** — old launch checklists, compliance history, initial reviews. See `archive/README.md` for what's in there and why it was archived.
 
