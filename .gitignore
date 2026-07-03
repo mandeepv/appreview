@@ -38,3 +38,6 @@ yarn-error.log*
 
 # Supabase CLI local state (which project you're linked to, cached versions, etc.)
 supabase/.temp/
+
+# Claude Code local settings + skills (per-machine, do not commit)
+.claude/

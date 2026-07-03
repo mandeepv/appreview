@@ -8,6 +8,8 @@ import { Heading1, Subtitle } from '../../components/Typography';
 import { Colors, Spacing, Animation } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { useExperimentStore } from '../../store/experimentStore';
+import { trackOnboardingStarted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Splash'>;
 
@@ -16,6 +18,16 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const { user, isLoading } = useAuthStore();
   const { loadState, getLastScreen, hasReachedAuth } = useOnboardingStore();
+  const resolveVariant = useExperimentStore((s) => s.resolveVariant);
+
+  // Kick off variant resolution in background — we DO NOT block splash routing
+  // on this. If it's not resolved by the time Welcome renders, the switch
+  // component defaults to control; when variant later resolves, it swaps.
+  // This keeps the splash-to-Welcome time bounded to the 2s animation only,
+  // even on dead networks.
+  useEffect(() => {
+    resolveVariant();
+  }, [resolveVariant]);
 
   useEffect(() => {
     // Entrance animation
@@ -34,7 +46,8 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
     ]).start();
   }, []);
 
-  // Wait for auth to finish loading, then navigate
+  // Wait for auth to finish loading, then navigate.
+  // Variant resolution runs in parallel and does NOT block routing.
   useEffect(() => {
     if (!isLoading) {
       const timer = setTimeout(async () => {
@@ -51,11 +64,13 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
             // User completed onboarding before, go to Auth screen
             if (__DEV__) console.log('User has completed onboarding, navigating to Auth');
             await loadState(); // Load their saved onboarding data
+            trackOnboardingStarted('resumed', 'Auth');
             navigation.replace('Auth');
           } else if (lastScreen) {
             // User was in middle of onboarding, resume where they left off
             if (__DEV__) console.log('Resuming onboarding at:', lastScreen);
             await loadState(); // Load their saved answers
+            trackOnboardingStarted('resumed', lastScreen);
             try {
               navigation.replace(lastScreen as any);
             } catch {
@@ -64,6 +79,7 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
           } else {
             // Brand new user, show welcome screen
             if (__DEV__) console.log('New user, showing Welcome screen');
+            trackOnboardingStarted('first_open');
             navigation.replace('Welcome');
           }
         }

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Lin
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AntDesign } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { usePostHog } from 'posthog-react-native';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { useOnboardingStore } from '../../store/onboardingStore';
@@ -10,12 +11,14 @@ import { useAuthStore } from '../../store/authStore';
 import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { Colors } from '../../constants/theme';
+import { trackAuthAttempted, trackAuthAbandoned } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SignIn'>;
 
 export const SignInScreen: React.FC<Props> = ({ navigation }) => {
   const { setAuthMethod } = useOnboardingStore();
   const { setUser, setSession } = useAuthStore();
+  const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'apple' | null>(null);
 
@@ -24,6 +27,7 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
       setIsLoading(true);
       setLoadingProvider('google');
       setAuthMethod('google');
+      trackAuthAttempted('google', 'returning_user');
 
       const session = await signInWithGoogle();
 
@@ -33,6 +37,14 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
 
         // Check if user has completed onboarding
         const hasOnboarding = await hasUserCompletedOnboarding(session.user.id);
+
+        posthog.identify(session.user.id, {
+          $set: { email: session.user.email ?? null },
+        } as Record<string, unknown> as never);
+        posthog.capture('user_signed_in', {
+          auth_method: 'google',
+          user_type: hasOnboarding ? 'returning' : 'new',
+        });
 
         if (hasOnboarding) {
           // Returning user with onboarding data - go directly to app
@@ -45,11 +57,17 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
         }
       } else {
         // User cancelled or something went wrong
+        trackAuthAbandoned('google', 'returning_user', 'no_session_returned');
         setIsLoading(false);
         setLoadingProvider(null);
       }
     } catch (error: any) {
       if (__DEV__) console.error('Google sign-in error:', error);
+      trackAuthAbandoned('google', 'returning_user', 'error');
+      posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
+        auth_method: 'google',
+        screen: 'SignInScreen',
+      });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(
@@ -65,6 +83,7 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
       setIsLoading(true);
       setLoadingProvider('apple');
       setAuthMethod('apple');
+      trackAuthAttempted('apple', 'returning_user');
 
       const session = await signInWithApple();
 
@@ -74,6 +93,14 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
 
         // Check if user has completed onboarding
         const hasOnboarding = await hasUserCompletedOnboarding(session.user.id);
+
+        posthog.identify(session.user.id, {
+          $set: { email: session.user.email ?? null },
+        } as Record<string, unknown> as never);
+        posthog.capture('user_signed_in', {
+          auth_method: 'apple',
+          user_type: hasOnboarding ? 'returning' : 'new',
+        });
 
         if (hasOnboarding) {
           // Returning user with onboarding data - go directly to app
@@ -86,11 +113,17 @@ export const SignInScreen: React.FC<Props> = ({ navigation }) => {
         }
       } else {
         // User cancelled
+        trackAuthAbandoned('apple', 'returning_user', 'no_session_returned');
         setIsLoading(false);
         setLoadingProvider(null);
       }
     } catch (error: any) {
       if (__DEV__) console.error('Apple sign-in error:', error);
+      trackAuthAbandoned('apple', 'returning_user', 'error');
+      posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
+        auth_method: 'apple',
+        screen: 'SignInScreen',
+      });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(

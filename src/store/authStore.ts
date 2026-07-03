@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, signOut as supabaseSignOut } from '../lib/supabase';
+import { posthog } from '../config/posthog';
 
 interface AuthState {
   user: User | null;
@@ -80,12 +81,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           session: session,
           isLoading: false
         });
+        posthog.identify(session.user.id, {
+          $set: { email: session.user.email ?? null },
+        } as Record<string, unknown> as never);
       } else {
         set({ isLoading: false });
       }
 
-      // Listen for auth changes
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      // Listen for auth changes. onAuthStateChange returns a subscription we
+      // intentionally do not surface — cleanup is handled implicitly when the
+      // app exits. Return void to match the store's initialize() signature.
+      supabase.auth.onAuthStateChange(
         async (event, session) => {
           if (__DEV__) console.log('Auth state changed:', event, session?.user?.email);
 
@@ -105,8 +111,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       );
 
-      // Cleanup subscription on unmount would be handled by the component
-      return subscription;
     } catch (error) {
       if (__DEV__) console.error('Error initializing auth:', error);
       set({ isLoading: false });
