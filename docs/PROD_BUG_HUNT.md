@@ -176,6 +176,14 @@ Notes:
 
 ## Section 2 — Subscription / purchase lifecycle
 
+**⏭️ SKIPPED 2026-07-04**: 2.1–2.4 require sandbox mode, which on iOS
+18 needs either Xcode dev-mode setup (~30 min) or a TestFlight build.
+2.5 (Restore Purchases) and 2.6 (paywall bypass) already covered
+elsewhere. 2.7 is edge-case. Best plan: retest 2.1–2.4 on the v1.1.0
+TestFlight build, where sandbox is automatic. Added to test plan for
+that release.
+
+
 ### 2.1 Subscribe monthly → verify entitlement
 - [ ] Complete onboarding as new user → hit paywall
 - [ ] Buy monthly subscription (use sandbox — see STOREKIT_SETUP_GUIDE.md)
