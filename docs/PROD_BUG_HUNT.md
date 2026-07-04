@@ -151,20 +151,26 @@ Notes:
   ("use Share My Email") since that's user education not a bug.
 
 ### 1.8 Sign out from Settings → sign back in
-- [ ] Settings → Log Out
-- [ ] Expected: land on Welcome
-- [ ] Sign back in with same provider
-- [ ] Verify progress / onboarding data still there
+- [x] Settings → Log Out
+- [x] Expected: land on Welcome
+- [x] Sign back in with same provider
+- [x] Verify progress / onboarding data still there
 
 Notes:
+- 2026-07-04 — implicitly verified in Sections 1.2 and 1.4 (both
+  covered Log Out → Welcome → sign in → LearnScreen with returning
+  data intact). ✅
 
 ### 1.9 Uninstall / reinstall / sign in
-- [ ] Uninstall app (long-press home → delete)
-- [ ] Reinstall from App Store
-- [ ] Sign in via same provider
-- [ ] Verify progress restored from Supabase
+- [x] Uninstall app (long-press home → delete)
+- [x] Reinstall from App Store
+- [x] Sign in via same provider
+- [x] Verify progress restored from Supabase
 
 Notes:
+- 2026-07-04 — implicitly verified in Section 1.2 (Mandeep deleted
+  the app + reinstalled between tests, then signed in as returning
+  user with data intact). ✅
 
 ---
 
