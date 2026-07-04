@@ -70,7 +70,6 @@ export const trackPaywallOptionSelected = (planId: string, source: string) => {
  */
 export const identifyUserWithOnboarding = (
   userId: string,
-  email: string | undefined,
   onboarding: {
     userType: string | null;
     age: number | null;
@@ -97,9 +96,15 @@ export const identifyUserWithOnboarding = (
   }
 
   // signup mode — safe to attach onboarding answers as person properties.
+  //
+  // email deliberately NOT included (Fable review 🟡). Reviewer's concern:
+  // PostHog is a US-based processor; linking email to emotional-challenge
+  // answers (anxious/overwhelmed/burned-out) puts identifiable
+  // mental-health-adjacent data at a third party. Kinderwell's user ID
+  // already links to the Supabase auth user, which carries the email — so
+  // we lose nothing analytically by dropping email from PostHog's copy.
   posthog.identify(userId, {
     $set: {
-      email: email ?? null,
       user_type: onboarding.userType,
       age: onboarding.age,
       children_count: onboarding.childrenCount,
