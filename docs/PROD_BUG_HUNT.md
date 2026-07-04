@@ -357,6 +357,15 @@ Notes:
 
 ## Section 6 — Settings screen
 
+**2026-07-04 Mandeep tested prod v1.0.0 Build 8**:
+- ✅ Manage Subscription → App Store subscriptions tab
+- 🔴 Restore Purchases → also opens App Store subscriptions (fake).
+  Already fixed for v1.1.0 in commit ee8d354 (real StoreKit sync).
+- ✅ Contact Support → mailto prompt with provider picker
+- ✅ Privacy Policy → github legal repo (correct URL)
+- ✅ Terms of Service → github legal repo (correct URL)
+
+
 ### 6.1 All buttons functional?
 - [ ] Manage Subscription → opens App Store subscription page ✅?
 - [ ] Restore Purchases → covered in 2.5
