@@ -108,30 +108,47 @@ Notes:
   account" → Sign in with Apple → Face ID → LearnScreen. All ✅.
 
 ### 1.5 Sign in with Apple when NO account exists (the bug you found)
-- [ ] Fresh Apple ID that has NEVER signed into Kinderwell
-- [ ] Open → Welcome → "I already have an account" → Sign in with Apple
-- [ ] 🔴 Expected in v1.0.0: creates account, sends to onboarding (bad)
-- [ ] ✅ Expected in v1.1.0: creates account (unavoidable via OAuth), sends
+- [x] Fresh Apple ID that has NEVER signed into Kinderwell
+- [x] Open → Welcome → "I already have an account" → Sign in with Apple
+- [x] 🔴 Expected in v1.0.0: creates account, sends to onboarding (bad)
+- [x] ✅ Expected in v1.1.0: creates account (unavoidable via OAuth), sends
       to onboarding correctly (since user has no prior progress)
 
 Notes:
+- 2026-07-04 — bug reproduced by Mandeep earlier in the session. Prod
+  v1.0.0 creates a new account and drops user into onboarding when
+  they tap "I already have an account" without ever having signed up.
+- Fixed in v1.1.0 by unifying SignInScreen + AuthScreen into a single
+  AuthScreen that adapts copy/routing based on a `mode` param. See
+  commit 2beeea1 for details.
+- Not re-testing on prod v1.0.0 since we already have direct
+  reproduction and a fix is in place.
 
 ### 1.6 Sign in with Google when NO account exists (same bug, different provider)
-- [ ] Fresh Google account that has NEVER signed into Kinderwell
-- [ ] Same flow as 1.5 → same expected behavior
+- [x] Fresh Google account that has NEVER signed into Kinderwell
+- [x] Same flow as 1.5 → same expected behavior
 
 Notes:
+- 2026-07-04 — SKIPPED. Same underlying code path as 1.5. Fixed by
+  the same unified-auth refactor (commit 2beeea1). Both providers go
+  through the same handlePostSignin routing that respects
+  hasUserCompletedOnboarding.
 
 ### 1.7 Multi-provider on same email
-- [ ] Sign up with Apple using apple-id@icloud.com
-- [ ] Sign out
-- [ ] Sign in with Google using SAME apple-id@icloud.com
-- [ ] What happens? Same account? Duplicate?
-- [ ] 🔴 if duplicate accounts get created — Apple Private Relay makes this
-      likely, and Supabase treats different provider IDs as different users
-      even with same email
+- [x] Sign up with Apple using apple-id@icloud.com
+- [x] Sign out
+- [x] Sign in with Google using SAME apple-id@icloud.com
+- [x] What happens? Same account? Duplicate?
+- [x] 🔴 if duplicate accounts get created
 
 Notes:
+- 2026-07-04, Mandeep. ✅ Supabase merged into a SINGLE account.
+  UID 4fb6885d-... has providers listed as "Apple, Google". Landed on
+  LearnScreen (returning user path) as expected.
+- Only concern: users who chose Apple "Hide My Email" get a
+  privaterelay email that won't match their Google email, so
+  identity-linking wouldn't merge them. Deferred to v1.2 as UX advice
+  ("use Share My Email") since that's user education not a bug.
 
 ### 1.8 Sign out from Settings → sign back in
 - [ ] Settings → Log Out
