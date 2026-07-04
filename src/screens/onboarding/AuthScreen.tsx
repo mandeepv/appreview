@@ -158,7 +158,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       if (session) {
         setUser(session.user);
         setSession(session);
-        identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore, mode);
+        identifyUserWithOnboarding(session.user.id, onboardingStore, mode);
         posthog.capture('user_signed_in', {
           auth_method: 'google',
           user_type: userTypeAnalytics,
@@ -200,7 +200,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       if (session) {
         setUser(session.user);
         setSession(session);
-        identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore, mode);
+        identifyUserWithOnboarding(session.user.id, onboardingStore, mode);
         posthog.capture('user_signed_in', {
           auth_method: 'apple',
           user_type: userTypeAnalytics,
