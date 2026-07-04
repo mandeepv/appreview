@@ -1,63 +1,37 @@
-# Supabase Edge Function Deployment Guide
+# Edge Function Deployment
 
-## Prerequisites
+This doc was rewritten (Fable review 🟡). The prior version opened by
+telling the reader to `supabase link --project-ref zqwzdyjfxytvedghujsd`
+(prod), which contradicted the always-linked-to-dev rule and was a
+real footgun — anyone running its steps in order would have hit dev
+migrations against prod.
 
-1. Install Supabase CLI:
-```bash
-brew install supabase/tap/supabase
-```
+**The deployment flow is now covered in two authoritative places:**
 
-2. Login to Supabase:
-```bash
-supabase login
-```
+- **Dev deploys** (routine): [`docs/DEV_PROD_ENVIRONMENTS.md`](../docs/DEV_PROD_ENVIRONMENTS.md) → "Migration tracking" section. CLI stays linked to dev; `supabase functions deploy <name>` targets dev via the linked project.
 
-3. Link your project:
-```bash
-supabase link --project-ref zqwzdyjfxytvedghujsd
-```
+- **Prod deploys** (per-release): [`docs/RELEASE_CHECKLIST.md`](../docs/RELEASE_CHECKLIST.md) → Phase 5 (Deploy Edge Functions to prod if changed). Explicitly re-links to prod (`--project-ref zqwzdyjfxytvedghujsd`), deploys, verifies, and re-links back to dev.
 
-## Deploy the delete-account Function
+## The one-liner for reference
 
+Dev deploy (CLI already linked to dev):
 ```bash
 supabase functions deploy delete-account
 ```
 
-## Verify Deployment
-
-After deployment, the function will be available at:
-```
-https://zqwzdyjfxytvedghujsd.supabase.co/functions/v1/delete-account
-```
-
-## Environment Variables
-
-The Edge Function uses these environment variables (automatically available in Supabase):
-- `SUPABASE_URL` - Your Supabase project URL
-- `SUPABASE_ANON_KEY` - Your anon/public key
-- `SUPABASE_SERVICE_ROLE_KEY` - Your service role key (for admin operations)
-
-## Testing the Function
-
-You can test the function using curl:
-
+Prod deploy (per-release, follow RELEASE_CHECKLIST Phase 5):
 ```bash
-curl -X POST 'https://zqwzdyjfxytvedghujsd.supabase.co/functions/v1/delete-account' \
-  -H 'Authorization: Bearer YOUR_USER_JWT_TOKEN' \
-  -H 'Content-Type: application/json'
+supabase link --project-ref zqwzdyjfxytvedghujsd
+supabase functions deploy delete-account
+supabase link --project-ref xbkkjqvbsnroenqlqkmi   # re-link to dev
 ```
 
-## Security Notes
+## Environment variables inside Edge Functions
 
-- The function verifies the user is authenticated before deletion
-- Uses the service role key (server-side only) to delete the auth user
-- Deletes all user data: lesson_progress, user_profiles, and auth user
-- GDPR/CCPA compliant - complete data deletion
+Supabase auto-injects these into every function invocation:
 
-## Troubleshooting
+- `SUPABASE_URL` — project URL of the project the function is deployed to
+- `SUPABASE_ANON_KEY` — anon key of that project
+- `SUPABASE_SERVICE_ROLE_KEY` — service-role key (bypasses RLS; use with care)
 
-If deployment fails:
-
-1. Check you're logged in: `supabase projects list`
-2. Verify project link: `supabase status`
-3. Check function logs: `supabase functions logs delete-account`
+No env-var config on the caller side. If you need custom env vars for a function, set them via `supabase secrets set` per project.
