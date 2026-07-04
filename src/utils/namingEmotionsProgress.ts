@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const STORAGE_KEY = '@naming_emotions_completed_sublessons';
+const STORAGE_KEY = STORAGE_KEYS.NAMING_EMOTIONS_COMPLETED_SUBLESSONS;
 
 export const markSubLessonComplete = async (subLessonId: string): Promise<void> => {
   try {

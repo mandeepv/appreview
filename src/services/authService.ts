@@ -302,6 +302,17 @@ export const deleteAccount = async () => {
     // Order matters slightly: clear async caches BEFORE signOut() so
     // if AsyncStorage.multiRemove throws we haven't already dropped
     // the auth session (recoverable state).
+    //
+    // Not cleared here: per-lesson progress in AsyncStorage
+    // (`src/utils/*Progress.ts` — namingEmotions, helpingProcessEmotions,
+    // serveReturn, lesson5, deepBondMoments, recordingDeepBondMoments).
+    // These are keyed per device, not per user, so they persist across
+    // account deletions on the same device. Intended behavior — the
+    // rationale is that lesson content is educational and progress is
+    // an anonymous device-local convenience, not user data. If we ever
+    // move progress server-side (e.g. cross-device sync), add
+    // `AsyncStorage.multiRemove([...LESSON_PROGRESS_KEYS])` here and
+    // the constants file becomes the source of truth for that list.
     try {
       await useOnboardingStore.getState().clearState();
     } catch (e) {

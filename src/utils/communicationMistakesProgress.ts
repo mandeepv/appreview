@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const STORAGE_KEY = '@communication_mistakes_completed_sections';
+const STORAGE_KEY = STORAGE_KEYS.COMMUNICATION_MISTAKES_COMPLETED_SECTIONS;
 
 export const markSectionComplete = async (sectionId: string): Promise<void> => {
   try {
