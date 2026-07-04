@@ -45,7 +45,11 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
   updateChildrenCount: (count: number) =>
     set((state) => ({
       childrenCount: count,
-      children: Array.from({ length: count }, (_, i) => state.children[i] || { gender: 'boy' as ChildGender }),
+      // Do NOT default gender. Onboarding does not ask for gender in prod
+      // (the "Optional Expand" toggle is commented out), so writing anything
+      // here fabricates data the user didn't provide. Existing children keep
+      // whatever they had, new children start with no gender / age set.
+      children: Array.from({ length: count }, (_, i) => state.children[i] || {}),
     })),
 
   updateChildGender: (index: number, gender: ChildGender) =>
