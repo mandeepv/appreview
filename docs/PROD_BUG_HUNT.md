@@ -81,12 +81,23 @@ Notes:
   for v1.1.0 (via useLessonGate hook). No re-verification needed.
 
 ### 1.3 Apple Sign-Up (fresh account)
-- [ ] Same as 1.1 but with Apple ID that's never signed into Kinderwell
-- [ ] Enter your name when Apple asks (first time only)
-- [ ] Verify Supabase → user_profiles → `name` column populated
-- [ ] 🔴 bug if `name` is null (we already fixed this in v1.1.0)
+- [x] Same as 1.1 but with Apple ID that's never signed into Kinderwell
+- [x] Enter your name when Apple asks (first time only)
+- [x] Verify Supabase → user_profiles → `name` column populated
+- [x] 🔴 bug if `name` is null (we already fixed this in v1.1.0)
 
 Notes:
+- 2026-07-04, Mandeep. Apple sign-in worked end-to-end. Email captured
+  correctly (chose "Share My Email"). user_profiles row created with
+  name populated. ✅
+- Caveat: user_profiles.name came from the NameAge onboarding screen
+  (the user typed a name during onboarding), not from Apple's
+  credential.fullName. Prod v1.0.0 writes Apple's fullName to
+  non-existent columns (`full_name`, `email`) so it silently drops on
+  the floor — but the onboarding-typed name masks this at the UI
+  level. Fixed in v1.1.0 (writes to correct `name` column) for
+  correctness even though the user visible symptom in prod is nil.
+- Phantom "boy" gender bug reproduces here too — same fix as 1.1.
 
 ### 1.4 Apple Sign-In (existing account, from Welcome)
 - [ ] Same as 1.2 but Apple
