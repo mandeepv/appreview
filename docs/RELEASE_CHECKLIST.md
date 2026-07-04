@@ -43,19 +43,29 @@
 
 ## Phase 3: Bump version numbers
 
-All three files must match. Rules in [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md).
+Only `app.json` and `package.json` carry the version. Rules in
+[`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md).
 
-- [ ] `app.json` — `version` + `ios.buildNumber` + `android.versionCode`
-- [ ] `ios/Kinderwell/Info.plist` — `CFBundleShortVersionString` + `CFBundleVersion`
-- [ ] `ios/Kinderwell.xcodeproj/project.pbxproj` — `MARKETING_VERSION` + `CURRENT_PROJECT_VERSION`
-- [ ] Sanity check — run:
+- [ ] Run the bump script (recommended — keeps versions in sync,
+      refuses to run on drift):
   ```bash
-  grep -E "\"version\"|buildNumber" app.json
-  grep -A 1 "CFBundleShortVersionString\|CFBundleVersion" ios/Kinderwell/Info.plist
-  grep "MARKETING_VERSION\|CURRENT_PROJECT_VERSION" ios/Kinderwell.xcodeproj/project.pbxproj | head -4
+  ./scripts/bump-version.sh <new-version> <new-build>
   ```
-  All numbers should match.
-- [ ] Build number is strictly greater than the last submitted to App Store Connect (bump even for rejected builds)
+- [ ] Sanity check — verify both files match:
+  ```bash
+  node -e "console.log('app.json:', require('./app.json').expo.version)"
+  node -e "console.log('package.json:', require('./package.json').version)"
+  ```
+  Both must show the same marketing version. CI's `version-drift`
+  job enforces this.
+- [ ] Build number is strictly greater than the last submitted to
+      App Store Connect (bump even for rejected builds).
+
+**Managed workflow note:** `ios/Info.plist` and
+`ios/*.xcodeproj/project.pbxproj` no longer exist in the repo —
+they're generated from `app.json` by `expo prebuild --clean` on every
+EAS build. If a doc anywhere else references them for versioning, it's
+stale.
 
 ---
 
