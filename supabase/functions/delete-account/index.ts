@@ -1,8 +1,23 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
+// CORS hygiene per Fable review 🟡. This Edge Function is only ever called
+// from the native mobile app (Kinderwell iOS today, Android planned) via
+// the Supabase JS SDK's functions.invoke() — a native fetch() call that is
+// not subject to browser CORS. The previous 'Access-Control-Allow-Origin:
+// *' had zero practical effect for our app, but it did leave the endpoint
+// callable from arbitrary browser contexts if a signed-in user's session
+// token was ever exposed to a page they visited.
+//
+// Tightened to null (no browser origins allowed) since we don't have any
+// legitimate browser client. The OPTIONS preflight still returns the
+// headers but with a null origin, browsers block the request. Native
+// mobile fetch() ignores CORS entirely so app behavior is unchanged.
+//
+// When we ship a web client, add its specific origin(s) here (e.g.
+// 'https://app.kinderwell.com') — NOT '*'.
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'null',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
