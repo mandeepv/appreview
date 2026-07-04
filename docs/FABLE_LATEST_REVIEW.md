@@ -167,8 +167,8 @@ live and left the working one orphaned.
 be marked "Coming Soon" for real (accept the placeholder as the live
 UX), or the dead file's working sub-lesson launcher logic should be
 copied into the live placeholder to actually ship the built-but-orphaned
-content. Not a blocker for v1.1.0 — logged in docs/V1.1.1_PLUS.md as a
-follow-up. Users' current experience (placeholder cards) is unchanged
+content. Not a blocker for v1.1.0 — logged in docs/BACKLOG.md item
+#11 as a follow-up. Users' current experience (placeholder cards) is unchanged
 from prod v1.0.0 — this refactor didn't regress anything, it just
 didn't fix anything either.
 

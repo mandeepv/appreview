@@ -51,9 +51,7 @@ Everything process-related lives in this folder. If you're looking for how to do
 | `FABLE_LATEST_REVIEW_STATUS.md` | Live tracker of Fable Latest Review item status | ✅ While addressing review items |
 | `IPHONE_TEST_PLAN_V1.1.0.md` | Manual smoke test plan for v1.1.0 on iPhone XR | ✅ Before every release (adversarial tests should fold into RELEASE_CHECKLIST — see Fable review 🟡 doc/process item) |
 | `PROD_BUG_HUNT.md` | 2026-07-04 systematic prod v1.0.0 bug hunt notes | 📚 Historical / reference for what shipped broken in v1.0.0 |
-| `V1.1.1_ONBOARDING_POLISH.md` | Deferred onboarding UX polish for v1.1.1 | ⏭️ Deferred work backlog (candidate to merge into a single BACKLOG.md per Fable review 🟡) |
-| `V1.1.1_PLUS.md` | Deferred post-shipping items surfaced during v1.1.0 work | ⏭️ Deferred work backlog |
-| `V1.2_LATER.md` | Deferred long-term items | ⏭️ Deferred work backlog |
+| `BACKLOG.md` | Single deferred-work backlog (replaces three prior V1.*.md files, per Fable review 🟡 "one backlog") | ⏭️ Deferred work — read + update when picking next work |
 
 ## What lives at the repo root (not here)
 

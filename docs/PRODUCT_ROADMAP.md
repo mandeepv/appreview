@@ -26,7 +26,7 @@ They're not independent. Fixing 2 unblocks doing 1 and 3 intelligently.
 **Status (2026-07-04):** Scaffold was built and REMOVED before v1.1.0 shipped. The 20 variant B placeholder screens, `OnboardingVariantSwitch`, `experimentStore`, and `experiments.ts` all deleted from the codebase. Reason: shipping placeholder screens (even behind a flag defaulted to off) added test surface and risk to v1.1.0 without any user-facing benefit. Ship simple first, add A/B when we're actually running the experiment.
 
 **When we're ready to run onboarding experiments again:**
-1. Fix the 9 UX issues Mandeep flagged in `V1.1.1_ONBOARDING_POLISH.md` first — it's not worth A/B-testing a broken baseline.
+1. Fix the 9 UX issues Mandeep flagged in `BACKLOG.md (v1.1.1 section)` first — it's not worth A/B-testing a broken baseline.
 2. Design what "variant B" actually should be. Real hypothesis (e.g., "shorter onboarding = higher completion") not just visual differences.
 3. Then build a clean scaffold: PostHog flag + variant switch component + real content in variant B.
 
@@ -125,7 +125,7 @@ Then set up Superwall webhook → Supabase Edge Function that updates these colu
 3. Onboarding navigation reads the flag, routes to control or variant components
 4. Every onboarding event is tagged with variant; funnel comparisons happen in PostHog
 
-**Do NOT ship any of this until the control onboarding is polished** (see `V1.1.1_ONBOARDING_POLISH.md`). A/B-testing a broken baseline against a new design tells you nothing useful.
+**Do NOT ship any of this until the control onboarding is polished** (see `BACKLOG.md (v1.1.1 section)`). A/B-testing a broken baseline against a new design tells you nothing useful.
 
 **What to test first:**
 - Question order (biggest questions first vs. easy ones first)

@@ -19,7 +19,7 @@ work through the review.
 | 1 | Restore Purchases still doesn't restore | ✅ | `b22ce35` — calls `restorePurchases()` + 3-outcome pattern |
 | 2 | Silent onboarding-check re-onboards users | ✅ | `70cb6d2` — discriminated union `has/no/error` |
 | 3 | Returning users redo onboarding lose answers + flag leak | ⚠️ | `fa27f90` — flag leak fixed. Fresh-answer discard intentional per user (documented in review doc) |
-| 4 | Gated dead lesson screens; lesson 10 may be unreachable | ⚠️ | `dc29583` — dead files deleted. Lesson 10 placeholder status is a product decision, logged to `V1.1.1_PLUS.md` |
+| 4 | Gated dead lesson screens; lesson 10 may be unreachable | ⚠️ | `dc29583` — dead files deleted. Lesson 10 placeholder status is a product decision, logged to `BACKLOG.md` item #11 |
 | 5 | Apple name clobbered by 'Parent' | ✅ | `e43120c` — two-layer defense (LoadingScreen + service) |
 | 6 | SKIP_PAYWALL works in store builds | ✅ | `c677289` — `__DEV__` runtime guard + build-time throw |
 | 7 | `bump-version.sh` broken + version docs wrong | ✅ | `c3b7e64` — rewrote script + docs + CI check + synced versions |

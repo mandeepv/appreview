@@ -10,7 +10,7 @@ v1.1.0):
 - Apple Sign-In: name written to wrong DB column (silently lost)
 - Restore Purchases: didn't actually re-sync with StoreKit
 - Sign in with Apple/Google from Welcome creates account without warning
-- Onboarding UX issues (already captured in V1.1.1_ONBOARDING_POLISH.md)
+- Onboarding UX issues (already captured in BACKLOG.md (v1.1.1 section))
 
 ## How to use this
 
@@ -74,7 +74,7 @@ Notes:
 - 🟡 iOS OAuth system dialog reads "supabase.co wants to sign in"
   instead of "kinderwell.com". Trust/polish issue, not a bug. Deferred
   to v1.2 — needs Supabase custom auth domain + DNS setup. Added to
-  V1.2_LATER.md.
+  BACKLOG.md (v1.2 section).
 - Observation about paywall: Mandeep saw paywall on first-launch
   after sign-up (1.1), force-quit, reopened → LearnScreen with free
   access. This is the same paywall-bypass money leak we already fixed
@@ -388,7 +388,7 @@ Notes:
 
 ## Section 7 — Onboarding flow (mostly deferred to V1.1.1)
 
-Most of this is in `V1.1.1_ONBOARDING_POLISH.md`. Only check here for
+Most of this is in `BACKLOG.md (v1.1.1 section)`. Only check here for
 BLOCKING bugs, not polish.
 
 ### 7.1 Can you complete onboarding at all?
@@ -609,7 +609,7 @@ for v1.1.0:
     dropped. Prod users' names came from the onboarding NameAge
     screen, not Apple's identity token. Fixed dcecfab.
 
-### 🟡 UX / polish — deferred (V1.1.1_ONBOARDING_POLISH.md)
+### 🟡 UX / polish — deferred (BACKLOG.md (v1.1.1 section))
 
 11. Paywall UI has no dismiss button — users force-quit to escape
     (which then triggers the money leak). v1.1.0 fixes the leak; the
@@ -624,7 +624,7 @@ for v1.1.0:
 18. iPhone XR / small-screen QA gap
 19. Unprofessional "next few questions help us personalize" intro
 
-### 🟡 UX — deferred (V1.2_LATER.md)
+### 🟡 UX — deferred (BACKLOG.md (v1.2 section))
 
 20. Custom OAuth domain (currently shows `supabase.co` on iOS OAuth
     sheet).
@@ -696,4 +696,4 @@ Bring me:
 3. Any question you want answered before I write more code
 
 I'll categorize, prioritize, and either fix now (v1.1.0) or add to
-V1.1.1_ONBOARDING_POLISH.md / a new v1.2.0-ideas.md doc.
+BACKLOG.md (v1.1.1 section) / a new v1.2.0-ideas.md doc.
