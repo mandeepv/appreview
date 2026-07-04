@@ -51,6 +51,23 @@ export const trackPaywallOptionSelected = (planId: string, source: string) => {
   captureWithProps('paywall_option_selected', { plan_id: planId, source });
 };
 
+/**
+ * Identify the current PostHog session with a stable user ID.
+ *
+ * Two callers with very different needs:
+ *
+ * - signup mode: user just finished onboarding. Their Zustand onboarding
+ *   store is populated. We attach that data as `$set` person properties
+ *   so future dashboards can filter/group by e.g. experience_level.
+ *
+ * - signin mode: user tapped "already have an account" on Welcome. Their
+ *   Zustand onboarding store is EMPTY (they never filled it — their real
+ *   answers live in Supabase from a prior session). Sending `$set` here
+ *   with the empty store would overwrite the real PostHog person properties
+ *   with nulls (Fable review #8). So we skip `$set` entirely and only
+ *   perform the ID link. Person properties from their prior signup remain
+ *   authoritative.
+ */
 export const identifyUserWithOnboarding = (
   userId: string,
   email: string | undefined,
@@ -65,9 +82,21 @@ export const identifyUserWithOnboarding = (
     notificationsEnabled: boolean;
     familiarParentingStyles: string[];
     emotionalChallenges: string[];
-  }
+  },
+  mode: 'signup' | 'signin' = 'signup',
 ) => {
-  // PostHog SDK types on identify are strict; cast at the boundary.
+  if (mode === 'signin') {
+    // Link session to user ID without touching person properties.
+    // set_once still safe — 'first_sign_in_date' only writes if unset.
+    posthog.identify(userId, {
+      $set_once: {
+        first_sign_in_date: new Date().toISOString(),
+      },
+    } as Record<string, unknown> as never);
+    return;
+  }
+
+  // signup mode — safe to attach onboarding answers as person properties.
   posthog.identify(userId, {
     $set: {
       email: email ?? null,

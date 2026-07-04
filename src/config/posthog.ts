@@ -48,3 +48,19 @@ if (__DEV__) {
 
 export const isPostHogEnabled = isPostHogConfigured
 export const posthogEnvironment = environment
+
+/**
+ * Reset PostHog identity AND re-register the environment super-property.
+ *
+ * Raw `posthog.reset()` wipes ALL registered super-properties including our
+ * `environment` / `app_env` tags — so post-logout events fire without an
+ * env tag and silently vanish from env-filtered dashboards (Fable review #8).
+ *
+ * Every place that used to call `posthog.reset()` for logout / delete /
+ * demo-user teardown should now call this instead. Grep enforces:
+ *   grep -rn "posthog.reset()" src/  → should only match this file.
+ */
+export const resetPostHog = () => {
+  posthog.reset()
+  posthog.register({ environment, app_env: environment })
+}

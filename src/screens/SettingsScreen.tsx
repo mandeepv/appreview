@@ -15,6 +15,7 @@ import { usePostHog } from 'posthog-react-native';
 import { SuperwallExpoModule } from 'expo-superwall';
 import { useAuthStore } from '../store/authStore';
 import { deleteAccount } from '../services/authService';
+import { resetPostHog } from '../config/posthog';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 
 export const SettingsScreen: React.FC = () => {
@@ -169,7 +170,7 @@ export const SettingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               posthog.capture('user_logged_out');
-              posthog.reset();
+              resetPostHog();
               await signOut();
             } catch (error) {
               if (__DEV__) console.error('Error logging out:', error);
@@ -202,19 +203,37 @@ export const SettingsScreen: React.FC = () => {
           text: 'Delete Account',
           style: 'destructive',
           onPress: async () => {
+            // Fire the "attempted" event immediately for funnel analysis
+            // (how many users tap Delete Account?). The "confirmed" event
+            // only fires after the operation actually succeeds — Fable
+            // review #8: prior code fired 'account_deleted' before
+            // deleteAccount() ran, so a network / server failure got
+            // logged as a successful deletion in PostHog.
+            posthog.capture('account_delete_attempted', {
+              is_demo_user: isDemoUser,
+              was_subscribed: isSubscribed,
+            });
+
             try {
               setIsLoading(true);
-              posthog.capture('account_deleted', {
-                is_demo_user: isDemoUser,
-                was_subscribed: isSubscribed,
-              });
+
               if (isDemoUser) {
-                // Demo users have no Supabase session — just sign out
-                posthog.reset();
+                // Demo users have no Supabase session — just sign out.
+                posthog.capture('account_deleted', {
+                  is_demo_user: true,
+                  was_subscribed: isSubscribed,
+                });
+                resetPostHog();
                 await signOut();
               } else {
                 await deleteAccount();
-                posthog.reset();
+                // Only after the API round-trip succeeds. If deleteAccount
+                // throws, we skip this and hit the catch below.
+                posthog.capture('account_deleted', {
+                  is_demo_user: false,
+                  was_subscribed: isSubscribed,
+                });
+                resetPostHog();
                 Alert.alert(
                   'Account deleted',
                   'Your account and all data have been deleted.',
@@ -223,6 +242,14 @@ export const SettingsScreen: React.FC = () => {
               }
             } catch (error) {
               if (__DEV__) console.error('Error deleting account:', error);
+              // Track the failure separately so we can measure the
+              // failure rate. Attributed to the still-alive user (posthog
+              // hasn't been reset yet).
+              posthog.capture('account_delete_failed', {
+                is_demo_user: isDemoUser,
+                was_subscribed: isSubscribed,
+                error: error instanceof Error ? error.message : String(error),
+              });
               Alert.alert(
                 'Delete Failed',
                 'Could not delete account. Please try again or contact support.',

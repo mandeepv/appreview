@@ -152,15 +152,26 @@ export default function LearnScreen() {
 
   const handleModulePress = (moduleId: string) => {
     const module = learningModules.find((m) => m.id === moduleId);
-    posthog.capture('lesson_started', {
+    const props = {
       lesson_id: moduleId,
       lesson_title: module?.title ?? null,
       lesson_label: module?.label ?? null,
-    });
+    };
+
+    // Two events, two questions.
+    //   lesson_tapped fires on TAP — the honest top-of-funnel signal
+    //   (how many people even try to open this lesson).
+    //   lesson_started fires only after gateToLesson lets us through
+    //   — the honest "content actually opened" metric.
+    // Prior code fired lesson_started on tap, so paywall bounces
+    // counted as lesson starts. Funnel analysis was misleading.
+    // Fable review #8.
+    posthog.capture('lesson_tapped', props);
 
     gateToLesson(`learn_module_${moduleId}`, () => {
       const target = LESSON_NAV[moduleId];
       if (!target) return;
+      posthog.capture('lesson_started', props);
       if (target.kind === 'flow') {
         navigation.navigate('LessonFlow', { screen: target.screen });
       } else {
