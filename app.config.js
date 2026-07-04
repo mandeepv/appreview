@@ -223,8 +223,8 @@ module.exports = ({ config }) => {
       // request the aps-environment (push notifications) entitlement,
       // which we do not use — that's a false claim on the App Store
       // review. Fable review #14 flagged this. When we actually implement
-      // notifications (see docs/V1.1.1_PLUS.md → 'Notifications feature
-      // not implemented'), re-add 'expo-notifications' here AND wire up
+      // notifications (see docs/BACKLOG.md → item #13 'Notifications
+      // feature not implemented'), re-add 'expo-notifications' here AND wire up
       // scheduling/handling in code AND update the App Privacy questions
       // in App Store Connect.
       'expo-localization',
