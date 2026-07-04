@@ -86,8 +86,10 @@ work through the review.
 |---|---|---|
 | Fold adversarial tests into RELEASE_CHECKLIST.md permanently | ⚠️ | Partial — Phase 7.5 + 8.3 added. Rest of the tests still only live in `IPHONE_TEST_PLAN_V1.1.0.md`. |
 | One backlog — consolidate 7 markdown files | ⬜ | Open — real ergonomics improvement |
-| Kill duplicated procedures (`SETUP_GUIDE.md`, `EDGE_FUNCTION_DEPLOYMENT.md` drift) | ⬜ | Open — reviewer identified specific stale docs |
-| Finish branch protection (require status checks), Apple JWT rotation doc hardcodes machine path | ⬜ | Open — GitHub UI action + small doc fix |
+| Kill duplicated procedures — SETUP_GUIDE stale patterns, EDGE_FUNCTION_DEPLOYMENT drift, docs/README missing entries | ✅ | `fcc071c` — rewrote SETUP_GUIDE Part 5, truncated EDGE_FUNCTION_DEPLOYMENT to pointer, added 9 missing entries to docs/README |
+| DEV_PROD_ENVIRONMENTS.md release-workflow drift vs RELEASE_CHECKLIST / BEST_PRACTICES | ⬜ | Open — deep section-by-section audit still needed |
+| Finish branch protection (require status checks) | ⬜ | Open — GitHub UI action, needs user click |
+| Apple JWT rotation doc hardcoded machine path | ✅ | `f7f81bb` (bundled with generate_apple_jwt.js env var change) |
 
 ---
 
@@ -115,10 +117,16 @@ Left unchanged, per reviewer's audit:
 | 🟡 Environment/infra | 6 | 3 | 0 | 0 | 3 |
 | 🟡 Security | 8 | 5 | 0 | 0 | 3 |
 | 🟡 Quality/testing | 5 | 0 | 0 | 0 | 5 |
-| 🟡 Docs/process | 4 | 0 | 1 | 0 | 3 |
-| **Total** | **37** | **18** | **5** | **0** | **14** |
+| 🟡 Docs/process | 6 | 2 | 1 | 0 | 3 |
+| **Total** | **39** | **20** | **5** | **0** | **14** |
 
-**Done or partial**: 23 of 37 (62%). All 🔴 and 🟠 blockers addressed in code. 14 open items are all 🟡 hardening.
+**Done or partial**: 25 of 39 (64%). All 🔴 and 🟠 blockers addressed in code. 14 open items are all 🟡 hardening.
+
+Note (2026-07-05): 🟡 Docs/process count grew from 4 to 6 because two
+items I'd previously conflated got split — the "kill duplicated
+procedures" bundle is really three separate stale docs (which is why
+one commit closed three at once), and the DEV_PROD_ENVIRONMENTS drift
+audit is a distinct still-open item.
 
 Note: The 🟡 Security bucket expanded from 5 to 8 because the reviewer's
 "Low hygiene" batch was itemized as three separate line items (CORS,
