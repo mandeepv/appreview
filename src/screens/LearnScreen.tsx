@@ -154,11 +154,13 @@ export default function LearnScreen() {
   const isDemoUser = useAuthStore(state => state.isDemoUser);
 
   // Superwall-owned entitlement gate. usePlacement fires `feature()` ONLY when
-  // Superwall confirms the user has the `pro` entitlement (see Superwall
-  // dashboard: campaign "Onboarding Paywall", placement "show_paywall",
-  // entitlements "Show to unsubscribed users"). Non-entitled users see the
-  // paywall; dismissing it does NOT call `feature()`, so there is no way to
-  // reach lesson content without an active entitlement.
+  // Superwall confirms the user has the `pro` entitlement. See Superwall
+  // dashboard: campaign "Lesson Access Gate", placement "learn_access",
+  // paywall Feature Gating = "Gated". Under Gated, dismissing the paywall
+  // does NOT call `feature()`, so there is no way to reach lesson content
+  // without an active entitlement. NOTE: intentionally distinct from
+  // "show_paywall" (used by LoadingScreen post-onboarding, kept Non-Gated
+  // to preserve backward compatibility with prod v1.0.0).
   const { registerPlacement } = usePlacement({
     onError: (err) => {
       const error = new Error(typeof err === 'string' ? err : 'Paywall error');
@@ -199,7 +201,7 @@ export default function LearnScreen() {
 
     try {
       await registerPlacement({
-        placement: 'show_paywall',
+        placement: 'learn_access',
         params: { source: 'lesson_tap', lesson_id: moduleId },
         feature() {
           // Runs only if user is entitled (already subscribed OR just purchased).
