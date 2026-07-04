@@ -42,15 +42,21 @@ const bundleId = (
 const isProdBundle = bundleId === 'com.kinderwell.app';
 const isDevBundle = bundleId === 'com.kinderwell.app.dev';
 
-const allowOverride = process.env.ALLOW_DEV_PROD_ACCESS === 'true';
-
 // Guard 1: DEV BUILD → PROD DB (already existed, kept)
-if (__DEV__ && isProdRef && !allowOverride) {
+//
+// Note: the ALLOW_DEV_PROD_ACCESS env var escape hatch was removed here
+// (Fable review 🟡 item — was documented in DEV_PROD_ENVIRONMENTS.md but
+// only worked in dev mode because store builds strip non-EXPO_PUBLIC_
+// env vars). Its existence invited hacking around the guard rather than
+// fixing the mis-configured .env. If someone genuinely needs a __DEV__
+// build to talk to prod (rare, e.g. reproducing a prod bug), they now
+// must comment out this throw locally — much more visible in a
+// PR / commit history than setting an env var.
+if (__DEV__ && isProdRef) {
   throw new Error(
     '[Supabase] REFUSING to connect to PROD from a __DEV__ build.\n' +
       'This almost certainly means your `.env` was overwritten with prod values.\n' +
-      'Fix: `cp .env.prod .env.dev.bak && cp .env.example .env` (then fill in dev creds), or copy back from git.\n' +
-      'To bypass ONCE for debugging: `ALLOW_DEV_PROD_ACCESS=true npx expo start`',
+      'Fix: `cp .env.prod .env.dev.bak && cp .env.example .env` (then fill in dev creds), or copy back from git.',
   );
 }
 
@@ -74,11 +80,8 @@ if (!__DEV__) {
 }
 
 if (__DEV__) {
-  const env = isProdRef ? 'PROD ⚠️ (OVERRIDE ACTIVE)' : isDevRef ? 'DEV ✅' : 'UNKNOWN';
+  const env = isDevRef ? 'DEV ✅' : 'UNKNOWN';
   console.log(`[Supabase] Env: ${env} | Project: ${projectRef} | Bundle: ${bundleId}`);
-  if (isProdRef && allowOverride) {
-    console.warn('[Supabase] Dev build is talking to PROD because ALLOW_DEV_PROD_ACCESS=true. Any write is a live user impact.');
-  }
 }
 
 // Initialize Supabase client with AsyncStorage for session persistence

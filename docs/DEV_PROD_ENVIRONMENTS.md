@@ -107,27 +107,19 @@ Three build profiles:
 | `preview` | `eas build --profile preview` | Dev |
 | `production` | `eas build --profile production` | **Prod** |
 
-## Switching local dev to point at prod (rare — you shouldn't need to)
+## Switching local dev to point at prod (extremely rare — you should never need to)
 
-Only do this if you specifically need to reproduce a prod-only bug locally. Otherwise leave it on dev.
+The app REFUSES to run a `__DEV__` build against prod Supabase — it throws a clear error at startup. This catches the "I forgot my `.env` got overwritten" mistake before you write test data to real users.
 
-**As of 2026-07-04**, the app REFUSES to run a `__DEV__` build against prod Supabase — it will throw a clear error at startup. This is to catch the "I forgot my `.env` got overwritten" mistake before you write test data to real users. To bypass explicitly:
+**There is intentionally no env-var bypass** (a previous `ALLOW_DEV_PROD_ACCESS=true` escape hatch was removed 2026-07-04 per Fable review 🟡 — it invited hacking around the guard rather than fixing a mis-configured `.env`). If you have a genuine need to reproduce a prod-only bug against prod data locally (very rare):
 
-```bash
-# Save current dev .env, swap in prod
-cp .env .env.dev.bak
-cp .env.prod .env
+1. Comment out the `if (__DEV__ && isProdRef)` throw block in `src/lib/supabase.ts` **on a scratch branch you will NEVER merge**.
+2. Set `.env` to prod values.
+3. `npx expo start`.
+4. Debug carefully — every write is a live user impact.
+5. When done: revert the file, restore `.env`, delete the scratch branch.
 
-# Run with the explicit override so the safety throw is skipped
-ALLOW_DEV_PROD_ACCESS=true npx expo start
-
-# ... test whatever you need — every write is a live user impact ...
-
-# Switch back to dev
-cp .env.dev.bak .env
-```
-
-The app will log `[Supabase] Env: PROD ⚠️ (OVERRIDE ACTIVE)` on startup + a red-flag warning. If you see this in Metro output, you're pointed at prod. Absolutely nothing you do will be reversible from a `Ctrl+Z`.
+The extra friction is intentional. Any PR that touches that throw block should get high scrutiny; if it accidentally merged you'd remove the guard globally.
 
 ## Building for a real device
 
