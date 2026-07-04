@@ -2,9 +2,12 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
+import * as Sentry from '@sentry/react-native';
+import { SuperwallExpoModule } from 'expo-superwall';
 import { supabase } from '../lib/supabase';
 import { Platform } from 'react-native';
 import { reportError } from '../config/sentry';
+import { useOnboardingStore } from '../store/onboardingStore';
 
 // Required for web browser authentication
 WebBrowser.maybeCompleteAuthSession();
@@ -290,8 +293,41 @@ export const deleteAccount = async () => {
 
     if (__DEV__) console.log('Account deletion response:', data);
 
-    // Sign out locally (auth user is already deleted on the server)
+    // Server-side delete succeeded. Now clean up every place the user's
+    // identity lives locally so the next signup starts from a truly
+    // blank slate — no ghost onboarding progress, no stale Superwall
+    // subscription tied to the deleted userId, no Sentry breadcrumbs
+    // attributed to a user who no longer exists.
+    //
+    // Order matters slightly: clear async caches BEFORE signOut() so
+    // if AsyncStorage.multiRemove throws we haven't already dropped
+    // the auth session (recoverable state).
+    try {
+      await useOnboardingStore.getState().clearState();
+    } catch (e) {
+      // Non-fatal — user is deleted, we just failed to wipe local state.
+      // Log it but don't throw. The signOut below still runs.
+      reportError(e instanceof Error ? e : new Error(String(e)), {
+        context: 'delete_account_clear_onboarding',
+      });
+    }
+
+    try {
+      await SuperwallExpoModule.reset();
+    } catch (e) {
+      reportError(e instanceof Error ? e : new Error(String(e)), {
+        context: 'delete_account_superwall_reset',
+      });
+    }
+
+    // Sign out from Supabase (which wipes the auth session in the
+    // Zustand authStore via the onAuthStateChange listener).
     await signOut();
+
+    // Detach the deleted user from Sentry so any future errors on this
+    // device don't get attributed to them. Do this LAST because Sentry
+    // is our safety net for reporting errors during the delete flow.
+    Sentry.setUser(null);
   } catch (error) {
     if (__DEV__) console.error('Error deleting account:', error);
     // Reported above at the site of the specific failure; re-throw so
