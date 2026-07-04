@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { OnboardingData } from '../types/onboarding';
+import type { Database, Json } from '../types/supabase';
+
+type UserProfileInsert = Database['public']['Tables']['user_profiles']['Insert'];
 
 /**
  * Save user's onboarding data to Supabase
@@ -19,12 +22,21 @@ export const saveUserOnboardingData = async (userId: string, onboardingData: Par
     const trimmedName = onboardingData.name?.trim();
     const shouldSaveName = !!trimmedName && trimmedName !== 'Parent';
 
-    const payload: Record<string, unknown> = {
+    // UserProfileInsert is derived from the DB schema (see
+    // src/types/supabase.ts). If a column gets renamed or removed and you
+    // forget to update this payload, `npm run gen:supabase-types` + tsc
+    // will surface the mismatch as a compile error instead of a silent
+    // "wrote to a nonexistent column" runtime bug (Fable review 🟡
+    // highest-ROI quality item).
+    const payload: UserProfileInsert = {
       id: userId,
       user_type: onboardingData.userType,
       age: onboardingData.age,
       children_count: onboardingData.childrenCount,
-      children: onboardingData.children,
+      // Child[] is JSON-serializable at runtime but the generated Json type
+      // requires an explicit index signature we don't want on the domain
+      // type. Cast at the DB boundary.
+      children: onboardingData.children as Json | undefined,
       improvement_goals: onboardingData.improvementGoals,
       notifications_enabled: onboardingData.notificationsEnabled,
       partner_involvement: onboardingData.partnerInvolvement,

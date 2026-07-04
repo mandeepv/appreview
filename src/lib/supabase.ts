@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { projectRef, isProd as isProdRef, isDev as isDevRef } from './env';
+import type { Database } from '../types/supabase';
 
 const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl;
 const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey;
@@ -85,8 +86,12 @@ if (__DEV__) {
   console.log(`[Supabase] Env: ${env} | Project: ${projectRef} | Bundle: ${bundleId}`);
 }
 
-// Initialize Supabase client with AsyncStorage for session persistence
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Initialize Supabase client with AsyncStorage for session persistence.
+// Database generic wires the schema-generated types (src/types/supabase.ts)
+// into every query — .from('user_profiles').update({ foo }) will error at
+// compile time if foo isn't a real column. Regenerate via `npm run
+// gen:supabase-types` after any schema change.
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     // Use AsyncStorage to persist sessions across app restarts
     storage: AsyncStorage,

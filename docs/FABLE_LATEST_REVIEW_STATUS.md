@@ -72,7 +72,7 @@ work through the review.
 
 | Finding | Status | Commit / notes |
 |---|---|---|
-| Generate Supabase DB types (highest ROI single change per reviewer) | ⬜ | Open — turns "wrote to nonexistent column" bugs into compile errors |
+| Generate Supabase DB types (highest ROI single change per reviewer) | ✅ | `src/types/supabase.ts` generated from linked dev project, wired via `createClient<Database>(...)`, regen script `npm run gen:supabase-types`. Regen step added to DEV_PROD_ENVIRONMENTS.md schema-change flow. On adoption typed `saveUserOnboardingData`'s payload against `user_profiles.Insert` — was previously `Record<string, unknown>` which erased field checks. |
 | Add ESLint + lint CI job | ✅ | `eslint.config.js` + `npm run lint` script + CI `lint` job. Uses `eslint-config-expo` flat config. Baseline: 0 errors, 199 warnings (unused-vars + Animated.Value ref pattern in lesson screens — v1.2 refactor clears most). Errors block CI; caught 1 real bug on the way in (`set-state-in-effect` in ChildrenCountScreen — fixed via lazy `useState`). |
 | First Jest unit tests (`isBelowMinimumBuild`, `hasUserCompletedOnboarding` error, `LESSON_NAV` coverage) | ⬜ | Open — real ROI but needs infrastructure setup |
 | v1.2 data-driven lesson refactor | ⬜ | Open — big refactor, v1.2 as reviewer noted |
@@ -116,11 +116,11 @@ Left unchanged, per reviewer's audit:
 | 🟠 Pre-submission | 6 | 4 | 2 | 0 | 0 |
 | 🟡 Environment/infra | 6 | 3 | 0 | 0 | 3 |
 | 🟡 Security | 8 | 5 | 0 | 0 | 3 |
-| 🟡 Quality/testing | 5 | 1 | 1 | 0 | 3 |
+| 🟡 Quality/testing | 5 | 2 | 1 | 0 | 2 |
 | 🟡 Docs/process | 6 | 3 | 1 | 0 | 2 |
-| **Total** | **39** | **22** | **6** | **0** | **11** |
+| **Total** | **39** | **23** | **6** | **0** | **10** |
 
-**Done or partial**: 28 of 39 (72%). All 🔴 and 🟠 blockers addressed in code. 11 open items are all 🟡 hardening.
+**Done or partial**: 29 of 39 (74%). All 🔴 and 🟠 blockers addressed in code. 10 open items are all 🟡 hardening.
 
 Note (2026-07-05): 🟡 Docs/process count grew from 4 to 6 because two
 items I'd previously conflated got split — the "kill duplicated

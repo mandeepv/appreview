@@ -25,6 +25,7 @@
 - [ ] Confirm `.env` points at dev — `cat .env | grep SUPABASE_URL` shows `xbkkjqvbsnroenqlqkmi`
 - [ ] All schema changes for this release exist as migration files in `supabase/migrations/` (create with `supabase migration new <name>`)
 - [ ] Migration files applied to dev via `supabase db push --linked` (currently linked to dev — verify with `supabase migration list --linked`)
+- [ ] **If schema changed:** regenerate `src/types/supabase.ts` with `npm run gen:supabase-types`. Commit the regenerated file. This is what makes wrong-column bugs a compile error instead of a runtime one — skip this and the app compiles clean but writes into a nonexistent column.
 - [ ] Do NOT touch prod DB during development
 - [ ] If accidental test signups happened on prod, delete them from prod Supabase → Auth → Users
 
