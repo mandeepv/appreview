@@ -103,9 +103,25 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         try {
           // Skip Supabase save for demo users
           if (!isDemoUser) {
+            // Name deserves special handling. NameAgeScreen falls back to the
+            // literal string 'Parent' when the user leaves the field blank
+            // (see NameAgeScreen.tsx:32). If we include that fallback in the
+            // upsert, it clobbers any real name already stored — including
+            // the one signInWithApple just saved from credential.fullName on
+            // brand-new Apple users (authService.ts:191-220). Fable review #5.
+            //
+            // So: only include name in the payload if the user actually
+            // typed something. Undefined values are safe (Supabase's upsert
+            // doesn't overwrite columns for fields that aren't in the
+            // payload). The 'Parent' literal stays out of the DB entirely.
+            const typedName = onboardingStore.name?.trim();
+            const nameToSave = typedName && typedName !== 'Parent'
+              ? typedName
+              : undefined;
+
             const onboardingData = {
               userType: onboardingStore.userType,
-              name: onboardingStore.name,
+              name: nameToSave,
               age: onboardingStore.age,
               childrenCount: onboardingStore.childrenCount,
               children: onboardingStore.children,

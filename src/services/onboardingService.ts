@@ -3,30 +3,46 @@ import { OnboardingData } from '../types/onboarding';
 
 /**
  * Save user's onboarding data to Supabase
+ *
+ * Defense-in-depth against the "'Parent' clobbers Apple name" bug (Fable
+ * review #5): NameAgeScreen defaults `name` to the literal `'Parent'` when
+ * the user leaves the field blank, and this used to be upserted verbatim,
+ * overwriting the real name signInWithApple had just saved from
+ * credential.fullName. LoadingScreen now filters this out before calling us,
+ * but we also filter here so no future caller can accidentally reintroduce
+ * the bug through a different code path. Extra belt for the suspenders.
  */
 export const saveUserOnboardingData = async (userId: string, onboardingData: Partial<OnboardingData>) => {
   try {
+    // Build the payload conditionally. Only include `name` if it's a real
+    // user-provided value — not the 'Parent' fallback, not empty/null.
+    const trimmedName = onboardingData.name?.trim();
+    const shouldSaveName = !!trimmedName && trimmedName !== 'Parent';
+
+    const payload: Record<string, unknown> = {
+      id: userId,
+      user_type: onboardingData.userType,
+      age: onboardingData.age,
+      children_count: onboardingData.childrenCount,
+      children: onboardingData.children,
+      improvement_goals: onboardingData.improvementGoals,
+      notifications_enabled: onboardingData.notificationsEnabled,
+      partner_involvement: onboardingData.partnerInvolvement,
+      partner_invited: onboardingData.partnerInvited,
+      learning_goal: onboardingData.learningGoal,
+      experience_level: onboardingData.experienceLevel,
+      familiar_parenting_styles: onboardingData.familiarParentingStyles,
+      emotional_challenges: onboardingData.emotionalChallenges,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (shouldSaveName) {
+      payload.name = trimmedName;
+    }
+
     const { data, error } = await supabase
       .from('user_profiles')
-      .upsert({
-        id: userId,
-        user_type: onboardingData.userType,
-        name: onboardingData.name,
-        age: onboardingData.age,
-        children_count: onboardingData.childrenCount,
-        children: onboardingData.children,
-        improvement_goals: onboardingData.improvementGoals,
-        notifications_enabled: onboardingData.notificationsEnabled,
-        partner_involvement: onboardingData.partnerInvolvement,
-        partner_invited: onboardingData.partnerInvited,
-        learning_goal: onboardingData.learningGoal,
-        experience_level: onboardingData.experienceLevel,
-        familiar_parenting_styles: onboardingData.familiarParentingStyles,
-        emotional_challenges: onboardingData.emotionalChallenges,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id',
-      });
+      .upsert(payload, { onConflict: 'id' });
 
     if (error) throw error;
 
