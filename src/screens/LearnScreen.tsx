@@ -2,13 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { usePostHog } from 'posthog-react-native';
-import { usePlacement } from 'expo-superwall';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
-import { useAuthStore } from '../store/authStore';
-import { safeCapture } from '../lib/analytics';
-import { reportError } from '../config/sentry';
+import { useLessonGate } from '../hooks/useLessonGate';
 
 interface LearningModule {
   id: string;
@@ -151,40 +148,9 @@ const LESSON_NAV: Record<string, LessonNavTarget> = {
 export default function LearnScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const posthog = usePostHog();
-  const isDemoUser = useAuthStore(state => state.isDemoUser);
+  const { gateToLesson } = useLessonGate();
 
-  // Superwall-owned entitlement gate. usePlacement fires `feature()` ONLY when
-  // Superwall confirms the user has the `pro` entitlement. See Superwall
-  // dashboard: campaign "Lesson Access Gate", placement "learn_access",
-  // paywall Feature Gating = "Gated". Under Gated, dismissing the paywall
-  // does NOT call `feature()`, so there is no way to reach lesson content
-  // without an active entitlement. NOTE: intentionally distinct from
-  // "show_paywall" (used by LoadingScreen post-onboarding, kept Non-Gated
-  // to preserve backward compatibility with prod v1.0.0).
-  const { registerPlacement } = usePlacement({
-    onError: (err) => {
-      const error = new Error(typeof err === 'string' ? err : 'Paywall error');
-      if (__DEV__) console.error('[LearnScreen] paywall error:', err);
-      reportError(error, { screen: 'LearnScreen', context: 'lesson_gate' });
-    },
-  });
-
-  // Navigate to the actual lesson content. Called only after Superwall has
-  // confirmed the user is entitled (or after demo-mode short-circuit).
-  const navigateToLesson = (moduleId: string) => {
-    const target = LESSON_NAV[moduleId];
-    if (!target) return;
-    if (target.kind === 'flow') {
-      navigation.navigate('LessonFlow', { screen: target.screen });
-    } else {
-      // TypeScript can't narrow the union to a valid navigate() signature here;
-      // the lookup table restricts `name` to known screens on RootStackParamList.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      navigation.navigate(target.name as any);
-    }
-  };
-
-  const handleModulePress = async (moduleId: string) => {
+  const handleModulePress = (moduleId: string) => {
     const module = learningModules.find((m) => m.id === moduleId);
     posthog.capture('lesson_started', {
       lesson_id: moduleId,
@@ -192,32 +158,16 @@ export default function LearnScreen() {
       lesson_label: module?.label ?? null,
     });
 
-    // Demo mode short-circuit — Apple reviewers get direct access with no
-    // Superwall check. See docs/DEMO_MODE.md.
-    if (isDemoUser) {
-      navigateToLesson(moduleId);
-      return;
-    }
-
-    try {
-      await registerPlacement({
-        placement: 'learn_access',
-        params: { source: 'lesson_tap', lesson_id: moduleId },
-        feature() {
-          // Runs only if user is entitled (already subscribed OR just purchased).
-          // Superwall guarantees this doesn't run on paywall dismiss.
-          if (__DEV__) console.log('[LearnScreen] entitlement confirmed, opening lesson', moduleId);
-          navigateToLesson(moduleId);
-        },
-      });
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('registerPlacement failed');
-      if (__DEV__) console.error('[LearnScreen] registerPlacement threw:', error);
-      reportError(error, { screen: 'LearnScreen', context: 'register_placement', lesson_id: moduleId });
-      safeCapture('lesson_gate_error', { lesson_id: moduleId, error: error.message });
-      // Do NOT navigate on failure. Better UX: user taps again. Better safety:
-      // no path to paid content that isn't gated by Superwall.
-    }
+    gateToLesson(`learn_module_${moduleId}`, () => {
+      const target = LESSON_NAV[moduleId];
+      if (!target) return;
+      if (target.kind === 'flow') {
+        navigation.navigate('LessonFlow', { screen: target.screen });
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        navigation.navigate(target.name as any);
+      }
+    });
   };
 
   return (

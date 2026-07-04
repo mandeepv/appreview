@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, BorderRadius } from '../constants/theme';
 import { LessonStackParamList } from '../navigation/LessonNavigator';
 import { getCompletedSections } from '../utils/serveReturnProgress';
+import { useLessonGate } from '../hooks/useLessonGate';
 
 type Props = NativeStackScreenProps<LessonStackParamList, 'ServeReturnLesson'>;
 
@@ -19,6 +20,7 @@ interface SubLesson {
 }
 
 export const ServeReturnLessonScreen: React.FC<Props> = ({ navigation }) => {
+  const { gateToLesson } = useLessonGate();
   const [completedSections, setCompletedSections] = useState<string[]>([]);
 
   const loadProgress = useCallback(async () => {
@@ -60,9 +62,10 @@ export const ServeReturnLessonScreen: React.FC<Props> = ({ navigation }) => {
   ];
 
   const handleSubLessonPress = (subLesson: SubLesson) => {
-    if (subLesson.startScreen) {
+    if (!subLesson.startScreen) return;
+    gateToLesson(`servereturn_${subLesson.id}`, () => {
       navigation.navigate(subLesson.startScreen as any);
-    }
+    });
   };
 
   const isSubLessonComplete = (subLessonId: string) => {

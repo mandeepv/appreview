@@ -6,6 +6,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { getCompletedSections } from '../utils/helpingProcessEmotionsProgress';
+import { useLessonGate } from '../hooks/useLessonGate';
 
 interface SubLesson {
   id: string;
@@ -37,6 +38,7 @@ const subLessons: SubLesson[] = [
 
 export default function HelpingProcessEmotionsLessonScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { gateToLesson } = useLessonGate();
   const [completedSections, setCompletedSections] = React.useState<string[]>([]);
 
   useFocusEffect(
@@ -103,7 +105,7 @@ export default function HelpingProcessEmotionsLessonScreen() {
               <TouchableOpacity
                 key={lesson.id}
                 style={styles.lessonCard}
-                onPress={() => isAvailable && navigation.navigate('LessonFlow' as any, { screen: lesson.startScreen } as any)}
+                onPress={() => isAvailable && gateToLesson(`helping_${lesson.id}`, () => navigation.navigate('LessonFlow' as any, { screen: lesson.startScreen } as any))}
                 activeOpacity={isAvailable ? 0.7 : 1}
               >
                 {/* Connecting Line (for all except the last one) */}

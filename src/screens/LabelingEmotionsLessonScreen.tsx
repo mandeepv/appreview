@@ -6,6 +6,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
+import { useLessonGate } from '../hooks/useLessonGate';
 
 interface SubLesson {
   id: string;
@@ -55,6 +56,7 @@ const STORAGE_KEY = '@lesson5_completed_sections';
 
 export default function LabelingEmotionsLessonScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { gateToLesson } = useLessonGate();
   const [completedSections, setCompletedSections] = useState<string[]>([]);
 
   // Load completed sections from storage
@@ -81,7 +83,9 @@ export default function LabelingEmotionsLessonScreen() {
   };
 
   const handleSectionPress = (lesson: SubLesson) => {
-    navigation.navigate('LessonFlow', { screen: lesson.startScreen });
+    gateToLesson(`labeling_${lesson.id}`, () => {
+      navigation.navigate('LessonFlow', { screen: lesson.startScreen });
+    });
   };
 
   const isSectionCompleted = (sectionId: string) => {
@@ -91,12 +95,16 @@ export default function LabelingEmotionsLessonScreen() {
   const completedCount = completedSections.length;
   const allCompleted = completedCount === 4;
 
-  // Navigate to completion screen if all sections done
+  // Navigate to completion screen if all sections done. Gated even though
+  // completing all sections implies prior entitlement — cheap defense against
+  // stale state where AsyncStorage says "all done" but the entitlement lapsed.
   useEffect(() => {
     if (allCompleted) {
-      navigation.navigate('LessonFlow', { screen: 'Lesson5Complete' });
+      gateToLesson('labeling_complete', () => {
+        navigation.navigate('LessonFlow', { screen: 'Lesson5Complete' });
+      });
     }
-  }, [allCompleted, navigation]);
+  }, [allCompleted, navigation, gateToLesson]);
 
   return (
     <View style={styles.container}>
