@@ -10,6 +10,19 @@
 
 ---
 
+## 🚨 Submission blockers — do not skip
+
+Every release, these four manual steps happen *outside* the code and *outside* CI. If you skip any of them you either get rejected by Apple, ship an app that doesn't work for existing users, or corrupt prod data. They are covered by their own phases below — this list exists so nobody skims past them:
+
+1. **Phase 4** — Apply schema migrations to prod (`supabase db push`) if any are pending. Skipping = new app talks to old schema, writes fail silently.
+2. **Phase 7.5** — Verify each Superwall paywall in the Superwall dashboard has a dismiss control (X, "Not now", or swipe-to-dismiss). Skipping = Apple 3.1.2 rejection.
+3. **Phase 8.3** — Run the mandatory UPGRADE test on TestFlight (old app → new app on same device, subscription + progress preserved). Skipping = existing users break the moment they update; hotfix takes 24–72h through Apple.
+4. **Phase 9a** — Update the App Store Connect App Privacy questionnaire so it matches `PrivacyInfo.xcprivacy` and `legal/PRIVACY_POLICY.md`. Skipping = Apple review rejection for privacy-manifest mismatch.
+
+Everything else in this checklist is code, config, or timing — these four are the ones that a human has to click / do in an external system, and they're easy to forget.
+
+---
+
 ## Phase 0: Decide
 
 - [ ] What are you actually shipping? Write a one-line release note now, not later.
