@@ -92,38 +92,88 @@ Go back and look at the build log on expo.dev (the URL EAS printed when the buil
 
 ## Section 3 — Paywall & subscription enforcement (P0 #1)
 
-### 3.1 Paywall renders
-- [ ] After Google sign-up, LoadingScreen calls Superwall
+**Architecture note (updated 2026-07-04)**: v1.1.0 uses two distinct
+Superwall placements:
+- `show_paywall` (Non-Gated) fires from `LoadingScreen` after onboarding
+  as the sales pitch. Same as prod v1.0.0 behavior, preserved for
+  backward compat.
+- `learn_access` (Gated) fires from `useLessonGate` hook when the user
+  taps a lesson. This is the real gate — `feature()` only fires if
+  Superwall confirms an active `pro` entitlement.
+
+The refactor removed the old `subscriptionStatusResolved` / bounce-back
+pattern. LearnScreen renders lesson list normally for everyone;
+gate happens at lesson tap.
+
+### 3.1 Paywall renders after onboarding
+- [ ] After Google sign-up, LoadingScreen fires `show_paywall`
 - [ ] Superwall paywall appears (real UI)
 - [ ] Metro shows Superwall `onPresent` log
 
-### 3.2 Attempt to bypass paywall (the P0 #1 fix)
-- [ ] With paywall showing: swipe down or tap X (whatever dismisses it)
+### 3.2 Dismiss paywall → land on LearnScreen (no gate here)
+- [ ] With paywall showing: swipe down or tap X
 - [ ] Metro shows `paywall_dismissed` event
-- [ ] App briefly navigates to Root → LearnScreen mounts
-- [ ] LearnScreen shows spinner briefly → then bounces back to Loading (paywall re-triggers)
-- [ ] You cannot access lesson content without subscribing
+- [ ] App navigates to Root → LearnScreen renders lesson list normally
+- [ ] Do NOT expect a bounce here — the gate is at tap time, not screen mount
 
-**If fail:** subscription gating not working. Users can bypass paywall.
+### 3.3 Tap a lesson without entitlement (P0 #1 fix, the real test)
+- [ ] Tap any lesson (Lesson 1, Sprinklers, whatever)
+- [ ] Metro shows `[useLessonGate] entitlement confirmed` NOT firing
+- [ ] Superwall paywall re-appears via `learn_access` placement
+- [ ] Dismiss again — you stay on LearnScreen (lesson does NOT open)
+- [ ] Repeat 3x — every tap re-shows paywall, no bypass path
 
-### 3.3 Complete a sandbox purchase
+**If lesson opens without an active subscription: 🔴 gate broken.**
+
+### 3.4 Force-quit + reopen bypass attempt (the exact bug you reproduced on prod)
+- [ ] With paywall showing: dismiss it (X or swipe)
+- [ ] Force-quit app (swipe up in app switcher, swipe Kinderwell away)
+- [ ] Reopen app → Splash → LearnScreen
+- [ ] Tap a lesson → paywall re-appears
+- [ ] 🔴 If lesson opens directly: same bug as prod, fix is broken
+
+### 3.5 Complete a sandbox purchase (in TestFlight, not this build)
+Sandbox mode requires either Xcode developer mode setup (~30 min) or
+TestFlight. Defer purchase tests to the TestFlight build.
+
+Once running on TestFlight:
 - [ ] From paywall, tap a subscription plan
-- [ ] Apple's IAP sheet appears — should say **"[Environment: Sandbox]"** at the top
-- [ ] Sign in with sandbox Apple ID (`sandeepv98@gmail.com`) if prompted
+- [ ] Apple's IAP sheet appears — should say **"[Environment: Sandbox]"**
 - [ ] Complete the purchase
 - [ ] Metro shows `paywall_option_selected` then `subscription_purchased`
-- [ ] App unlocks, navigates to LearnScreen
-- [ ] LearnScreen renders lesson list (no spinner, no bounce)
+- [ ] Paywall dismisses, back on LearnScreen
+- [ ] Tap a lesson → `[useLessonGate] entitlement confirmed`, lesson opens
 
-**If sheet does NOT say "Sandbox":** you're about to be charged real money → CANCEL.
+**If sheet does NOT say "Sandbox":** CANCEL — real money.
 
-### 3.4 Verify no lock-out
-- [ ] Kill the app completely (swipe up in app switcher)
-- [ ] Reopen app
-- [ ] Splash → Root → LearnScreen renders without bounce
-- [ ] Superwall's app-level listener reports ACTIVE → no re-paywall
+### 3.6 Verify no lock-out post-purchase
+- [ ] Kill the app completely
+- [ ] Reopen app → LearnScreen
+- [ ] Tap a lesson → lesson opens immediately, no paywall flash
+- [ ] `[useLessonGate]` log shows entitlement confirmed instantly
 
-**If bounces to paywall after purchase:** subscription status not persisting / listener issue
+### 3.7 🔴 Offline entitlement check (REGRESSION RISK from prod bug hunt Section 8.3)
+
+**Why this exists:** v1.1.0's `useLessonGate` calls
+`registerPlacement('learn_access')` which needs network. On prod,
+subscribed users can access lessons offline (dumb, but works). On
+v1.1.0 they might get locked out because the placement can't reach
+Superwall's servers.
+
+- [ ] Verify entitlement online first (tap a lesson successfully)
+- [ ] Turn on airplane mode
+- [ ] Return to LearnScreen (Home tab, then Learn tab)
+- [ ] Tap a lesson
+- [ ] Report what happens:
+  - Best case: lesson opens (Superwall SDK cached entitlement)
+  - Bad case: paywall shows, or spinner hangs, or error alert
+- [ ] If lesson does NOT open: 🔴 we need a local `isSubscribed` fallback
+      in `gateToLesson` for offline paying users
+
+If this fails, mitigation: cache last-known Superwall status in
+Zustand/AsyncStorage. On offline `registerPlacement` failure, check
+the cached value. If cached ACTIVE, run `feature()` anyway. Fail-open
+for paying users only, still gates unsubscribed.
 
 ---
 

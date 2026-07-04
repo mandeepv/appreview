@@ -416,6 +416,29 @@ Notes:
 
 ## Section 8 — Edge cases (spot-check, don't be exhaustive)
 
+**2026-07-04 Mandeep tested prod v1.0.0 Build 8**:
+- 8.1 ✅ Open app in airplane mode → LearnScreen shows as normal.
+  Signed-in state cached locally.
+- 8.2 🟡 Log out in airplane mode → "Error — could not log out."
+  `signOut()` awaits a Supabase server call that hangs. Not fixing
+  in v1.1.0 — no real user hits this (users connect to WiFi before
+  logging out). Logged for potential future polish.
+- 8.3 🔴 Free lesson access in airplane mode. This is the same
+  paywall-bypass bug seen in Section 1.1 (no gate on LearnScreen).
+  Fixed in v1.1.0 by useLessonGate hook.
+  ⚠️ **REGRESSION CONCERN**: v1.1.0's `useLessonGate` calls
+  `registerPlacement('learn_access')` which makes a network call.
+  Paying users offline may be locked out (feature() never fires
+  because network throws). Need to verify Superwall SDK caches
+  entitlement state locally so registerPlacement works offline for
+  entitled users. TESTING REQUIRED on dev build (iPhone XR) before
+  shipping v1.1.0. If regression is real, mitigation: cache
+  isSubscribed locally with a fallback path in gateToLesson.
+- 8.4 ✅ Force-quit mid-onboarding, reopen → resumed at same screen
+  with previous inputs preserved. AsyncStorage LAST_SCREEN_KEY +
+  onboarding store hydration working correctly.
+
+
 ### 8.1 Airplane mode during onboarding
 - [ ] Turn on airplane mode BEFORE opening app
 - [ ] Open app → does it hang, crash, or gracefully degrade?
@@ -448,6 +471,75 @@ Notes:
 
 ## Section 9 — Rate the sad paths
 
+**2026-07-04 audit of all Alert.alert() error messages in the app.**
+The theme across nearly every one: "something failed, try again." No
+context about what went wrong, no next step, no way to escalate.
+
+### The bad ones (v1.0.0 prod + still in v1.1.0 without further work)
+
+**Delete Failed** (SettingsScreen:198)
+> "Could not delete account. Please try again or contact support."
+- 🔴 Doesn't tell user what went wrong. Actual cause on prod was
+  401 from expired JWT — user retrying without doing anything else
+  will hit the same 401.
+- v1.1.0 has the session-refresh fix, but the alert still doesn't
+  distinguish server errors from network errors from auth errors.
+- Better: "We couldn't delete your account right now. This is usually
+  a network hiccup — please check your connection and try again. If
+  it keeps failing, email kinderwellteam@gmail.com."
+
+**Sign In Failed** (AuthScreen:169, similar block for Google)
+> "Could not sign in with Apple. Please try again."
+- 🟡 Same pattern. No hint whether the failure is network, cancelled,
+  provider outage, or bad credentials.
+- Better: distinguish network from provider errors, offer email/support
+  fallback for repeated failures.
+
+**Error — could not log out** (SettingsScreen:140)
+> "Could not log out. Please try again."
+- 🟡 Only fires in airplane mode (see Section 8.2). Users won't hit
+  this in real life. Not worth fixing.
+
+**Contact Support fallback** (SettingsScreen:214)
+> "Please email us at kinderwellteam@gmail.com"
+- ✅ This one is actually fine — user knows exactly what to do next.
+  Only appears if mailto: can't open (very rare).
+
+### The good ones
+
+**Delete confirmation** (SettingsScreen:150, post-v1.1.0 fix)
+- ✅ Now lists actual consequences ("progress, preferences, children")
+  and warns about subscriptions if applicable. Not an error message
+  per se but the clearest destructive-action prompt in the app.
+
+**Purchase sandbox tag on iOS purchase sheet**
+- ✅ Apple's system UI tells the user "[Environment: Sandbox]" — good
+  guardrail we get for free. Not our code but worth noting: the app
+  itself doesn't add its own "test purchase" indicator, which is fine.
+
+### Cross-cutting pattern to fix in v1.1.1+
+
+Every error message in the app follows the template:
+> "[Something] Failed. [Action] could not be completed. Please try
+> again[ or contact support]."
+
+This template is applied to ~7 different failure modes (delete, log
+out, sign in Apple, sign in Google, restore, purchase abandon,
+purchase fail). None of them tell the user:
+1. What actually went wrong (network? server? provider? user
+   cancelled?)
+2. What to do about it (retry? update app? contact support with
+   what info?)
+3. How to escalate (support email visible, or is it buried?)
+
+**Recommendation for v1.1.1**: pick a better error UX pattern. Some
+options: inline errors near the button that triggered them (not modal
+Alert), plus a shared "something broke, here's what we know" pattern
+that Sentry-reports the actual error object and shows the user a
+correlation ID they can quote in support emails. Airbnb, Notion, and
+Linear all do variants of this.
+
+
 Not testing — just judging.
 
 ### 9.1 What does the app do wrong when things go wrong?
@@ -462,10 +554,129 @@ Notes:
 
 ## Section 10 — Final tally
 
-**Bugs found**:
-- 🔴 Money-critical / data corruption:
-- 🟡 UX polish:
-- 🟢 Suggestions:
+Compiled 2026-07-04 end-of-day after ~6 hours of prod testing.
+
+### 🔴 Money-critical / data-corruption bugs found on prod v1.0.0 Build 8
+
+All 6 have code fixes on the `setup/dev-environment` branch ready
+for v1.1.0:
+
+1. **Paywall bypass** — dismiss + force-quit = free lesson access
+   forever. Every single user who force-quits after seeing the paywall
+   is using the app for free.
+   Fixed: ee8d354, 00e5347, 86d205f, c65e61d (Superwall SDK-native
+   `usePlacement` pattern + Gated placement + central `useLessonGate`
+   hook + upgrade to Superwall 1.1.6).
+
+2. **Delete-account 401** — silent failure. Every user who tries to
+   delete their account after their JWT expires (default 1 h from
+   sign-in) gets a bare "Delete Failed" alert with no explanation.
+   Fixed: 0a7500a (refresh session before invoking Edge Function).
+
+3. **Restore Purchases is fake** — button just opens App Store
+   subscriptions and lies to PostHog with a `purchases_restored`
+   event. Compliance risk with Apple guideline 3.1.1.
+   Fixed: ee8d354 (real StoreKit sync + three-outcome pattern).
+
+4. **Sign-in creates duplicate accounts** — user taps "I already have
+   an account" without ever having signed up → Supabase creates a new
+   account. Duplicate accounts, orphaned subscriptions.
+   Fixed: 2beeea1 (unified AuthScreen), e49102f (Private Relay hint).
+
+5. **Delete-account no subscription warning** — App Store guideline
+   5.1.1(v) requires disclosing that Apple continues billing after
+   account delete for subscribed users.
+   Fixed: 27559ec (conditional warning in alert body).
+
+6. **Phantom "boy" child gender** — every user's children default to
+   `gender: 'boy'` in the DB because the onboarding gender screen is
+   commented out but the store default sticks.
+   Fixed: 33ea4f0 (no default gender written).
+
+### 🟡 UX / polish issues fixed for v1.1.0
+
+7. **Two-step delete confirmation theater** ("Really? / Really really?")
+   → single clear confirmation with real consequences. Commit 27559ec.
+
+8. **Delete didn't clear local cache** → onboarding progress could
+   haunt next signup. Fixed in 27559ec.
+
+9. **Delete didn't reset Superwall / Sentry identity** → next user on
+   the device would inherit stale entitlement / error attribution.
+   Fixed in 27559ec.
+
+10. **Apple Sign-In name written to wrong DB column** → silently
+    dropped. Prod users' names came from the onboarding NameAge
+    screen, not Apple's identity token. Fixed dcecfab.
+
+### 🟡 UX / polish — deferred (V1.1.1_ONBOARDING_POLISH.md)
+
+11. Paywall UI has no dismiss button — users force-quit to escape
+    (which then triggers the money leak). v1.1.0 fixes the leak; the
+    paywall UI itself needs redesign or Superwall configuration to
+    add a close button.
+12. Onboarding splash flash before splash screen
+13. Splash vs "Get Started" screens visually identical
+14. Continue button hidden below fold on multiple screens
+15. Age input +/- stepper is tedious (30 taps to get to 34)
+16. Name field optional but should be required
+17. Placeholder "blah blah" copy leaked to prod
+18. iPhone XR / small-screen QA gap
+19. Unprofessional "next few questions help us personalize" intro
+
+### 🟡 UX — deferred (V1.2_LATER.md)
+
+20. Custom OAuth domain (currently shows `supabase.co` on iOS OAuth
+    sheet).
+21. Enable Supabase manual identity linking + "Trouble signing in?"
+    support flow for Private Relay duplicate-account edge cases.
+
+### 🔴 Regression risk to verify on dev build BEFORE shipping v1.1.0
+
+22. **Offline entitlement gate** (Section 8.3, Section 3.7 of iPhone
+    Test Plan): v1.1.0's `useLessonGate` needs Superwall network call
+    to fire `feature()`. Paying users offline may be locked out.
+    Need to verify on iPhone XR + add cached-`isSubscribed` fallback
+    if it fails.
+
+### 🟢 Unimplemented features (deferred)
+
+23. **Notifications**: onboarding asks user, saves to DB, but no
+    code path schedules any notifications. Feature not built.
+24. **Lesson progress persistence**: Mandeep flagged concerns.
+    `lessonProgressService.ts` exists but wasn't audited today.
+    Needs proper investigation.
+25. **Family Sharing subscription**: not tested. Requires second
+    Apple ID.
+
+### Not tested (needs sandbox / TestFlight)
+
+26. Section 2.1–2.4 (subscribe, cancel, renew, family) — all need
+    sandbox mode. iOS 18 requires Xcode dev-mode setup for sandbox
+    Apple ID sign-in on prod builds. Defer to TestFlight build of
+    v1.1.0 where sandbox is automatic.
+
+### What must be done before shipping v1.1.0
+
+**Blockers**:
+- Verify #22 (offline gate regression) on iPhone XR
+- Run iPhone test plan on the dev build
+- Complete Section 2 purchase tests via TestFlight after IPA is
+  submitted
+
+**Not blockers, defer to v1.1.1 / v1.2**:
+- Everything else listed above
+
+### Session takeaways
+
+- Prod has zero server observability. Every bug we found was silent.
+  Fable review flagged this months ago; Sentry install in v1.1.0
+  starts fixing it.
+- The `Alert.alert(X + " Failed", "Please try again")` pattern is
+  systemic — see Section 9 for a v1.1.1 rework proposal.
+- Every "we removed X from the flow" decision (gender screen,
+  notifications, etc.) left dead code behind. Doing a "delete unused
+  code" pass in v1.1.1 would materially reduce bug surface.
 
 **What's fixed on v1.1.0 branch already**:
 (cross-reference against your findings — anything not covered goes into
