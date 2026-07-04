@@ -19,7 +19,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
 export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   const onboardingStore = useOnboardingStore();
   const { setAuthMethod, markAuthReached } = onboardingStore;
-  const { setUser, setSession, setDemoUser } = useAuthStore();
+  const { setUser, setSession, setDemoUser, signOut } = useAuthStore();
   const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'apple' | null>(null);
@@ -50,12 +50,42 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   // for anyone whose account already has completed onboarding data — no
   // matter which mode they entered from. That's what fixes the "clicked
   // 'already have account' but got sent to onboarding" bug.
+  //
+  // Three onboarding-check outcomes, each handled distinctly. Do NOT collapse
+  // 'error' into 'no_onboarding' — a network blip during the check would
+  // re-run onboarding and let a re-run overwrite the user's real answers
+  // (Fable review #2, same bug class as the v1.0.0 paywall bypass).
   const handlePostSignin = async (userId: string) => {
-    const hasOnboarding = await hasUserCompletedOnboarding(userId);
-    if (hasOnboarding) {
+    const result = await hasUserCompletedOnboarding(userId);
+
+    if (result.status === 'error') {
+      if (__DEV__) console.error('[Auth] onboarding check failed:', result.error);
+      reportError(result.error, {
+        context: 'post_signin_onboarding_check',
+        user_id: userId,
+      });
+      // The user is now signed in but we can't tell if they have onboarding
+      // data. Do NOT default to signup — that would overwrite their real
+      // answers if they did have data. Sign them out to bounce back to
+      // Welcome and let them retry; the alternative (leaving them signed
+      // in on a broken screen) is worse.
+      Alert.alert(
+        "Couldn't verify your account",
+        "We couldn't check your account — please check your connection and sign in again.",
+        [{ text: 'OK' }],
+      );
+      await signOut();
+      return;
+    }
+
+    if (result.status === 'has_onboarding') {
       if (__DEV__) console.log('[Auth] returning user, navigating to Root');
       navigation.replace('Root');
-    } else if (mode === 'signup') {
+      return;
+    }
+
+    // result.status === 'no_onboarding'
+    if (mode === 'signup') {
       // Signup flow — their onboarding answers are in the Zustand store,
       // Loading will persist them + fire the paywall.
       if (__DEV__) console.log('[Auth] new user from signup flow, navigating to Loading');
