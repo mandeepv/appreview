@@ -282,6 +282,14 @@ Notes:
 
 ## Section 4 — Data integrity
 
+**⏭️ DEFERRED 2026-07-04**: Only 4.1 (phantom "boy" child) covered —
+already verified in Section 1.1 and fixed in commit 33ea4f0. The rest
+(4.2 progress persistence, 4.3 cross-device sync, 4.4 edit onboarding
+answers) not tested yet. Mandeep suspects lesson progress may not be
+fully implemented / persisted; needs proper investigation later, not a
+30-second grep session. Deferred to a future hunt or bug triage.
+
+
 ### 4.1 Phantom "boy" child (the bug you reported)
 - [ ] Complete onboarding WITHOUT adding any children (skip the children
       screens or leave the child fields empty)
@@ -315,6 +323,14 @@ Notes:
 ---
 
 ## Section 5 — Push notifications (if enabled)
+
+**⏭️ DEFERRED 2026-07-04**: Grep shows the app COLLECTS notification
+preference during onboarding but has no code path that actually schedules
+or sends any notifications. `expo-notifications` isn't imported anywhere
+for real notification scheduling. Not a v1.1.0 bug — an unimplemented
+feature that either needs to be built or the onboarding question needs
+to be removed. Logged for future release planning.
+
 
 ### 5.1 Notifications opt-in during onboarding
 - [ ] During onboarding you're asked about notifications
