@@ -140,6 +140,38 @@ refactor, deferred.
 **Fix:** delete both dead files + navigator registrations; manually
 tap-test lesson 10 end-to-end.
 
+**Response (2026-07-04):**
+
+Verified the reviewer's grep. Both dead files confirmed:
+- `ServeReturnLessonScreen` had zero navigators pointing at
+  `'ServeReturnLesson'` — dead registration.
+- `HelpingProcessEmotionsLessonScreen` had zero references anywhere —
+  full orphan.
+
+Deleted both files plus the LessonNavigator import + `Stack.Screen` +
+param-list entry for `ServeReturnLesson`. `tsc --noEmit` = 0 errors.
+
+**Lesson 10 investigation:** the live
+`HelpingSomeoneProcessEmotionsLessonScreen.tsx` is a placeholder — its
+two sub-lessons render as `<View>` (not `<TouchableOpacity>`) with
+"Coming Soon" badges (lines 82-116). No `onPress` handler exists.
+So users CAN reach lesson 10 but see two greyed-out cards.
+
+Meanwhile the dead `HelpingProcessEmotionsLessonScreen.tsx` had 4 real
+sub-lessons wired to `LessonFlow` navigation targets. Someone appears
+to have started rewriting lesson 10 as a placeholder while the finished
+implementation was still around, then registered the placeholder as
+live and left the working one orphaned.
+
+**Product decision punt:** Mandeep to review whether lesson 10 should
+be marked "Coming Soon" for real (accept the placeholder as the live
+UX), or the dead file's working sub-lesson launcher logic should be
+copied into the live placeholder to actually ship the built-but-orphaned
+content. Not a blocker for v1.1.0 — logged in docs/V1.1.1_PLUS.md as a
+follow-up. Users' current experience (placeholder cards) is unchanged
+from prod v1.0.0 — this refactor didn't regress anything, it just
+didn't fix anything either.
+
 ### 5. Apple-provided name is clobbered minutes after the fix saves it — MEDIUM
 
 `src/services/authService.ts:191–220` vs
