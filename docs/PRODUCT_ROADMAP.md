@@ -21,15 +21,18 @@ They're not independent. Fixing 2 unblocks doing 1 and 3 intelligently.
 
 **Effort:** 3-5 days total
 
-### 🥈 Second: Onboarding A/B test (next month)
+### 🥈 Second: Onboarding polish + A/B test (future)
 
-**Status (2026-07-01):** Scaffold shipped. `variant_b` is a full parallel navigator with 20 placeholder screens; Welcome + UserType have distinct visuals. Assignment via PostHog feature flag `onboarding_variant` (needs to be created in PostHog dashboard). See `DEV_SETUP_LOG_2026-07-01.md` → "Onboarding A/B experiment scaffold" for full details.
+**Status (2026-07-04):** Scaffold was built and REMOVED before v1.1.0 shipped. The 20 variant B placeholder screens, `OnboardingVariantSwitch`, `experimentStore`, and `experiments.ts` all deleted from the codebase. Reason: shipping placeholder screens (even behind a flag defaulted to off) added test surface and risk to v1.1.0 without any user-facing benefit. Ship simple first, add A/B when we're actually running the experiment.
 
-**Next step:** author real variant B content in `src/screens/onboardingB/`.
+**When we're ready to run onboarding experiments again:**
+1. Fix the 9 UX issues Mandeep flagged in `V1.1.1_ONBOARDING_POLISH.md` first — it's not worth A/B-testing a broken baseline.
+2. Design what "variant B" actually should be. Real hypothesis (e.g., "shorter onboarding = higher completion") not just visual differences.
+3. Then build a clean scaffold: PostHog flag + variant switch component + real content in variant B.
 
-**Why second:** Only makes sense once we can measure conversion per variant. The idea is good — first onboarding was thrown together, obvious wins likely exist. But we need the measurement stack first.
+**Why second:** Only makes sense once we can measure conversion per variant AND the control onboarding is polished enough to be a fair baseline.
 
-**Effort:** 2-3 days once analytics is in place
+**Effort:** 2-3 days once analytics is stable and control is polished
 
 ### 🥉 Third: App Store page optimization (parallel — anytime)
 
@@ -116,11 +119,13 @@ Then set up Superwall webhook → Supabase Edge Function that updates these colu
 
 **Recommended: PostHog feature flags** — assuming we're using PostHog for analytics (item 2)
 
-**How it would work:**
-1. Create a feature flag `onboarding_variant` in PostHog with values `control` and `variant_b`, 50/50 rollout
-2. On app launch, fetch the flag value for the user, store in Zustand
-3. Onboarding navigation reads the flag, routes to either `OnboardingV1Screen` or `OnboardingV2Screen`
-4. Every onboarding event is tagged with variant, funnel comparisons happen in PostHog
+**How it would work (when we build it for real):**
+1. Create a feature flag in PostHog with values `control` and one variant, 50/50 rollout
+2. On app launch, fetch the flag value for the user, store in a Zustand slice with a sticky cache in AsyncStorage so a user never flips variant mid-onboarding
+3. Onboarding navigation reads the flag, routes to control or variant components
+4. Every onboarding event is tagged with variant; funnel comparisons happen in PostHog
+
+**Do NOT ship any of this until the control onboarding is polished** (see `V1.1.1_ONBOARDING_POLISH.md`). A/B-testing a broken baseline against a new design tells you nothing useful.
 
 **What to test first:**
 - Question order (biggest questions first vs. easy ones first)

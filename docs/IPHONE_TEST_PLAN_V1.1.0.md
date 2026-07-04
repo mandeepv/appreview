@@ -36,7 +36,6 @@ The Metro terminal on your Mac should show these lines in the first ~5 seconds:
 
 - [ ] `[Supabase] Env: DEV ✅ | Project: xbkkjqvbsnroenqlqkmi`
 - [ ] `[Sentry] initialized (env=dev, release=kinderwell@1.1.0)`
-- [ ] `[Experiment] onboarding_variant: control (from PostHog flag=...)` OR `(cached)`
 - [ ] `[PostHog] capture { ... "event": "Application Opened" ... }`
 - [ ] No red errors
 
@@ -305,24 +304,7 @@ The safest way to force a real native crash in a dev build is:
 
 ---
 
-## Section 10 — A/B variant scaffold (visual sanity check)
-
-### 10.1 Force variant B via DevMenu
-- [ ] DevMenu → "Force Variant B"
-- [ ] Alert confirms
-- [ ] Delete-account + close app
-- [ ] Reopen → Splash → Welcome
-- [ ] Welcome screen should be **teal** with a "VARIANT B" tag (not the pink control)
-
-**Placeholder content is expected here.** This test is just proving assignment works. Real content is a followup task.
-
-### 10.2 Reset to control
-- [ ] DevMenu → "Force Control"
-- [ ] Reopen → Welcome is pink again
-
----
-
-## Section 11 — Structural prod guard (P1 #11 partial)
+## Section 10 — Structural prod guard (P1 #11 partial)
 
 **This one is tricky to test live because it requires overwriting `.env` with prod values.** SKIP this section during the smoke test unless you specifically want to verify. If you do:
 
@@ -334,7 +316,7 @@ The safest way to force a real native crash in a dev build is:
 
 ---
 
-## Section 12 — Prod remains untouched
+## Section 11 — Prod remains untouched
 
 **Critical final check:**
 - [ ] Open **prod** Supabase → Authentication → Users

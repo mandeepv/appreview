@@ -429,7 +429,11 @@ The prebuild rewrites `ios/Kinderwell/Info.plist` + `project.pbxproj` (and Andro
 - Google Sign In works in dev
 - Apple Sign In works in dev
 
-### Onboarding A/B experiment scaffold ✅ (2026-07-01 evening)
+### Onboarding A/B experiment scaffold ✅ built (2026-07-01) — ❌ removed (2026-07-04)
+
+**2026-07-04 update:** the entire scaffold described below was removed before v1.1.0 shipped. `src/screens/onboardingB/`, `OnboardingVariantSwitch.tsx`, `experimentStore.ts`, `experiments.ts`, and the DevMenu variant buttons were all deleted. Reason: shipping placeholder screens (even behind a flag defaulted off) added test surface and risk to v1.1.0 with zero user benefit. When we're ready to run onboarding experiments again, we'll rebuild cleanly. See `PRODUCT_ROADMAP.md` → "Onboarding polish + A/B test (future)". The section below is preserved as a historical record.
+
+---
 
 Set up a 50/50 A/B test between the current onboarding (`control`) and a new placeholder onboarding (`variant_b`).
 
