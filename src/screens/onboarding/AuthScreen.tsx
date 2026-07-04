@@ -39,10 +39,15 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   // Only mark auth-reached for signup mode — this flag gates the resume-into-
   // Auth path on next launch. Marking it for signin-first users would break
   // that resume logic.
+  //
+  // Do NOT fire onboarding_completed here. The prior version did, which
+  // inflated PostHog funnels because parked users get resumed back to Auth
+  // via SplashScreen every launch and would re-emit the event on every
+  // mount (Fable review #8). The real "onboarding completed" moment is
+  // after a successful signup-mode signin — see handlePostSignin.
   useEffect(() => {
     if (mode === 'signup') {
       markAuthReached();
-      posthog.capture('onboarding_completed');
     }
   }, [mode]);
 
@@ -124,6 +129,12 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       // Signup flow — their onboarding answers are in the Zustand store,
       // Loading will persist them + fire the paywall.
       if (__DEV__) console.log('[Auth] new user from signup flow, navigating to Loading');
+      // Fire onboarding_completed HERE (once, at the actual moment
+      // onboarding completes with a successful signin), not in the mount
+      // effect at the top of the screen. See Fable review #8: firing on
+      // mount inflated funnels because parked users get resumed to Auth
+      // and re-emitted the event on every launch.
+      posthog.capture('onboarding_completed');
       navigation.replace('Loading');
     } else {
       // Signin flow but no onboarding on record — must be a NEW user who
@@ -147,7 +158,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       if (session) {
         setUser(session.user);
         setSession(session);
-        identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore);
+        identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore, mode);
         posthog.capture('user_signed_in', {
           auth_method: 'google',
           user_type: userTypeAnalytics,
@@ -189,7 +200,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       if (session) {
         setUser(session.user);
         setSession(session);
-        identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore);
+        identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore, mode);
         posthog.capture('user_signed_in', {
           auth_method: 'apple',
           user_type: userTypeAnalytics,
