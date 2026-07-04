@@ -73,7 +73,7 @@ work through the review.
 | Finding | Status | Commit / notes |
 |---|---|---|
 | Generate Supabase DB types (highest ROI single change per reviewer) | ⬜ | Open — turns "wrote to nonexistent column" bugs into compile errors |
-| Add ESLint + lint CI job | ⬜ | Open — ~30 min |
+| Add ESLint + lint CI job | ✅ | `eslint.config.js` + `npm run lint` script + CI `lint` job. Uses `eslint-config-expo` flat config. Baseline: 0 errors, 199 warnings (unused-vars + Animated.Value ref pattern in lesson screens — v1.2 refactor clears most). Errors block CI; caught 1 real bug on the way in (`set-state-in-effect` in ChildrenCountScreen — fixed via lazy `useState`). |
 | First Jest unit tests (`isBelowMinimumBuild`, `hasUserCompletedOnboarding` error, `LESSON_NAV` coverage) | ⬜ | Open — real ROI but needs infrastructure setup |
 | v1.2 data-driven lesson refactor | ⬜ | Open — big refactor, v1.2 as reviewer noted |
 | Dedupe `handleGoogleSignIn`/`handleAppleSignIn`, type navigator params, centralize AsyncStorage keys, note lesson progress survives delete | ⚠️ | Sign-in handler dedupe done (this commit — extracted `runProviderSignIn`, ~45 duplicated lines removed). Navigator param typing, AsyncStorage-keys constant, delete-account doc note still open. |
@@ -116,11 +116,11 @@ Left unchanged, per reviewer's audit:
 | 🟠 Pre-submission | 6 | 4 | 2 | 0 | 0 |
 | 🟡 Environment/infra | 6 | 3 | 0 | 0 | 3 |
 | 🟡 Security | 8 | 5 | 0 | 0 | 3 |
-| 🟡 Quality/testing | 5 | 0 | 1 | 0 | 4 |
+| 🟡 Quality/testing | 5 | 1 | 1 | 0 | 3 |
 | 🟡 Docs/process | 6 | 3 | 1 | 0 | 2 |
-| **Total** | **39** | **21** | **6** | **0** | **12** |
+| **Total** | **39** | **22** | **6** | **0** | **11** |
 
-**Done or partial**: 27 of 39 (69%). All 🔴 and 🟠 blockers addressed in code. 12 open items are all 🟡 hardening.
+**Done or partial**: 28 of 39 (72%). All 🔴 and 🟠 blockers addressed in code. 11 open items are all 🟡 hardening.
 
 Note (2026-07-05): 🟡 Docs/process count grew from 4 to 6 because two
 items I'd previously conflated got split — the "kill duplicated
