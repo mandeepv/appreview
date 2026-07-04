@@ -378,6 +378,145 @@ If a test user leaked into prod → we have a bug that let dev writes go to prod
 
 ---
 
+## Section 12 — Post-Fable-review regression addendum (added 2026-07-05)
+
+**Why this section exists:** Sections 0–11 were written before we did the Fable review pass. Since then ~40 commits touched auth, onboarding, lesson progress, delete-account, and Supabase typing. These are the checks that specifically cover **only** what changed since the last time this plan was run — running Section 12 is the difference between "we retested the whole app" and "we retested the whole app *and* the Fable-review deltas."
+
+Run this section AFTER Sections 1–9, before Section 11.
+
+### 12.1 Delete-account is a feature (not just a reset button) — Fable-related fixes
+
+Delete-account got 5 discrete changes: subscription warning, single confirmation (not two-step), onboarding cache clear, Superwall reset, Sentry user reset. All of them touch the flow you'll take when the reviewer taps "Delete Account", so this is Apple-review-critical.
+
+**Setup:**
+- [ ] Sign in with Google (or Apple).
+- [ ] Complete onboarding.
+- [ ] Trigger a paywall + sandbox-subscribe so `isSubscribed: true`.
+- [ ] Complete at least one lesson section so AsyncStorage progress exists.
+
+**Do the delete:**
+- [ ] Settings → Delete Account. **Alert shows a subscription warning** ("Your subscription will remain active until end of billing period, cancel via Apple Subscriptions if needed" or similar). If missing, this fix regressed.
+- [ ] Tap Delete. **ONE confirmation only** — no second "are you really really sure?" step. If a second modal appears, the fix regressed.
+- [ ] Delete succeeds (no 401 — this exercises the `refreshSession()` + Edge Function auth chain). If you see "session expired" or 401, the refresh path broke.
+- [ ] Land on Welcome / Splash screen, not on a stale Home.
+
+**Verify local cleanup happened (open Metro / device console):**
+- [ ] `[useOnboardingStore] clearState called` or equivalent onboarding-cache-cleared log.
+- [ ] Superwall reset log (or verify by re-signing-in and seeing paywall render, not cached "you're subscribed" state).
+- [ ] Sentry user detached — if you trigger a `reportError` after delete but before next sign-in, the Sentry event should have no `user.id` attached.
+
+**Verify server-side cleanup:**
+- [ ] Open dev Supabase → Auth → Users → confirm the user is deleted.
+- [ ] Same user's row in `user_profiles` is gone (or `deleted_at` set — check the migration schema).
+
+### 12.2 Returning-user re-sign-in (the pushback we documented)
+
+Fable flagged that re-doing onboarding after signing back in discards fresh answers. We kept that behavior deliberately, but the `has_reached_auth` flag leak fix means the returning-user flow behaves differently from a brand-new-user flow. This test verifies both.
+
+**Setup:**
+- [ ] From delete-account state (or Section 12.1 exit state), still logged out.
+- [ ] Tap "I already have an account" on the Welcome screen (not "Get Started").
+
+**Verify signin mode behavior:**
+- [ ] Auth screen appears with the "use the same option you signed up with" hint visible. If missing → the hint from unify-auth work regressed.
+- [ ] Sign in with the same OAuth provider as before.
+- [ ] User lands DIRECTLY on the Home / Learn screen (NOT onboarding, NOT paywall as a new user). If routed to onboarding: `hasUserCompletedOnboarding` isn't classifying signed-in users correctly.
+- [ ] Any answers you would have started to re-provide are discarded per spec — this is the documented pushback, not a bug.
+
+**Signin as a user who never onboarded (edge case):**
+- [ ] From logged-out state, tap "I already have an account".
+- [ ] Sign in with a fresh Google/Apple identity that has NO row in `user_profiles`.
+- [ ] User is routed to onboarding (`signin` mode + `no_onboarding` branch of the discriminated union). NOT dropped straight into an empty home.
+
+### 12.3 Onboarding-check error branch (Fable #2 — the paywall-bypass-adjacent bug)
+
+Silent onboarding-check errors used to route users to signup, letting a re-run overwrite their real data. Now returns a discriminated union `has / no / error`. Test the error branch explicitly.
+
+- [ ] Sign in.
+- [ ] Complete onboarding fully (so `user_profiles` row exists with `user_type` set).
+- [ ] Sign out.
+- [ ] Enable Airplane Mode.
+- [ ] Attempt to sign back in (tap "I already have an account", sign in via OAuth — OAuth itself may work if Google/Apple's cached, or may fail; if it fails, disable airplane briefly for auth then re-enable before Home routing).
+- [ ] The `hasUserCompletedOnboarding` call should hit the `error` branch. The app must NOT silently route you to re-onboarding. Expected behavior: show an error state / "couldn't verify your account, please retry" / any non-silent surface. If it drops you into onboarding — the fix regressed and the v1.0.0 paywall-bypass class of bug is back.
+- [ ] Turn Airplane Mode off, retry — should now land you on Home normally.
+
+### 12.4 Emotional Sandbags Section 1 + 2 (the orphan-key fix we caught mid-refactor)
+
+The AsyncStorage-keys centralization surfaced a real bug: `SandbagsSec1Screen3` and `SandbagsSec2Screen10` were writing to the wrong key (`@sandbags_completed_sections`) while the hub read `@emotional_sandbags_completed_sections` via `emotionalSandbagsProgress`. Fixed by routing both screens through the utility. Verify on-device that Section 1 + Section 2 completion actually persists.
+
+- [ ] Fresh install or clean state (delete account or clear app data).
+- [ ] Sign in → onboarding → hit paywall → sandbox-subscribe (need a subscription to reach lesson content).
+- [ ] Navigate to Emotional Sandbags lesson from the Learn screen.
+- [ ] Complete **Section 1** (SandbagsSec1Screen1 → 2 → 3 → tap Next).
+- [ ] You should land on SandbagsSec2Screen1.
+- [ ] Complete **Section 2** end-to-end through SandbagsSec2Screen10 → tap Complete.
+- [ ] You should return to the Emotional Sandbags hub.
+- [ ] **On the hub: Section 1 AND Section 2 must both show as complete.** If either is missing → the orphan-key fix regressed.
+- [ ] Force-quit the app.
+- [ ] Reopen, navigate back to the Emotional Sandbags hub.
+- [ ] Section 1 + Section 2 still complete (persistence works across the key change).
+
+### 12.5 Lesson progress survives the AsyncStorage-key refactor (broader check)
+
+The centralization touched 20 files. Same paranoia as 12.4 but for other lessons:
+
+- [ ] Complete one section each in: Sprinklers, Naming Emotions (Lesson 5), and one other lesson-container-based lesson.
+- [ ] Force-quit + reopen.
+- [ ] Each lesson's hub reflects the completed sections. If any regressed, the utility → screen wiring got its constant wrong.
+
+### 12.6 ChildrenCountScreen lazy-init (returning-user re-onboarding hydration)
+
+`ChildrenCountScreen` used to hydrate `selectedAges` from the store via an effect (caused a cascading render). We switched to `useState(() => ...)` lazy init. Verify a returning user hitting the onboarding restart path still sees their previous ages pre-selected.
+
+- [ ] Sign in as user who completed onboarding.
+- [ ] Trigger the onboarding restart path (Settings → Restart Onboarding, or by manual QA route if that entry doesn't exist).
+- [ ] Reach ChildrenCountScreen.
+- [ ] Age chips that were previously selected are **pre-highlighted** on first render. If they render un-selected and only fill in a beat later — the lazy-init regressed (effect version had a visible flash; lazy-init should be flash-free).
+- [ ] Add/remove a child age → tap Continue → back to ChildrenCountScreen via back button → state preserved.
+
+### 12.7 Sign-in dedupe — both providers behave identically
+
+`handleGoogleSignIn` and `handleAppleSignIn` are now one-liners over a shared `runProviderSignIn` helper. Regression risk: one provider's analytics tag / Alert copy / error path is wrong.
+
+- [ ] Google sign-in from cold start — succeeds, lands on Home (or onboarding for new user).
+- [ ] Trigger a Google sign-in failure (cancel the browser modal, or Airplane Mode partway). Alert copy reads "Could not sign in with Google. Please try again." (or the exact string from AuthScreen).
+- [ ] Sign out.
+- [ ] Apple sign-in from cold start — succeeds identically.
+- [ ] Trigger an Apple sign-in failure (dismiss the Apple prompt). Alert copy reads "Could not sign in with Apple. Please try again."
+- [ ] PostHog dashboard: `user_signed_in` event has correct `auth_method: 'google' | 'apple'` for each attempt.
+- [ ] `auth_attempted` and `auth_abandoned` events fire with correct tags.
+
+### 12.8 Supabase types wiring — smoke test only
+
+The `createClient<Database>` change shouldn't affect runtime, but verify:
+- [ ] Any code path that upserts a `user_profiles` row (onboarding complete, Apple-name-save) still works. Covered incidentally by 12.1, 12.2, 12.6 — no dedicated new test needed, just don't get a Supabase 400 / 42703 "column does not exist" error in Metro logs during those flows.
+
+### 12.9 Loading screen "Parent" name filter (defense-in-depth verification)
+
+The Apple-name-clobber fix is a two-layer defense (LoadingScreen + service). Both layers should filter `name === 'Parent'`. Verify at least one path:
+
+- [ ] Fresh install, Apple Sign-In (must be a fresh Apple ID that will actually surface `credential.fullName` — subsequent sign-ins skip it; use a new sandbox Apple ID).
+- [ ] During onboarding, leave the name field blank on NameAgeScreen (accept the "Parent" default).
+- [ ] Complete onboarding.
+- [ ] Check dev Supabase `user_profiles.name` — should show the **real Apple name** from the credential, NOT the literal "Parent". If "Parent" is in the DB, one layer of the two-layer defense broke.
+
+### 12.10 Kill switch idempotence + cap (the sanity-cap addition)
+
+Section 6 covers basic kill-switch. This adds the cap check:
+
+- [ ] In dev Supabase `app_config`, set `min_supported_ios_build` to `9999` (a value ABOVE the cap of 40).
+- [ ] Launch the dev app.
+- [ ] Force-update modal should NOT appear — the sanity cap refused the config.
+- [ ] Metro / console log should show something like "kill switch min exceeds cap, ignoring". If the modal appears with 9999 → the cap fix regressed.
+- [ ] Reset `min_supported_ios_build` to `0`.
+
+### 12.11 Version display is dynamic
+
+Fable #14 caught `SettingsScreen.tsx:337` hardcoding "Kinderwell v1.0.0" while shipping 1.1.0.
+- [ ] Settings screen → scroll to bottom → version reads "v1.1.0 (build 9)" or whatever the current `Constants.expoConfig.version` + `ios.buildNumber` are. Not hardcoded.
+
+---
+
 ## What to report back
 
 After running through:
@@ -385,14 +524,20 @@ After running through:
 2. **Which failed?** Copy the exact behavior + relevant Metro log lines
 3. **Any unexpected behavior** not covered by a specific test
 
-If ≥ 90% passes: merge the PR.
-If < 90%: fix, rebuild if native, retest.
+**Bar for proceeding to RELEASE_CHECKLIST Phase 3 (version bump):**
+- All Section 12 items pass (they cover code we just changed — regressions are unacceptable).
+- Sections 1–9 pass at ≥ 90%. Any fail requires an explicit "we know why, and it's not a shipping blocker" note; otherwise fix + rebuild + retest.
+- Section 10 (structural prod guard) is optional but valuable if you have 5 min.
+- Section 11 (prod remains untouched) is a hard gate — any test user in prod = STOP, investigate.
+
+If Section 12 fails on anything → do NOT proceed to RELEASE_CHECKLIST. Fix, rebuild the dev IPA, retest the failed 12.x items. Section 12 is where the Fable-review-era regression risk lives; passing it is what makes the dev IPA "shippable-quality" rather than just "compiles."
 
 ---
 
 ## Post-verification tasks (if all green)
 
 - [ ] Merge PR `setup/dev-environment` → `main`
-- [ ] Delete the temporary `appreview` public repo: `gh repo delete mandeepv/appreview --yes`
-- [ ] Move `docs/DEV_SETUP_LOG_2026-07-01.md` and this file to `docs/archive/` (they've served their purpose)
-- [ ] Ready to start on P2 items or ship prep
+- [ ] Move `docs/DEV_SETUP_LOG_2026-07-01.md` to `docs/archive/` (its Saturday verification is done)
+- [ ] Keep `appreview` public repo mirrored (used for external reviews — do NOT delete)
+- [ ] Move `docs/IPHONE_TEST_PLAN_V1.1.0.md` to `docs/archive/` ONLY after v1.1.0 has actually shipped (App Store live). Before then it's still the active plan.
+- [ ] Following `RELEASE_CHECKLIST.md` from Phase 3 onwards is the next step — bump build number, EAS prod build, TestFlight, mandatory UPGRADE test (Phase 8.3), 4 external actions (Superwall dashboard, prod migration, App Privacy questionnaire, submit for review).
