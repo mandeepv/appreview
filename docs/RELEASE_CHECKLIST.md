@@ -183,11 +183,73 @@ For the Gated paywall specifically (`learn_access`):
 
 ## Phase 8: Test the production build
 
+### 8.1 TestFlight install available
+
 - [ ] Confirm build shows up in App Store Connect → Kinderwell → TestFlight → Internal Testing → **Homies** group (has 3 testers: `mandeepv98@gmail.com`, `kinderwelltry1@gmail.com`, `jacobf1607@gmail.com`)
-- [ ] Install via TestFlight app on iPhone (auto-notification within ~10 min of successful upload)
-- [ ] Full flow smoke test on real device — same list as Phase 2, but against prod backend
-- [ ] Sandbox Apple ID signed in (`sandeepv98@gmail.com`) so real IAP is exercised, not real money
-- [ ] Any test users created during this? Note them so you can delete post-approval
+- [ ] Sandbox Apple ID signed in on the test iPhone (`sandeepv98@gmail.com`) so real IAP is exercised, not real money
+
+### 8.2 Fresh-install smoke test (do this second)
+
+- [ ] Delete Kinderwell if installed. Reinstall from TestFlight.
+- [ ] Full flow smoke test on real device — same list as Phase 2, but against prod backend.
+
+### 8.3 UPGRADE test — MANDATORY (Fable review #12)
+
+**Why this matters:** App Store releases cannot be rolled back. If
+v1.x.y breaks existing users but works for fresh installs, we won't
+know until they update — and the only recovery is a hotfix that takes
+24–72h through Apple review, during which every existing user who
+opens the app is broken. This test simulates the exact user journey
+of "already had the current live build, updates to this new build" —
+the scenario a fresh-install smoke test WILL NOT catch.
+
+**Setup the pre-upgrade state:**
+
+- [ ] Uninstall the TestFlight build first (we're testing the OLD →
+      NEW transition).
+- [ ] Install the **currently-live App Store version** of Kinderwell
+      (NOT TestFlight — go to the actual App Store app on the phone
+      and search / update).
+- [ ] Sign in on the current App Store build with a test account.
+- [ ] Complete onboarding.
+- [ ] Sandbox-subscribe via the paywall (monthly is fine — 5-minute
+      renewal cycle in sandbox lets us verify renewal too).
+- [ ] Complete at least 2 lesson sections so AsyncStorage progress
+      exists (`getCompletedSections` under `sprinklersProgress` etc.)
+- [ ] Force-quit the app.
+
+**Now do the upgrade:**
+
+- [ ] Open TestFlight app on iPhone.
+- [ ] Install the new build. iOS will overwrite the App Store install
+      with the TestFlight one.
+- [ ] Open Kinderwell.
+
+**Verify — none of these may fail:**
+
+- [ ] User is still signed in (Splash goes straight to Root, no
+      Welcome screen)
+- [ ] Landing screen is LearnScreen (not onboarding, not paywall)
+- [ ] Lesson progress is intact — the specific sections you completed
+      pre-upgrade still show as completed post-upgrade
+- [ ] Tap a lesson section that was previously reachable — content
+      opens with no paywall flash. `useLessonGate` sees the sandbox
+      subscription and passes through.
+- [ ] **Cold start in airplane mode** — turn on airplane mode,
+      force-quit, reopen. Tap a lesson. Content opens (this exercises
+      the fail-open fallback in `useLessonGate` for confirmed
+      subscribers, Fable review #9).
+- [ ] Turn airplane mode off. Settings → Restore Purchases → alert
+      says "Restored" (not "No Purchases Found" or "Failed").
+- [ ] Settings → Delete Account → single confirmation (not the old
+      two-step). Alert warns about subscription. Tap Delete. Verify
+      it succeeds (no 401). Auth session is cleared, land on Welcome.
+- [ ] Any test users created during this? Note them so you can delete
+      post-approval.
+
+**If ANY of the above fails: STOP.** Do not submit. Fix, rebuild, retest
+the upgrade path. Fresh install passing is not enough — that's what
+the pre-Fable v1.0.0 release did.
 
 ---
 
