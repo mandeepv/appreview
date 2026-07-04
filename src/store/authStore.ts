@@ -7,28 +7,21 @@ interface AuthState {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  // isSubscribed is a lightweight mirror of Superwall's subscription status,
+  // used for UI display only (e.g., hide the "Subscribe" button in Settings
+  // when active). It MUST NOT be used to gate access to paid content —
+  // Superwall's usePlacement() with a `feature()` callback is the only correct
+  // gate. See LearnScreen.tsx for the pattern.
   isSubscribed: boolean;
   isDemoUser: boolean;
-  // subscriptionStatusResolved: true once we've received at least one signal
-  // from Superwall about the user's subscription status (ACTIVE / INACTIVE /
-  // definitive UNKNOWN). Screens that gate paid content wait for this before
-  // deciding what to render, so we never flash the paywall to a paying user
-  // during cold-start latency.
-  subscriptionStatusResolved: boolean;
   setUser: (user: User | null) => void;
   setSession: (session: Session | null) => void;
   setIsLoading: (loading: boolean) => void;
   setIsSubscribed: (subscribed: boolean) => void;
-  setSubscriptionStatusResolved: (resolved: boolean) => void;
   setDemoUser: () => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
-
-// Convenient selector used from any screen that gates paid content.
-// See docs/DEMO_MODE.md — demo users MUST always pass this check.
-export const canAccessPaidContent = (state: AuthState): boolean =>
-  state.isSubscribed || state.isDemoUser;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -36,7 +29,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   isSubscribed: false,
   isDemoUser: false,
-  subscriptionStatusResolved: false,
 
   setUser: (user) => set({ user }),
 
@@ -45,8 +37,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
 
   setIsSubscribed: (subscribed) => set({ isSubscribed: subscribed }),
-
-  setSubscriptionStatusResolved: (resolved) => set({ subscriptionStatusResolved: resolved }),
 
   setDemoUser: () => {
     const demoUser = {
@@ -59,13 +49,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } as User;
 
     if (__DEV__) console.log('🎭 Demo mode activated!');
-    // Demo mode must never wait on Superwall. See docs/DEMO_MODE.md.
     set({
       user: demoUser,
       session: null,
       isSubscribed: true,
       isDemoUser: true,
-      subscriptionStatusResolved: true,
     });
   },
 
@@ -77,7 +65,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         session: null,
         isSubscribed: false,
         isDemoUser: false,
-        subscriptionStatusResolved: false,
       });
     } catch (error) {
       if (__DEV__) console.error('Error signing out:', error);
@@ -129,7 +116,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               session: null,
               isSubscribed: false,
               isDemoUser: false,
-              subscriptionStatusResolved: false,
             });
           }
         }

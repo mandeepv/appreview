@@ -33,7 +33,7 @@
     "expo-localization": "~17.0.9",
     "expo-notifications": "~0.32.15",
     "expo-status-bar": "~3.0.9",
-    "expo-superwall": "^1.0.1",
+    "expo-superwall": "1.1.6",
     "expo-web-browser": "~15.0.10",
     "posthog-react-native": "^4.53.3",
     "react": "19.1.0",

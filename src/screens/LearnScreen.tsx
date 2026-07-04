@@ -1,11 +1,14 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { usePostHog } from 'posthog-react-native';
+import { usePlacement } from 'expo-superwall';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
-import { useAuthStore, canAccessPaidContent } from '../store/authStore';
+import { useAuthStore } from '../store/authStore';
+import { safeCapture } from '../lib/analytics';
+import { reportError } from '../config/sentry';
 
 interface LearningModule {
   id: string;
@@ -123,104 +126,95 @@ const learningModules: LearningModule[] = [
   },
 ];
 
+// Mapping of lesson ID to its navigation target. Kept as a plain lookup so the
+// handler doesn't need a giant if/else and unit tests can assert coverage.
+type LessonNavTarget =
+  | { kind: 'flow'; screen: 'Lesson1Screen1' | 'Lesson2Screen1' | 'Lesson3Screen1' | 'Lesson4Screen1' }
+  | { kind: 'screen'; name: keyof RootStackParamList };
+
+const LESSON_NAV: Record<string, LessonNavTarget> = {
+  '1': { kind: 'flow', screen: 'Lesson1Screen1' },
+  '2': { kind: 'flow', screen: 'Lesson2Screen1' },
+  '3': { kind: 'flow', screen: 'Lesson3Screen1' },
+  '4': { kind: 'flow', screen: 'Lesson4Screen1' },
+  '5': { kind: 'screen', name: 'LabelingEmotionsLesson' },
+  '6': { kind: 'screen', name: 'NamingOurEmotionsLesson' },
+  '7': { kind: 'screen', name: 'SprinklersLesson' },
+  '8': { kind: 'screen', name: 'EmotionalSandbagsLesson' },
+  '9': { kind: 'screen', name: 'CommunicationMistakesLesson' },
+  '10': { kind: 'screen', name: 'HelpingSomeoneProcessEmotionsLesson' },
+  '11': { kind: 'screen', name: 'DissociationLesson' },
+  '12': { kind: 'screen', name: 'ServeAndReturnLesson' },
+  '13': { kind: 'screen', name: 'RecordingDeepBondMomentsLesson' },
+};
+
 export default function LearnScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const posthog = usePostHog();
+  const isDemoUser = useAuthStore(state => state.isDemoUser);
 
-  // Subscription gate. See docs/DEMO_MODE.md — demo users MUST always pass.
-  // Fail-open behavior:
-  //   - subscriptionStatusResolved=false → show spinner, don't route (paying
-  //     users on slow networks / cold start are not flashed to paywall)
-  //   - resolved AND canAccessPaidContent → render lessons
-  //   - resolved AND !canAccessPaidContent → bounce back to onboarding Loading
-  //     which re-triggers the Superwall paywall
-  const canAccess = useAuthStore(canAccessPaidContent);
-  const statusResolved = useAuthStore(state => state.subscriptionStatusResolved);
+  // Superwall-owned entitlement gate. usePlacement fires `feature()` ONLY when
+  // Superwall confirms the user has the `pro` entitlement (see Superwall
+  // dashboard: campaign "Onboarding Paywall", placement "show_paywall",
+  // entitlements "Show to unsubscribed users"). Non-entitled users see the
+  // paywall; dismissing it does NOT call `feature()`, so there is no way to
+  // reach lesson content without an active entitlement.
+  const { registerPlacement } = usePlacement({
+    onError: (err) => {
+      const error = new Error(typeof err === 'string' ? err : 'Paywall error');
+      if (__DEV__) console.error('[LearnScreen] paywall error:', err);
+      reportError(error, { screen: 'LearnScreen', context: 'lesson_gate' });
+    },
+  });
 
-  useEffect(() => {
-    if (statusResolved && !canAccess) {
-      if (__DEV__) console.log('[LearnScreen] not entitled — routing to paywall');
-      // Reset navigation up to the parent (OnboardingNavigator) and land on
-      // Loading, which re-triggers the paywall via Superwall's placement.
-      const parent = navigation.getParent();
-      if (parent) {
-        parent.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Loading' }],
-          })
-        );
-      }
+  // Navigate to the actual lesson content. Called only after Superwall has
+  // confirmed the user is entitled (or after demo-mode short-circuit).
+  const navigateToLesson = (moduleId: string) => {
+    const target = LESSON_NAV[moduleId];
+    if (!target) return;
+    if (target.kind === 'flow') {
+      navigation.navigate('LessonFlow', { screen: target.screen });
+    } else {
+      // TypeScript can't narrow the union to a valid navigate() signature here;
+      // the lookup table restricts `name` to known screens on RootStackParamList.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      navigation.navigate(target.name as any);
     }
-  }, [statusResolved, canAccess, navigation]);
+  };
 
-  // While Superwall is still resolving on cold start, show a light spinner
-  // rather than either "no content" or a paywall flash. The 3s app-level
-  // fail-open timer (App.tsx) guarantees this never hangs forever.
-  if (!statusResolved) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
-  // If not entitled, don't render lesson content — the useEffect above is
-  // already redirecting, but this prevents a frame of paid content flashing.
-  if (!canAccess) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
-  const handleModulePress = (moduleId: string) => {
+  const handleModulePress = async (moduleId: string) => {
     const module = learningModules.find((m) => m.id === moduleId);
     posthog.capture('lesson_started', {
       lesson_id: moduleId,
       lesson_title: module?.title ?? null,
       lesson_label: module?.label ?? null,
     });
-    if (moduleId === '1') {
-      // Navigate to Lesson 1
-      navigation.navigate('LessonFlow', { screen: 'Lesson1Screen1' });
-    } else if (moduleId === '2') {
-      // Navigate to Lesson 2
-      navigation.navigate('LessonFlow', { screen: 'Lesson2Screen1' });
-    } else if (moduleId === '3') {
-      // Navigate to Lesson 3
-      navigation.navigate('LessonFlow', { screen: 'Lesson3Screen1' });
-    } else if (moduleId === '4') {
-      // Navigate to Lesson 4
-      navigation.navigate('LessonFlow', { screen: 'Lesson4Screen1' });
-    } else if (moduleId === '5') {
-      // Navigate to Labeling Emotions lesson overview
-      navigation.navigate('LabelingEmotionsLesson');
-    } else if (moduleId === '6') {
-      // Navigate to Naming our Emotions lesson overview
-      navigation.navigate('NamingOurEmotionsLesson');
-    } else if (moduleId === '7') {
-      // Navigate to Sprinklers lesson overview
-      navigation.navigate('SprinklersLesson');
-    } else if (moduleId === '8') {
-      // Navigate to Emotional Sandbags lesson overview
-      navigation.navigate('EmotionalSandbagsLesson');
-    } else if (moduleId === '9') {
-      // Navigate to Communication Mistakes lesson overview
-      navigation.navigate('CommunicationMistakesLesson');
-    } else if (moduleId === '10') {
-      // Navigate to Helping Someone Process Emotions lesson overview
-      navigation.navigate('HelpingSomeoneProcessEmotionsLesson');
-    } else if (moduleId === '11') {
-      // Navigate to Dissociation lesson overview
-      navigation.navigate('DissociationLesson');
-    } else if (moduleId === '12') {
-      // Navigate to Serve and Return lesson overview
-      navigation.navigate('ServeAndReturnLesson');
-    } else if (moduleId === '13') {
-      // Navigate to Recording Deep Bond Moments lesson overview
-      navigation.navigate('RecordingDeepBondMomentsLesson');
+
+    // Demo mode short-circuit — Apple reviewers get direct access with no
+    // Superwall check. See docs/DEMO_MODE.md.
+    if (isDemoUser) {
+      navigateToLesson(moduleId);
+      return;
+    }
+
+    try {
+      await registerPlacement({
+        placement: 'show_paywall',
+        params: { source: 'lesson_tap', lesson_id: moduleId },
+        feature() {
+          // Runs only if user is entitled (already subscribed OR just purchased).
+          // Superwall guarantees this doesn't run on paywall dismiss.
+          if (__DEV__) console.log('[LearnScreen] entitlement confirmed, opening lesson', moduleId);
+          navigateToLesson(moduleId);
+        },
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('registerPlacement failed');
+      if (__DEV__) console.error('[LearnScreen] registerPlacement threw:', error);
+      reportError(error, { screen: 'LearnScreen', context: 'register_placement', lesson_id: moduleId });
+      safeCapture('lesson_gate_error', { lesson_id: moduleId, error: error.message });
+      // Do NOT navigate on failure. Better UX: user taps again. Better safety:
+      // no path to paid content that isn't gated by Superwall.
     }
   };
 
