@@ -1,8 +1,15 @@
-# Demo Mode (7-tap) — Apple Review Compatibility
+# Demo Mode (7-tap) — Apple Review Access
 
-**Purpose:** Give App Store reviewers access to premium content without requiring a real purchase. **This is Apple-mandated behavior** — apps with paywalls must provide reviewers a way to see the paid features, otherwise they're rejected under Guideline 2.1 (Performance) and 3.1.1 (In-App Purchase).
+**Purpose:** Give App Store reviewers access to premium content without requiring a real purchase. Apple requires reviewers be able to test paid features (Guideline 2.1) — but they do NOT mandate any specific mechanism. The 7-tap gesture is our chosen implementation, not Apple's requirement.
 
-**⚠️ Do not remove or modify this without extreme care.** Breaking demo mode = App Store rejection. This doc exists so future changes to auth or subscription enforcement don't accidentally kill it.
+**Correction (Fable review #13, 2026-07-04):** an earlier version of this doc claimed 7-tap was "Apple-mandated." That was wrong. Apple asks for demo credentials in App Review Information; they do NOT ask for a hidden unlock gesture. In fact, hidden functionality that ships to end users is a textbook Guideline 2.3.1 concealment risk. We keep the 7-tap for v1.1.0 because prior submissions have accepted it and it's the least disruptive path for reviewers, but the primary Apple-review testing path documented in App Review Information should be **sandbox purchase**, not the 7-tap. The 7-tap is a fallback.
+
+Why we keep it for now despite the 2.3.1 risk:
+- Kinderwell only supports Sign in with Apple and Continue with Google — no email/password login field where a reviewer could enter credentials. So "provide a demo account" isn't a clean fit.
+- Prior submissions have shipped with 7-tap and been approved.
+- Removing it in v1.1.0 while also making 14+ other changes concentrates risk. Better to remove/replace it in a dedicated later release once we have PostHog data on demo-mode usage.
+
+**⚠️ Do not remove without a plan.** This doc + AuthScreen's setDemoUser flow are the mechanism the reviewer's testing has assumed for prior submissions. Removing without updating App Review Information first WILL cause rejection under 2.1 (unable to test paid features).
 
 ---
 
@@ -21,11 +28,22 @@ After the 7th tap:
 4. Navigation goes to `Loading` screen, which skips the paywall (see `LoadingScreen` flow that checks `isDemoUser`)
 5. User lands in the full app with all paid content unlocked
 
-## Why 7 taps and hidden
+## Why 7 taps
 
-Apple requires reviewer access to paid content but explicitly says the mechanism should NOT be discoverable to normal users. A visible "Demo Mode" button would be a UX crime and Apple would reject it. Hidden tap-count gestures are a well-known industry pattern; it's what reviewers expect.
+The number is arbitrary. Could be 5 or 10. The concealment (hidden vs visible button) was our design choice — Apple does NOT require the mechanism be hidden. Some subscription apps use visible dev-only buttons in `__DEV__` builds and none in prod; some skip demo mode entirely and rely on Apple reviewers doing sandbox purchases (which is what Apple actually documents).
 
-Number 7 is arbitrary — could be 5 or 10. Do NOT change it without updating App Store Connect demo instructions.
+**Do NOT change the number 7 without updating App Store Connect App Review Information notes.** The whole point of the gesture is that the reviewer knows exactly what to do; changing the count breaks their instructions.
+
+## The Guideline 2.3.1 concern
+
+Apple's Guideline 2.3.1 forbids apps from including "hidden or dormant features" that a normal user could discover and use. The 7-tap gesture is arguably an example — a normal user browsing the app who accidentally taps the title 7 times gets free premium. Fable review #13 flagged this as a rejection risk we've been carrying since day 1.
+
+Mitigations:
+1. **PostHog monitoring** (v1.1.0): `authMethod: 'demo'` volume gets tracked. If we see a spike in demo activations (viral discovery), we know to remove the gesture in the next release before Apple notices.
+2. **Primary review path** should point at sandbox purchase, not 7-tap. See `docs/RELEASE_CHECKLIST.md` Phase 9 → App Review Information notes.
+3. **7-tap as fallback** for reviewers who can't or don't want to sandbox-purchase. Still available, still works, but no longer the recommended path.
+
+**Long-term (v1.1.1 or later):** remove the 7-tap entirely once we've verified via PostHog that sandbox-purchase testing works for Apple reviewers. Reassess this decision monthly.
 
 ## Where it's referenced
 
@@ -36,10 +54,17 @@ Number 7 is arbitrary — could be 5 or 10. Do NOT change it without updating Ap
 
 ## What Apple Review Instructions should say
 
-In App Store Connect → App Store tab → App Review Information → Notes, include (or verify already includes):
+In App Store Connect → App Store tab → App Review Information → Notes, include (or verify already includes) BOTH options, with sandbox purchase as the primary path:
 
 > **Reviewer access to premium content:**
-> On the "Save your progress" screen shown at the end of onboarding, tap the title text 7 times consecutively (within a few seconds of each other). An "Activate Demo Mode" prompt will appear. Confirm to gain full access to all premium features without any purchase.
+>
+> **Primary (recommended):** Sign in with Apple, complete onboarding, and at the paywall tap either subscription option. As this is a sandbox review environment, no real payment will be charged. You will gain full access to all premium features.
+>
+> **Fallback (if you cannot complete the sandbox purchase):** On the "Save your progress" screen shown at the end of onboarding, tap the title text 7 times consecutively (within a few seconds of each other). An "Activate Demo Mode" prompt will appear. Confirm to gain full access to all premium features without any purchase.
+>
+> Both paths land you at the LearnScreen with all 13 lesson modules unlocked.
+
+Why both: Apple's Guideline 2.1 requires reviewers can test paid features. Sandbox purchase is Apple's documented testing path for auto-renewing subscription apps. The 7-tap is a Kinderwell-specific fallback for reviewers who prefer not to do the sandbox purchase.
 
 ---
 
