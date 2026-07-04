@@ -27,7 +27,7 @@
 - No schema migration tracking — changes are ad-hoc dashboard SQL
 - No error tracking / crash reporting on prod
 - No automated tests, no CI checks
-- Version numbers spread across 3 files, currently out of sync (`app.json` build 7 vs `Info.plist` build 8)
+- ~~Version numbers spread across 3 files~~ ✅ Managed workflow migration means only `app.json` + `package.json` carry version; `scripts/bump-version.sh` keeps them synced; CI's `version-drift` job enforces on PRs.
 - No branch protection on `main`
 - Backup / restore strategy unverified
 - Same DB password on dev and prod

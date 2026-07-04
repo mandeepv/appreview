@@ -20,8 +20,9 @@ Tag your release **after App Store approval** and before the app goes live (or i
 
 1. **Verify your version and build number**
    ```bash
-   # Check Info.plist for version/build
-   cat ios/Kinderwell/Info.plist | grep -A 1 "CFBundleShortVersionString\|CFBundleVersion"
+   # Managed workflow: version lives in app.json + package.json
+   node -e "console.log('app.json:', require('./app.json').expo.version, 'build', require('./app.json').expo.ios.buildNumber)"
+   node -e "console.log('package.json:', require('./package.json').version)"
    ```
 
 2. **Create the build-specific tag**

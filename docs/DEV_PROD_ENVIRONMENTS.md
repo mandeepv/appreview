@@ -60,7 +60,7 @@ npx expo prebuild --clean --platform ios
 
 The `--clean` flag deletes `ios/` first. Regenerates from current env vars. Then you can `pod install` and open Xcode.
 
-**Version numbers:** since prebuild regenerates project files fresh, `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `project.pbxproj` end up as prebuild defaults (1.0 / 1) — but that doesn't matter, because `Info.plist` embeds actual values from `app.json` at prebuild time. The `bump-version.sh` script updates `app.json` and `Info.plist`, and prebuild reflects them next run.
+**Version numbers:** prebuild regenerates `Info.plist` + `project.pbxproj` from `app.json` on every build. There's nothing to keep in sync inside `ios/`. `bump-version.sh` updates `app.json` (marketing version, `ios.buildNumber`, `android.versionCode`) and `package.json` (marketing version, for git-blame consistency and release metadata). See [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md).
 
 **When to prebuild:** only when you need to inspect / build native locally. EAS builds do this automatically inside their build container.
 
@@ -310,23 +310,31 @@ Before you build for production, do all of the following on dev:
 
 ### Phase 3 — Bump version numbers
 
-Single-source-of-truth violation to fix: right now `app.json`, `package.json`, and `ios/Kinderwell/Info.plist` all track version separately. Update ALL of them:
+Two files, one script. See [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md)
+for the full rules.
 
-1. **`package.json`** — `"version": "1.0.X"`
-2. **`app.json`** — `"version": "1.0.X"` AND `"ios.buildNumber": "N+1"` AND `"android.versionCode": N+1`
-3. **`ios/Kinderwell/Info.plist`** — `CFBundleShortVersionString` (marketing version) AND `CFBundleVersion` (build number, must be > last submitted to App Store)
+```bash
+./scripts/bump-version.sh <new-marketing-version> <new-build-number>
+```
+
+The script updates `app.json` (marketing version + `ios.buildNumber` +
+`android.versionCode`) and `package.json` (marketing version). Refuses
+to run if the two are already drifted (fix manually first). CI's
+`version-drift` job also enforces this on every PR.
 
 Versioning rules:
 - **Marketing version (1.0.X)** — user-visible. Bump for user-visible changes.
   - `1.0.0` → `1.0.1` for bug fixes
   - `1.0.0` → `1.1.0` for new features
   - `1.0.0` → `2.0.0` for major redesigns / breaking changes
-- **Build number** — must strictly increase per submission to App Store Connect. Bump every submission, even for rejected builds. This is why the `RELEASE_PROCESS.md` tracks rejected builds in git tags.
+- **Build number** — must strictly increase per submission to App Store
+  Connect. Bump every submission, even for rejected builds. This is why
+  `RELEASE_PROCESS.md` tracks rejected builds in git tags.
 
-Sanity check the version numbers match:
+Sanity check the versions match:
 ```bash
-grep -E "\"version\"|buildNumber" app.json package.json
-grep -A 1 "CFBundleShortVersionString\|CFBundleVersion" ios/Kinderwell/Info.plist
+node -e "console.log('app.json:', require('./app.json').expo.version, 'build', require('./app.json').expo.ios.buildNumber)"
+node -e "console.log('package.json:', require('./package.json').version)"
 ```
 
 ### Phase 4 — Apply schema migrations to prod (if any)
@@ -539,7 +547,7 @@ Since Kinderwell has real users paying real money, here are things you're NOT do
 2. **Verify prod backups exist and know how to restore.** Free tier Supabase has limited backups — consider upgrading to Pro for point-in-time recovery. Test a restore to dev at least once so you know the process.
 3. **Add error tracking to the app.** Sentry (free tier is generous) or Bugsnag. Right now if a paid user hits a crash, you find out via a 1-star review. Not acceptable for a paid app.
 4. **Set up branch protection on `main`.** GitHub → Settings → Branches → require PR before merge. Even solo, this forces a diff review moment.
-5. **Version bump automation or checklist.** Right now `app.json` says build 7 and `Info.plist` says build 8 — they're out of sync. Either script the bump or add a pre-release checklist step to verify all three agree.
+5. **Version bump automation.** ✅ Done. `scripts/bump-version.sh` updates `app.json` + `package.json` and refuses to run on drift. CI's `version-drift` job enforces on every PR. See [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md).
 
 ### 🟡 Medium priority — next month
 
