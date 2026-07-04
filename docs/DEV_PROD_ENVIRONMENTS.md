@@ -209,9 +209,10 @@ For anything that looks like a breaking change:
 
 1. Create a migration file with `supabase migration new <name>` and write the SQL in it
 2. Apply to **dev** via `supabase db push --linked` (CLI stays linked to dev)
-3. Verify the currently-running app version still works against dev (backward compat check)
-4. Verify the new app changes work against dev
-5. Once confident, apply to prod during release — see "Migration tracking" section below for the full commands.
+3. **Regenerate TypeScript types** with `npm run gen:supabase-types` — writes to `src/types/supabase.ts`. Every `supabase.from('table')` query is typed against this file, so a new/renamed/deleted column becomes a compile error the next time you edit calling code. Regen after every migration or the types drift silently.
+4. Verify the currently-running app version still works against dev (backward compat check)
+5. Verify the new app changes work against dev
+6. Once confident, apply to prod during release — see "Migration tracking" section below for the full commands.
 
 ### Re-syncing dev schema from prod
 
