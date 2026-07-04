@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { usePostHog } from 'posthog-react-native';
 import { SuperwallExpoModule } from 'expo-superwall';
 import { useAuthStore } from '../store/authStore';
@@ -397,8 +398,15 @@ export const SettingsScreen: React.FC = () => {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>Kinderwell v1.0.0</Text>
-          <Text style={styles.appInfoText}>© 2025 Kinderwell</Text>
+          {/* Read from Constants so this stays in sync with app.json — no
+              more hardcoded "v1.0.0" while the app actually shipped 1.1.0
+              (Fable review #14). Copyright year derived from Date so we
+              stop needing to remember to bump it. */}
+          <Text style={styles.appInfoText}>
+            Kinderwell v{Constants.expoConfig?.version ?? '?'}
+            {Constants.expoConfig?.ios?.buildNumber ? ` (${Constants.expoConfig.ios.buildNumber})` : ''}
+          </Text>
+          <Text style={styles.appInfoText}>© {new Date().getFullYear()} Kinderwell</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
