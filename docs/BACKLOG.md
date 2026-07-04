@@ -163,6 +163,32 @@ copy review as a pre-ship checklist item.
 
 ## v1.1.1+ or v1.1.2 — deferred from prod bug hunt
 
+### 9b. Clear ESLint warning backlog 🟢
+
+Adding ESLint (Fable 🟡) surfaced ~200 warnings — mostly
+`@typescript-eslint/no-unused-vars` (destructured-but-unused
+callback args), `react-hooks/refs` (`useRef(new Animated.Value(0)).current`
+pattern), and `react-hooks/exhaustive-deps` on animation effects.
+None are errors; CI now catches new errors but tolerates the
+warning baseline.
+
+Most of the volume lives in duplicated lesson screens under
+`src/screens/sprinklers/` and `src/screens/serveReturn/` — item
+18 (v1.2 lesson data-driven refactor) will collapse those into a
+few shared components, and the warnings vanish with them.
+
+Standalone cleanup (before or after that refactor):
+- Delete truly unused imports flagged by unused-vars
+- For `useRef(new Animated.Value(0)).current`, decide once whether
+  to keep the pattern (and add an eslint-disable-next-line + rule
+  suppression) or switch to `useRef(...).current` reads inside
+  handlers only
+
+**Effort**: 1-2 hours if done standalone; ~0 hours if done as
+part of the lesson refactor (they collapse together).
+
+**Blocks**: nothing. This is hygiene.
+
 ### 10. Revisit removing 7-tap demo mode (Fable review #13)
 
 **Context**: The 7-tap gesture on AuthScreen's "Save your progress"
