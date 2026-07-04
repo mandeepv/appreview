@@ -80,6 +80,41 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
 
     if (result.status === 'has_onboarding') {
       if (__DEV__) console.log('[Auth] returning user, navigating to Root');
+
+      // Clear the local onboarding scratchpad + the has-reached-auth flag.
+      //
+      // Why clear the flag: it was set on this AuthScreen mount (in signup
+      // mode, we call markAuthReached() so the resume-from-Splash flow
+      // treats them as onboarded). But this specific user already had a
+      // Supabase profile — they only got here because we hadn't checked
+      // yet. If we leave the flag set, then after a later logout the
+      // Splash's routing logic sees hasReachedAuth === true and sends them
+      // straight to Auth ('Save your progress') instead of Welcome. That's
+      // the flag leak from Fable review #3.
+      //
+      // Why clear the Zustand scratchpad: the user just rush-tapped through
+      // 15 onboarding screens to reach this sign-in button, and those
+      // answers are still in the local store. We intentionally DO NOT
+      // upsert them to Supabase — the reviewer flagged this as a "silently
+      // discarded" bug but on further review we believe the fresh answers
+      // are lower-quality than the user's real profile row from a prior
+      // session. Overwriting real preferences with quick-tap-throughs is
+      // worse than losing the quick-tap-throughs. Decision documented in
+      // docs/FABLE_LATEST_REVIEW.md.
+      //
+      // Both effects rolled into clearState() which multiRemove's
+      // ONBOARDING_STORAGE_KEY, LAST_SCREEN_KEY, HAS_REACHED_AUTH_KEY and
+      // resets the Zustand slice to initial state.
+      try {
+        await onboardingStore.clearState();
+      } catch (e) {
+        // Non-fatal — the user is signed in and we're routing them to
+        // Root. Log it but don't block them.
+        reportError(e instanceof Error ? e : new Error(String(e)), {
+          context: 'post_signin_clear_state',
+        });
+      }
+
       navigation.replace('Root');
       return;
     }

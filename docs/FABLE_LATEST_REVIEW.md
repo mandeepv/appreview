@@ -98,6 +98,31 @@ Root:
 Regression vs main, where `LoadingScreen` always cleared state
 post-sign-in.
 
+**Response (2026-07-04, Mandeep + Claude):**
+
+Half-agreed, half-disagreed. Both effects addressed in commit that
+follows the review by calling `onboardingStore.clearState()` in
+`handlePostSignin`'s `has_onboarding` branch. `clearState()` wipes
+all three AsyncStorage keys (`ONBOARDING_STORAGE_KEY`,
+`LAST_SCREEN_KEY`, `HAS_REACHED_AUTH_KEY`) and resets the Zustand
+slice to initial state, which:
+
+- ✅ Closes the flag leak. After the next logout, Splash sees
+  `hasReachedAuth() === false` and routes to Welcome, not Auth.
+- ⚠️ Does NOT persist the fresh onboarding answers to Supabase.
+
+We deliberately did not persist. Reviewer's framing implies the
+"silent discard" is a bug; on further reflection, we believe fresh
+answers from a rush-tap-through-to-reach-sign-in are lower quality
+than the user's real profile row from a prior session. Overwriting
+real preferences with quick-tap-throughs is worse than losing the
+quick-tap-throughs.
+
+The right long-term fix is upstream: detect at "Get Started" time
+that a Supabase session exists (or would resolve) and skip onboarding
+entirely for those users. That's the reviewer's approach C — bigger
+refactor, deferred.
+
 ### 4. This branch gated DEAD screens; live lesson 10 may be unreachable — HIGH
 
 - `src/screens/ServeReturnLessonScreen.tsx` — registered in
