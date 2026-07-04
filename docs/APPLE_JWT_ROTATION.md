@@ -24,9 +24,9 @@
 - Apple Team ID: `DX4F38J8H4`
 - Apple Key ID: `8SVB695TG5`
 - Services ID: `com.kinderwell.app.auth`
-- Private key file at: `~/Downloads/AuthKey_8SVB695TG5.p8`
+- Private key file (`AuthKey_8SVB695TG5.p8`) somewhere on your machine — the exact path no longer matters; the script reads it from the `APPLE_P8_PATH` env var (Fable review 🟡 — used to be hardcoded to `~/Downloads/...` on one specific laptop, which broke for anyone else)
 
-If the private key file is missing (you cleaned up Downloads, wiped Mac, etc.), you'll need to generate a NEW key from Apple Developer. See "If you don't have the private key" below.
+If the private key file is missing (you cleaned up its folder, wiped Mac, etc.), you'll need to generate a NEW key from Apple Developer. See "If you don't have the private key" below.
 
 ---
 
@@ -35,9 +35,14 @@ If the private key file is missing (you cleaned up Downloads, wiped Mac, etc.), 
 ### Step 1: Generate a new JWT
 
 ```bash
-cd /Users/mandeepverma/mamalearn
+cd <path-to-mamalearn>
 npm install --no-save jsonwebtoken
-node generate_apple_jwt.js
+APPLE_P8_PATH=<path-to-your-.p8-file> node generate_apple_jwt.js
+```
+
+Example:
+```bash
+APPLE_P8_PATH=~/Downloads/AuthKey_8SVB695TG5.p8 node generate_apple_jwt.js
 ```
 
 Output: a fresh JWT starting `eyJhbGciOi...`. Copy it — you'll paste it into two dashboards.
@@ -77,7 +82,7 @@ Update this doc's "Current JWT expires" line at the top with the new expiry date
 
 ## If you don't have the private key file
 
-If `~/Downloads/AuthKey_8SVB695TG5.p8` is missing, you need to generate a new Sign In with Apple key.
+If the `.p8` file is missing, you need to generate a new Sign In with Apple key.
 
 1. Go to https://developer.apple.com/account → **Certificates, Identifiers & Profiles** → **Keys**
 2. Click **+** to add a new key
@@ -85,11 +90,13 @@ If `~/Downloads/AuthKey_8SVB695TG5.p8` is missing, you need to generate a new Si
 4. Enable **Sign In with Apple** capability → click **Configure** → primary App ID `com.kinderwell.app`
 5. Continue → Register → **Download** the `.p8` file. You can only download it once.
 6. Note the new **Key ID** (10-char string) shown on the download page
-7. Save the `.p8` file somewhere safe (`~/Downloads/` is fine)
+7. Save the `.p8` file somewhere safe (a password manager or secret vault is best; `~/Downloads/` works for a one-off but move it out after)
 8. Update `generate_apple_jwt.js`:
    - `KEY_ID` → new key ID
-   - `fs.readFileSync(...)` → new file path if different
-9. Run `node generate_apple_jwt.js` → new JWT
+9. Run with the new file path:
+   ```bash
+   APPLE_P8_PATH=<new-path>/AuthKey_XXXXXXX.p8 node generate_apple_jwt.js
+   ```
 10. Update Supabase (Step 2 + Step 3 above)
 11. **Optional:** revoke the OLD key at Apple Dev → Keys → click old key → Revoke. Do this only AFTER verifying the new key works.
 
