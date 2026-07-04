@@ -67,15 +67,43 @@ export const getUserOnboardingData = async (userId: string) => {
 };
 
 /**
- * Check if user has completed onboarding
+ * Result of the onboarding-completed check.
+ *
+ * Three distinct outcomes — the reason this is a union and not a boolean:
+ * a transient network error MUST NOT be indistinguishable from "user has no
+ * onboarding data." Fable review #2 caught this — the old
+ * `catch { return false }` classified a network blip as "never onboarded"
+ * and re-onboarded real users, letting a re-run overwrite their real data.
+ * Same error-swallowed-to-default class as the v1.0.0 paywall bypass.
  */
-export const hasUserCompletedOnboarding = async (userId: string): Promise<boolean> => {
+export type OnboardingCheckResult =
+  | { status: 'has_onboarding' }
+  | { status: 'no_onboarding' }
+  | { status: 'error'; error: Error };
+
+/**
+ * Check if user has completed onboarding.
+ *
+ * Callers MUST handle the 'error' status explicitly — do not silently route
+ * to signup on error, or you're back to the bug this fix closes. Show the
+ * user a "couldn't verify your account, please retry" message and let them
+ * try again rather than re-run onboarding over their real data.
+ */
+export const hasUserCompletedOnboarding = async (
+  userId: string,
+): Promise<OnboardingCheckResult> => {
   try {
     const data = await getUserOnboardingData(userId);
     // Consider onboarding complete if user_type exists (minimum required field)
-    return data !== null && data.user_type !== null;
+    if (data !== null && data.user_type !== null) {
+      return { status: 'has_onboarding' };
+    }
+    return { status: 'no_onboarding' };
   } catch (error) {
     if (__DEV__) console.error('Error checking onboarding status:', error);
-    return false;
+    return {
+      status: 'error',
+      error: error instanceof Error ? error : new Error(String(error)),
+    };
   }
 };
