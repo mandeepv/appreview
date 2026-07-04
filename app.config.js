@@ -14,6 +14,24 @@ module.exports = ({ config }) => {
   const androidPackage = process.env.ANDROID_PACKAGE || config.android?.package || 'com.kinderwell.app.dev';
   const appName = process.env.APP_DISPLAY_NAME || config.name || 'Kinderwell Dev';
 
+  // Belt-and-suspenders guard against SKIP_PAYWALL=true accidentally shipping
+  // in a store build. LoadingScreen already gates the runtime path on __DEV__
+  // (Fable review #6), but that only protects if this file gets built —
+  // catching it earlier here fails the EAS build with a clear message the
+  // moment the wrong pairing is even attempted. Pair check is against the
+  // prod bundle ID so it fires for both an accidental production-profile
+  // typo AND a copy-pasted preview profile that reuses prod IDs.
+  const skipPaywall = process.env.SKIP_PAYWALL === 'true';
+  const isProdBundle = iosBundleId === 'com.kinderwell.app' || androidPackage === 'com.kinderwell.app';
+  if (skipPaywall && isProdBundle) {
+    throw new Error(
+      '[app.config.js] REFUSING to build with SKIP_PAYWALL=true and a prod bundle ID. ' +
+      'SKIP_PAYWALL is a dev-only test convenience; combined with a prod build it would ' +
+      'ship a revenue-free App Store binary. Fix eas.json (production profile) or unset ' +
+      'the env var.',
+    );
+  }
+
   // Supabase host used for universal / app links (must match the project the
   // dev/prod build talks to). Falls back to DEV Supabase if the env var
   // isn't set.
