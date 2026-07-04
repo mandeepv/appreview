@@ -262,23 +262,29 @@ export const signOut = async () => {
  */
 export const deleteAccount = async () => {
   try {
-    // Get the current session token
-    const { data: { session } } = await supabase.auth.getSession();
+    // Force a session refresh before invoking. Historically we passed
+    // `Authorization: Bearer ${session.access_token}` manually, which used the
+    // CACHED access token from getSession() — if it had expired (default 1 h),
+    // Supabase's Edge Function JWT verify layer would reject the request with
+    // a 401 BEFORE the function ran, so no server-side logs appeared. Refresh
+    // first so the Supabase client's internal Authorization header carries a
+    // fresh token, and then let functions.invoke() attach it automatically —
+    // don't override the header.
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
 
-    if (!session) {
-      throw new Error('No active session');
+    if (refreshError || !refreshData.session) {
+      const err = new Error(`Session refresh failed: ${refreshError?.message ?? 'no session'}`);
+      reportError(err, { context: 'delete_account_refresh' });
+      throw err;
     }
 
-    // Call the Edge Function to delete the account
-    // The Edge Function uses the service role key to delete the auth user
-    const { data, error } = await supabase.functions.invoke('delete-account', {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
-    });
+    const { data, error } = await supabase.functions.invoke('delete-account');
 
     if (error) {
       if (__DEV__) console.error('Edge Function error:', error);
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        context: 'delete_account_invoke',
+      });
       throw error;
     }
 
@@ -288,6 +294,8 @@ export const deleteAccount = async () => {
     await signOut();
   } catch (error) {
     if (__DEV__) console.error('Error deleting account:', error);
+    // Reported above at the site of the specific failure; re-throw so
+    // SettingsScreen can show the user-facing alert.
     throw error;
   }
 };
