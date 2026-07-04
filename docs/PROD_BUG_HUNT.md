@@ -60,14 +60,25 @@ Notes:
   we don't need to duplicate it.
 
 ### 1.2 Google Sign-In (existing account, from Welcome)
-- [ ] Force-quit + delete app data (or delete account first)
-- [ ] Reinstall from App Store
-- [ ] Open → Welcome → "I already have an account" → Continue with Google
-- [ ] Same email as 1.1
-- [ ] Expected: lands at Root (LearnScreen), NOT onboarding
-- [ ] 🔴 bug if goes to onboarding
+- [x] Force-quit + delete app data (or delete account first)
+- [x] Reinstall from App Store
+- [x] Open → Welcome → "I already have an account" → Continue with Google
+- [x] Same email as 1.1
+- [x] Expected: lands at Root (LearnScreen), NOT onboarding
+- [x] 🔴 bug if goes to onboarding
 
 Notes:
+- 2026-07-04, Mandeep. Sign-in worked as expected — Welcome → I
+  already have an account → Continue with Google → briefly saw
+  "Welcome back" → LearnScreen. No re-onboarding, no data loss. ✅
+- 🟡 iOS OAuth system dialog reads "supabase.co wants to sign in"
+  instead of "kinderwell.com". Trust/polish issue, not a bug. Deferred
+  to v1.2 — needs Supabase custom auth domain + DNS setup. Added to
+  V1.2_LATER.md.
+- Observation about paywall: Mandeep saw paywall on first-launch
+  after sign-up (1.1), force-quit, reopened → LearnScreen with free
+  access. This is the same paywall-bypass money leak we already fixed
+  for v1.1.0 (via useLessonGate hook). No re-verification needed.
 
 ### 1.3 Apple Sign-Up (fresh account)
 - [ ] Same as 1.1 but with Apple ID that's never signed into Kinderwell
