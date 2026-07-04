@@ -44,7 +44,9 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleSignIn = () => {
     trackWelcomeCtaTapped('sign_in');
-    navigation.navigate('SignIn');
+    // Enter Auth in signin mode — same auth code path, different copy and
+    // post-signin routing. See OnboardingStackParamList.Auth for details.
+    navigation.navigate('Auth', { mode: 'signin' });
   };
 
   return (

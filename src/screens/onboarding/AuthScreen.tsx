@@ -9,13 +9,14 @@ import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useAuthStore } from '../../store/authStore';
 import { signInWithGoogle, signInWithApple } from '../../services/authService';
+import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { Colors } from '../../constants/theme';
 import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned } from '../../lib/analytics';
 import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
 
-export const AuthScreen: React.FC<Props> = ({ navigation }) => {
+export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   const onboardingStore = useOnboardingStore();
   const { setAuthMethod, markAuthReached } = onboardingStore;
   const { setUser, setSession, setDemoUser } = useAuthStore();
@@ -25,18 +26,56 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   const [tapCount, setTapCount] = useState(0);
   const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Mark that user has reached the auth screen (completed onboarding)
+  // Two entry paths, one code path:
+  //   'signup' (default): user reached here from end-of-onboarding. Their
+  //     answers are in onboardingStore and need to be persisted after signin.
+  //     Post-signin routes to Loading (which saves onboarding + shows paywall).
+  //   'signin': user tapped "I already have an account" on Welcome. No
+  //     onboarding answers to save. Post-signin routes to Root if they've
+  //     completed onboarding before, or UserType to start fresh if not.
+  const mode: 'signin' | 'signup' = route.params?.mode ?? 'signup';
+  const userTypeAnalytics: 'new' | 'returning' = mode === 'signin' ? 'returning' : 'new';
+
+  // Only mark auth-reached for signup mode — this flag gates the resume-into-
+  // Auth path on next launch. Marking it for signin-first users would break
+  // that resume logic.
   useEffect(() => {
-    markAuthReached();
-    posthog.capture('onboarding_completed');
-  }, []);
+    if (mode === 'signup') {
+      markAuthReached();
+      posthog.capture('onboarding_completed');
+    }
+  }, [mode]);
+
+  // Post-signin routing shared by both providers. Prefers routing to Root
+  // for anyone whose account already has completed onboarding data — no
+  // matter which mode they entered from. That's what fixes the "clicked
+  // 'already have account' but got sent to onboarding" bug.
+  const handlePostSignin = async (userId: string) => {
+    const hasOnboarding = await hasUserCompletedOnboarding(userId);
+    if (hasOnboarding) {
+      if (__DEV__) console.log('[Auth] returning user, navigating to Root');
+      navigation.replace('Root');
+    } else if (mode === 'signup') {
+      // Signup flow — their onboarding answers are in the Zustand store,
+      // Loading will persist them + fire the paywall.
+      if (__DEV__) console.log('[Auth] new user from signup flow, navigating to Loading');
+      navigation.replace('Loading');
+    } else {
+      // Signin flow but no onboarding on record — must be a NEW user who
+      // clicked "I already have an account" by mistake, OR a user who signed
+      // up on a different device and hasn't done onboarding here. Either
+      // way, run them through onboarding.
+      if (__DEV__) console.log('[Auth] signin mode with no onboarding — starting onboarding');
+      navigation.replace('UserType');
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
       setLoadingProvider('google');
       setAuthMethod('google');
-      trackAuthAttempted('google', 'new_user');
+      trackAuthAttempted('google', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user');
 
       const session = await signInWithGoogle();
 
@@ -46,20 +85,18 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore);
         posthog.capture('user_signed_in', {
           auth_method: 'google',
-          user_type: 'new',
+          user_type: userTypeAnalytics,
         });
-        // First-time user completing onboarding - go through Loading screen
-        // Loading screen will save onboarding data to Supabase
-        navigation.navigate('Loading');
+        await handlePostSignin(session.user.id);
       } else {
         // User cancelled or something went wrong
-        trackAuthAbandoned('google', 'new_user', 'no_session_returned');
+        trackAuthAbandoned('google', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user', 'no_session_returned');
         setIsLoading(false);
         setLoadingProvider(null);
       }
     } catch (error: any) {
       if (__DEV__) console.error('Google sign-in error:', error);
-      trackAuthAbandoned('google', 'new_user', 'error');
+      trackAuthAbandoned('google', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user', 'error');
       posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
         auth_method: 'google',
         screen: 'AuthScreen',
@@ -80,7 +117,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
       setIsLoading(true);
       setLoadingProvider('apple');
       setAuthMethod('apple');
-      trackAuthAttempted('apple', 'new_user');
+      trackAuthAttempted('apple', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user');
 
       const session = await signInWithApple();
 
@@ -90,18 +127,18 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
         identifyUserWithOnboarding(session.user.id, session.user.email, onboardingStore);
         posthog.capture('user_signed_in', {
           auth_method: 'apple',
-          user_type: 'new',
+          user_type: userTypeAnalytics,
         });
-        navigation.navigate('Loading');
+        await handlePostSignin(session.user.id);
       } else {
         // User cancelled
-        trackAuthAbandoned('apple', 'new_user', 'no_session_returned');
+        trackAuthAbandoned('apple', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user', 'no_session_returned');
         setIsLoading(false);
         setLoadingProvider(null);
       }
     } catch (error: any) {
       if (__DEV__) console.error('Apple sign-in error:', error);
-      trackAuthAbandoned('apple', 'new_user', 'error');
+      trackAuthAbandoned('apple', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user', 'error');
       posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
         auth_method: 'apple',
         screen: 'AuthScreen',
@@ -154,17 +191,22 @@ export const AuthScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <OnboardingContainer
       currentStep={15}
-      showBackButton={false}
+      showBackButton={mode === 'signin'}
+      onBack={mode === 'signin' ? () => navigation.goBack() : undefined}
       scrollable={true}
     >
       <View style={styles.container}>
         <View style={styles.content}>
           <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.8}>
-            <Text style={styles.title}>Save your progress</Text>
+            <Text style={styles.title}>
+              {mode === 'signin' ? 'Welcome back' : 'Save your progress'}
+            </Text>
           </TouchableOpacity>
 
           <Text style={styles.description}>
-            We'll save your preferences and progress securely.
+            {mode === 'signin'
+              ? 'Sign in to continue your parenting journey.'
+              : "We'll save your preferences and progress securely."}
           </Text>
         </View>
 
