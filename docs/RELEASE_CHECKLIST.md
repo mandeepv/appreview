@@ -259,7 +259,7 @@ the pre-Fable v1.0.0 release did.
 - [ ] Fill out App Store Connect submission:
   - What to test (TestFlight notes)
   - What's new (user-facing release notes)
-  - Demo account credentials — reference [`DEMO_MODE.md`](./DEMO_MODE.md). Reviewer instructions: "On the 'Save your progress' screen at the end of onboarding, tap the title text 7 times consecutively to activate Demo Mode."
+  - Demo access instructions — see [`DEMO_MODE.md`](./DEMO_MODE.md) → "What Apple Review Instructions should say" for the exact text. Use BOTH the sandbox-purchase primary path AND the 7-tap fallback. Sandbox purchase is Apple's documented testing path for auto-renewing subscriptions; 7-tap is our Kinderwell-specific fallback. Fable review #13 corrected the prior "Apple-mandated" framing in DEMO_MODE.md and recommends leading with sandbox purchase.
   - Screenshots up to date? If UI changed, update them
 - [ ] **Version Release** section → select **"Manually release this version"** (NOT "Automatically release"). Prevents the app from going live the second Apple approves it — you'll click a button when YOU'RE ready (early morning, low-traffic window, after final smoke test on prod build).
 - [ ] **Phased Release for Automatic Updates** section → toggle **ON** (**"Release update over a 7-day period using phased release"**). Apple auto-rolls out over 7 days — ~1% day 1, ~2% day 2, etc. If crashes / bad reviews spike in the first days, you pause the rollout and only ~10% of users saw the bad build.

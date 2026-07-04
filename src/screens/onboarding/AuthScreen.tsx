@@ -242,6 +242,11 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
     // Activate demo mode after 7 taps
     if (newTapCount >= 7) {
       setTapCount(0);
+      // Track activation volume. Fable review #13 flagged that we need to
+      // monitor this in prod — expected ~1-5 activations/week (Apple
+      // reviewers only). A spike means end users have discovered the
+      // gesture and we should remove it before Apple notices in review.
+      posthog.capture('demo_mode_activated');
       Alert.alert(
         'Demo Mode Activated',
         'You now have full access to all premium features for review purposes.',
