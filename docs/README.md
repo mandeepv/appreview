@@ -41,10 +41,19 @@ Everything process-related lives in this folder. If you're looking for how to do
 | `VERSION_MANAGEMENT.md` | Version + build number rules + bump script | ✅ Every release |
 | `APPLE_JWT_ROTATION.md` | 6-month Apple JWT rotation | ✅ Every 6 months |
 | `PRODUCT_ROADMAP.md` | Feature and experiment queue | ✅ Ongoing |
+| `DEMO_MODE.md` | 7-tap Apple reviewer bypass invariants | ✅ Read before touching auth or subscription code |
 | `SETUP_GUIDE.md` | Supabase + Superwall setup | 🔧 New machine only |
 | `STOREKIT_SETUP_GUIDE.md` | StoreKit Xcode setup + sandbox Apple ID | 🔧 New machine only |
 | `Branding.md` | Design principles | 📖 Reference |
 | `DEV_SETUP_LOG_2026-07-01.md` | Point-in-time setup receipt (will be archived after Saturday tests) | 🕰️ Temporary |
+| `FABLE_REVIEW.md` | First external code review (2026-06) — findings with status markers | 📚 Historical / reference |
+| `FABLE_LATEST_REVIEW.md` | Second external code review (2026-07-04) — findings and our responses | 📚 Historical / reference |
+| `FABLE_LATEST_REVIEW_STATUS.md` | Live tracker of Fable Latest Review item status | ✅ While addressing review items |
+| `IPHONE_TEST_PLAN_V1.1.0.md` | Manual smoke test plan for v1.1.0 on iPhone XR | ✅ Before every release (adversarial tests should fold into RELEASE_CHECKLIST — see Fable review 🟡 doc/process item) |
+| `PROD_BUG_HUNT.md` | 2026-07-04 systematic prod v1.0.0 bug hunt notes | 📚 Historical / reference for what shipped broken in v1.0.0 |
+| `V1.1.1_ONBOARDING_POLISH.md` | Deferred onboarding UX polish for v1.1.1 | ⏭️ Deferred work backlog (candidate to merge into a single BACKLOG.md per Fable review 🟡) |
+| `V1.1.1_PLUS.md` | Deferred post-shipping items surfaced during v1.1.0 work | ⏭️ Deferred work backlog |
+| `V1.2_LATER.md` | Deferred long-term items | ⏭️ Deferred work backlog |
 
 ## What lives at the repo root (not here)
 

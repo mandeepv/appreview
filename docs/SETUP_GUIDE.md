@@ -347,66 +347,83 @@ USING (auth.uid() = id);
 
 ## Part 5: Install Dependencies & Configure App
 
-### Step 1: Install Required Packages
+**Note (Fable review 🟡):** the prior version of this section taught
+`react-native-dotenv` + the `@env` module + a Babel plugin. That
+approach was abandoned when we adopted Expo's managed workflow. We now
+read env vars via `expo-constants` + `app.config.js` — env vars from
+`.env` (local dev) or `eas.json` per-profile `env` (EAS builds) get
+baked into `Constants.expoConfig.extra` at build time. There is no
+Babel plugin, no `@env` module, no `react-native-dotenv` in
+`package.json`.
 
-Run these commands in your terminal:
+Additionally, the old Superwall package (`@superwall/react-native-superwall`)
+is not what we use. The correct package is `expo-superwall` (the
+official Expo SDK).
+
+### Step 1: Install required packages
+
+If you're doing a fresh setup (not just adding features to the
+existing repo), install:
 
 ```bash
-# Navigate to project
-cd /Users/mandeepverma/mamalearn
+cd <path-to-mamalearn>
 
-# Install Supabase
+# Core deps — Supabase + auth flow helpers
 npm install @supabase/supabase-js
+npx expo install expo-auth-session expo-crypto expo-web-browser expo-apple-authentication
+npx expo install @react-native-async-storage/async-storage
 
-# Install Superwall
-npm install @superwall/react-native-superwall
+# Superwall (NOT @superwall/react-native-superwall — that's the legacy
+# React Native package. expo-superwall is the current Expo SDK).
+npm install expo-superwall
 
-# Install environment variables
-npm install react-native-dotenv
-
-# Install additional auth dependencies
-npx expo install expo-auth-session expo-crypto expo-web-browser
+# Analytics + observability
+npm install posthog-react-native
+npm install @sentry/react-native
 ```
 
-### Step 2: Configure Babel for Environment Variables
+If you're working in the existing repo, all of these are already in
+`package.json`. Run `npm install` after cloning.
 
-Your `babel.config.js` should include:
+### Step 2: Environment variables — where they come from
 
-```javascript
-module.exports = function(api) {
-  api.cache(true);
-  return {
-    presets: ['babel-preset-expo'],
-    plugins: [
-      ['module:react-native-dotenv', {
-        moduleName: '@env',
-        path: '.env',
-      }]
-    ]
-  };
-};
-```
+Env vars used at runtime (Supabase URL, Supabase anon key, Superwall
+API key, PostHog project token, Sentry DSN) live in one of two places:
 
-### Step 3: Create TypeScript Types for .env
+- **Local dev:** `.env` in the repo root (git-ignored, use
+  `.env.example` as a template). `app.config.js` reads
+  `process.env.*` at build time and copies the values into
+  `Constants.expoConfig.extra`.
+- **EAS builds (dev / preview / prod):** `eas.json`'s per-profile
+  `env` block. Same code path — `app.config.js` reads
+  `process.env.*` at prebuild inside the EAS container.
 
-Create `src/types/env.d.ts`:
+There is no Babel plugin, no `@env` module. Access env vars at
+runtime like:
 
 ```typescript
-declare module '@env' {
-  export const SUPABASE_URL: string;
-  export const SUPABASE_ANON_KEY: string;
-  export const SUPERWALL_API_KEY: string;
-}
+import Constants from 'expo-constants';
+const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl;
 ```
 
-### Step 4: Create Supabase Client
+For env vars specifically involved in dev/prod separation, see
+`docs/DEV_PROD_ENVIRONMENTS.md` — it covers the two-project
+(kinderwell-dev + kinderwell) setup and how `app.config.js` maps
+env vars to bundle IDs.
 
-We'll create this in the implementation phase, but the file will be:
-`src/lib/supabase.ts`
+### Step 3: Client setup
 
-### Step 5: Initialize Superwall
+The Supabase client, PostHog client, Sentry init, and Superwall
+provider are all wired up already:
 
-We'll add Superwall initialization to `App.tsx` during implementation.
+- `src/lib/supabase.ts` — Supabase client with structural guards for
+  dev/prod separation
+- `src/config/posthog.ts` — PostHog client with environment super-property
+- `src/config/sentry.ts` — Sentry init with release + dist tagging
+- `App.tsx` — SuperwallProvider wraps the app
+
+No further code integration needed. Focus on the credentials
+(Parts 1-4 above) and env var wiring (Step 2).
 
 ---
 
