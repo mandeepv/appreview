@@ -100,10 +100,12 @@ Notes:
 - Phantom "boy" gender bug reproduces here too — same fix as 1.1.
 
 ### 1.4 Apple Sign-In (existing account, from Welcome)
-- [ ] Same as 1.2 but Apple
-- [ ] Expected: lands at Root
+- [x] Same as 1.2 but Apple
+- [x] Expected: lands at Root
 
 Notes:
+- 2026-07-04, Mandeep. Log Out → Welcome → "I already have an
+  account" → Sign in with Apple → Face ID → LearnScreen. All ✅.
 
 ### 1.5 Sign in with Apple when NO account exists (the bug you found)
 - [ ] Fresh Apple ID that has NEVER signed into Kinderwell
