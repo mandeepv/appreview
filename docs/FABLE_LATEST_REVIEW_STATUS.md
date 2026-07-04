@@ -76,7 +76,7 @@ work through the review.
 | Add ESLint + lint CI job | ⬜ | Open — ~30 min |
 | First Jest unit tests (`isBelowMinimumBuild`, `hasUserCompletedOnboarding` error, `LESSON_NAV` coverage) | ⬜ | Open — real ROI but needs infrastructure setup |
 | v1.2 data-driven lesson refactor | ⬜ | Open — big refactor, v1.2 as reviewer noted |
-| Dedupe `handleGoogleSignIn`/`handleAppleSignIn`, type navigator params, centralize AsyncStorage keys, note lesson progress survives delete | ⬜ | Open — batch of small hygiene items |
+| Dedupe `handleGoogleSignIn`/`handleAppleSignIn`, type navigator params, centralize AsyncStorage keys, note lesson progress survives delete | ⚠️ | Sign-in handler dedupe done (this commit — extracted `runProviderSignIn`, ~45 duplicated lines removed). Navigator param typing, AsyncStorage-keys constant, delete-account doc note still open. |
 
 ---
 
@@ -116,11 +116,11 @@ Left unchanged, per reviewer's audit:
 | 🟠 Pre-submission | 6 | 4 | 2 | 0 | 0 |
 | 🟡 Environment/infra | 6 | 3 | 0 | 0 | 3 |
 | 🟡 Security | 8 | 5 | 0 | 0 | 3 |
-| 🟡 Quality/testing | 5 | 0 | 0 | 0 | 5 |
+| 🟡 Quality/testing | 5 | 0 | 1 | 0 | 4 |
 | 🟡 Docs/process | 6 | 3 | 1 | 0 | 2 |
-| **Total** | **39** | **21** | **5** | **0** | **13** |
+| **Total** | **39** | **21** | **6** | **0** | **12** |
 
-**Done or partial**: 26 of 39 (67%). All 🔴 and 🟠 blockers addressed in code. 13 open items are all 🟡 hardening.
+**Done or partial**: 27 of 39 (69%). All 🔴 and 🟠 blockers addressed in code. 12 open items are all 🟡 hardening.
 
 Note (2026-07-05): 🟡 Docs/process count grew from 4 to 6 because two
 items I'd previously conflated got split — the "kill duplicated

@@ -8,6 +8,7 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useAuthStore } from '../../store/authStore';
+import type { Session } from '@supabase/supabase-js';
 import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { Colors } from '../../constants/theme';
@@ -146,89 +147,57 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  // Shared provider sign-in body. Google and Apple flows were identical
+  // apart from the provider tag and which signIn* service to call —
+  // extracted to a single helper (Fable review 🟡 dedupe).
+  const runProviderSignIn = async (
+    provider: 'google' | 'apple',
+    doSignIn: () => Promise<Session | null>,
+    userLabel: 'Google' | 'Apple',
+  ) => {
+    const attemptedContext = userTypeAnalytics === 'new' ? 'new_user' : 'returning_user';
     try {
       setIsLoading(true);
-      setLoadingProvider('google');
-      setAuthMethod('google');
-      trackAuthAttempted('google', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user');
+      setLoadingProvider(provider);
+      setAuthMethod(provider);
+      trackAuthAttempted(provider, attemptedContext);
 
-      const session = await signInWithGoogle();
+      const session = await doSignIn();
 
       if (session) {
         setUser(session.user);
         setSession(session);
         identifyUserWithOnboarding(session.user.id, onboardingStore, mode);
         posthog.capture('user_signed_in', {
-          auth_method: 'google',
+          auth_method: provider,
           user_type: userTypeAnalytics,
         });
         await handlePostSignin(session.user.id);
       } else {
-        // User cancelled or something went wrong
-        trackAuthAbandoned('google', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user', 'no_session_returned');
+        trackAuthAbandoned(provider, attemptedContext, 'no_session_returned');
         setIsLoading(false);
         setLoadingProvider(null);
       }
     } catch (error: any) {
-      if (__DEV__) console.error('Google sign-in error:', error);
-      trackAuthAbandoned('google', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user', 'error');
+      if (__DEV__) console.error(`${userLabel} sign-in error:`, error);
+      trackAuthAbandoned(provider, attemptedContext, 'error');
       posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
-        auth_method: 'google',
+        auth_method: provider,
         screen: 'AuthScreen',
       });
-      reportError(error, { auth_method: 'google', screen: 'AuthScreen' });
+      reportError(error, { auth_method: provider, screen: 'AuthScreen' });
       setIsLoading(false);
       setLoadingProvider(null);
       Alert.alert(
         'Sign In Failed',
-        error.message || 'Could not sign in with Google. Please try again.',
+        error.message || `Could not sign in with ${userLabel}. Please try again.`,
         [{ text: 'OK' }]
       );
     }
   };
 
-  const handleAppleSignIn = async () => {
-    try {
-      setIsLoading(true);
-      setLoadingProvider('apple');
-      setAuthMethod('apple');
-      trackAuthAttempted('apple', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user');
-
-      const session = await signInWithApple();
-
-      if (session) {
-        setUser(session.user);
-        setSession(session);
-        identifyUserWithOnboarding(session.user.id, onboardingStore, mode);
-        posthog.capture('user_signed_in', {
-          auth_method: 'apple',
-          user_type: userTypeAnalytics,
-        });
-        await handlePostSignin(session.user.id);
-      } else {
-        // User cancelled
-        trackAuthAbandoned('apple', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user', 'no_session_returned');
-        setIsLoading(false);
-        setLoadingProvider(null);
-      }
-    } catch (error: any) {
-      if (__DEV__) console.error('Apple sign-in error:', error);
-      trackAuthAbandoned('apple', userTypeAnalytics === 'new' ? 'new_user' : 'returning_user', 'error');
-      posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
-        auth_method: 'apple',
-        screen: 'AuthScreen',
-      });
-      reportError(error, { auth_method: 'apple', screen: 'AuthScreen' });
-      setIsLoading(false);
-      setLoadingProvider(null);
-      Alert.alert(
-        'Sign In Failed',
-        error.message || 'Could not sign in with Apple. Please try again.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
+  const handleGoogleSignIn = () => runProviderSignIn('google', signInWithGoogle, 'Google');
+  const handleAppleSignIn = () => runProviderSignIn('apple', signInWithApple, 'Apple');
 
   const handleTitlePress = () => {
     // Clear existing timer
