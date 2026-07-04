@@ -125,6 +125,34 @@ stale.
 
 ---
 
+## Phase 7.5: Superwall dashboard verification (submission blocker)
+
+Superwall paywalls live outside the repo and can drift silently between
+releases. Verify these BEFORE submitting to Apple — a misconfigured
+paywall is a real 3.1.2 rejection vector (see Fable review #10).
+
+For EVERY paywall the app can present (currently: `show_paywall` from
+LoadingScreen, `learn_access` from useLessonGate) verify in the
+Superwall dashboard:
+
+- [ ] **Dismiss control present** — X button, "Not now" link, or
+      Modal/Sheet presentation style that allows swipe-down.
+      Apple guideline 3.1.2 requires this. Prod v1.0.0's paywall
+      shipped without a dismiss control — real rejection risk that
+      slipped past prior submissions and must not slip past again.
+- [ ] **Visible price** with billing period ("$12.99/month",
+      "$69.99/year")
+- [ ] **Terms of Use (EULA) link** working, opens the right URL
+- [ ] **Privacy Policy link** working, opens the right URL
+- [ ] **Restore Purchases** button/link present (required by 3.1.1)
+
+For the Gated paywall specifically (`learn_access`):
+- [ ] Placement config: audience = All Users, entitlements =
+      unsubscribed, Feature Gating = **Gated** (not Non-Gated)
+- [ ] Paywall assigned: "Calorie Tracker - Gated" template (100%)
+
+---
+
 ## Phase 8: Test the production build
 
 - [ ] Confirm build shows up in App Store Connect → Kinderwell → TestFlight → Internal Testing → **Homies** group (has 3 testers: `mandeepv98@gmail.com`, `kinderwelltry1@gmail.com`, `jacobf1607@gmail.com`)
