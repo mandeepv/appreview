@@ -18,7 +18,7 @@ import { deleteAccount } from '../services/authService';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 
 export const SettingsScreen: React.FC = () => {
-  const { user, signOut, isDemoUser } = useAuthStore();
+  const { user, signOut, isDemoUser, isSubscribed } = useAuthStore();
   const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -147,38 +147,31 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone. All your progress and data will be permanently deleted.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          onPress: () => confirmDeleteAccount(),
-          style: 'destructive',
-        },
-      ]
-    );
-  };
+    // Single, clear confirmation. Previously we had a two-step "Are you
+    // sure? / Are you REALLY sure?" pattern which was theatrical, not
+    // informative — added friction without adding clarity. This alert
+    // lists actual consequences and, if the user is subscribed, warns
+    // them that Apple will keep billing until they cancel in App Store
+    // Settings. Required by App Store guideline 5.1.1(v).
+    const subscriptionWarning = isSubscribed
+      ? '\n\n⚠️ Your Kinderwell subscription is billed by Apple and will continue after account deletion. To stop billing, cancel your subscription in Settings → Apple ID → Subscriptions BEFORE deleting.'
+      : '';
 
-  const confirmDeleteAccount = () => {
     Alert.alert(
-      'Final Confirmation',
-      'This is your last chance. Are you absolutely sure you want to delete your account and all data?',
+      'Delete your account?',
+      `This permanently deletes your Kinderwell account and all your data (progress, preferences, children). This cannot be undone.${subscriptionWarning}`,
       [
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes, Delete Everything',
+          text: 'Delete Account',
+          style: 'destructive',
           onPress: async () => {
             try {
               setIsLoading(true);
-              posthog.capture('account_deleted', { is_demo_user: isDemoUser });
+              posthog.capture('account_deleted', {
+                is_demo_user: isDemoUser,
+                was_subscribed: isSubscribed,
+              });
               if (isDemoUser) {
                 // Demo users have no Supabase session — just sign out
                 posthog.reset();
@@ -187,7 +180,7 @@ export const SettingsScreen: React.FC = () => {
                 await deleteAccount();
                 posthog.reset();
                 Alert.alert(
-                  'Account Deleted',
+                  'Account deleted',
                   'Your account and all data have been deleted.',
                   [{ text: 'OK' }]
                 );
@@ -203,7 +196,6 @@ export const SettingsScreen: React.FC = () => {
               setIsLoading(false);
             }
           },
-          style: 'destructive',
         },
       ]
     );
