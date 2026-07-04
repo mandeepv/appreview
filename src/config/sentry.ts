@@ -1,14 +1,11 @@
 import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
+import { env as environment } from '../lib/env';
 
-// Derive environment from Supabase URL (same pattern as PostHog — single
-// Sentry project, filter by `environment` tag in the Sentry dashboard).
-const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl as string | undefined;
-const projectRef = supabaseUrl?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
-const environment: 'dev' | 'prod' | 'unknown' =
-  projectRef === 'zqwzdyjfxytvedghujsd' ? 'prod'
-    : projectRef === 'xbkkjqvbsnroenqlqkmi' ? 'dev'
-      : 'unknown';
+// `environment` is imported from ../lib/env — single source of truth for
+// dev/prod detection (Fable review 🟡, previously duplicated in sentry.ts /
+// posthog.ts / supabase.ts). Filter Sentry dashboards by `environment` to
+// see only prod errors.
 
 const dsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
 const isSentryConfigured = Boolean(dsn && dsn.startsWith('https://'));

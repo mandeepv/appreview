@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { projectRef, isProd as isProdRef, isDev as isDevRef } from './env';
 
 const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl;
 const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey;
@@ -29,10 +30,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Supabase project ref. Bundle ID is baked at build time (managed workflow,
 // via IOS_BUNDLE_ID env in eas.json → app.config.js), so a mismatch here
 // means eas.json's SUPABASE_URL and IOS_BUNDLE_ID got out of sync.
-
-const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
-const isProdRef = projectRef === 'zqwzdyjfxytvedghujsd';
-const isDevRef = projectRef === 'xbkkjqvbsnroenqlqkmi';
+//
+// projectRef, isProdRef, isDevRef come from ./env — single source of truth
+// (Fable review 🟡, previously duplicated in supabase.ts / posthog.ts /
+// sentry.ts).
 
 const bundleId = (
   Constants.expoConfig?.ios?.bundleIdentifier

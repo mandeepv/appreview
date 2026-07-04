@@ -1,19 +1,15 @@
 import PostHog from 'posthog-react-native'
 import Constants from 'expo-constants'
+import { env as environment } from '../lib/env'
 
 const apiKey = Constants.expoConfig?.extra?.posthogProjectToken as string | undefined
 const host = (Constants.expoConfig?.extra?.posthogHost as string) || 'https://us.i.posthog.com'
 const isPostHogConfigured = apiKey && apiKey !== 'phc_your_project_token_here'
 
-// Derive environment from the Supabase URL — matches whichever backend the app
-// is talking to. Every PostHog event will be tagged with this so we can filter
-// dev vs prod in the shared PostHog project.
-const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl as string | undefined
-const projectRef = supabaseUrl?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
-const environment: 'dev' | 'prod' | 'unknown' =
-  projectRef === 'zqwzdyjfxytvedghujsd' ? 'prod'
-    : projectRef === 'xbkkjqvbsnroenqlqkmi' ? 'dev'
-      : 'unknown'
+// `environment` is imported from ../lib/env — single source of truth for
+// dev/prod detection (Fable review 🟡, previously duplicated in posthog.ts /
+// sentry.ts / supabase.ts). Every PostHog event will be tagged with this so
+// we can filter dev vs prod in the shared PostHog project.
 
 if (!isPostHogConfigured) {
   console.warn(
