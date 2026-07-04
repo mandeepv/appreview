@@ -155,8 +155,19 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   }, [user, isDemoUser]);
 
   const showPaywall = async () => {
+    // SKIP_PAYWALL is a dev-only test convenience — it lets us bypass the
+    // paywall on the simulator when we're not working on the paywall itself.
+    // Fable review #6 flagged that the guard was purely on the env var
+    // (Constants.expoConfig.extra.skipPaywall === 'true') with NO build-time
+    // check. One copy-paste of "true" into eas.json's production profile
+    // would ship a revenue-free App Store build, silently. We now gate on
+    // __DEV__ so this bypass is structurally impossible in an App Store
+    // build — the JS runtime literal __DEV__ is minified to false at build
+    // time by Metro. Belt-and-suspenders: app.config.js also throws at
+    // build time if SKIP_PAYWALL=true is paired with the prod bundle ID
+    // (so a bad eas.json profile blows up in CI, not on device).
     const skipPaywall = Constants.expoConfig?.extra?.skipPaywall;
-    const shouldSkipPaywall = skipPaywall === 'true';
+    const shouldSkipPaywall = __DEV__ && skipPaywall === 'true';
 
     if (__DEV__) console.log('=== 🚀 SHOWING PAYWALL ===');
     if (__DEV__) console.log('SKIP_PAYWALL:', skipPaywall);
