@@ -95,6 +95,26 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     // Detect session from URL (for OAuth redirects)
     detectSessionInUrl: true,
+    // PKCE flow instead of the default implicit flow (Fable review 🟡).
+    //
+    // With implicit flow, live session tokens land in the OAuth redirect
+    // URL fragment (kinderwell://auth/callback#access_token=...). Any
+    // Android app that also registers the `kinderwell://` scheme can
+    // intercept that redirect and steal the access + refresh token — full
+    // account takeover. iOS Universal Links help but the app scheme
+    // fallback still exists.
+    //
+    // PKCE keeps the tokens out of the URL: the redirect carries only a
+    // code, which the SDK exchanges for tokens via the Supabase auth
+    // server using a device-private secret. The intercepting app gets
+    // a code it can't redeem.
+    //
+    // Mandatory before any Android release. Adopted early because it's
+    // one line and there's no downside on iOS (Apple's Universal Links
+    // + iOS's scheme-claim behavior make the practical risk lower, but
+    // the PKCE flow is still safer + the SDK handles the exchange
+    // transparently).
+    flowType: 'pkce',
   },
 });
 
