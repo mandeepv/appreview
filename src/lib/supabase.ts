@@ -9,21 +9,42 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase configuration. Please check your environment variables.');
 }
 
-// Structural guard: a __DEV__ build should never talk to prod Supabase. If it
-// does, we probably ran `expo start` with the wrong .env file loaded and are
-// about to wreck real user data.
+// Structural guards on the bundle-ID ↔ Supabase project pairing. Every store
+// build must talk to prod Supabase, every dev build must talk to dev Supabase,
+// and any mismatch throws hard at startup rather than silently corrupting data.
 //
-// The console-log-only warning we used to have is easy to miss in Metro's
-// output. Throwing makes the mistake impossible to ignore.
+// Two failure modes we're catching (Fable review 🟡 first item):
 //
-// Escape hatch: set ALLOW_DEV_PROD_ACCESS=true in the environment when you
-// really do need dev code pointing at prod (rare — e.g., reproducing a prod
-// bug locally). We still log a loud warning.
+//   Dev build → prod DB: someone ran `expo start` with .env.prod loaded
+//     accidentally. We'd write test users into the revenue DB. Existing
+//     guard.
+//
+//   Prod build → dev DB (NEW): someone shipped an App Store binary whose
+//     eas.json production profile got typo'd to point at the dev Supabase.
+//     Real users of the store build would write into the dev DB, invisible
+//     to us on prod dashboards, and their data would never be seen by
+//     support. Silent revenue drain + support nightmare.
+//
+// The check runs on both by comparing the runtime bundle ID to the runtime
+// Supabase project ref. Bundle ID is baked at build time (managed workflow,
+// via IOS_BUNDLE_ID env in eas.json → app.config.js), so a mismatch here
+// means eas.json's SUPABASE_URL and IOS_BUNDLE_ID got out of sync.
+
 const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 const isProdRef = projectRef === 'zqwzdyjfxytvedghujsd';
 const isDevRef = projectRef === 'xbkkjqvbsnroenqlqkmi';
+
+const bundleId = (
+  Constants.expoConfig?.ios?.bundleIdentifier
+  ?? Constants.expoConfig?.android?.package
+  ?? ''
+);
+const isProdBundle = bundleId === 'com.kinderwell.app';
+const isDevBundle = bundleId === 'com.kinderwell.app.dev';
+
 const allowOverride = process.env.ALLOW_DEV_PROD_ACCESS === 'true';
 
+// Guard 1: DEV BUILD → PROD DB (already existed, kept)
 if (__DEV__ && isProdRef && !allowOverride) {
   throw new Error(
     '[Supabase] REFUSING to connect to PROD from a __DEV__ build.\n' +
@@ -33,9 +54,28 @@ if (__DEV__ && isProdRef && !allowOverride) {
   );
 }
 
+// Guard 2: STORE BUILD → WRONG DB (new — the reverse misconfiguration)
+if (!__DEV__) {
+  // In a store binary. Bundle ID and project ref MUST agree.
+  if (isProdBundle && !isProdRef) {
+    throw new Error(
+      `[Supabase] Store bundle (com.kinderwell.app) is pointed at project ${projectRef ?? 'UNKNOWN'}, not prod.\n` +
+      'This build was shipped with a misconfigured eas.json production profile — SUPABASE_URL and IOS_BUNDLE_ID must both be prod.\n' +
+      'This binary cannot serve users safely. Ship a corrected build.',
+    );
+  }
+  if (isDevBundle && !isDevRef) {
+    throw new Error(
+      `[Supabase] Dev bundle (com.kinderwell.app.dev) is pointed at project ${projectRef ?? 'UNKNOWN'}, not dev.\n` +
+      'The eas.json development/preview profile has drifted — SUPABASE_URL and IOS_BUNDLE_ID must both be dev.\n' +
+      'Rebuild after fixing eas.json.',
+    );
+  }
+}
+
 if (__DEV__) {
   const env = isProdRef ? 'PROD ⚠️ (OVERRIDE ACTIVE)' : isDevRef ? 'DEV ✅' : 'UNKNOWN';
-  console.log(`[Supabase] Env: ${env} | Project: ${projectRef}`);
+  console.log(`[Supabase] Env: ${env} | Project: ${projectRef} | Bundle: ${bundleId}`);
   if (isProdRef && allowOverride) {
     console.warn('[Supabase] Dev build is talking to PROD because ALLOW_DEV_PROD_ACCESS=true. Any write is a live user impact.');
   }

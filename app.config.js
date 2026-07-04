@@ -32,9 +32,44 @@ module.exports = ({ config }) => {
     );
   }
 
+  // Env validation for prod builds. Fable review 🟡 first item flagged that
+  // missing env vars in the production profile were silent — Superwall got
+  // '' → dead paywall on device, universal links fell back to the DEV host,
+  // Supabase got '' → runtime crash on the very first query. All of these
+  // would ship an App Store binary that fails post-install. Refuse to build
+  // if the production profile is incomplete.
+  if (isProdBundle) {
+    const requiredProdEnv = {
+      SUPABASE_URL: process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+      SUPERWALL_API_KEY: process.env.SUPERWALL_API_KEY,
+      POSTHOG_PROJECT_TOKEN: process.env.POSTHOG_PROJECT_TOKEN,
+      SENTRY_DSN: process.env.SENTRY_DSN,
+    };
+    const missing = Object.entries(requiredProdEnv)
+      .filter(([, v]) => !v || v.length === 0)
+      .map(([k]) => k);
+    if (missing.length > 0) {
+      throw new Error(
+        `[app.config.js] REFUSING to build production bundle without required env: ${missing.join(', ')}.\n` +
+        'Fix eas.json (production profile) — these all need real values, not empty strings or placeholders.',
+      );
+    }
+
+    // Cross-check: SUPABASE_URL must point at prod project. Silent fallback
+    // to the dev host would ship a store binary talking to dev DB.
+    if (!process.env.SUPABASE_URL.includes('zqwzdyjfxytvedghujsd')) {
+      throw new Error(
+        `[app.config.js] REFUSING to build production bundle pointed at non-prod Supabase.\n` +
+        `SUPABASE_URL=${process.env.SUPABASE_URL} — expected zqwzdyjfxytvedghujsd.supabase.co.`,
+      );
+    }
+  }
+
   // Supabase host used for universal / app links (must match the project the
   // dev/prod build talks to). Falls back to DEV Supabase if the env var
-  // isn't set.
+  // isn't set — this fallback is only ever hit for dev builds since prod
+  // builds throw above if SUPABASE_URL is missing.
   const supabaseHost = (process.env.SUPABASE_URL || 'https://xbkkjqvbsnroenqlqkmi.supabase.co').replace('https://', '');
 
   return {
