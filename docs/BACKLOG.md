@@ -189,6 +189,251 @@ part of the lesson refactor (they collapse together).
 
 **Blocks**: nothing. This is hygiene.
 
+### 9c. Navigator param typing 🟢
+
+**Problem**: `RootStackParamList` / `OnboardingStackParamList` /
+`LessonStackParamList` are typed, but a few navigator params use
+`as any` casts (see `SprinklersSec2Screen10.tsx:29` for the pattern:
+`navigation.navigate('EmotionalSandbagsLesson' as any)`). Every
+`as any` bypasses the compile-time check that would catch a rename
+or a missing route.
+
+**Fix**: grep for `navigation.navigate.*as any` and
+`navigation.replace.*as any` across `src/screens/`. For each
+occurrence, either add the missing route to the correct ParamList
+or fix the caller. When done, add an ESLint rule barring
+`as any` on navigation calls so nothing regresses.
+
+**Effort**: ~20-30 min (small tree, most casts are drive-by).
+
+**Blocks**: nothing. Hygiene, but real value — a renamed screen
+today would compile clean and crash at runtime.
+
+**Origin**: Fable review 🟡 (last subitem of the "small dedupe
+batch"; sign-in dedupe + AsyncStorage keys already done).
+
+### 9d. Finish branch protection on GitHub 🟡
+
+**Problem**: `.github/workflows/ci.yml` runs on every PR (typecheck,
+lint, version-drift), but the main branch protection rule doesn't
+require the jobs to pass before merge. A failing CI can be merged.
+
+**Fix**: GitHub → Settings → Branches → main → edit rule → check
+"Require status checks to pass before merging" and select
+`typecheck`, `lint`, `version-drift`. No code change.
+
+**Effort**: ~2 min in the GitHub UI.
+
+**Blocks**: nothing. But leaving it unlocked means CI signal is
+advisory rather than enforced.
+
+**Origin**: Fable review 🟡 docs/process bucket.
+
+### 9e. Fold adversarial tests into RELEASE_CHECKLIST permanently 🟡
+
+**Problem**: The adversarial tests captured in
+`docs/IPHONE_TEST_PLAN_V1.1.0.md` (never-used-credentials sign-in,
+delete-account >1h after sign-in, demo-mode 7-tap, post-onboarding
+DB row inspection, small-screen pass) currently live only in that
+per-release doc, which is scheduled for archival post-merge.
+Post-archive, no ongoing check captures them.
+
+**Partial credit**: Phase 7.5 (Superwall dashboard checks) and
+Phase 8.3 (mandatory UPGRADE test) already exist in
+RELEASE_CHECKLIST. The rest don't.
+
+**Fix**: pull each surviving adversarial check from
+IPHONE_TEST_PLAN_V1.1.0.md into RELEASE_CHECKLIST Phase 2 or Phase
+8. Then archive the per-release doc without losing the tests.
+
+**Effort**: ~30 min.
+
+**Blocks**: nothing today, but risks a regression if a v1.1.1
+release skips one of these checks because they weren't visible in
+the canonical checklist.
+
+**Origin**: Fable review 🟡 docs/process bucket.
+
+### 9f. First Jest unit tests 🟡
+
+**Problem**: Zero test coverage. Reviewer flagged three specific
+targets where a single test would prevent a whole category of
+regression:
+1. `isBelowMinimumBuild` in `src/lib/appConfig.ts` — the kill
+   switch calc. Test the cap boundary (build >= CAP refuses to
+   force-update), zero-currentBuild guard, and the min-supported
+   check.
+2. `hasUserCompletedOnboarding` in `src/services/onboardingService.ts`
+   — the discriminated union `{ status: 'has'/'no'/'error' }`. Test
+   that the error branch is hit on network failure (the exact
+   Fable review #2 regression).
+3. `LESSON_NAV` coverage in `src/config/lessons.ts` (or wherever
+   the map lives) — assert every lesson id in the constants map
+   to a real route in the navigator. Catches the "lesson 10 is a
+   placeholder" class of divergence.
+
+**Fix**: install Jest + `@testing-library/react-native`; write the
+three tests above; wire `npm test` into CI.
+
+**Effort**: ~2-3 hours. Most of it is infra setup (Jest config for
+Expo, mocking AsyncStorage + Supabase). Once the harness exists,
+new tests are cheap.
+
+**Blocks**: nothing, but every future 🟡 in this bucket is easier
+with a test harness in place.
+
+**Origin**: Fable review 🟡 quality/testing bucket.
+
+### 9g. Script prod DB pushes 🟡
+
+**Problem**: `supabase db push --linked` hits whichever project the
+CLI was last linked to. The prod procedure is "the same command
+plus 'remember to re-link'." One forgotten re-link = a dev
+migration silently applied to the revenue DB.
+
+**Fix**: `scripts/db-push-dev.sh` and `scripts/db-push-prod.sh`
+with:
+- Explicit `--project-ref` per script (no reliance on link state)
+- `db-push-prod.sh` requires typed confirmation (`echo "type PROD-<date> to confirm"`)
+- `db-push-prod.sh` runs `--dry-run` first, prints the diff,
+  requires a second confirmation before the real push
+- Both re-link back to dev at exit (defensive)
+
+**Effort**: ~1 hour.
+
+**Blocks**: nothing today, but every prod migration is currently a
+manual invocation that could go wrong. This makes it structurally
+safe.
+
+**Origin**: Fable review 🟡 environment/infra bucket.
+
+### 9h. Pre-migration prod dump 🟡
+
+**Problem**: Prod has no automated backups (Supabase Free tier).
+No down-migrations either. A migration that breaks something has
+literally no recovery path — the phased-release + kill switch buy
+us time but can't undo data corruption.
+
+**Fix**: `scripts/backup-prod.sh` running `supabase db dump
+--project-ref zqwzdyjfxytvedghujsd --data-only --schema-only` (or
+whatever the correct incantation ends up being) into a timestamped
+`.sql` file. Wired into `db-push-prod.sh` from item 9g — never
+push to prod without a fresh dump.
+
+**Blocked on**: Supabase Pro tier for their built-in daily
+backups is a better fix. If we're paying for Pro anyway (custom
+OAuth domain — item #18 — needs it), we get backups included and
+this script becomes a belt-and-suspenders addition rather than the
+sole line of defense.
+
+**Effort**: ~1 hour for the script; the Pro-tier upgrade is a
+billing decision, not engineering work.
+
+**Blocks**: nothing today but expands the "cliff" — a bad prod
+migration currently has no undo.
+
+**Origin**: Fable review 🟡 environment/infra bucket.
+
+### 9i. Rotate prod DB password 🟡
+
+**Problem**: The prod Supabase DB password has never been rotated
+since prod was provisioned. Baseline security hygiene — even
+without a specific exposure event, long-lived credentials increase
+blast radius if something leaks later.
+
+**Fix**: Supabase dashboard → Kinderwell prod → Database →
+Settings → Reset database password. Update `.env.prod` and any
+local scripts that reference the old password. Nothing in the app
+runtime uses the DB password directly (client uses anon key), so
+no code change.
+
+**Effort**: ~15 min.
+
+**Blocks**: nothing. Pure hygiene.
+
+**Origin**: Fable review 🟡 security bucket. Deferred earlier in
+the review pass — Mandeep chose to focus on ship-blockers first.
+
+### 9j. PostHog person-delete on account deletion 🟡
+
+**Problem**: When a user deletes their account, the Supabase row is
+gone, but the PostHog "person" (identified by user ID) persists
+indefinitely with all their onboarding answers and event history.
+The privacy policy claims a clean delete; PostHog data is a
+lingering violation.
+
+**Fix**: PostHog exposes a delete-person endpoint that requires a
+personal API token (different from the ingestion key). Steps:
+1. Generate a PostHog personal API token, store as a Supabase
+   Edge Function secret.
+2. Extend the `delete-account` Edge Function (or add a new one)
+   to call PostHog's delete-person API with the deleted user's id.
+3. Handle the failure case gracefully — PostHog outage should not
+   block the Supabase delete (already-succeeded above it in the
+   flow).
+
+**Effort**: ~2-3 hours. Not conceptually hard, but touches an
+Edge Function that already ships to prod and has been reviewed
+for correctness — testing needs care.
+
+**Blocks**: nothing user-facing, but the privacy policy currently
+overpromises. Ideally close before we get a DSAR/GDPR request
+about it.
+
+**Origin**: Fable review 🟡 security bucket.
+
+### 9k. Encrypt the Supabase session (SecureStore for refresh token) 🟡
+
+**Problem**: Supabase session (access + refresh token) is currently
+stored in AsyncStorage, which is unencrypted on iOS and Android.
+Any process with app-container filesystem access reads the refresh
+token in plaintext. iOS sandbox mitigates casual attack, but
+jailbroken devices, malicious debug builds, and future backup
+extraction all recover the token.
+
+**Fix**: swap AsyncStorage for `expo-secure-store` as the Supabase
+client's storage adapter. Migration path is delicate:
+- Users updating from the current build have a session in
+  AsyncStorage — must be read once, copied to SecureStore, then
+  the AsyncStorage entry deleted. Otherwise every existing user
+  gets kicked to sign-in on upgrade.
+- Test the failure modes: SecureStore full, SecureStore denied on
+  first launch, biometric prompt if enabled.
+
+**Effort**: ~4-6 hours. Small code change, big test surface. Best
+shipped in its own dedicated release with heavy TestFlight
+coverage — do NOT bundle with a feature release.
+
+**Blocks**: nothing today. The current threat model is "casual
+attacker on unrooted device" which AsyncStorage sort of survives.
+This closes the "device-image extraction" and "jailbroken device"
+gaps.
+
+**Origin**: Fable review 🟡 security bucket.
+
+### 9l. DEV_PROD_ENVIRONMENTS.md drift audit 🟡
+
+**Problem**: `docs/DEV_PROD_ENVIRONMENTS.md` has been edited many
+times over v1.1.0 development and now has sections that drift
+from `RELEASE_CHECKLIST.md` and `BEST_PRACTICES.md`. Specifically:
+- The release-workflow prose in DEV_PROD_ENVIRONMENTS.md predates
+  the RELEASE_CHECKLIST rewrite — some steps only exist in one or
+  the other, some contradict.
+- Backup / kill-switch procedures partially duplicated across all
+  three docs; if one gets updated, the others silently rot.
+
+**Fix**: read all three docs end-to-end in one sitting, own each
+section in exactly one doc, replace duplicated content with cross-refs.
+
+**Effort**: ~2 hours if done carefully; adds ~30 min of
+"remembered a thing" edits over the next week.
+
+**Blocks**: nothing today, but the drift will bite the first time
+someone (probably future-Mandeep) follows the wrong doc during a
+release.
+
+**Origin**: Fable review 🟡 docs/process bucket.
+
 ### 10. Revisit removing 7-tap demo mode (Fable review #13)
 
 **Context**: The 7-tap gesture on AuthScreen's "Save your progress"
@@ -442,6 +687,51 @@ the followup polish AFTER that mandatory fix lands.
 **Effort**: ongoing product work, not a bug fix.
 
 **Blocks**: nothing.
+
+### 21. Third-party project separation (Superwall / PostHog / Sentry) 🟡
+
+**Problem**: All three third-party services (Superwall, PostHog,
+Sentry) currently point at a single project each, shared by dev
+and prod builds. Environment separation is done via runtime tags
+(`environment: 'dev' | 'prod'`), which works for filtering
+dashboards but has real blast-radius costs:
+- A misconfigured dev build spamming events into shared PostHog
+  briefly pollutes prod funnels until the environment filter is
+  reapplied.
+- A Superwall paywall template change in the shared dashboard
+  affects dev and prod simultaneously — no staging environment
+  for paywall copy changes.
+- Sentry issues from dev builds show up in the prod issue list
+  until filtered; on-call risk (probably low today since we don't
+  really have "on-call").
+- URL scheme collision: `kinderwell://` is claimed by both dev
+  and prod bundle IDs on the same device — a dev build installed
+  alongside prod can intercept OAuth callbacks meant for prod.
+
+**Fix**: separate projects per service:
+- Superwall: create a "Kinderwell Dev" application, wire the dev
+  API key through eas.json's development/preview profiles only
+- PostHog: create a "Kinderwell Dev" project (free tier is fine
+  for dev volume), separate API key. Environment tag becomes
+  redundant but harmless.
+- Sentry: create a "kinderwell-dev" project. DSN split at build
+  time.
+- URL scheme: `kinderwell.dev://` for the dev bundle so the
+  scheme registration doesn't collide.
+
+**Effort**: ~4 hours. Not hard, just fiddly — every third-party
+config drift becomes a new source of "why doesn't this work in
+dev?" until it's stable.
+
+**Blocks**: nothing today. Tag filtering is enough for a solo dev
+serving a small user base. Becomes worth doing when either:
+1. A misconfigured dev build actually pollutes a prod funnel /
+   dashboard in a way that costs real triage time
+2. We need paywall A/B staging separate from prod paywall changes
+
+**Origin**: Fable review 🟡 environment/infra bucket, flagged as
+"blast radius" — real separation was called out as v1.2 territory
+even by the reviewer.
 
 ---
 

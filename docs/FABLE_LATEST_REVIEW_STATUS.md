@@ -45,11 +45,11 @@ work through the review.
 | Finding | Status | Commit / notes |
 |---|---|---|
 | Guard the reverse misconfiguration | ✅ | `12f079b` — runtime bundle-ID↔project-ref check + build-time env validation |
-| Script prod DB pushes (`db-push-dev.sh` / `db-push-prod.sh`) | ⬜ | Open — reviewer's hardening rec, defer to v1.1.1 |
-| Pre-migration prod dump (`backup-prod.sh`) | ⬜ | Open — blocked on Supabase Pro tier decision |
+| Script prod DB pushes (`db-push-dev.sh` / `db-push-prod.sh`) | ⬜ | Open — `BACKLOG.md` item #9g; ~1h; defer to v1.1.1 |
+| Pre-migration prod dump (`backup-prod.sh`) | ⬜ | Open — `BACKLOG.md` item #9h; blocked on Supabase Pro tier decision |
 | Fix or delete dead `ALLOW_DEV_PROD_ACCESS` escape hatch | ✅ | `892530c` — removed; bypass now requires visible code change |
 | Env detection regex duplicated in 3 files | ✅ | `badfa56` — centralized in `src/lib/env.ts` |
-| Third-party blast radius (Superwall/PostHog/Sentry shared, URL scheme collision) | ⬜ | Open — tag-filtered analytics is enough for now, real separation is v1.2 |
+| Third-party blast radius (Superwall/PostHog/Sentry shared, URL scheme collision) | ⬜ | Open — `BACKLOG.md` item #21 (v1.2); tag-filtered analytics is enough for now, real separation is v1.2 |
 
 ---
 
@@ -58,10 +58,10 @@ work through the review.
 | Finding | Status | Commit / notes |
 |---|---|---|
 | PKCE (`flowType: 'pkce'` in `createClient`) | ✅ | `6dae99b` — mandatory before Android release, adopted now |
-| Encrypt the session (SecureStore for refresh token) | ⬜ | Open — needs SecureStore migration, session invalidation risk. Defer to a dedicated release. |
-| Rotate the prod DB password | ⬜ | Open — user deferred earlier, blocked on Supabase dashboard action |
+| Encrypt the session (SecureStore for refresh token) | ⬜ | Open — `BACKLOG.md` item #9k; needs SecureStore migration, session invalidation risk. Dedicated release. |
+| Rotate the prod DB password | ⬜ | Open — `BACKLOG.md` item #9i; ~15 min in Supabase dashboard |
 | PostHog: drop email from `$set` | ✅ | `afa5faf` — email removed from person props |
-| PostHog: add person-delete on account deletion | ⬜ | Open — needs personal API token setup + Edge Function work, real work |
+| PostHog: add person-delete on account deletion | ⬜ | Open — `BACKLOG.md` item #9j; ~2-3h; needs personal API token + Edge Function work |
 | Low: delete-account CORS `*` | ✅ | `5510406` — tightened to 'null'; deployed on next Edge Function push |
 | Low: kill-switch sanity cap | ✅ | `84c7875` — CAP=40, refuse to force-update if minimum exceeds cap or currentBuild is 0 |
 | Low: Apple JWT `.p8` in `~/Downloads` (interim: env var) | ✅ | `f7f81bb` — reads `APPLE_P8_PATH` env var; long-term secret-manager move still open |
@@ -74,9 +74,9 @@ work through the review.
 |---|---|---|
 | Generate Supabase DB types (highest ROI single change per reviewer) | ✅ | `src/types/supabase.ts` generated from linked dev project, wired via `createClient<Database>(...)`, regen script `npm run gen:supabase-types`. Regen step added to DEV_PROD_ENVIRONMENTS.md schema-change flow. On adoption typed `saveUserOnboardingData`'s payload against `user_profiles.Insert` — was previously `Record<string, unknown>` which erased field checks. |
 | Add ESLint + lint CI job | ✅ | `eslint.config.js` + `npm run lint` script + CI `lint` job. Uses `eslint-config-expo` flat config. Baseline: 0 errors, 199 warnings (unused-vars + Animated.Value ref pattern in lesson screens — v1.2 refactor clears most). Errors block CI; caught 1 real bug on the way in (`set-state-in-effect` in ChildrenCountScreen — fixed via lazy `useState`). |
-| First Jest unit tests (`isBelowMinimumBuild`, `hasUserCompletedOnboarding` error, `LESSON_NAV` coverage) | ⬜ | Open — real ROI but needs infrastructure setup |
-| v1.2 data-driven lesson refactor | ⬜ | Open — big refactor, v1.2 as reviewer noted |
-| Dedupe `handleGoogleSignIn`/`handleAppleSignIn`, type navigator params, centralize AsyncStorage keys, note lesson progress survives delete | ⚠️ | 3 of 4 done: sign-in dedupe (`3fa9786`), AsyncStorage-keys constant (`f9feefb` — also caught 2 orphaned `@sandbags_completed_sections` writes), and delete-account doc note (bundled in `f9feefb`). Navigator param typing still open (last sub-item). |
+| First Jest unit tests (`isBelowMinimumBuild`, `hasUserCompletedOnboarding` error, `LESSON_NAV` coverage) | ⬜ | Open — `BACKLOG.md` item #9f; ~2-3h |
+| v1.2 data-driven lesson refactor | ⬜ | Open — `BACKLOG.md` item #18 (v1.2); reviewer explicitly called out v1.2 |
+| Dedupe `handleGoogleSignIn`/`handleAppleSignIn`, type navigator params, centralize AsyncStorage keys, note lesson progress survives delete | ⚠️ | 3 of 4 done: sign-in dedupe (`3fa9786`), AsyncStorage-keys constant (`f9feefb` — also caught 2 orphaned `@sandbags_completed_sections` writes), and delete-account doc note (bundled in `f9feefb`). Navigator param typing = `BACKLOG.md` item #9c (last sub-item). |
 
 ---
 
@@ -84,11 +84,11 @@ work through the review.
 
 | Finding | Status | Commit / notes |
 |---|---|---|
-| Fold adversarial tests into RELEASE_CHECKLIST.md permanently | ⚠️ | Partial — Phase 7.5 + 8.3 added. Rest of the tests still only live in `IPHONE_TEST_PLAN_V1.1.0.md`. |
+| Fold adversarial tests into RELEASE_CHECKLIST.md permanently | ⚠️ | Partial — Phase 7.5 + 8.3 added. Rest of the tests still only live in `IPHONE_TEST_PLAN_V1.1.0.md`. `BACKLOG.md` item #9e tracks the finish-the-fold work (~30 min). |
 | One backlog — consolidate deferred-work files | ✅ | Consolidated V1.1.1_ONBOARDING_POLISH.md + V1.1.1_PLUS.md + V1.2_LATER.md into single BACKLOG.md; updated 6 files that referenced the old paths |
 | Kill duplicated procedures — SETUP_GUIDE stale patterns, EDGE_FUNCTION_DEPLOYMENT drift, docs/README missing entries | ✅ | `fcc071c` — rewrote SETUP_GUIDE Part 5, truncated EDGE_FUNCTION_DEPLOYMENT to pointer, added 9 missing entries to docs/README |
-| DEV_PROD_ENVIRONMENTS.md release-workflow drift vs RELEASE_CHECKLIST / BEST_PRACTICES | ⬜ | Open — deep section-by-section audit still needed |
-| Finish branch protection (require status checks) | ⬜ | Open — GitHub UI action, needs user click |
+| DEV_PROD_ENVIRONMENTS.md release-workflow drift vs RELEASE_CHECKLIST / BEST_PRACTICES | ⬜ | Open — `BACKLOG.md` item #9l; ~2h deep audit |
+| Finish branch protection (require status checks) | ⬜ | Open — `BACKLOG.md` item #9d; ~2 min GitHub UI click |
 | Apple JWT rotation doc hardcoded machine path | ✅ | `f7f81bb` (bundled with generate_apple_jwt.js env var change) |
 
 ---
@@ -121,6 +121,13 @@ Left unchanged, per reviewer's audit:
 | **Total** | **39** | **23** | **6** | **0** | **10** |
 
 **Done or partial**: 29 of 39 (74%). All 🔴 and 🟠 blockers addressed in code. 10 open items are all 🟡 hardening.
+
+**Where the open work lives now (2026-07-05):** Every ⬜ / ⚠️ row above
+now cross-references the specific `BACKLOG.md` entry that carries the
+problem / fix / effort / blocks writeup. Read this tracker for
+"what was in the Fable review and how did we respond"; read
+`BACKLOG.md` for "what do I actually pick up next." The tracker is
+the historical audit; the backlog is the work queue.
 
 Note (2026-07-05): 🟡 Docs/process count grew from 4 to 6 because two
 items I'd previously conflated got split — the "kill duplicated

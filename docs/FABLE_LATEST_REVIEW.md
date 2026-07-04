@@ -299,6 +299,41 @@ Superwall entirely. Flagged independently by three review passes:
 **Better:** replace with a sandbox reviewer account (Superwall fully
 supports sandbox purchases).
 
+**Response (2026-07-05, Mandeep + Claude):**
+
+Kept for v1.1.0. Full disagreement path:
+
+1. **The concealment concern is real, and we adopted the "minimum" the
+   reviewer suggested.** `demo_mode_activated` PostHog event is now
+   captured on every 7-tap activation (`AuthScreen.tsx:212–217`).
+   Expected volume in prod: ~1–5 activations/week (Apple reviewers
+   only). Any spike above ~20/week means end users have discovered the
+   gesture and we should rip it out before the next Apple review.
+2. **Why we didn't adopt the "better" (sandbox reviewer account)
+   fix now:** Kinderwell auth is Apple + Google OAuth only — there is
+   no email/password field on `AuthScreen` for a reviewer to type
+   credentials into. A sandbox Apple ID handed to App Review would
+   land them on the same OAuth flow real users see, which still
+   dead-ends at a paywall unless we ship real sandbox-purchase
+   instructions in App Review notes. That's a documentation change,
+   not a code fix, and it can ship after v1.1.0.
+3. **What we did instead** (`400d993`):
+   - Corrected `docs/DEMO_MODE.md` — removed the false "Apple-mandated"
+     framing; explicit that this is a Kinderwell reviewer-testing aid.
+   - Wrote a "Dual-Path App Review Notes" section with (a) the
+     sandbox-purchase primary path Apple's own docs recommend for
+     auto-renewing subscriptions, and (b) the 7-tap fallback. Primary
+     path first so Apple sees the documented workflow before the
+     hidden gesture.
+   - Added `demo_mode_activated` monitoring per point 1.
+4. **When to revisit** — logged as `BACKLOG.md` item #10 with the
+   trigger conditions: PostHog spike, or Apple raises 2.3.1 in review.
+   The switch to a sandbox-purchase-only App Review flow is ~1 hour
+   of docs + testing when we make it.
+
+Documented as a deliberate acceptance of ongoing 2.3.1 risk, not an
+oversight.
+
 ### 14. First production EAS build checks — LOW
 
 - `SENTRY_AUTH_TOKEN` EAS secret must exist for the new
