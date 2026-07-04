@@ -34,13 +34,30 @@ At the end of each section, note anything surprising in the "Notes" line.
 ## Section 1 — Auth flows (already 2 bugs, high suspicion of more)
 
 ### 1.1 Google Sign-Up (fresh account)
-- [ ] Open app → complete onboarding → AuthScreen → Continue with Google
-- [ ] Verify redirected to Google → picks up email → back to app
-- [ ] Verify lands on Loading → paywall → dismiss → LearnScreen
-- [ ] Check prod Supabase → auth.users → new user row exists
-- [ ] Check user_profiles → name field is populated correctly
+- [x] Open app → complete onboarding → AuthScreen → Continue with Google
+- [x] Verify redirected to Google → picks up email → back to app
+- [x] Verify lands on Loading → paywall → dismiss → LearnScreen
+- [x] Check prod Supabase → auth.users → new user row exists
+- [x] Check user_profiles → name field is populated correctly
 
 Notes:
+- 2026-07-04, Mandeep on iPhone XR against prod v1.0.0 Build 8.
+- Sign-in worked, user row created, most onboarding fields populated
+  correctly (name, age, children_count, improvement_goals, experience,
+  etc.).
+- 🔴 Paywall has NO dismiss control on prod — no X button, no
+  swipe-down. The only way past it is force-quit + reopen. That's the
+  same code path that then lands users on LearnScreen with free access
+  (the money-leak paywall bypass bug we already fixed for v1.1.0).
+  Prod v1.0.0 has effectively no functioning paywall for anyone who
+  figures out force-quit.
+- 🔴 Every child in the DB has `gender: 'boy'` even though onboarding
+  never asks for gender. Onboarding does ask for ageRange, so children
+  save as e.g. `[{gender:'boy', ageRange:'13-17'}]`. Fixed in v1.1.0
+  commit 33ea4f0 — new users will no longer get a fake gender written.
+- user_profiles has no `email` column (auth.users has it, not
+  user_profiles). Fine as-is — email is available via auth.getUser(),
+  we don't need to duplicate it.
 
 ### 1.2 Google Sign-In (existing account, from Welcome)
 - [ ] Force-quit + delete app data (or delete account first)
