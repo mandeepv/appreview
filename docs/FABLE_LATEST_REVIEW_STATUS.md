@@ -60,8 +60,11 @@ work through the review.
 | PKCE (`flowType: 'pkce'` in `createClient`) | ✅ | `6dae99b` — mandatory before Android release, adopted now |
 | Encrypt the session (SecureStore for refresh token) | ⬜ | Open — needs SecureStore migration, session invalidation risk. Defer to a dedicated release. |
 | Rotate the prod DB password | ⬜ | Open — user deferred earlier, blocked on Supabase dashboard action |
-| PostHog privacy (drop email from `$set`, add PostHog person-delete on account deletion) | ⬜ | Open — 20+ min work, real privacy improvement |
-| Low hygiene: delete-account CORS `*`, kill-switch sanity cap, Apple JWT `.p8` in `~/Downloads` | ⬜ | Open — three small items, batch later |
+| PostHog: drop email from `$set` | ✅ | `afa5faf` — email removed from person props |
+| PostHog: add person-delete on account deletion | ⬜ | Open — needs personal API token setup + Edge Function work, real work |
+| Low: delete-account CORS `*` | ✅ | `5510406` — tightened to 'null'; deployed on next Edge Function push |
+| Low: kill-switch sanity cap | ✅ | `84c7875` — CAP=40, refuse to force-update if minimum exceeds cap or currentBuild is 0 |
+| Low: Apple JWT `.p8` in `~/Downloads` (interim: env var) | ✅ | `f7f81bb` — reads `APPLE_P8_PATH` env var; long-term secret-manager move still open |
 
 ---
 
@@ -110,9 +113,15 @@ Left unchanged, per reviewer's audit:
 | 🔴 Blockers | 8 | 6 | 2 | 0 | 0 |
 | 🟠 Pre-submission | 6 | 4 | 2 | 0 | 0 |
 | 🟡 Environment/infra | 6 | 3 | 0 | 0 | 3 |
-| 🟡 Security | 5 | 1 | 0 | 0 | 4 |
+| 🟡 Security | 8 | 5 | 0 | 0 | 3 |
 | 🟡 Quality/testing | 5 | 0 | 0 | 0 | 5 |
 | 🟡 Docs/process | 4 | 0 | 1 | 0 | 3 |
-| **Total** | **34** | **14** | **5** | **0** | **15** |
+| **Total** | **37** | **18** | **5** | **0** | **14** |
 
-**Done or partial**: 19 of 34 (56%). All 🔴 and 🟠 blockers addressed in code. 15 open items are all 🟡 hardening.
+**Done or partial**: 23 of 37 (62%). All 🔴 and 🟠 blockers addressed in code. 14 open items are all 🟡 hardening.
+
+Note: The 🟡 Security bucket expanded from 5 to 8 because the reviewer's
+"Low hygiene" batch was itemized as three separate line items (CORS,
+kill-switch cap, .p8 path), all now done. Similarly PostHog was split
+into two items (drop email + person-delete on account deletion) since
+only the first is done.
