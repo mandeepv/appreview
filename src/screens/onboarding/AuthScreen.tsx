@@ -244,6 +244,21 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         </View>
 
+        {mode === 'signin' && (
+          // Hint to prevent duplicate accounts. Apple Private Relay gives a
+          // xxx@privaterelay.appleid.com email that never matches a Google
+          // real email, so Supabase can't auto-link a user who signed up
+          // with Apple and later tries Google — they end up with two
+          // accounts, losing progress + subscription. There is no
+          // API-level fix (Apple deliberately hides the real email). Best
+          // practice per Supabase docs + Spotify/Duolingo pattern: nudge
+          // the user to pick the same provider. Rare cases (~<5% who
+          // ignore the hint) are handled via support merge later.
+          <Text style={styles.providerHint}>
+            💡 Use the same option you signed up with to keep your progress.
+          </Text>
+        )}
+
         <Text style={styles.terms}>
           By continuing you agree to our{' '}
           <Text onPress={() => Linking.openURL('https://mandeepv.github.io/kinderwell-legal/terms.html')} style={{ textDecorationLine: 'underline' }}>Terms</Text>
@@ -335,6 +350,14 @@ const styles = StyleSheet.create({
     height: 24,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  providerHint: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 20,
+    paddingHorizontal: 24,
+    lineHeight: 18,
   },
   terms: {
     fontSize: 12,
