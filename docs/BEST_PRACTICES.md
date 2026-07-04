@@ -203,9 +203,9 @@ User acknowledged the risk but explicitly deferred. Not tracked as a pending ite
 
 ---
 
-### ~~13. Feature flags (PostHog)~~ ✅ DONE 2026-07-01
+### 13. Feature flags (PostHog) ⏸️ CAPABILITY AVAILABLE, NOT WIRED IN
 
-PostHog feature flags in use via `onboarding_variant` flag — see `src/lib/experiments.ts` + `useExperimentStore`. Free with PostHog account (1M requests/mo covered).
+PostHog SDK is installed and running (v1.1.0). Feature flags are available via `posthog.getFeatureFlag(key)` at any time. We built an `onboarding_variant` scaffold in July 2026 and then removed it before v1.1.0 shipped — see PRODUCT_ROADMAP.md for the "do NOT ship until control is polished" note. Free with PostHog account (1M requests/mo covered).
 
 ---
 

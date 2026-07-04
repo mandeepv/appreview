@@ -8,7 +8,6 @@ import { Heading1, Subtitle } from '../../components/Typography';
 import { Colors, Spacing, Animation } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
-import { useExperimentStore } from '../../store/experimentStore';
 import { trackOnboardingStarted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Splash'>;
@@ -18,16 +17,6 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const { user, isLoading } = useAuthStore();
   const { loadState, getLastScreen, hasReachedAuth } = useOnboardingStore();
-  const resolveVariant = useExperimentStore((s) => s.resolveVariant);
-
-  // Kick off variant resolution in background — we DO NOT block splash routing
-  // on this. If it's not resolved by the time Welcome renders, the switch
-  // component defaults to control; when variant later resolves, it swaps.
-  // This keeps the splash-to-Welcome time bounded to the 2s animation only,
-  // even on dead networks.
-  useEffect(() => {
-    resolveVariant();
-  }, [resolveVariant]);
 
   useEffect(() => {
     // Entrance animation

@@ -202,18 +202,9 @@ Not started. Add Prettier + a minimal jest-expo setup with 3 unit tests for pure
 
 Prettier + jest-expo with 3 tests for pure logic only (kill-switch comparison, experiment resolution, consolidated progress util) — all wired into CI. Also adopt Branch / PR CI + merge even solo; the pre-merge review above is exactly the class of thing that catches.
 
-### 19. A/B scaffold fixes before ramping any flag  ⏳ TODO
+### 19. A/B scaffold fixes before ramping any flag  ✅ MOOT — SCAFFOLD REMOVED
 
-Three concerns:
-- **Hot-swap during 1-3s of splash:** first-launch users may briefly see wrong variant before PostHog flag resolves. Fix: block splash on variant resolution or dampen with a nicer transition. Effort: 30 min.
-- **First-launch permanently cached into control before experiment exists:** current cache format is a plain string; upgrading to include app version would allow re-rolling on app update. Reviewer flagged this; we discussed and reverted the reviewer's suggested fix per user preference (real content is being added so the concern is moot).
-- **Reinstall re-randomization:** current per-install cache means reinstalls re-roll. Documented as expected behavior for now.
-
-Address before ramping the `onboarding_variant` flag to real traffic.
-
-- First-launch users can see the screen hot-swap variants 1–3s in — await resolution alongside the existing 2s splash animation
-- First-launch users are permanently cached into control before the experiment exists
-- Assignment is per-install so reinstalls re-randomize
+Reviewer's three concerns (hot-swap during splash, first-launch cache preserving control forever, per-install reinstall re-randomization) are all moot as of 2026-07-04: we removed the entire `onboarding_variant` scaffold from the codebase before shipping v1.1.0. See `PRODUCT_ROADMAP.md` → "Onboarding polish + A/B test (future)" for context. If we rebuild an A/B system later, all three concerns are worth addressing at that time.
 
 ### 20. Doc consolidation  ⏳ TODO / PARTIAL
 
@@ -287,7 +278,7 @@ Effort: 2h total. Address post-v1.1.0.
 - Real App Store ID in `ForceUpdateModal` (#5)
 - Verify the two sanitization-dependent items (#6)
 - Fix `Podfile.lock` (#5)
-- Gate variant B behind `__DEV__` (#5)
+- ~~Gate variant B behind `__DEV__` (#5)~~ — moot, variant B scaffold removed entirely 2026-07-04
 - → then merge
 
 **Next release (v1.1.0):**
@@ -307,7 +298,7 @@ Effort: 2h total. Address post-v1.1.0.
 
 **Ongoing:**
 - Split analytics/payments keys (#17)
-- A/B fixes before ramping (#19)
+- ~~A/B fixes before ramping (#19)~~ — moot, scaffold removed
 - Docs consolidation (#20)
 - Data-driven lessons as a slow burn (#21)
 
@@ -323,7 +314,7 @@ Delete this public review copy (or rewrite its history) when done — commit `6e
 
 **(a)** In your private repo, are the `'PROD_PROJECT_REF'` comparisons in `posthog.ts`/`supabase.ts` real project refs or still placeholders?
 
-**(b)** Has the `onboarding_variant` flag ever been created/enabled in PostHog?
+**(b)** ~~Has the `onboarding_variant` flag ever been created/enabled in PostHog?~~ Moot — scaffold removed from code before v1.1.0 shipped. Flag in PostHog dashboard is unused; safe to leave or delete.
 
 Those two answers decide whether #6 and the variant-B risk are theoretical or live right now.
 

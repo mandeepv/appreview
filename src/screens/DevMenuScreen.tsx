@@ -5,25 +5,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { OnboardingStackParamList } from '../navigation/OnboardingNavigator';
 import { Colors, Typography, BorderRadius, Shadows } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useExperimentStore } from '../store/experimentStore';
-import { overrideOnboardingVariant, OnboardingVariant } from '../lib/experiments';
 import { reportError } from '../config/sentry';
 
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
-  const variant = useExperimentStore((s) => s.onboardingVariant);
-  const setVariant = useExperimentStore((s) => s.setVariant);
-
-  const handleVariantSwitch = async (next: OnboardingVariant | null) => {
-    await overrideOnboardingVariant(next);
-    setVariant(next ?? 'control');
-    Alert.alert(
-      'Onboarding variant',
-      next === null
-        ? 'Cleared override. Next launch resolves from PostHog flag.'
-        : `Forced to "${next}". Restart from Splash to see it.`,
-    );
-  };
 
   const handleThrowTestError = () => {
     reportError(new Error(`Sentry test error @ ${new Date().toISOString()}`), {
@@ -89,27 +74,6 @@ export const DevMenuScreen: React.FC = () => {
               <Text style={styles.buttonDescription}>Go directly to the learning screen</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.variantSection}>
-          <Text style={styles.variantHeader}>Onboarding A/B (current: {variant})</Text>
-          <View style={styles.variantRow}>
-            <TouchableOpacity
-              style={[styles.variantBtn, variant === 'control' && styles.variantBtnActive]}
-              onPress={() => handleVariantSwitch('control')}
-            >
-              <Text style={styles.variantBtnText}>Force Control</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.variantBtn, variant === 'variant_b' && styles.variantBtnActive]}
-              onPress={() => handleVariantSwitch('variant_b')}
-            >
-              <Text style={styles.variantBtnText}>Force Variant B</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity onPress={() => handleVariantSwitch(null)}>
-            <Text style={styles.clearOverrideText}>Clear override</Text>
           </TouchableOpacity>
         </View>
 
@@ -217,11 +181,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 12,
   },
-  variantRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
   variantBtn: {
     flex: 1,
     paddingVertical: 12,
@@ -230,20 +189,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.textTertiary,
     alignItems: 'center',
   },
-  variantBtnActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
   variantBtnText: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textPrimary,
-  },
-  clearOverrideText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textDecorationLine: 'underline',
-    textAlign: 'center',
-    marginTop: 4,
   },
 });
