@@ -12,10 +12,11 @@ import {
   ParentingStyle,
   EmotionalChallenge,
 } from '../types/onboarding';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const ONBOARDING_STORAGE_KEY = '@kinderwell_onboarding_state';
-const LAST_SCREEN_KEY = '@kinderwell_last_onboarding_screen';
-const HAS_REACHED_AUTH_KEY = '@kinderwell_has_reached_auth';
+const ONBOARDING_STORAGE_KEY = STORAGE_KEYS.ONBOARDING_STATE;
+const LAST_SCREEN_KEY = STORAGE_KEYS.ONBOARDING_LAST_SCREEN;
+const HAS_REACHED_AUTH_KEY = STORAGE_KEYS.ONBOARDING_HAS_REACHED_AUTH;
 
 const initialState = {
   userType: null,

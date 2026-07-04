@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -61,7 +62,7 @@ const subLessons: SubLesson[] = [
   },
 ];
 
-const STORAGE_KEY = '@sprinklers_completed_sections';
+const STORAGE_KEY = STORAGE_KEYS.SPRINKLERS_COMPLETED_SECTIONS;
 
 export default function SprinklersLessonScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();

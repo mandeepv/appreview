@@ -4,6 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { useLessonGate } from '../hooks/useLessonGate';
@@ -52,7 +53,7 @@ const subLessons: SubLesson[] = [
   },
 ];
 
-const STORAGE_KEY = '@lesson5_completed_sections';
+const STORAGE_KEY = STORAGE_KEYS.LESSON5_COMPLETED_SECTIONS;
 
 export default function LabelingEmotionsLessonScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();

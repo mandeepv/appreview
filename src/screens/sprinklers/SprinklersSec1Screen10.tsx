@@ -7,6 +7,7 @@ import { Colors, Typography, Shadows } from '../../constants/theme';
 import { LessonStackParamList } from '../../navigation/LessonNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../../constants/storageKeys';
 
 type Props = NativeStackScreenProps<LessonStackParamList, 'SprinklersSec1Screen10'>;
 
@@ -14,7 +15,7 @@ export const SprinklersSec1Screen10: React.FC<Props> = ({ navigation }) => {
     const handleComplete = async () => {
         // Mark section as complete
         try {
-            const STORAGE_KEY = '@sprinklers_completed_sections';
+            const STORAGE_KEY = STORAGE_KEYS.SPRINKLERS_COMPLETED_SECTIONS;
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             let completedSections = stored ? JSON.parse(stored) : [];
             if (!completedSections.includes('1')) {
