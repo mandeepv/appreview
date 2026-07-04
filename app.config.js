@@ -181,10 +181,17 @@ module.exports = ({ config }) => {
     },
     plugins: [
       ...(config.plugins ?? []),
-      // Notifications native config (permission strings, entitlements).
-      // Package is installed via package.json; this line registers the plugin
-      // so prebuild wires up native side.
-      'expo-notifications',
+      // NOTE: expo-notifications plugin intentionally NOT registered here.
+      //
+      // The package is still installed (package.json) but nothing in src/
+      // imports or uses it. Registering the plugin would make prebuild
+      // request the aps-environment (push notifications) entitlement,
+      // which we do not use — that's a false claim on the App Store
+      // review. Fable review #14 flagged this. When we actually implement
+      // notifications (see docs/V1.1.1_PLUS.md → 'Notifications feature
+      // not implemented'), re-add 'expo-notifications' here AND wire up
+      // scheduling/handling in code AND update the App Privacy questions
+      // in App Store Connect.
       'expo-localization',
       // Sentry native crash + JS error reporting.
       // organization / project let the build-time sentry-cli upload sourcemaps

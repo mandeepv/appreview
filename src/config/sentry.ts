@@ -14,6 +14,14 @@ const dsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
 const isSentryConfigured = Boolean(dsn && dsn.startsWith('https://'));
 
 const release = `kinderwell@${Constants.expoConfig?.version ?? 'unknown'}`;
+// dist separates identical release names across builds — without it, dev
+// build 9 and prod build 9 of 1.1.0 merge in Sentry's UI and stack traces
+// resolve to the wrong sourcemap. Fable review #14. Read from app.json's
+// ios.buildNumber (managed workflow; single source of truth for both
+// platforms since Android's versionCode also lives there).
+const iosBuild = Constants.expoConfig?.ios?.buildNumber;
+const androidBuild = Constants.expoConfig?.android?.versionCode;
+const dist = iosBuild ?? (androidBuild != null ? String(androidBuild) : undefined);
 
 /**
  * Initialize Sentry. Safe to call once at app startup. If DSN is missing or
@@ -23,8 +31,10 @@ const release = `kinderwell@${Constants.expoConfig?.version ?? 'unknown'}`;
  * Env-derived tags:
  *   environment: 'dev' | 'prod' | 'unknown'  (from Supabase URL)
  *   release: 'kinderwell@<version>'          (from app.json)
+ *   dist: '<build number>'                   (from app.json)
  *
- * Filter Sentry dashboards by `environment` to see only prod errors.
+ * Filter Sentry dashboards by `environment` to see only prod errors. Sentry
+ * automatically pairs release + dist to resolve the right sourcemap.
  */
 export function initSentry(): void {
   if (!isSentryConfigured) {
@@ -36,6 +46,7 @@ export function initSentry(): void {
     dsn,
     environment,
     release,
+    dist,
     // In dev, keep sending events to Sentry so we can test wiring. In prod,
     // this is always true anyway. If we ever want to silence dev, flip here.
     enabled: true,
