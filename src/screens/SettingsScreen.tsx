@@ -34,24 +34,60 @@ export const SettingsScreen: React.FC = () => {
 
     setIsRestoring(true);
     try {
-      // Superwall's getSubscriptionStatus() re-syncs with StoreKit — checking
-      // Apple's servers for the current entitlement state under the signed-in
-      // Apple ID. "success" here means "sync completed" NOT "restored
-      // something" — we still have to check the returned status.
+      // Actually hit StoreKit. Previous code called getSubscriptionStatus()
+      // which is a PURE PROPERTY READ of Superwall's cached
+      // subscriptionStatus — no receipt refresh, no StoreKit sync (see
+      // node_modules/expo-superwall/ios/SuperwallExpoModule.swift:258-262).
+      // A reinstalling subscriber whose cached status was still UNKNOWN got
+      // a false "No Purchases Found" and had to contact support to recover
+      // their subscription.
+      //
+      // restorePurchases() (Swift line 364-368) is the API that actually
+      // calls Superwall.shared.restorePurchases() which walks StoreKit.
+      // It returns { result: 'restored' | 'failed' }. AFTER a successful
+      // restore we still have to read subscriptionStatus to know whether
+      // there was actually anything to restore for this Apple ID.
+      const restoreResult = await SuperwallExpoModule.restorePurchases();
+
+      if (restoreResult.result === 'failed') {
+        if (__DEV__) console.error('Restore failed:', restoreResult.errorMessage);
+        posthog.capture('restore_purchases_completed', {
+          outcome: 'failed',
+          error: restoreResult.errorMessage,
+        });
+        Alert.alert(
+          'Restore Failed',
+          restoreResult.errorMessage
+            ?? 'Something went wrong. Please check your connection and try again.'
+        );
+        return;
+      }
+
+      // Restore call succeeded — StoreKit walked, receipt refreshed. Now
+      // check the resulting subscription status to distinguish "found and
+      // restored a real entitlement" from "no purchases exist for this
+      // Apple ID" from "still resolving, try again."
       const status = await SuperwallExpoModule.getSubscriptionStatus();
-      const isActive = status?.status === 'ACTIVE';
 
       // We deliberately DO NOT call setIsSubscribed(true) here. The app-level
       // onSubscriptionStatusChange listener in App.tsx is the single source of
       // truth for isSubscribed; letting the restore also write it creates a
       // race condition between two writers.
 
-      if (isActive) {
+      if (status?.status === 'ACTIVE') {
         posthog.capture('restore_purchases_completed', { outcome: 'restored' });
         Alert.alert('Restored', 'Your subscription has been restored.');
+      } else if (status?.status === 'UNKNOWN') {
+        // Superwall hasn't finished resolving yet. Nudge user to retry
+        // rather than lying that there's nothing to restore.
+        posthog.capture('restore_purchases_completed', { outcome: 'unknown' });
+        Alert.alert(
+          'Still Syncing',
+          "We're still checking with the App Store. Please try again in a moment."
+        );
       } else {
-        // Wrong Apple ID is the #1 real cause of "no purchases found." Hint at
-        // it so the user knows how to recover instead of assuming the app is broken.
+        // INACTIVE — StoreKit walk completed but this Apple ID has no
+        // entitlement for our app. Wrong Apple ID is the #1 real cause.
         posthog.capture('restore_purchases_completed', { outcome: 'no_purchases' });
         Alert.alert(
           'No Purchases Found',
@@ -59,8 +95,8 @@ export const SettingsScreen: React.FC = () => {
         );
       }
     } catch (error) {
-      if (__DEV__) console.error('Restore failed:', error);
-      posthog.capture('restore_purchases_completed', { outcome: 'failed' });
+      if (__DEV__) console.error('Restore threw:', error);
+      posthog.capture('restore_purchases_completed', { outcome: 'threw' });
       Alert.alert(
         'Restore Failed',
         'Something went wrong. Please check your connection and try again.'
