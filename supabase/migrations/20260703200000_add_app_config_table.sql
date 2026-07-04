@@ -18,6 +18,11 @@ ON CONFLICT (key) DO NOTHING;
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
 -- Anon can read (config is intentionally public — no secrets stored here).
+-- Drop-then-create for idempotency: if this migration ever half-applied (or
+-- someone hand-created the policy on prod), a second db push would otherwise
+-- fail with "policy already exists" and leave the whole file unapplied.
+-- Fable review #11.
+DROP POLICY IF EXISTS "Anon can read app_config" ON public.app_config;
 CREATE POLICY "Anon can read app_config"
   ON public.app_config
   FOR SELECT

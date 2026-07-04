@@ -73,6 +73,34 @@ stale.
 
 **Highest-risk step. Slow down.**
 
+### Which migrations does this specific release need?
+
+- [ ] Run `supabase migration list --linked` — copy the diff between
+      Local and Remote. Every "Local only" migration will apply on
+      the next `db push`. Only proceed if the list matches your
+      expectations for THIS release.
+- [ ] For each migration file about to apply, re-read the SQL. In
+      particular: `CREATE POLICY` statements must be
+      `DROP POLICY IF EXISTS` first, else a half-applied migration
+      leaves the file stuck (Fable review #11 idempotence concern).
+- [ ] Cross-check against the release notes. If a migration is
+      about to apply that's NOT in the release notes → STOP and
+      reconcile. Something drifted.
+
+### Verify prod's current state matches your expectations
+
+- [ ] Query prod for the tables/columns you're about to modify.
+      Confirm nothing surprising exists.
+- [ ] For v1.1.0 specifically: `app_config` table should NOT exist
+      on prod yet. Verify with a REST query:
+  ```bash
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    "https://zqwzdyjfxytvedghujsd.supabase.co/rest/v1/app_config?select=*&limit=1" \
+    -H "apikey: $PROD_ANON_KEY" -H "Authorization: Bearer $PROD_ANON_KEY"
+  ```
+  Expect `404` (table doesn't exist). If you get `200`, the table
+  already exists — investigate before proceeding.
+
 - [ ] **⚠️ Backup reality check.** As of 2026-07-04, prod has NO automated backups (Free tier). If this migration breaks something in a way we can't roll forward, there is no recovery. Review the SQL one more time; make sure `--dry-run` output matches expectations exactly. See `BEST_PRACTICES.md` item #2 for the deferred-fix options.
 - [ ] Confirm every SQL file in `supabase/migrations/` that's new since last release is backward-compatible (see [`DEV_PROD_ENVIRONMENTS.md`](./DEV_PROD_ENVIRONMENTS.md) → "Schema migrations — backward compatibility"). If it's a breaking change → STOP, refactor to expand-only.
 
