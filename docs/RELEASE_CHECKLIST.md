@@ -76,7 +76,8 @@ If you see `Internal Server Error from Apple's App Store Connect / Developer Por
 ### Install + smoke test
 
 - [ ] Once the build finishes, EAS prints a 🍏 QR code + install URL. **Open it in Safari on iPhone XR** — you should see an **Install** button (not Download; if you see Download you built the wrong profile — see Section 0.0 of the test plan).
-- [ ] On first launch you may get an "Untrusted Enterprise Developer" alert → Settings → General → VPN & Device Management → tap the profile → Trust.
+- [ ] **iOS 16+ Developer Mode:** on first launch you may get "Developer Mode Required" → Settings → Privacy & Security → scroll to bottom → **Developer Mode** → toggle ON → phone will prompt to restart → after reboot, "Turn On Developer Mode?" → tap Turn On → enter passcode. One-time per device. Stays on until manually toggled off. No impact on other apps.
+- [ ] On first launch you may also get an "Untrusted Enterprise Developer" alert → Settings → General → VPN & Device Management → tap the profile → Trust.
 - [ ] App icon should read **"Kinderwell Dev"** — this confirms you're on the dev/preview build (`APP_DISPLAY_NAME` from the profile env vars), not prod.
 - [ ] **Backward-compat check:** if schema changed, install the currently-live app version (from TestFlight or previous build), point it at dev, verify it still works
 - [ ] **Full flow smoke test on dev — Apple + Google both:**
