@@ -60,7 +60,7 @@ work through the review.
 | PKCE (`flowType: 'pkce'` in `createClient`) | ✅ | `6dae99b` — mandatory before Android release, adopted now |
 | Encrypt the session (SecureStore for refresh token) | ⬜ | Open — `BACKLOG.md` item #9k; needs SecureStore migration, session invalidation risk. Dedicated release. |
 | Rotate the prod DB password | ⬜ | Open — `BACKLOG.md` item #9i; ~15 min in Supabase dashboard |
-| PostHog: drop email from `$set` | ✅ | `afa5faf` — email removed from person props |
+| PostHog: drop email from `$set` | ✅ | `afa5faf` cleaned `analytics.ts`. Re-review 2026-07-05 caught a second leak point at `authStore.ts:94-96` (re-attached email on every launch, defeating the fix for 100% of signed-in users); closed in a follow-up commit — see FABLE_RE_REVIEW_2026-07-05.md punch-list item 1. |
 | PostHog: add person-delete on account deletion | ⬜ | Open — `BACKLOG.md` item #9j; ~2-3h; needs personal API token + Edge Function work |
 | Low: delete-account CORS `*` | ✅ | `5510406` — tightened to 'null'; deployed on next Edge Function push |
 | Low: kill-switch sanity cap | ✅ | `84c7875` — CAP=40, refuse to force-update if minimum exceeds cap or currentBuild is 0 |
