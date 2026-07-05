@@ -285,7 +285,28 @@ After signing in, any paywall purchase will show `[Environment: Sandbox]` at the
 
 ### If you forget the sandbox password
 
-App Store Connect → Users and Access → Sandbox → Testers → click `sandeepv98@gmail.com` → there's a password reset option in the tester detail modal. Reset, then re-sign-in on iPhone.
+**Do NOT use the "reset by mail" option on the iPhone sign-in screen** — it silently fails for sandbox testers because they aren't real Apple IDs (no inbox to receive the reset email). You'll wait forever.
+
+The working reset paths, in order of preference:
+
+**1. Reset via App Store Connect (fastest if it works):**
+- Mac browser → https://appstoreconnect.apple.com
+- Sign in with your real Apple Developer ID
+- Users and Access → **Sandbox** tab (top nav row) → Testers
+- Click on `sandeepv98@gmail.com` in the list
+- Look for **"Set Password"** or **"Reset Password"** in the tester detail panel
+- Set a new password (8+ chars, mixed case, number)
+- Write it down. Sandbox passwords are easy to lose.
+- iPhone → Settings → Developer → Sandbox Apple Account → sign in with new password
+
+**2. Delete + recreate the tester (guaranteed to work, 5 min):**
+- Same Sandbox → Testers page in ASC
+- Delete the existing tester (select → Delete)
+- Add a new tester — reuse the same email or a slight variant (e.g. `sandeepv99@gmail.com`). Sandbox emails don't need to be real inboxes.
+- Country: United States (must match your ASC storefront) — anything else and StoreKit returns no products
+- Save
+- iPhone → sign in with new credentials
+- If reusing the same email and iOS caches the old one: force-quit Settings after ASC changes; if still failing, restart iPhone.
 
 ### Sandbox limitations
 
