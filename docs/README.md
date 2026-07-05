@@ -25,6 +25,7 @@ Everything process-related lives in this folder. If you're looking for how to do
 - **`PRODUCT_ROADMAP.md`** — feature/experiment queue with prioritization
 
 ### 🚨 Critical — read before touching auth or subscription code
+- **`PAYWALL_MODEL.md`** — the hard-paywall gating model, isSubscribed persistence, Superwall placement layout, and Apple review considerations. Anyone editing `LoadingScreen`, `SplashScreen`, `authStore`, or `useLessonGate` MUST read this first.
 - **`DEMO_MODE.md`** — how the 7-tap Apple reviewer bypass works, invariants that MUST hold or App Store rejects your build
 
 ### Ship prep (v1.1.0)
@@ -46,6 +47,7 @@ Everything process-related lives in this folder. If you're looking for how to do
 | `APPLE_JWT_ROTATION.md` | 6-month Apple JWT rotation | ✅ Every 6 months |
 | `PRODUCT_ROADMAP.md` | Feature and experiment queue | ✅ Ongoing |
 | `DEMO_MODE.md` | 7-tap Apple reviewer bypass invariants | ✅ Read before touching auth or subscription code |
+| `PAYWALL_MODEL.md` | Hard-paywall gating model + isSubscribed persistence + Superwall placement layout | ✅ Read before touching LoadingScreen / SplashScreen / authStore / useLessonGate |
 | `SETUP_GUIDE.md` | Supabase + Superwall setup | 🔧 New machine only |
 | `STOREKIT_SETUP_GUIDE.md` | StoreKit Xcode setup + sandbox Apple ID | 🔧 New machine only |
 | `Branding.md` | Design principles | 📖 Reference |

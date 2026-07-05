@@ -261,25 +261,46 @@ Superwall paywalls live outside the repo and can drift silently between
 releases. Verify these BEFORE submitting to Apple — a misconfigured
 paywall is a real 3.1.2 rejection vector (see Fable review #10).
 
-For EVERY paywall the app can present (currently: `show_paywall` from
-LoadingScreen, `learn_access` from useLessonGate) verify in the
-Superwall dashboard:
+**As of v1.1.0 (2026-07-05):** the app uses a single mandatory paywall
+placement, `subscription_gate`, presented at LoadingScreen. See
+`docs/PAYWALL_MODEL.md` for the full model. The two prior v1.0.0
+placements (`show_paywall`, `learn_access`) are UNTOUCHED — they must
+stay live in the dashboard so shipped v1.0.0 clients keep working.
+Do NOT edit either of those placements' Feature Gating, audience, or
+paywall template without a mandatory upgrade of every v1.0.0 install.
 
-- [ ] **Dismiss control present** — X button, "Not now" link, or
-      Modal/Sheet presentation style that allows swipe-down.
-      Apple guideline 3.1.2 requires this. Prod v1.0.0's paywall
-      shipped without a dismiss control — real rejection risk that
-      slipped past prior submissions and must not slip past again.
-- [ ] **Visible price** with billing period ("$12.99/month",
-      "$69.99/year")
-- [ ] **Terms of Use (EULA) link** working, opens the right URL
-- [ ] **Privacy Policy link** working, opens the right URL
-- [ ] **Restore Purchases** button/link present (required by 3.1.1)
+### Verify `subscription_gate` (the v1.1.0 hard-paywall)
 
-For the Gated paywall specifically (`learn_access`):
-- [ ] Placement config: audience = All Users, entitlements =
-      unsubscribed, Feature Gating = **Gated** (not Non-Gated)
-- [ ] Paywall assigned: "Calorie Tracker - Gated" template (100%)
+- [ ] **Feature Gating: Gated** — critical. If this is Non-Gated,
+      paying users see the paywall on reinstall.
+- [ ] **Audience: unsubscribed users** — either an audience filter of
+      "no active entitlements" OR reliance on Feature Gating; both is
+      belt-and-suspenders and preferred.
+- [ ] **Paywall assigned** at 100% (no holdout).
+- [ ] **NO dismiss control** — no X, no "Not now," no swipe-to-dismiss.
+      Presentation Style should be Fullscreen (not Modal / Sheet). This
+      is the hard-paywall model — the app has no free experience.
+      Apple 3.1.2 allows this for content-only paid apps (Calm,
+      Headspace, most fitness apps ship this pattern) — but you MUST
+      have Restore Purchases visible and the 7-tap demo bypass working
+      or Apple will reject.
+- [ ] **Visible price** for both plans ("$12.99/mo", "$69.99/yr").
+- [ ] **Terms of Use (EULA) link** working.
+- [ ] **Privacy Policy link** working.
+- [ ] **Restore Purchases** button visible — required by 3.1.1, and
+      the only way a reinstalling paying user recovers their sub
+      without re-purchasing.
+- [ ] **7-tap demo mode reachable** — reviewer must be able to
+      complete onboarding and tap the "Save your progress" title 7
+      times to bypass. If demo is broken and this is the only paywall,
+      Apple review is stuck. Test this end-to-end.
+
+### Verify `show_paywall` and `learn_access` (v1.0.0 placements)
+
+- [ ] Both still exist in the dashboard, unchanged since v1.0.0 ship.
+- [ ] Feature Gating settings unchanged — do NOT edit these until
+      no v1.0.0 users remain (check App Store Connect → Analytics →
+      version breakdown).
 
 ---
 

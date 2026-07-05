@@ -113,49 +113,121 @@ Go back and look at the build log on expo.dev (the URL EAS printed when the buil
 
 ## Section 3 — Paywall & subscription enforcement (P0 #1)
 
-**Architecture note (updated 2026-07-04)**: v1.1.0 uses two distinct
-Superwall placements:
-- `show_paywall` (Non-Gated) fires from `LoadingScreen` after onboarding
-  as the sales pitch. Same as prod v1.0.0 behavior, preserved for
-  backward compat.
-- `learn_access` (Gated) fires from `useLessonGate` hook when the user
-  taps a lesson. This is the real gate — `feature()` only fires if
-  Superwall confirms an active `pro` entitlement.
+**Architecture note (updated 2026-07-05 — hard-paywall model)**: v1.1.0
+uses a SINGLE mandatory paywall placement, `subscription_gate`, fired
+from `LoadingScreen`. It's Gated, has no dismiss control, and shows on
+every launch until the user subscribes. See `docs/PAYWALL_MODEL.md` for
+the full model and reasoning.
 
-The refactor removed the old `subscriptionStatusResolved` / bounce-back
-pattern. LearnScreen renders lesson list normally for everyone;
-gate happens at lesson tap.
+Key properties:
+- Paywall shows after onboarding.
+- Paywall shows on every cold launch for signed-in unsubscribed users.
+- Paywall CANNOT be dismissed — no X button, no swipe-down. If Superwall
+  reports a dismiss (older cached template, edge case), our code
+  defensively re-presents the paywall (`onDismiss` → `runGate()`).
+- Confirmed subscribers (isSubscribed = true from a prior session) skip
+  the paywall entirely — go straight to LearnScreen. Persists across
+  cold launches via AsyncStorage.
+- Demo users (7-tap App Store reviewer mode) also skip the paywall.
+- `useLessonGate` hook is now a no-op — no per-lesson gating needed
+  because unsubscribed users can't reach LearnScreen at all.
+
+The v1.0.0 placements (`show_paywall`, `learn_access`) still exist in
+the Superwall dashboard for backward compatibility with shipped v1.0.0
+clients, but v1.1.0 code no longer references them.
 
 ### 3.1 Paywall renders after onboarding
-- [ ] After Google sign-up, LoadingScreen fires `show_paywall`
-- [ ] Superwall paywall appears (real UI)
-- [ ] Metro shows Superwall `onPresent` log
+- [ ] After Google or Apple sign-up + onboarding, LoadingScreen fires
+      `subscription_gate` placement
+- [ ] Superwall paywall UI appears with prices ($12.99/mo, $69.99/yr)
+- [ ] Metro shows: `📱 Registering placement: subscription_gate`
+- [ ] Metro shows: `✅ Paywall presented: subscription_gate`
 
-### 3.2 Dismiss paywall → land on LearnScreen (no gate here)
-- [ ] With paywall showing: swipe down or tap X
-- [ ] Metro shows `paywall_dismissed` event
-- [ ] App navigates to Root → LearnScreen renders lesson list normally
-- [ ] Do NOT expect a bounce here — the gate is at tap time, not screen mount
+**If no prices show:** sandbox tester not signed in, or bundle
+mismatch. See `docs/STOREKIT_SETUP_GUIDE.md`.
 
-### 3.3 Tap a lesson without entitlement (P0 #1 fix, the real test)
-- [ ] Tap any lesson (Lesson 1, Sprinklers, whatever)
-- [ ] Metro shows `[useLessonGate] entitlement confirmed` NOT firing
-- [ ] Superwall paywall re-appears via `learn_access` placement
-- [ ] Dismiss again — you stay on LearnScreen (lesson does NOT open)
-- [ ] Repeat 3x — every tap re-shows paywall, no bypass path
+### 3.2 Paywall has NO dismiss control
+- [ ] Look for an X button — should NOT be visible
+- [ ] Try swiping down from top of paywall — should NOT dismiss
+- [ ] Try tapping outside the paywall content area — should NOT dismiss
+- [ ] Only user-facing exits: subscribe (paid path) OR Restore
+      Purchases (existing subscriber path)
 
-**If lesson opens without an active subscription: 🔴 gate broken.**
+**If the paywall IS dismissable:** the Superwall dashboard template has
+a close button that needs to be removed. Verify Feature Gating = Gated
+and paywall template has no close-button element.
 
-### 3.4 Force-quit + reopen bypass attempt (the exact bug you reproduced on prod)
-- [ ] With paywall showing: dismiss it (X or swipe)
-- [ ] Force-quit app (swipe up in app switcher, swipe Kinderwell away)
-- [ ] Reopen app → Splash → LearnScreen
-- [ ] Tap a lesson → paywall re-appears
-- [ ] 🔴 If lesson opens directly: same bug as prod, fix is broken
+### 3.3 Force-quit + reopen shows the paywall again (the anti-bypass fix)
+- [ ] With paywall showing: force-quit app (swipe up in app switcher,
+      swipe Kinderwell away)
+- [ ] Reopen app cold
+- [ ] Splash appears first (as always)
+- [ ] Then Loading screen briefly
+- [ ] Then the paywall re-appears — same `subscription_gate` UI
 
-### 3.5 Complete a sandbox purchase (in TestFlight, not this build)
+**If LearnScreen appears instead of paywall:** the SplashScreen
+routing regressed. Check `SplashScreen.tsx` — signed-in users should
+route to `Loading` (the gate), NOT directly to `Root`.
+
+### 3.4 Emergency dismiss recovery (defense in depth)
+This tests the belt-and-suspenders re-present logic in case the
+Superwall template ever ships with a dismiss control.
+
+- [ ] With paywall showing: shake the device to open the Superwall
+      debug menu (dev build only, if enabled) OR try any programmatic
+      dismiss trick
+- [ ] If the paywall dismisses somehow, verify: Loading screen appears
+      briefly, then paywall re-presents itself automatically
+- [ ] Metro shows: `🔒 Paywall dismissed without purchase — re-presenting (hard gate)`
+
+Skip this if you can't induce a dismiss — it's a defensive backstop,
+not something the user should be able to trigger.
+
+### 3.5 Confirmed subscriber skips the paywall
+Tests that a paying user doesn't see the paywall on cold launch.
+
+- [ ] Complete a sandbox purchase (see Section 5 setup or use demo
+      mode — 7-tap the "Save your progress" title during onboarding)
+- [ ] Force-quit the app after landing on LearnScreen
+- [ ] Reopen cold
+- [ ] Verify: Splash → Loading → **LearnScreen** (no paywall)
+- [ ] Metro shows: `⏩ Skipping paywall — user is a confirmed subscriber`
+      OR `⏩ Skipping paywall — demo user`
+
+**If paywall shows for a subscribed user:** the isSubscribed cache
+hydration in authStore is broken, or Superwall's ACTIVE event never
+fires. Check Metro logs for `[authStore] hydrated isSubscribed=true`
+and `[Subscription] ACTIVE`.
+
+### 3.6 Offline behavior — subscribed user
+- [ ] While signed in as a confirmed subscriber, enable Airplane Mode
+- [ ] Force-quit the app
+- [ ] Reopen cold
+- [ ] Verify: Splash → Loading → **LearnScreen** (no paywall)
+- [ ] Confirmed subscribers get through even offline — the isSubscribed
+      cache is authoritative until Superwall says otherwise
+
+### 3.7 Offline behavior — unsubscribed user
+- [ ] Signed in but never subscribed
+- [ ] Enable Airplane Mode
+- [ ] Force-quit the app
+- [ ] Reopen cold
+- [ ] Verify: Splash → Loading → gate tries to reach Superwall → fails
+- [ ] Loading message changes to "Checking your subscription — please
+      make sure you're online..."
+- [ ] Turn Airplane Mode off
+- [ ] Within 3 seconds: gate auto-retries and paywall appears
+
+### 3.8 Sandbox purchase path
 Sandbox mode requires either Xcode developer mode setup (~30 min) or
 TestFlight. Defer purchase tests to the TestFlight build.
+
+- [ ] From the paywall, tap Yearly or Monthly plan
+- [ ] iOS sandbox purchase sheet appears with `[Environment: Sandbox]`
+- [ ] Complete purchase
+- [ ] Paywall dismisses → LearnScreen
+- [ ] Metro shows: `💰 Purchase completed! Updating subscription status...`
+- [ ] Metro shows: `[Subscription] ACTIVE`
 
 Once running on TestFlight:
 - [ ] From paywall, tap a subscription plan
