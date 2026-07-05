@@ -47,12 +47,44 @@ Everything else in this checklist is code, config, or timing — these five are 
 
 ## Phase 2: Pre-release verification (on dev)
 
+### Build a real-device dev IPA first
+
+Never trust simulator-only testing. Every regression in v1.0.0 that Fable review caught reproduced on real device but not in the iOS Simulator. Section 12 of the test plan assumes a real IPA on a real iPhone.
+
+- [ ] Build the **`preview`** profile — NOT `development`. See `docs/IPHONE_TEST_PLAN_V1.1.0.md` Section 0.0 for the profile-choice rationale. Short version: `development` produces a simulator-only `.tar.gz`; `preview` produces an installable `.ipa` with the same dev-Supabase env vars in release-mode compile.
+  ```bash
+  eas build --profile preview --platform ios
+  ```
+
+### First-time Apple credentials setup (only happens once per Apple Developer account per new test device)
+
+If this is the first time you're building for a real iPhone with EAS (or you're on a new phone), EAS will walk you through Apple credentials. Skip this section if you've done it before on the same phone + Apple ID. Otherwise, the full sequence is:
+
+1. **"Do you want to log in to your Apple account?"** → **Yes**. Enter your Apple Developer Apple ID (the one your $99/yr membership is under, same one you use for App Store Connect). Password + 6-digit 2FA code.
+2. **"Reuse this distribution certificate?"** → **Yes**. Reusing the existing cert keeps your test build in the same signing lineage as prod and avoids cert rotation risk. The cert expires ~yearly; EAS will nag you if it's close.
+3. **"You don't have any registered devices yet. Would you like to register them now?"** → **Yes**. Even if you say "no here" once, you'll have to come back — an ad-hoc IPA can't install on any device whose UDID isn't in its provisioning profile.
+4. **"How would you like to register your devices?"** → **Website**. (The other options are more manual.)
+5. EAS prints a URL + QR code. **Open the URL in Safari on your iPhone XR** (not Chrome, not any other browser — Safari is required for the profile install prompt). Tap the register button; iOS downloads a configuration profile; Settings → Profile Downloaded → Install → enter passcode. Phone will confirm: *"Your device is ready to run internal distribution builds."*
+6. Back in your Mac terminal: **press any key** to signal you're done.
+7. **"Select devices for the ad hoc build"** → your iPhone XR (usually the only option).
+8. **"Would you like to set up Push Notifications for your project?"** → **No**. Kinderwell doesn't use push notifications and requesting the entitlement without using it is an App Store review flag. If we ship push later, revisit this decision.
+
+After step 8, EAS uploads and builds. ~15 min. Every future preview build reuses the same credentials without any of steps 1–8.
+
+If you see `Internal Server Error from Apple's App Store Connect / Developer Portal servers` mid-flow, ignore — Apple's Developer Portal occasionally hiccups and EAS auto-retries. Only worry if the retry itself fails.
+
+### Install + smoke test
+
+- [ ] Once the build finishes, EAS prints a 🍏 QR code + install URL. **Open it in Safari on iPhone XR** — you should see an **Install** button (not Download; if you see Download you built the wrong profile — see Section 0.0 of the test plan).
+- [ ] On first launch you may get an "Untrusted Enterprise Developer" alert → Settings → General → VPN & Device Management → tap the profile → Trust.
+- [ ] App icon should read **"Kinderwell Dev"** — this confirms you're on the dev/preview build (`APP_DISPLAY_NAME` from the profile env vars), not prod.
 - [ ] **Backward-compat check:** if schema changed, install the currently-live app version (from TestFlight or previous build), point it at dev, verify it still works
 - [ ] **Full flow smoke test on dev — Apple + Google both:**
   - Fresh sign-up → onboarding → paywall → sandbox purchase → complete a lesson → log out → log back in
 - [ ] **Delete account flow works** (tests Edge Function)
 - [ ] **Kill switch works on dev:** temporarily set `min_supported_ios_build` to 9999 in dev, launch dev app, verify force-update modal appears; reset to `0` after
 - [ ] **Analytics events show up** in PostHog dashboard for the flows you tested
+- [ ] **Section 12 of `IPHONE_TEST_PLAN_V1.1.0.md` all passes** — this is the post-Fable-review regression addendum and must go green before promoting to production build.
 
 ---
 
