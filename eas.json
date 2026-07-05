@@ -60,5 +60,13 @@
         "APP_DISPLAY_NAME": "Kinderwell"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "APPLEAPPID",
+        "appleTeamId": "OLDTEAMID00"
+      }
+    }
   }
 }
