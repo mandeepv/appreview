@@ -276,123 +276,62 @@ Create once, use forever on your test iPhone.
 
 ## Release workflow — the standard path from idea → App Store
 
-This is the end-to-end sequence for shipping a new version safely. Kinderwell is a paid app with real users, so follow this every time — don't shortcut.
+**⚠️ Do not follow the workflow from this doc. See
+[`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md) — it is the single
+source of truth for shipping a release.**
 
-### Phase 1 — Build on dev (days to weeks)
+This section used to duplicate the release phases as prose. It drifted
+from the canonical checklist in ways that would break a release if
+followed:
 
-1. **Start on dev.** `.env` already points at dev. Confirm with `cat .env | grep SUPABASE_URL` → should show `xbkkjqvbsnroenqlqkmi`.
-2. **Do all schema changes on dev first.** Never touch prod DB during development.
-3. **If schema changes needed, write them as a numbered SQL file** (see "Migration tracking" below). Apply to dev.
-4. **Iterate on iPhone with dev build:** `npx expo run:ios --device`. Watch for `[Supabase] Env: DEV ✅`.
-5. **Never sign up test accounts on prod during development.** If you accidentally do, delete them from prod Supabase → Authentication → Users.
+- Missing the "🚨 Submission blockers — do not skip" callout at the
+  top of `RELEASE_CHECKLIST.md` (Phase 4 migration → Phase 7.5
+  Superwall dashboard → Phase 8.3 mandatory upgrade test → Phase 9a
+  App Privacy questionnaire).
+- Missing Phase 7.5 (Superwall dashboard verification for dismiss
+  control — 3.1.2 rejection risk).
+- Missing Phase 8.3 (**mandatory upgrade test** — the single change
+  most likely to prevent the next bad release, per Fable review #12).
+- Missing Phase 9a (App Privacy questionnaire update — real rejection
+  vector if it doesn't match `PrivacyInfo.xcprivacy`).
+- Missing phased release + manual "Release This Version" instructions
+  (Phase 9).
+- Missing Phase 5 delete-account Edge Function redeploy for v1.1.0
+  (the function changed on this branch — CORS tightening — so the
+  redeploy is mandatory).
+- Included a `SHOW_DEMO_BUTTON=true` instruction in the old Phase 8 —
+  that env var was deleted from the codebase in the 7-tap demo mode
+  rework. Following that line during a release would waste time
+  chasing a non-existent config.
 
-### Phase 2 — Pre-release verification (a few hours)
+Fable re-review 2026-07-05 caught the last two. Stubbing this entire
+section rather than fixing each drift point one-by-one, because any
+future edit here would immediately re-drift from
+`RELEASE_CHECKLIST.md`. The related pieces this doc still owns
+(schema-migration mechanics, Edge Function deploy commands, kill
+switch operation, rollback plans) live in their own sections above
+and below — this stub is only about the release *workflow*.
 
-Before you build for production, do all of the following on dev:
+### If you need release-phase details
 
-1. **Backward-compat check.** If schema changed, install the *currently-live* app version (from TestFlight or a previous build) and point it at dev. Verify it still works. This catches breaking changes.
-2. **Full flow smoke test on dev:**
-   - Fresh sign-up with Apple → onboarding → paywall → sandbox purchase → complete a lesson → log out → log back in
-   - Same flow with Google
-   - Delete account flow (tests the Edge Function)
-3. **Preview build test.** Release-mode compile, still on dev backend:
-   ```bash
-   eas build --profile preview --platform ios
-   ```
-   Install via TestFlight internal or ad-hoc. Repeat the smoke test. This catches release-mode-only bugs (minification, missing prod env vars, etc.).
+Use `RELEASE_CHECKLIST.md`. It is:
 
-### Phase 3 — Bump version numbers
+- The canonical ordered checklist for every phase of a release.
+- Enforced in the release process (the file you actually check
+  boxes in).
+- Reviewed by the last two rounds of external review.
 
-Two files, one script. See [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md)
-for the full rules.
+Section pointers, so you know where things live:
 
-```bash
-./scripts/bump-version.sh <new-marketing-version> <new-build-number>
-```
-
-The script updates `app.json` (marketing version + `ios.buildNumber` +
-`android.versionCode`) and `package.json` (marketing version). Refuses
-to run if the two are already drifted (fix manually first). CI's
-`version-drift` job also enforces this on every PR.
-
-Versioning rules:
-- **Marketing version (1.0.X)** — user-visible. Bump for user-visible changes.
-  - `1.0.0` → `1.0.1` for bug fixes
-  - `1.0.0` → `1.1.0` for new features
-  - `1.0.0` → `2.0.0` for major redesigns / breaking changes
-- **Build number** — must strictly increase per submission to App Store
-  Connect. Bump every submission, even for rejected builds. This is why
-  `RELEASE_PROCESS.md` tracks rejected builds in git tags.
-
-Sanity check the versions match:
-```bash
-node -e "console.log('app.json:', require('./app.json').expo.version, 'build', require('./app.json').expo.ios.buildNumber)"
-node -e "console.log('package.json:', require('./package.json').version)"
-```
-
-### Phase 4 — Apply schema migrations to prod (if any)
-
-**This is the highest-risk step of the whole release.**
-
-1. **All the migrations that need to apply to prod should already exist as files under `supabase/migrations/`.** If dev has un-committed schema changes, STOP and create the migration file first.
-2. **Confirm the SQL is backward compatible** (see "Schema migrations" section above). If it's a breaking change, DO NOT proceed — go back and refactor into an expand-only step.
-3. **Apply to prod** during a low-traffic window:
-   ```bash
-   supabase link --project-ref zqwzdyjfxytvedghujsd
-   supabase db push --linked --dry-run   # sanity check
-   supabase db push --linked
-   supabase link --project-ref xbkkjqvbsnroenqlqkmi   # IMMEDIATELY re-link back to dev
-   ```
-4. **Verify prod still works** by opening the currently-live App Store app on your phone and testing the affected feature. If prod is broken, you have minutes to fix or roll back before users complain.
-5. **Only proceed to Phase 5 after prod DB is stable with the new schema.**
-
-### Phase 5 — Deploy Edge Functions to prod (if changed)
-
-```bash
-supabase link --project-ref zqwzdyjfxytvedghujsd
-supabase functions deploy delete-account --project-ref zqwzdyjfxytvedghujsd
-
-# IMMEDIATELY re-link back to dev so future accidental commands hit dev
-supabase link --project-ref xbkkjqvbsnroenqlqkmi
-```
-
-### Phase 6 — Build for App Store
-
-```bash
-eas build --profile production --platform ios
-```
-
-This uses the prod env vars from `eas.json` → the app talks to prod Supabase.
-
-**Wait for the build to complete.** Do NOT submit yet.
-
-### Phase 7 — Test the production build before submitting
-
-Install the production build via TestFlight (`eas submit` with internal TestFlight, OR TestFlight from EAS auto-submit). Test the full flow one more time on prod backend. Yes, this creates a test user on prod — that's fine, just delete after.
-
-If anything is broken, you have not shipped. Fix and rebuild.
-
-### Phase 8 — Submit to App Store
-
-```bash
-eas submit --profile production --platform ios
-```
-
-Fill out the submission form in App Store Connect. Include a demo account if the app requires login (Kinderwell does — set `SHOW_DEMO_BUTTON=true` in prod env if not already).
-
-### Phase 9 — After Apple approval
-
-Follow `RELEASE_PROCESS.md`:
-- Tag build-specific: `v1.0.X-build-N`
-- Move production marker: `appstore-live-vX.Y.Z`
-- Push tags
-
-### Phase 10 — Post-release monitoring (first 24 hours)
-
-- Watch Supabase logs for spikes in errors
-- Watch App Store Connect for crash reports
-- Watch Superwall dashboard for paywall conversion drop-offs
-- If you see something bad, know your rollback path (see "Rollback" below)
+| You need... | Read... |
+|---|---|
+| The whole release checklist end-to-end | [`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md) |
+| Version bump rules + the sync script | [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) |
+| Git tagging after Apple approval | [`RELEASE_PROCESS.md`](./RELEASE_PROCESS.md) |
+| Kill switch operation + rollback | Sections below in this doc |
+| Schema migration mechanics + backward-compat rules | Sections above in this doc |
+| Apple JWT rotation (every 6 months) | [`APPLE_JWT_ROTATION.md`](./APPLE_JWT_ROTATION.md) |
+| 7-tap demo mode invariants (App Review context) | [`DEMO_MODE.md`](./DEMO_MODE.md) |
 
 ## Migration tracking
 
