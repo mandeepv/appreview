@@ -263,11 +263,18 @@ paywall is a real 3.1.2 rejection vector (see Fable review #10).
 
 **As of v1.1.0 (2026-07-05):** the app uses a single mandatory paywall
 placement, `subscription_gate`, presented at LoadingScreen. See
-`docs/PAYWALL_MODEL.md` for the full model. The two prior v1.0.0
-placements (`show_paywall`, `learn_access`) are UNTOUCHED — they must
-stay live in the dashboard so shipped v1.0.0 clients keep working.
-Do NOT edit either of those placements' Feature Gating, audience, or
-paywall template without a mandatory upgrade of every v1.0.0 install.
+`docs/PAYWALL_MODEL.md` for the full model.
+
+Legacy placement handling:
+- `show_paywall` — was the v1.0.0 paywall placement, shipped in the App
+  Store binary users are currently running. MUST stay live and
+  UNTOUCHED in the dashboard. Do NOT edit its Feature Gating, audience,
+  or paywall template until v1.0.0 usage drops below ~1% for 30 days.
+- `learn_access` — was added to Superwall dashboard during v1.1.0
+  development but never shipped in a real App Store binary
+  (verified: `git grep 'learn_access' appstore-live-v1.0.0` empty).
+  v1.1.0 code no longer references it. Safe to delete from the
+  Superwall dashboard whenever convenient.
 
 ### Verify `subscription_gate` (the v1.1.0 hard-paywall)
 
@@ -295,12 +302,18 @@ paywall template without a mandatory upgrade of every v1.0.0 install.
       times to bypass. If demo is broken and this is the only paywall,
       Apple review is stuck. Test this end-to-end.
 
-### Verify `show_paywall` and `learn_access` (v1.0.0 placements)
+### Verify `show_paywall` (v1.0.0 legacy placement)
 
-- [ ] Both still exist in the dashboard, unchanged since v1.0.0 ship.
-- [ ] Feature Gating settings unchanged — do NOT edit these until
-      no v1.0.0 users remain (check App Store Connect → Analytics →
-      version breakdown).
+- [ ] Still exists in the dashboard, unchanged since v1.0.0 ship.
+- [ ] Feature Gating unchanged (Non-Gated) — do NOT edit until
+      v1.0.0 usage drops (check App Store Connect → Analytics →
+      version breakdown). Editing would break users still on v1.0.0.
+
+### `learn_access` — deprecated/deleted
+
+Never shipped in a real App Store binary. Safe to delete from
+the Superwall dashboard. If it's still there, it's cosmetic
+overhead only.
 
 ---
 
