@@ -519,8 +519,25 @@ oversight.
    repaired-as-applied → `db push` the `app_config` migration →
    confirm seed rows (0/0) + anon read works. Purely additive; the
    live build never touches it.
-2. **Verify (don't redeploy) the prod `delete-account` edge function**
-   matches the repo copy — the branch didn't change it.
+2. **Redeploy the prod `delete-account` edge function.** ⚠️ **This
+   step was corrected 2026-07-05 by the re-review.** The original
+   deploy-order text here said "verify, don't redeploy — the branch
+   didn't change it." That is no longer true: the branch tightened
+   CORS on this function (commit `5510406`), so the function's source
+   diverges from what's live on prod. Phase 5 redeploy is mandatory
+   for v1.1.0 or the CORS change never reaches users.
+
+   Additional fold-in from the re-review: `Access-Control-Allow-Origin:
+   null` is not the lockdown the code comment claims — the literal
+   string `null` is a real origin (sandboxed iframes, `file://` docs)
+   that browsers will happily send. Remove the ACAO header entirely
+   before this redeploy (zero app impact — native fetch ignores CORS
+   entirely — this is purely a browser-side hygiene call). Track
+   under the same commit as the redeploy so the deploy and the
+   header-removal ship as one atomic change.
+
+   Post-deploy: re-test delete-account from the app on prod to
+   confirm the 401 / refreshSession path still works end-to-end.
 3. **Superwall dashboard:** create `learn_access` placement, campaign
    with Feature Gating = Gated, audience covering all users,
    unknown-status handled conservatively; verify paywall template

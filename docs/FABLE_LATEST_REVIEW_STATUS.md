@@ -62,7 +62,7 @@ work through the review.
 | Rotate the prod DB password | ⬜ | Open — `BACKLOG.md` item #9i; ~15 min in Supabase dashboard |
 | PostHog: drop email from `$set` | ✅ | `afa5faf` cleaned `analytics.ts`. Re-review 2026-07-05 caught a second leak point at `authStore.ts:94-96` (re-attached email on every launch, defeating the fix for 100% of signed-in users); closed in a follow-up commit — see FABLE_RE_REVIEW_2026-07-05.md punch-list item 1. |
 | PostHog: add person-delete on account deletion | ⬜ | Open — `BACKLOG.md` item #9j; ~2-3h; needs personal API token + Edge Function work |
-| Low: delete-account CORS `*` | ✅ | `5510406` — tightened to 'null'; deployed on next Edge Function push |
+| Low: delete-account CORS `*` | ✅ | `5510406` tightened `*` → `'null'` — but Fable re-review 2026-07-05 caught that `ACAO: null` is not a lockdown; the literal string `null` is a real origin. Follow-up commit removes the header entirely (correct fix). Will land on prod as part of the Phase 5 Edge Function redeploy — see re-review pre-flight punch list item 4 + RELEASE_CHECKLIST v1.1.0 specifics. |
 | Low: kill-switch sanity cap | ✅ | `84c7875` — CAP=40, refuse to force-update if minimum exceeds cap or currentBuild is 0 |
 | Low: Apple JWT `.p8` in `~/Downloads` (interim: env var) | ✅ | `f7f81bb` — reads `APPLE_P8_PATH` env var; long-term secret-manager move still open |
 
