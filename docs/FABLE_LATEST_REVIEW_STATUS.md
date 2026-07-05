@@ -87,7 +87,7 @@ work through the review.
 | Fold adversarial tests into RELEASE_CHECKLIST.md permanently | ⚠️ | Partial — Phase 7.5 + 8.3 added. Rest of the tests still only live in `IPHONE_TEST_PLAN_V1.1.0.md`. `BACKLOG.md` item #9e tracks the finish-the-fold work (~30 min). |
 | One backlog — consolidate deferred-work files | ✅ | Consolidated V1.1.1_ONBOARDING_POLISH.md + V1.1.1_PLUS.md + V1.2_LATER.md into single BACKLOG.md; updated 6 files that referenced the old paths |
 | Kill duplicated procedures — SETUP_GUIDE stale patterns, EDGE_FUNCTION_DEPLOYMENT drift, docs/README missing entries | ✅ | `fcc071c` — rewrote SETUP_GUIDE Part 5, truncated EDGE_FUNCTION_DEPLOYMENT to pointer, added 9 missing entries to docs/README |
-| DEV_PROD_ENVIRONMENTS.md release-workflow drift vs RELEASE_CHECKLIST / BEST_PRACTICES | ⬜ | Open — `BACKLOG.md` item #9l; ~2h deep audit |
+| DEV_PROD_ENVIRONMENTS.md release-workflow drift vs RELEASE_CHECKLIST / BEST_PRACTICES | ✅ | `e120245` — the release-workflow section is now stubbed with a pointer to RELEASE_CHECKLIST.md. The drift audit was resolved by removing the duplicated content entirely rather than reconciling line-by-line (any future edit would immediately re-drift). Caught + prompted by Fable re-review 2026-07-05 pre-flight punch list item 3. |
 | Finish branch protection (require status checks) | ⬜ | Open — `BACKLOG.md` item #9d; ~2 min GitHub UI click |
 | Apple JWT rotation doc hardcoded machine path | ✅ | `f7f81bb` (bundled with generate_apple_jwt.js env var change) |
 
@@ -117,10 +117,10 @@ Left unchanged, per reviewer's audit:
 | 🟡 Environment/infra | 6 | 3 | 0 | 0 | 3 |
 | 🟡 Security | 8 | 5 | 0 | 0 | 3 |
 | 🟡 Quality/testing | 5 | 2 | 1 | 0 | 2 |
-| 🟡 Docs/process | 6 | 3 | 1 | 0 | 2 |
-| **Total** | **39** | **23** | **6** | **0** | **10** |
+| 🟡 Docs/process | 6 | 4 | 1 | 0 | 1 |
+| **Total** | **39** | **24** | **6** | **0** | **9** |
 
-**Done or partial**: 29 of 39 (74%). All 🔴 and 🟠 blockers addressed in code. 10 open items are all 🟡 hardening.
+**Done or partial**: 30 of 39 (77%). All 🔴 and 🟠 blockers addressed in code. 9 open items are all 🟡 hardening.
 
 **Where the open work lives now (2026-07-05):** Every ⬜ / ⚠️ row above
 now cross-references the specific `BACKLOG.md` entry that carries the

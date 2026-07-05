@@ -421,26 +421,38 @@ gaps.
 
 **Origin**: Fable review 🟡 security bucket.
 
-### 9l. DEV_PROD_ENVIRONMENTS.md drift audit 🟡
+### 9l. DEV_PROD_ENVIRONMENTS.md drift audit ✅ (done — `e120245`)
 
-**Problem**: `docs/DEV_PROD_ENVIRONMENTS.md` has been edited many
-times over v1.1.0 development and now has sections that drift
-from `RELEASE_CHECKLIST.md` and `BEST_PRACTICES.md`. Specifically:
-- The release-workflow prose in DEV_PROD_ENVIRONMENTS.md predates
-  the RELEASE_CHECKLIST rewrite — some steps only exist in one or
-  the other, some contradict.
-- Backup / kill-switch procedures partially duplicated across all
-  three docs; if one gets updated, the others silently rot.
+**Status**: The release-workflow section — the drifty part — was
+stubbed with a pointer to `RELEASE_CHECKLIST.md` in commit `e120245`
+(2026-07-05), prompted by Fable re-review pre-flight punch list item
+3. That commit removed ~120 lines of duplicated release-phase prose
+and replaced them with a stub that explicitly names each way the
+duplicated content was unsafe (including the `SHOW_DEMO_BUTTON=true`
+landmine the reviewer flagged).
 
-**Fix**: read all three docs end-to-end in one sitting, own each
-section in exactly one doc, replace duplicated content with cross-refs.
+**Why stub instead of reconcile**: Any future edit to a reconciled
+section would immediately re-drift because both docs live in the
+same repo and neither is authoritative until this stub call. Making
+one file the canonical source for release procedure removes the
+drift permanently.
 
-**Effort**: ~2 hours if done carefully; adds ~30 min of
-"remembered a thing" edits over the next week.
+**What still lives in DEV_PROD_ENVIRONMENTS.md** (correctly owned
+here, not release-workflow):
+- Bundle IDs, env detection, structural guards
+- Schema migration mechanics + backward-compat rules
+- Kill switch operation + rollback plans
+- Edge Function deploy commands
+- Danger zone list
 
-**Blocks**: nothing today, but the drift will bite the first time
-someone (probably future-Mandeep) follows the wrong doc during a
-release.
+**Original problem statement** (kept for history): backup /
+kill-switch procedures were partially duplicated across
+DEV_PROD_ENVIRONMENTS.md, RELEASE_CHECKLIST.md, and
+BEST_PRACTICES.md; if one got updated, the others silently rotted.
+The release-workflow stub fixes the biggest offender; smaller
+kill-switch / backup duplication surfaces are still worth a
+follow-up sweep if drift ever bites, but is now a low-priority
+BACKLOG item rather than a v1.1.0 punch-list one.
 
 **Origin**: Fable review 🟡 docs/process bucket.
 
