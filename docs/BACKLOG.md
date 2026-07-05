@@ -194,6 +194,64 @@ privacy." Correct read. The Apple-name capture was removed
 immediately (2026-07-05 commit); this backlog item is the code
 simplification that becomes possible once the field is required.
 
+### 9o. Configure PostHog internal / test user filter 🟢
+
+**Problem**: PostHog dashboards have a "Filter out internal and
+test users" toggle that currently filters nothing — no test users
+are tagged as internal. Every test session (mandeepv98@gmail.com,
+sandbox testers, TestFlight users) currently pollutes prod
+funnels once we ship. Blast radius is small (dev events are already
+tagged `environment: dev` so filtering by that gives clean prod
+funnels), but it's annoying whenever anyone opens PostHog and
+forgets to add the environment filter.
+
+**Complication**: Apple anonymizes user data at the OS / OAuth
+level for many users. Specifically:
+- **Sign in with Apple** — users can choose "Hide My Email,"
+  which gives us `xxx@privaterelay.appleid.com` instead of a real
+  email. That relay email is stable per user + app but doesn't
+  identify anyone we already know.
+- **Regular App Store signups** — email is entirely between the
+  user and Apple; we only know what they chose to share via
+  Sign in with Apple or via Google Sign In.
+
+So the naive fix ("mark any user whose email ends in
+@kinderwell.com as internal") only catches users who explicitly
+handed us a matching email. It does NOT catch:
+- Anyone who tests with an anonymized Apple relay email
+- Anyone who signs in with a personal Google account for
+  testing
+- The @privaterelay.appleid.com Apple reviewer signups
+
+**Fix (two parts)**:
+1. Configure PostHog Settings → Project Settings → "Internal and
+   test users" with rules for:
+   - Specific known distinct_id UUIDs (add your own test users
+     as they appear — `24faa206-...`, `b18d3d48-...`, etc. from
+     2026-07-05 session)
+   - Email domain matches (@kinderwell.com etc.)
+2. On the app side: emit an explicit `is_internal` person
+   property when a known-internal identity signs in. Options:
+   - Hard-coded list of Apple user IDs / Google emails for the
+     Kinderwell team
+   - Check for an env-var or feature flag like `KINDERWELL_TEAM`
+     and set `$is_internal: true` in the PostHog identify call
+   - Whenever we activate demo mode (7-tap), set
+     `$is_internal: true` — reviewers ARE internal-adjacent
+     traffic, and this catches most Apple Review sessions
+
+**Effort**: ~30 min for dashboard config + 1-2h for the app-side
+identity-based flagging.
+
+**Blocks**: nothing; the environment tag already keeps prod
+funnels clean if you remember to filter by it. This is quality-of-
+life so we can view "all events" without pollution.
+
+**Origin**: user observation 2026-07-05 during PostHog verification
+— noticed the internal-user filter did nothing to their own test
+sessions. The Apple email anonymization nuance is the reason a
+simple email-domain filter isn't sufficient.
+
 ### 9m. In-app edit of onboarding answers 🟡
 
 **Problem**: Settings currently has no way for a user to correct
