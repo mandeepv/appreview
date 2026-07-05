@@ -344,8 +344,12 @@ The safest way to force a real native crash in a dev build is:
   - `onboarding_step_completed` with answers
   - `user_signed_in`
   - `paywall_dismissed` or `subscription_purchased`
-  - `lesson_started`
+  - `lesson_tapped` **and** `lesson_started` — the split matters. `lesson_tapped` fires on TAP (top-of-funnel, "how many people even try"). `lesson_started` only fires AFTER the paywall gate lets you through ("content actually opened"). Prior code fired `lesson_started` on tap so paywall bounces counted as starts; Fable review #8 fixed this and the two events now measure different questions.
+    - Positive-path test: subscribed test user taps a lesson → **both** events appear with matching properties.
+    - Negative-path test: unsubscribed test user taps a lesson → `lesson_tapped` appears, `lesson_started` does NOT (paywall gate blocks the second event). If `lesson_started` fires without a purchase, the split regressed.
   - `restore_purchases_tapped` / `restore_purchases_completed`
+
+**Note:** the earlier version of this section listed only `lesson_started` and framed it as the tap event, which contradicted the shipped code. A tester following the pre-fix version would have marked a working analytics split as a bug. Corrected 2026-07-05 by Fable re-review pre-flight punch list item 6.
 
 ### 9.2 User properties populated
 - [ ] Find your test user in PostHog Persons
