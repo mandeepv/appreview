@@ -519,6 +519,78 @@ Section 6 covers basic kill-switch. This adds the cap check:
 Fable #14 caught `SettingsScreen.tsx:337` hardcoding "Kinderwell v1.0.0" while shipping 1.1.0.
 - [ ] Settings screen → scroll to bottom → version reads "v1.1.0 (build 9)" or whatever the current `Constants.expoConfig.version` + `ios.buildNumber` are. Not hardcoded.
 
+### 12.12 Restore Purchases — full outcome matrix (Fable #1, defining behavior of the fix)
+
+Section 5 covers only the `restored` and `no_purchases` outcomes. The
+defining bug the fix closed (a reinstalling subscriber with
+`subscriptionStatus === 'UNKNOWN'` getting a false "No Purchases Found"
+and having to contact support) has NEVER been tested end-to-end.
+Fable re-review 2026-07-05 flagged this as the missing test.
+
+The restore flow can land on **five** discrete PostHog `outcome` values:
+`restored`, `no_purchases`, `unknown`, `failed`, `threw`. Each maps to a
+distinct user-facing alert. Verify each below — for the ones that are
+hard to induce directly (`unknown`, `threw`), verify by reading Metro
+logs during the natural attempts rather than trying to force the state.
+
+**Setup (once):** dev IPA installed, on a device with a StoreKit sandbox
+Apple ID (see `STOREKIT_SETUP_GUIDE.md`). Sign in fresh.
+
+**12.12.1 — `restored` outcome (already covered by 5.1, re-verify here):**
+- [ ] Sandbox-subscribe via paywall first.
+- [ ] Uninstall + reinstall app.
+- [ ] Sign back in.
+- [ ] Settings → Restore Purchases.
+- [ ] Alert reads exactly **"Restored — Your subscription has been restored."**
+- [ ] Metro/PostHog: `restore_purchases_completed` with `outcome: 'restored'`.
+
+**12.12.2 — `no_purchases` outcome (already covered by 5.2, re-verify):**
+- [ ] Fresh install with a sandbox Apple ID that has NO prior Kinderwell subscription.
+- [ ] Sign in, land on paywall.
+- [ ] Settings → Restore Purchases (either dismiss paywall first, or if the paywall has its own Restore button use that).
+- [ ] Alert reads exactly **"No Purchases Found — No previous purchase was found for this Apple ID. Make sure you're signed in with the Apple ID you used to subscribe."**
+- [ ] Metro/PostHog: `restore_purchases_completed` with `outcome: 'no_purchases'`.
+
+**12.12.3 — `unknown` outcome ("Still Syncing" — the reinstall race condition; THIS is the bug the fix closed):**
+
+This is the outcome that used to silently mis-classify as `no_purchases`
+before the fix. It happens when `restorePurchases()` completes but
+Superwall's `subscriptionStatus` hasn't finished resolving yet — usually
+right after a fresh install of a real subscriber, or after
+force-quitting and reopening the app before Superwall has warmed up.
+Hard to induce reliably on demand; two attempts:
+
+- [ ] **Cold-start attempt:** fresh install, sign in as a subscriber, immediately Settings → Restore Purchases within ~2 seconds of the app opening (before Superwall has finished warming up). If you hit the race, alert reads exactly **"Still Syncing — We're still checking with the App Store. Please try again in a moment."** Metro/PostHog: `restore_purchases_completed` with `outcome: 'unknown'`. Retry immediately and it should now resolve to `restored`.
+- [ ] **Airplane-mode attempt:** enable Airplane Mode → Settings → Restore Purchases. Depending on Superwall internals this may land as `unknown` (still syncing) or `failed` (network error) — either is acceptable evidence the code isn't silently mis-classifying as `no_purchases`.
+- [ ] **Fallback: read the code path.** If you can't induce it in a session, confirm the branch exists and its exact copy by grepping `src/screens/SettingsScreen.tsx` for `'Still Syncing'` — the assertion is that the branch is reachable, not that we always hit it during smoke test. If the string doesn't grep, the fix regressed.
+
+**12.12.4 — `failed` outcome (restore call itself errors):**
+- [ ] Trigger a Restore Purchases attempt while offline hard (Airplane Mode on, Wi-Fi off, cellular off, or physical network detach if simulator).
+- [ ] Alert reads **"Restore Failed"** with the underlying error message (or fallback: "Something went wrong. Please check your connection and try again.").
+- [ ] Metro/PostHog: `restore_purchases_completed` with `outcome: 'failed'` and an `error` property.
+- [ ] Reachable Metro-log evidence for the branch is sufficient if the exact error copy varies by device.
+
+**12.12.5 — `threw` outcome (synchronous exception before the restore call resolves):**
+
+The synchronous exception path (`catch (error)`) is very rarely
+reachable in production since the SDK returns `{ result: 'failed' }`
+for most failure modes rather than throwing.
+
+- [ ] Best-effort: confirm the branch exists by grepping
+      `src/screens/SettingsScreen.tsx` for `outcome: 'threw'`. If it
+      doesn't grep, the catch handler regressed.
+- [ ] Not required to reproduce in a session.
+
+**12.12.6 — Guard against re-tap (already covered by 5.3, re-verify here):**
+- [ ] Tap Restore Purchases → button disables while `isRestoring` is true → does not fire twice.
+
+**Reporting bar:** 12.12.1 and 12.12.2 must succeed as end-to-end tests
+(same as Section 5). 12.12.3 must at minimum pass the grep-check
+(fallback); a live reproduction is a bonus. 12.12.4 must pass either as
+end-to-end or Metro-log-only evidence. 12.12.5 is grep-only. If ANY of
+12.12.1 / 12.12.2 / 12.12.3-grep fails, the Restore Purchases fix has
+regressed and this IPA is not shippable.
+
 ---
 
 ## What to report back
