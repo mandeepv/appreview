@@ -12,14 +12,15 @@
 
 ## 🚨 Submission blockers — do not skip
 
-Every release, these four manual steps happen *outside* the code and *outside* CI. If you skip any of them you either get rejected by Apple, ship an app that doesn't work for existing users, or corrupt prod data. They are covered by their own phases below — this list exists so nobody skims past them:
+Every release, these five manual steps happen *outside* the code and *outside* CI. If you skip any of them you either get rejected by Apple, ship an app that doesn't work for existing users, or corrupt prod data. They are covered by their own phases below — this list exists so nobody skims past them:
 
 1. **Phase 4** — Apply schema migrations to prod (`supabase db push`) if any are pending. Skipping = new app talks to old schema, writes fail silently.
-2. **Phase 7.5** — Verify each Superwall paywall in the Superwall dashboard has a dismiss control (X, "Not now", or swipe-to-dismiss). Skipping = Apple 3.1.2 rejection.
-3. **Phase 8.3** — Run the mandatory UPGRADE test on TestFlight (old app → new app on same device, subscription + progress preserved). Skipping = existing users break the moment they update; hotfix takes 24–72h through Apple.
-4. **Phase 9a** — Update the App Store Connect App Privacy questionnaire so it matches `PrivacyInfo.xcprivacy` and `legal/PRIVACY_POLICY.md`. Skipping = Apple review rejection for privacy-manifest mismatch.
+2. **Phase 5** — Redeploy any Edge Functions that changed on this branch. **For v1.1.0 specifically this includes `delete-account` (CORS was tightened)**. Skipping = the app calls the old function code, so account-deletion behavior on prod diverges from what was tested. Also: the Fable re-review 2026-07-05 flagged that the `ACAO: null` value in the shipped code is not a lockdown — remove the `Access-Control-Allow-Origin` header entirely in the same deploy.
+3. **Phase 7.5** — Verify each Superwall paywall in the Superwall dashboard has a dismiss control (X, "Not now", or swipe-to-dismiss). Skipping = Apple 3.1.2 rejection.
+4. **Phase 8.3** — Run the mandatory UPGRADE test on TestFlight (old app → new app on same device, subscription + progress preserved). Skipping = existing users break the moment they update; hotfix takes 24–72h through Apple.
+5. **Phase 9a** — Update the App Store Connect App Privacy questionnaire so it matches `PrivacyInfo.xcprivacy` and `legal/PRIVACY_POLICY.md`. Skipping = Apple review rejection for privacy-manifest mismatch.
 
-Everything else in this checklist is code, config, or timing — these four are the ones that a human has to click / do in an external system, and they're easy to forget.
+Everything else in this checklist is code, config, or timing — these five are the ones that a human has to click / do in an external system, and they're easy to forget.
 
 ---
 
@@ -140,12 +141,23 @@ stale.
 
 ## Phase 5: Deploy Edge Functions to prod (if changed)
 
+- [ ] Identify every Edge Function under `supabase/functions/` that changed on this branch. `git diff <last-release-tag>..HEAD -- supabase/functions/` will show the list.
+- [ ] For each changed function, re-read the source in `supabase/functions/<name>/index.ts` before deploying. The prod version is about to become this exact code — no time to catch a typo after `functions deploy` runs.
 - [ ] `supabase link --project-ref zqwzdyjfxytvedghujsd`
 - [ ] `supabase functions deploy <name> --project-ref zqwzdyjfxytvedghujsd`
 - [ ] **IMMEDIATELY re-link back to dev** so accidental commands hit dev, not prod:
   ```bash
   supabase link --project-ref xbkkjqvbsnroenqlqkmi
   ```
+- [ ] **Re-test the affected feature from the app** after deploy. For `delete-account` specifically, sign in on the shipped iOS build, tap Settings → Delete Account, verify: single confirmation, subscription warning, success alert, session cleared, no 401. If you get a 401, the refresh + Edge Function chain broke — do NOT ship until fixed.
+
+### v1.1.0 specifics — Edge Function changes this branch
+
+For the v1.1.0 release, the `delete-account` function changed on this branch (CORS tightening — commit `5510406`). Additional carrying instructions from the Fable re-review 2026-07-05:
+
+- [ ] Before the deploy, remove the `Access-Control-Allow-Origin` header entirely from `supabase/functions/delete-account/index.ts`. The `null` value shipped by the previous fix is not a lockdown — the literal string `null` is a real origin browsers will send. Native fetch (what our app uses) ignores CORS entirely, so removing the header has zero app impact and closes the browser-side hygiene gap.
+- [ ] Verify locally that `deno check supabase/functions/delete-account/index.ts` (or `supabase functions serve` invocation) still passes before deploying.
+- [ ] The Edge Function redeploy is a **submission blocker** for v1.1.0 (see the callout at the top of this doc).
 
 ---
 
