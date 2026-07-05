@@ -578,6 +578,14 @@ regress anything, it just didn't fix it.
 
 **Effort**: (a) 15 min. (b) ~1 hour.
 
+**Fable re-review 2026-07-05 recommendation**: do option (a) BEFORE
+external TestFlight beta, not after. Reasoning: internal beta with
+3 Homies is fine because they know the app's state, but external
+testers seeing a full lesson card that opens to "Coming Soon" reads
+as bait-and-switch. Preempt with a "Coming Soon" label on the
+LearnScreen card itself so nobody feels lied to. Option (b) is a
+follow-up for v1.1.1 or later — actually shipping the content.
+
 ### 12. Lesson progress not synced to Supabase 🟡
 
 `src/services/lessonProgressService.ts` has 7 functions querying

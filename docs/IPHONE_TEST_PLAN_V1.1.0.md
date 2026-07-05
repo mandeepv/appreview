@@ -413,21 +413,43 @@ Delete-account got 5 discrete changes: subscription warning, single confirmation
 - [ ] Open dev Supabase → Auth → Users → confirm the user is deleted.
 - [ ] Same user's row in `user_profiles` is gone (or `deleted_at` set — check the migration schema).
 
-### 12.2 Returning-user re-sign-in (the pushback we documented)
+### 12.2 Returning-user re-sign-in (the pushback we documented + the flag-leak fix)
 
-Fable flagged that re-doing onboarding after signing back in discards fresh answers. We kept that behavior deliberately, but the `has_reached_auth` flag leak fix means the returning-user flow behaves differently from a brand-new-user flow. This test verifies both.
+Fable flagged two related bugs on this path. **We kept one behavior deliberately** (fresh-answer discard on returning-user re-onboarding) and **fixed the other** (the `has_reached_auth` flag was leaking across sessions, so a later cold launch after logout landed the user on Auth instead of Welcome).
 
-**Setup:**
+The Fable re-review 2026-07-05 caught that this test was asserting on the wrong path — the fix fires specifically when the user takes the **signup** path (Get Started → onboarding → Auth) and signs in with an OAuth identity that already has an account, NOT when they take the "I already have an account" path. This section now covers both.
+
+**12.2a — Signin-path smoke test (existing signed-in behavior, easy):**
+
 - [ ] From delete-account state (or Section 12.1 exit state), still logged out.
 - [ ] Tap "I already have an account" on the Welcome screen (not "Get Started").
-
-**Verify signin mode behavior:**
 - [ ] Auth screen appears with the "use the same option you signed up with" hint visible. If missing → the hint from unify-auth work regressed.
 - [ ] Sign in with the same OAuth provider as before.
 - [ ] User lands DIRECTLY on the Home / Learn screen (NOT onboarding, NOT paywall as a new user). If routed to onboarding: `hasUserCompletedOnboarding` isn't classifying signed-in users correctly.
-- [ ] Any answers you would have started to re-provide are discarded per spec — this is the documented pushback, not a bug.
 
-**Signin as a user who never onboarded (edge case):**
+**12.2b — Fresh-answer discard on returning-user redo-onboarding (the documented pushback):**
+
+- [ ] Still signed in from 12.2a.
+- [ ] Sign out (Settings → Sign Out).
+- [ ] Tap **"Get Started"** on Welcome (NOT "I already have an account" — this is the path the fix fires on).
+- [ ] Rush-tap through onboarding, providing DIFFERENT answers than your original ones (e.g. change parent type).
+- [ ] Reach the Auth screen at the end of onboarding.
+- [ ] Sign in with the same OAuth provider (existing account).
+- [ ] Land on Home / Learn. Verify (via dev Supabase → `user_profiles` row inspection, or PostHog `identifyUserWithOnboarding` event) that your **original** answers are still there — the fresh answers from this rush-through were discarded. This is the documented pushback (see `FABLE_LATEST_REVIEW.md` Response 2026-07-04 for finding #3), not a bug.
+
+**12.2c — `has_reached_auth` flag-leak fix (the actual bug that was fixed):**
+
+The flag used to leak across sessions. Before the fix: after signing out, a cold launch would skip Welcome and go straight to Auth because AsyncStorage still said `has_reached_auth = true`. After the fix (`fa27f90`), the flag is cleared on sign-out so cold launch correctly lands on Welcome.
+
+- [ ] Continue from 12.2b (signed in, on Home).
+- [ ] Sign out (Settings → Sign Out).
+- [ ] **Force-quit the app entirely** (swipe up in the app switcher).
+- [ ] Wait a few seconds.
+- [ ] Reopen the app cold.
+- [ ] **Verify:** you land on the **Welcome screen**, NOT the Auth screen. If you land on Auth, the `has_reached_auth` flag leak has regressed.
+
+**12.2d — Signin as a user who never onboarded (edge case):**
+
 - [ ] From logged-out state, tap "I already have an account".
 - [ ] Sign in with a fresh Google/Apple identity that has NO row in `user_profiles`.
 - [ ] User is routed to onboarding (`signin` mode + `no_onboarding` branch of the discriminated union). NOT dropped straight into an empty home.
