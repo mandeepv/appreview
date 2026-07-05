@@ -116,23 +116,34 @@ paying user's experience during an incident.
 
 ## Placements in the Superwall dashboard
 
-**As of v1.1.0:** three placements exist.
+**As of v1.1.0:** two placements needed in the dashboard.
 
-| Placement | Feature Gating | Used by | Notes |
+| Placement | Feature Gating | Used by | Retire when |
 |---|---|---|---|
-| `subscription_gate` | **Gated** | v1.1.0 code (`LoadingScreen`) | The hard paywall. No dismiss. Audience: unsubscribed users only. |
-| `show_paywall` | Non-Gated | v1.0.0 code (still shipped) | Legacy. Preserved for backward compat. Do NOT edit until no v1.0.0 users remain. |
-| `learn_access` | Gated | v1.0.0 code (still shipped) | Legacy per-lesson gate. v1.1.0's `useLessonGate` hook no longer calls this; v1.1.0 gates at app entry, not per-lesson. Preserved for backward compat. |
+| `subscription_gate` | **Gated** | v1.1.0 code (`LoadingScreen`) | never (as long as we ship a paywall) |
+| `show_paywall` | Non-Gated | v1.0.0 code (already shipped to real users) | v1.0.0 usage < ~1% for 30d |
 
-**Why we didn't reuse `show_paywall`:** it's Non-Gated. Changing its
-Feature Gating would break shipped v1.0.0 clients that rely on the
-existing behavior. Creating a new placement (`subscription_gate`) lets
-v1.1.0 have Gated behavior without touching what v1.0.0 sees.
+**Not needed anymore — safe to delete:**
 
-**When to retire `show_paywall` and `learn_access`:** monitor App
-Store Connect → Analytics → app version breakdown. Once v1.0.0
-installations drop to a negligible share (say <1% for 30 days), safe
-to delete both placements. Until then, leave them alone.
+- `learn_access` — added during v1.1.0 development (commit `86d205f`)
+  but never shipped to real users. The v1.0.0 App Store binary only
+  calls `show_paywall`; verified via `git grep 'learn_access'
+  appstore-live-v1.0.0` returning empty. v1.1.0's `useLessonGate` hook
+  was simplified to a no-op as part of the hard-paywall model, so
+  v1.1.0 code doesn't reference it either. Zero shipped clients depend
+  on it. Delete from the Superwall dashboard whenever convenient.
+
+**Why we didn't reuse `show_paywall`:** it's Non-Gated (paywall shows
+to everyone). Changing its Feature Gating to Gated would break shipped
+v1.0.0 clients that rely on the existing behavior. Creating a new
+placement (`subscription_gate`) lets v1.1.0 have Gated behavior
+without touching what v1.0.0 sees.
+
+**When to retire `show_paywall`:** monitor App Store Connect →
+Analytics → app version breakdown. Once v1.0.0 installations drop to
+a negligible share (say <1% for 30 days), safe to delete. Also
+consider the kill-switch route: bump `min_supported_ios_build` in
+`app_config` to force v1.0.0 users to upgrade before deletion.
 
 ---
 
