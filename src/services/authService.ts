@@ -177,47 +177,29 @@ export const signInWithApple = async () => {
 
     if (error) throw error;
 
-    // Save the user's name to user_profiles.
+    // NOTE: we deliberately do NOT capture credential.fullName here.
     //
-    // ⚠️ CRITICAL: Apple only provides fullName / email on the FIRST
-    // authorization ever for a given (Apple ID, app) pair. If we fail this
-    // upsert silently, the name is gone forever — the user could uninstall,
-    // reinstall, re-authorize a hundred times, and Apple would never send
-    // the name again.
+    // Apple sends the user's real name in the first-authorization
+    // credential, and previously (v1.0.0 through mid-v1.1.0) we
+    // silently upserted it into user_profiles.name. That felt
+    // invasive to end users — they think "I never told Kinderwell my
+    // name" and then see their name in the app anyway. Removed
+    // 2026-07-05 per user directive: name should come only from what
+    // the user explicitly types on the onboarding NameAgeScreen.
     //
-    // We write to the `name` column (the one that actually exists in
-    // user_profiles). Previous code wrote to `full_name` and `email`, neither
-    // of which exists → silent failure → every new Apple user lost their name.
-    if (data.user && credential.fullName) {
-      const fullName = [
-        credential.fullName.givenName,
-        credential.fullName.familyName,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-
-      if (fullName) {
-        const { error: upsertError } = await supabase
-          .from('user_profiles')
-          .upsert(
-            { id: data.user.id, name: fullName },
-            { onConflict: 'id' },
-          );
-
-        if (upsertError) {
-          // Do NOT throw — the user is signed in successfully at this point.
-          // Losing the name is a soft failure. Log to Sentry so we notice
-          // if it happens systematically.
-          if (__DEV__) console.error('[Apple SignIn] Failed to save name:', upsertError);
-          reportError(upsertError, {
-            source: 'signInWithApple',
-            step: 'save_name',
-            user_id: data.user.id,
-          });
-        }
-      }
-    }
+    // Consequence: brand-new Apple users who leave the NameAgeScreen
+    // field blank end up with name = null in the DB. That's honest —
+    // we don't know their name because they didn't tell us. The
+    // NameAgeScreen still has a 'Parent' fallback for display, but
+    // the LoadingScreen + onboardingService filters keep 'Parent' out
+    // of the DB.
+    //
+    // Existing users who signed up under v1.0.0 already have their
+    // Apple-captured name in Supabase; this change doesn't touch them.
+    //
+    // A follow-up in v1.1.1 (see BACKLOG) will make the name field
+    // required on NameAgeScreen, at which point the fallback and
+    // filter machinery can be deleted entirely.
 
     return data.session;
   } catch (error: any) {

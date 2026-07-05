@@ -159,6 +159,41 @@ SE-class simulator)" to RELEASE_CHECKLIST.
 copy suggests team was iterating in staging and some leaked. Add
 copy review as a pre-ship checklist item.
 
+### 9n. Make NameAgeScreen name field required + delete 'Parent' fallback machinery 🟡
+
+**Problem**: NameAgeScreen falls back to the literal string `'Parent'`
+when the user leaves the field blank. That fallback then triggers a
+two-layer defensive filter (`LoadingScreen.tsx` + `onboardingService.ts`)
+to keep 'Parent' out of the DB. All of that machinery exists because
+the field is optional and the fallback is a sentinel value.
+
+**Context**: on 2026-07-05 we also removed the `authService.signInWithApple`
+code that silently captured Apple's credential.fullName. That means brand-new
+Apple users who leave the NameAgeScreen field blank now end up with
+`name = null` in the DB (previously would have been the Apple name,
+which felt invasive to end users). Honest, but suboptimal.
+
+**Fix**: make the name field on NameAgeScreen required.
+- Remove the `'Parent'` fallback default in NameAgeScreen state.
+- Disable the Continue button until a non-empty name is entered.
+- Delete the two-layer filter in LoadingScreen.tsx (`nameToSave` logic)
+  and onboardingService.ts (`name === 'Parent'` filter).
+- Update any tests or docs referencing 'Parent' as a sentinel.
+
+**Effort**: ~30 min. Small change; the tricky part is auditing every
+place that reads `name` to make sure they handle a required-non-empty
+string correctly (they should — nothing today special-cases empty).
+
+**Blocks**: nothing today. UI polish + code simplification. Ship
+whenever comfortable in v1.1.1 or later.
+
+**Origin**: user directive 2026-07-05 during on-device Section 12
+testing — after seeing their Apple name in the DB despite leaving
+onboarding blank, flagged that it "will spook people out regarding
+privacy." Correct read. The Apple-name capture was removed
+immediately (2026-07-05 commit); this backlog item is the code
+simplification that becomes possible once the field is required.
+
 ### 9m. In-app edit of onboarding answers 🟡
 
 **Problem**: Settings currently has no way for a user to correct
