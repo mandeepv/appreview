@@ -170,6 +170,49 @@ For the v1.1.0 release, the `delete-account` function changed on this branch (CO
 
 ## Phase 7: Build for App Store
 
+### Pre-build sanity checks (Fable re-review 2026-07-05)
+
+Before running `eas build`, run these three checks. Each is <30 seconds
+and each has a way to fail silently and give you a broken build without
+the CLI telling you anything is wrong.
+
+- [ ] **`SENTRY_AUTH_TOKEN` EAS secret exists.**
+  ```bash
+  eas env:list --environment production | grep SENTRY_AUTH_TOKEN
+  ```
+  Expect a line ending in `(sensitive, hidden)`. If missing, the
+  `@sentry/react-native/expo` prebuild plugin can't upload source
+  maps and every prod crash resolves to unreadable stack traces.
+  Recreate with:
+  ```bash
+  eas env:create --environment production --name SENTRY_AUTH_TOKEN --value <token>
+  ```
+  (Token comes from Sentry → Settings → Auth Tokens with `project:releases` scope.)
+
+- [ ] **Supabase prod project ref is identical in all three files.**
+  ```bash
+  echo "=== src/lib/env.ts ===" && grep PROD_PROJECT_REF src/lib/env.ts
+  echo "=== eas.json production ===" && python3 -c "import json; print(json.load(open('eas.json'))['build']['production']['env']['SUPABASE_URL'])"
+  echo "=== app.config.js ===" && grep 'includes.*supabase\|zqwzdyjfxytvedghujsd' app.config.js | head -2
+  ```
+  The three should all reference the same project ref. If any one
+  drifts, the build succeeds but every launch throws the "REFUSING
+  to connect / bundle pointed at wrong project" guard error and the
+  binary is DOA. Caught by the runtime guard, but pre-checking here
+  saves a wasted TestFlight upload.
+
+- [ ] **`eas.json` still has `"appVersionSource": "local"`** in the `cli`
+  block. Without it, EAS ignores the carefully-synced `buildNumber`
+  in `app.json` and either prompts interactively or auto-increments
+  server-side, breaking `bump-version.sh` doctrine + kill-switch
+  comparisons.
+  ```bash
+  python3 -c "import json; print('appVersionSource =', json.load(open('eas.json'))['cli'].get('appVersionSource'))"
+  ```
+  Expect `appVersionSource = local`.
+
+### Build
+
 - [ ] Any new native module or bundle ID change since last build? If yes, run `npx expo prebuild --clean` first
 - [ ] Build:
   ```bash
@@ -276,6 +319,84 @@ the scenario a fresh-install smoke test WILL NOT catch.
 **If ANY of the above fails: STOP.** Do not submit. Fix, rebuild, retest
 the upgrade path. Fresh install passing is not enough — that's what
 the pre-Fable v1.0.0 release did.
+
+---
+
+## Phase 8.4: External TestFlight beta (before App Store submission)
+
+**Why this phase exists:** the Fable re-review 2026-07-05 flagged that we
+had no external-beta path in any doc. External TestFlight goes through
+Apple's Beta App Review — several of the "submission blockers" from
+the top of this checklist actually apply here, not just at final
+submission. This phase closes that gap.
+
+**Do NOT skip straight from internal beta to App Store submission.**
+Every strangers-first release needs this window to catch regressions
+that 3-tester internal beta can't reproduce.
+
+### 8.4a — Promotion criteria (must all be true before adding external testers)
+
+- [ ] All 3 internal testers (Homies) have installed the current TestFlight build.
+- [ ] All 3 have completed the mandatory upgrade path (from live App Store v1.0.0 build 8) end-to-end without a report of broken behavior.
+- [ ] All 3 have completed at least one full "sign in → onboarding → paywall → complete a lesson" fresh path.
+- [ ] Sentry `environment=prod` on this release version shows **zero P0 crashes** across 48h of active testing. Filter: `release = kinderwell@1.1.0` (or current), `environment = prod`.
+- [ ] PostHog conversion funnel on this release shows no unexpected drop-offs vs. the v1.0.0 baseline (Splash → Welcome → Auth → onboarding → paywall).
+- [ ] Zero unresolved tester feedback items rated blocker or above (see 8.4b for the feedback mechanism).
+- [ ] The 3 tester devices have `demo_mode_activated` count of 0–5 total (any single tester with >5 activations means they're stress-testing, not that end users have found the gesture — safe).
+
+### 8.4b — Tester feedback mechanism
+
+Testers report issues via one of:
+
+- [ ] **In-app feedback:** long-press the 7-tap title area 3 times to open a `mailto:kinderwellteam@gmail.com?subject=Kinderwell%20Beta%20Feedback` composer. (**Not built yet** — for v1.1.0 testers, rely on the two channels below.)
+- [ ] **TestFlight feedback:** TestFlight's built-in "Send Beta Feedback" button. Check daily during beta.
+- [ ] **Direct email** to kinderwellteam@gmail.com. Homies have this already.
+
+Homies briefing (send this to the 3 testers **before** they install):
+
+> **Kinderwell v1.1.0 internal beta — please read before opening**
+>
+> Thanks for testing! A few things you need to know:
+>
+> 1. **The paywall has no close button in this build.** If you see the paywall and don't want to subscribe (with a sandbox Apple ID or otherwise), **force-quit the app and reopen** — you'll land on the LearnScreen, not stuck in a loop. This is a known issue being fixed before external beta.
+> 2. **You will be running against production Supabase.** Please DO NOT run through onboarding with real test data multiple times — every fresh sign-in creates a real prod user record. If you complete a flow and want to re-test, use Settings → Delete Account first.
+> 3. **Sandbox payments:** if you want to test subscription flows, sign into iPhone Settings → App Store → Sandbox Account with the sandbox Apple ID (`sandeepv98@gmail.com`) before opening Kinderwell. Sandbox subs auto-renew every 5 minutes so we can verify renewal behavior quickly.
+> 4. **7-tap demo mode:** on the "Save your progress" auth screen, tap the title 7 times quickly to unlock all premium content without a purchase. This is the reviewer-testing path — please only use it if you want to skip the paywall entirely for testing.
+> 5. **Please report:** any crash, any confusing screen, any behavior that "feels wrong." Even small things. TestFlight has a "Send Beta Feedback" button, or email kinderwellteam@gmail.com.
+
+### 8.4c — External TestFlight setup
+
+- [ ] Add a "Public link" beta group in App Store Connect → TestFlight → External Testing, OR curate a specific list of testers by email.
+- [ ] Fill out **TestFlight Test Information** (required by Apple Beta App Review, will reject otherwise):
+  - Beta App Description
+  - Feedback Email: kinderwellteam@gmail.com
+  - Marketing URL (optional but recommended)
+  - Privacy Policy URL: `https://mandeepv.github.io/kinderwell-legal/privacy.html` — verify returns 200
+  - What to Test (list the specific flows you want feedback on)
+  - Demo Account credentials / instructions — copy-paste from `docs/DEMO_MODE.md` "What Apple Review Instructions should say" section
+- [ ] Copy the same App Privacy questionnaire answers you'll use for final submission (Phase 9a) — Beta App Review checks these too.
+
+### 8.4d — External beta hardening (recommended, not blocking)
+
+Do these *before* strangers' data arrives. From the Fable re-review 2026-07-05:
+
+- [ ] **Rotate prod DB password** (see `BACKLOG.md` 9i, ~15 min in Supabase dashboard). Coordinate leaked in git history; never rotated since prod was provisioned.
+- [ ] **Manual `supabase db dump` of prod** as insurance:
+  ```bash
+  supabase db dump --project-ref <redacted-prod-ref> --data-only > backups/prod-$(date +%Y%m%d).sql
+  ```
+  Prod has no automated backups (Free tier); this is the cheapest possible safety net if a bad migration or Edge Function change corrupts data. Store outside the repo (do NOT commit).
+- [ ] **PostHog person-deletion** (see `BACKLOG.md` 9j, ~2-3h). Privacy policy was amended (kinderwell-legal `6d85d95`) to describe the current gap honestly ("we plan to add automatic PostHog deletion in a subsequent release"). Amendment is defensible for internal beta; for external beta, either ship the code fix OR keep the amended policy as the permanent answer.
+
+### 8.4e — External beta exit criteria (must all be true to proceed to Phase 9 App Store submission)
+
+- [ ] External beta has been running ≥ 5 days with active testers.
+- [ ] Zero P0 crashes / regressions surfaced by external testers.
+- [ ] All beta feedback rated blocker or above resolved (or explicitly deferred to a v1.1.1 hotfix if not release-blocking).
+- [ ] Sentry `environment=prod` on this release shows no new error signatures from external testers that don't have a diagnosis.
+- [ ] Tester count is high enough to be meaningful (target: ≥ 10 external testers who actually opened the app).
+
+**If any exit criterion fails:** stay in external beta, or ship a beta-only hotfix build (do NOT release to App Store).
 
 ---
 
