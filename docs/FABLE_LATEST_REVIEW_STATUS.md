@@ -44,7 +44,7 @@ work through the review.
 
 | Finding | Status | Commit / notes |
 |---|---|---|
-| Guard the reverse misconfiguration | ✅ | `12f079b` — runtime bundle-ID↔project-ref check + build-time env validation |
+| Guard the reverse misconfiguration | ✅ | `12f079b` — originally: runtime bundle-ID↔project-ref check + build-time env validation. Revised 2026-07-05: bundle-ID split reverted (broke StoreKit product resolution in dev builds), runtime bundle-vs-ref check removed. Build-time env validation in `app.config.js` kept — it hard-fails a prod EAS build if `SUPABASE_URL` doesn't include the prod project ref, which catches the same misconfiguration earlier and harder than the runtime check. See `DEV_PROD_ENVIRONMENTS.md` → "Why we don't split bundles" for full rationale. |
 | Script prod DB pushes (`db-push-dev.sh` / `db-push-prod.sh`) | ⬜ | Open — `BACKLOG.md` item #9g; ~1h; defer to v1.1.1 |
 | Pre-migration prod dump (`backup-prod.sh`) | ⬜ | Open — `BACKLOG.md` item #9h; blocked on Supabase Pro tier decision |
 | Fix or delete dead `ALLOW_DEV_PROD_ACCESS` escape hatch | ✅ | `892530c` — removed; bypass now requires visible code change |

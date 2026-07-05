@@ -11,40 +11,42 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase configuration. Please check your environment variables.');
 }
 
-// Structural guards on the bundle-ID ↔ Supabase project pairing. Every store
-// build must talk to prod Supabase, every dev build must talk to dev Supabase,
-// and any mismatch throws hard at startup rather than silently corrupting data.
+// Structural guards on the Supabase project pairing. The load-bearing
+// signal for "which environment am I?" is the Supabase project ref
+// (parsed from SUPABASE_URL). Bundle ID used to also be part of the
+// signal — dev/preview builds used `com.kinderwell.app.dev` and the
+// guards cross-checked bundle ↔ project ref. That split was reverted
+// on 2026-07-05 because it prevented StoreKit product resolution in
+// dev builds (ASC only has the prod bundle registered). All three EAS
+// profiles now use `com.kinderwell.app`; environment separation is
+// driven entirely by SUPABASE_URL. See docs/DEV_PROD_ENVIRONMENTS.md →
+// "Bundle ID collapse" for the full history.
 //
-// Two failure modes we're catching (Fable review 🟡 first item):
+// The single failure mode we're still catching (Fable review 🟡 first
+// item):
 //
-//   Dev build → prod DB: someone ran `expo start` with .env.prod loaded
-//     accidentally. We'd write test users into the revenue DB. Existing
-//     guard.
+//   __DEV__ build → prod DB: someone ran `expo start` with .env.prod
+//     loaded accidentally. We'd write test users into the revenue DB.
+//     Still guarded below.
 //
-//   Prod build → dev DB (NEW): someone shipped an App Store binary whose
-//     eas.json production profile got typo'd to point at the dev Supabase.
-//     Real users of the store build would write into the dev DB, invisible
-//     to us on prod dashboards, and their data would never be seen by
-//     support. Silent revenue drain + support nightmare.
+// The reverse (prod build → dev DB) is caught earlier at build time in
+// app.config.js — the production EAS build refuses to compile if
+// SUPABASE_URL doesn't include the prod project ref. That guard is
+// build-time and hard-fails the entire pipeline before the binary
+// exists, which is stronger than the runtime bundle-vs-ref check ever
+// was.
 //
-// The check runs on both by comparing the runtime bundle ID to the runtime
-// Supabase project ref. Bundle ID is baked at build time (managed workflow,
-// via IOS_BUNDLE_ID env in eas.json → app.config.js), so a mismatch here
-// means eas.json's SUPABASE_URL and IOS_BUNDLE_ID got out of sync.
-//
-// projectRef, isProdRef, isDevRef come from ./env — single source of truth
-// (Fable review 🟡, previously duplicated in supabase.ts / posthog.ts /
-// sentry.ts).
+// projectRef, isProdRef, isDevRef come from ./env — single source of
+// truth (Fable review 🟡, previously duplicated in supabase.ts /
+// posthog.ts / sentry.ts).
 
 const bundleId = (
   Constants.expoConfig?.ios?.bundleIdentifier
   ?? Constants.expoConfig?.android?.package
   ?? ''
 );
-const isProdBundle = bundleId === 'com.kinderwell.app';
-const isDevBundle = bundleId === 'com.kinderwell.app.dev';
 
-// Guard 1: DEV BUILD → PROD DB (already existed, kept)
+// Guard: DEV BUILD → PROD DB
 //
 // Note: the ALLOW_DEV_PROD_ACCESS env var escape hatch was removed here
 // (Fable review 🟡 item — was documented in DEV_PROD_ENVIRONMENTS.md but
@@ -60,25 +62,6 @@ if (__DEV__ && isProdRef) {
       'This almost certainly means your `.env` was overwritten with prod values.\n' +
       'Fix: `cp .env.prod .env.dev.bak && cp .env.example .env` (then fill in dev creds), or copy back from git.',
   );
-}
-
-// Guard 2: STORE BUILD → WRONG DB (new — the reverse misconfiguration)
-if (!__DEV__) {
-  // In a store binary. Bundle ID and project ref MUST agree.
-  if (isProdBundle && !isProdRef) {
-    throw new Error(
-      `[Supabase] Store bundle (com.kinderwell.app) is pointed at project ${projectRef ?? 'UNKNOWN'}, not prod.\n` +
-      'This build was shipped with a misconfigured eas.json production profile — SUPABASE_URL and IOS_BUNDLE_ID must both be prod.\n' +
-      'This binary cannot serve users safely. Ship a corrected build.',
-    );
-  }
-  if (isDevBundle && !isDevRef) {
-    throw new Error(
-      `[Supabase] Dev bundle (com.kinderwell.app.dev) is pointed at project ${projectRef ?? 'UNKNOWN'}, not dev.\n` +
-      'The eas.json development/preview profile has drifted — SUPABASE_URL and IOS_BUNDLE_ID must both be dev.\n' +
-      'Rebuild after fixing eas.json.',
-    );
-  }
 }
 
 if (__DEV__) {

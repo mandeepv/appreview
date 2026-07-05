@@ -18,8 +18,8 @@
         "POSTHOG_PROJECT_TOKEN": "phc_POSTHOG_TOKEN_REDACTED",
         "POSTHOG_HOST": "https://us.i.posthog.com",
         "SENTRY_DSN": "https://SENTRYDSNREDACTED00000000000000@oREDACTED00000000.ingest.us.sentry.io/REDACTED00000000",
-        "IOS_BUNDLE_ID": "com.kinderwell.app.dev",
-        "ANDROID_PACKAGE": "com.kinderwell.app.dev",
+        "IOS_BUNDLE_ID": "com.kinderwell.app",
+        "ANDROID_PACKAGE": "com.kinderwell.app",
         "APP_DISPLAY_NAME": "Kinderwell Dev"
       }
     },
@@ -37,8 +37,8 @@
         "POSTHOG_PROJECT_TOKEN": "phc_POSTHOG_TOKEN_REDACTED",
         "POSTHOG_HOST": "https://us.i.posthog.com",
         "SENTRY_DSN": "https://SENTRYDSNREDACTED00000000000000@oREDACTED00000000.ingest.us.sentry.io/REDACTED00000000",
-        "IOS_BUNDLE_ID": "com.kinderwell.app.dev",
-        "ANDROID_PACKAGE": "com.kinderwell.app.dev",
+        "IOS_BUNDLE_ID": "com.kinderwell.app",
+        "ANDROID_PACKAGE": "com.kinderwell.app",
         "APP_DISPLAY_NAME": "Kinderwell Dev"
       }
     },

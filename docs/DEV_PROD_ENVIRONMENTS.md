@@ -19,38 +19,52 @@ Both projects have:
 
 Superwall and Apple IAP are **shared** across both environments — sandbox mode (debug builds, TestFlight) handles isolation automatically. No real money is charged in non-store builds.
 
-## Bundle IDs (dev vs prod install side-by-side)
+## Bundle IDs (single bundle across all profiles, as of 2026-07-05)
 
-Dev and prod use different bundle IDs / package names, so both can be installed on the same physical device at once.
+All three EAS build profiles (development / preview / production) use the same iOS bundle ID and Android package: **`com.kinderwell.app`**.
 
-| Environment | iOS bundle | Android package | App name |
+| Environment | iOS bundle | Android package | App name (home screen) |
 |---|---|---|---|
 | **Prod** | `com.kinderwell.app` | `com.kinderwell.app` | Kinderwell |
-| **Dev** | `com.kinderwell.app.dev` | `com.kinderwell.app.dev` | Kinderwell Dev |
+| **Dev / Preview** | `com.kinderwell.app` | `com.kinderwell.app` | Kinderwell Dev |
 
-Bundle IDs are driven from env vars (`IOS_BUNDLE_ID`, `ANDROID_PACKAGE`, `APP_DISPLAY_NAME`) read by `app.config.js`. Set per profile in `eas.json` and per env file in `.env` / `.env.prod`.
+Only the **display name** differs — the app name shown on the home screen — so you can tell a dev install from a prod install by icon label without needing a separate bundle. The underlying bundle is identical.
 
-### Registered where
+### Why we don't split bundles
 
-- **Apple Developer portal (Identifiers → App IDs):** both `com.kinderwell.app` and `com.kinderwell.app.dev` registered, both have Sign in with Apple + Associated Domains capabilities enabled.
-- **Apple Services ID (`com.kinderwell.app.auth`):** primary App ID stays `com.kinderwell.app` (web OAuth). Native Sign in with Apple in the dev app works via the App ID's own capability, not the Services ID.
-- **Google Cloud Console:** two iOS OAuth clients — the prod one (`Kinderwell iOS`) with bundle `com.kinderwell.app`, and the dev one (`Kinderwell iOS Dev`) with bundle `com.kinderwell.app.dev`. Web OAuth client (`Kinderwell web application`) is shared and does the actual Supabase-backed OAuth flow for both.
-- **Dev Supabase Apple provider:** `Client IDs` field contains `com.kinderwell.app,com.kinderwell.app.auth,com.kinderwell.app.dev` — all three, comma-separated. Adding the dev bundle here is what makes Sign in with Apple work in the dev app.
-- **Dev Supabase Google provider:** `Client IDs` field contains both the web client (used by Supabase's OAuth flow) and the new dev iOS OAuth client, comma-separated.
-- **Prod Supabase:** untouched — knows nothing about the dev bundle. Prod bundle only.
+We used to (2026-07-03 to 2026-07-05) — dev/preview builds used `com.kinderwell.app.dev` for real side-by-side install with the store version. The split was reverted because:
+
+1. **StoreKit product resolution broke in dev builds.** App Store Connect only has one app record (`com.kinderwell.app`), which is where the subscription products (`com.kinderwell.app.monthly`, `com.kinderwell.app.annual`) live. A dev build running as `com.kinderwell.app.dev` asked StoreKit for products against a bundle ASC had never heard of → StoreKit returned nothing → paywall rendered `/mo` and `/yr` with no prices. Impossible to test IAP in dev without shipping a second ASC app.
+2. **The alternative fix** — registering `com.kinderwell.app.dev` as a second app in ASC with its own duplicated subscription products, App Privacy questionnaire, review flow, tax forms — was more overhead than the split was worth for a solo dev.
+3. **Environment isolation was never dependent on the bundle split.** Dev vs. prod separation is driven by `SUPABASE_URL` (per-profile env var in `eas.json`), which sets the project ref that PostHog / Sentry / all runtime guards key off of.
+
+**Trade-off we accepted with collapsing:** dev/preview builds cannot be installed on the same phone as the prod App Store build simultaneously — the new install overwrites the previous one. In practice this is not a real cost:
+
+- The Phase 8.3 mandatory upgrade test (RELEASE_CHECKLIST) explicitly *requires* installing the live App Store version, then upgrading to a TestFlight build. With single bundles, TestFlight overwrites the App Store install cleanly, which is the exact flow Phase 8.3 wants to test.
+- Ordinary dev iteration doesn't need the store build coexisting.
+- If you ever need to compare v1.0.0 and v1.1.0 side-by-side visually, use two devices, or the simulator + a device.
+
+See git history around 2026-07-05 for the discussion and commit that reverted the split.
+
+### Registered where (updated for single-bundle world)
+
+- **App Store Connect:** one app record, `com.kinderwell.app`. Subscription products (`com.kinderwell.app.monthly`, `com.kinderwell.app.annual`) live here. Sandbox testers work against this bundle.
+- **Apple Developer portal (Identifiers → App IDs):** only `com.kinderwell.app` needs to be registered / kept. If `com.kinderwell.app.dev` still exists from the split era, it can be deleted (harmless if left).
+- **Apple Services ID (`com.kinderwell.app.auth`):** unchanged — primary App ID is `com.kinderwell.app` for both web and native Sign in with Apple.
+- **Google Cloud Console:** one iOS OAuth client (`Kinderwell iOS`) with bundle `com.kinderwell.app` is sufficient. The dev iOS OAuth client from the split era can be deleted or ignored.
+- **Supabase Apple/Google providers:** the `Client IDs` fields no longer need `.dev` entries — one bundle covers everything. If they still list `.dev`, remove them for cleanliness.
+- **Superwall:** bundle-scoped by app record. One app registered, matching `com.kinderwell.app`, unchanged.
 
 ### Managed workflow — native folders are NOT committed
 
 **As of 2026-07-04:** we migrated to Expo's managed workflow. `ios/` and `android/` folders are gitignored — they get regenerated fresh from `app.config.js` on every EAS build (and locally with `npx expo prebuild --clean` when needed).
 
 **All native config lives in `app.config.js`.** That includes:
-- Bundle ID (env-driven — dev vs prod)
+- Bundle ID (env-driven — but the same value across profiles now, kept env-driven so future re-splits are trivial)
 - Entitlements (Sign in with Apple, Associated Domains, push)
 - PrivacyInfo.xcprivacy (data collection declarations)
 - Info.plist customizations
 - Plugin list
-
-**Meaning:** the bundle ID split now actually works. A `development` profile build produces `com.kinderwell.app.dev`. A `production` profile build produces `com.kinderwell.app`. Verified in generated `PRODUCT_BUNDLE_IDENTIFIER`.
 
 **Rebuilding locally when needed:**
 
