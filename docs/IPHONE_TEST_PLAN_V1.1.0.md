@@ -17,15 +17,36 @@
 
 ## Section 0 — Install & connect
 
+### 0.0 Pick the right EAS profile before building — READ THIS
+
+`eas.json` defines three profiles: `development`, `preview`, `production`. **Which one you build determines whether the artifact even installs on a real iPhone.** This trapped us once (2026-07-05, mid-Section-12 smoke test) — the `.tar.gz` from the `development` profile only opens in the iOS Simulator, and Safari on the phone shows "Download" with no Install button.
+
+- **`development`** — `ios.simulator = true`, `developmentClient = true`. Output is a `.tar.gz` for the iOS Simulator on your Mac. **Cannot install on a physical iPhone.** Use this only if you want to iterate in the simulator with hot reload against a Metro server.
+- **`preview`** ← **use this for iPhone XR testing.** `ios.simulator = false`, `buildConfiguration = Release`. Output is a real `.ipa` you install via Safari from the EAS build page. Same dev-Supabase env vars as the `development` profile; release-mode compile catches minification / prod-bundling bugs that dev builds hide.
+- **`production`** — Same as preview but with prod Supabase + prod bundle ID (`com.kinderwell.app`). Uploaded to TestFlight for the Homies. Do NOT run this profile until Section 12 has passed against `preview` — every `production` build costs a build minute and touches prod bundle-ID space.
+
+**Command to build the profile you actually want on iPhone XR:**
+```bash
+eas build --profile preview --platform ios
+```
+
+Watch for the `🍏 Open this link on your iOS devices` block at the end of the build log — that URL (starts with `install.expo.dev` when opened in Safari, or the `expo.dev/accounts/...` build page which will redirect properly on iOS) shows an **Install** button on iPhone Safari. If you only see Download, you built the wrong profile.
+
 ### 0.1 Install the dev build
-- [ ] TestFlight notification for "Kinderwell Dev" arrives → tap Install
-- [ ] App icon shows as **"Kinderwell Dev"** (not "Kinderwell") on home screen
+- [ ] Build finishes in EAS Cloud → note the `install.expo.dev` or `expo.dev/accounts/...` URL from the build log
+- [ ] Open the URL **in Safari** on iPhone XR (not Chrome / any other browser)
+- [ ] Tap **Install** on the Expo build page
+- [ ] iOS may prompt "Untrusted Enterprise Developer" on first launch → Settings → General → VPN & Device Management → trust the profile
+- [ ] App icon shows as **"Kinderwell Dev"** (not "Kinderwell") on home screen — this is `APP_DISPLAY_NAME` from the dev/preview profile env vars
 - [ ] If prod v1.0.0 is also installed: they appear as TWO separate icons (proves bundle ID split works)
-- [ ] Launch the dev app — no crash
+- [ ] Launch the dev app — no crash, no "REFUSING to connect" alert (the structural guards would fire if bundle-ID / project-ref drift ever regresses)
 
 **If fail:** bundle ID split broken → managed workflow migration issue
 
-### 0.2 Connect to Metro
+### 0.2 Connect to Metro (only if you built with the `development` profile for simulator)
+
+Skip this section entirely if you're on a `preview` build — preview is a release-mode standalone IPA, not connected to a Metro server. Metro is only relevant for the simulator + `development` iteration workflow.
+
 - [ ] On Mac: `npx expo start` running, showing QR + local URL
 - [ ] On iPhone: shake to open Expo dev menu
 - [ ] Enter Metro URL or scan QR
