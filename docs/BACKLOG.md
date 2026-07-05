@@ -472,12 +472,29 @@ title activates demo mode. Fable review flagged this as a Guideline
 7-tap once we have PostHog data on demo-mode activation volume
 in prod.
 
-**What to monitor**: After v1.1.0 is live for ~2 weeks, check
-PostHog for the `demo_mode_activated` event count. Filter by
-`environment: prod`. Expected: 1-5 activations/week (Apple
-reviewers only). If we see meaningfully more, the gesture has been
-discovered by end users and we should remove it before Apple
-notices.
+**What to monitor**: check PostHog for the `demo_mode_activated`
+event count. Filter by `$app_version = <latest>` +
+`environment = prod`. Expected: 1-5 activations/week (Apple
+reviewers only). **Threshold: ~20 activations/week** — above that,
+the gesture has been discovered by end users and we should remove
+it before Apple notices in review. This check is now on the
+`RELEASE_CHECKLIST.md` "Between releases — recurring hygiene"
+weekly list so it actually happens rather than living only in this
+BACKLOG entry.
+
+**Rip-out triggers** (revisit whichever fires first):
+1. `demo_mode_activated` weekly count crosses ~20 in prod.
+2. Apple raises 2.3.1 concealment concern in any submission review,
+   even if the count is still low. Reviewer discretion is the
+   binding constraint, not our internal threshold — one 2.3.1 flag
+   means the gesture is unsafe to keep going forward.
+3. We ship a real reviewer-credentials path (sandbox purchase docs
+   plus successful reviewer feedback that it worked). Trigger 3 is
+   the "we no longer need the fallback" case.
+
+Fable re-review 2026-07-05 flagged that trigger 2 was in our
+Response block in `FABLE_LATEST_REVIEW.md` but had never made it
+into this BACKLOG entry — now included.
 
 **When we do remove it**: update Apple Review Information to
 remove the fallback path, keep only the sandbox-purchase primary

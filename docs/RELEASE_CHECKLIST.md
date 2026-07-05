@@ -395,6 +395,7 @@ Something's on fire post-release. In order of preference:
 ## Between releases — recurring hygiene
 
 - [ ] Weekly: check App Store Connect crashes + PostHog funnels
+- [ ] Weekly: PostHog dashboard → filter events to `demo_mode_activated`, `environment = prod`, `$app_version = <latest>` and count activations over the last 7 days. **Threshold: ~20/week.** Expected baseline is 1-5/week (Apple reviewers only). If the count spikes above ~20/week, the 7-tap gesture has been discovered by end users — remove it in the next release before Apple notices in review. See `docs/DEMO_MODE.md` "Guideline 2.3.1 concern" section for the full rip-out decision framework. Also rip out if Apple raises 2.3.1 in a submission review, regardless of the count.
 - [ ] Monthly: check `BEST_PRACTICES.md` gap list — anything worth doing?
 - [ ] Every 6 months: rotate Apple JWT — see [`APPLE_JWT_ROTATION.md`](./APPLE_JWT_ROTATION.md)
 - [ ] Every 6 months: rotate DB passwords for good hygiene

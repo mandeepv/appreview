@@ -39,11 +39,15 @@ The number is arbitrary. Could be 5 or 10. The concealment (hidden vs visible bu
 Apple's Guideline 2.3.1 forbids apps from including "hidden or dormant features" that a normal user could discover and use. The 7-tap gesture is arguably an example — a normal user browsing the app who accidentally taps the title 7 times gets free premium. Fable review #13 flagged this as a rejection risk we've been carrying since day 1.
 
 Mitigations:
-1. **PostHog monitoring** (v1.1.0): `authMethod: 'demo'` volume gets tracked. If we see a spike in demo activations (viral discovery), we know to remove the gesture in the next release before Apple notices.
+1. **PostHog monitoring** (v1.1.0): the app fires a dedicated `demo_mode_activated` event on every 7-tap activation (`AuthScreen.tsx:218` — `posthog.capture('demo_mode_activated')`). The event has no properties; count it directly in PostHog to measure activation volume. **Filter by `$app_version = 1.1.0` and `environment = prod` to exclude dev/beta noise.**
+
+   Note: `authMethod: 'demo'` is a related but different signal — it's a *user property* / auth-store field that tags the session type after activation, and it shows up attached to downstream events like `user_signed_in`. It is NOT what you filter on to count activations. If you're looking at the wrong signal you'll under-report by an order of magnitude. Earlier drafts of this doc referenced `authMethod: 'demo'` here; that was wrong and was corrected 2026-07-05 by the Fable re-review.
+
+   **Threshold: ~20 activations/week in prod.** Expected volume is ~1-5/week (Apple reviewers only). If it spikes above ~20/week, the gesture has been discovered by end users and should be removed in the next release before Apple notices in review. Recurring check now lives in `RELEASE_CHECKLIST.md` → "Between releases — recurring hygiene" so the monitoring actually happens.
 2. **Primary review path** should point at sandbox purchase, not 7-tap. See `docs/RELEASE_CHECKLIST.md` Phase 9 → App Review Information notes.
 3. **7-tap as fallback** for reviewers who can't or don't want to sandbox-purchase. Still available, still works, but no longer the recommended path.
 
-**Long-term (v1.1.1 or later):** remove the 7-tap entirely once we've verified via PostHog that sandbox-purchase testing works for Apple reviewers. Reassess this decision monthly.
+**Long-term (v1.1.1 or later):** remove the 7-tap entirely once we've verified via PostHog that sandbox-purchase testing works for Apple reviewers, OR the moment `demo_mode_activated` volume crosses the threshold above, OR Apple raises 2.3.1 in a submission — whichever comes first. Reassess this decision monthly using the recurring check.
 
 ## Where it's referenced
 
