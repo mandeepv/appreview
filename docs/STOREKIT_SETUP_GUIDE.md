@@ -260,15 +260,24 @@ The Transaction Manager is super useful for testing different subscription state
 
 ### How to sign into sandbox on iPhone
 
-**iOS 18 (current):** The classic path (`Settings → App Store → Sandbox Account`) may not be visible until you've installed at least one dev build. Two working alternatives:
+**iOS 18+ (current — this is the correct path):**
 
-**1. Live sign-in during purchase:** Install the dev build, tap "Buy" on a paywall option, iOS will prompt "Sign in with your Sandbox Apple ID." Enter `sandeepv98@gmail.com` in that popup. This is the most reliable path in iOS 18.
+**Settings → Developer → Sandbox Apple Account**
 
-**2. Via Settings after developer mode enabled:**
-- Install a dev build first (unlocks Developer Mode option)
-- Settings → Privacy & Security → **Developer Mode** → enable
-- iPhone reboots
-- Now try Settings → Apps → App Store → scroll to Sandbox Account
+The **Developer** menu only appears in Settings after you've enabled Developer Mode. Sequence for a fresh device:
+
+1. Install a dev/preview EAS build (this is the trigger that unlocks Developer Mode as an option)
+2. Tap the app icon → "Developer Mode Required" alert
+3. Settings → Privacy & Security → scroll to bottom → **Developer Mode** → toggle ON → phone restarts → confirm "Turn On Developer Mode" after reboot
+4. Now Settings → **Developer** (new menu) → scroll to **Sandbox Apple Account** (may be under a "SANDBOX ENVIRONMENT" section)
+5. Sign in with `sandeepv98@gmail.com` and its password
+
+**Wrong paths that used to work but no longer do:**
+- ❌ iOS 15/16: `Settings → App Store → Sandbox Account` (moved)
+- ❌ iOS 17: `Settings → Apps → App Store → Sandbox Account` (moved again)
+- ✅ iOS 18+: `Settings → Developer → Sandbox Apple Account`
+
+**Alternative — live sign-in during purchase:** if the Developer menu doesn't appear or the sandbox account entry is missing, tap "Buy" on any paywall option. iOS will prompt "Sign in with your Sandbox Apple ID" inline. Enter the tester credentials there. This is a fallback and less reliable than the Settings path.
 
 ### Verify sandbox is active
 
