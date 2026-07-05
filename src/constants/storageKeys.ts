@@ -27,6 +27,14 @@ export const STORAGE_KEYS = {
   // skip re-showing intro screens on subsequent launches.
   ONBOARDING_HAS_REACHED_AUTH: '@kinderwell_has_reached_auth',
 
+  // Cached mirror of Superwall's last-reported subscription status.
+  // Persisted across cold launches so LoadingScreen can skip the
+  // paywall immediately for paying users instead of waiting for
+  // Superwall's onSubscriptionStatusChange to fire. Overwritten as
+  // soon as Superwall reports authoritative state. Cleared on
+  // sign-out. See docs/PAYWALL_MODEL.md.
+  IS_SUBSCRIBED: '@kinderwell_is_subscribed',
+
   // Per-lesson section-completion progress. Keyed per device, not per
   // user — so they survive account deletion. See the comment in
   // authService.deleteAccount for rationale.
