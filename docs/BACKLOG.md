@@ -159,6 +159,43 @@ SE-class simulator)" to RELEASE_CHECKLIST.
 copy suggests team was iterating in staging and some leaked. Add
 copy review as a pre-ship checklist item.
 
+### 9m. In-app edit of onboarding answers 🟡
+
+**Problem**: Settings currently has no way for a user to correct
+or update their onboarding answers (parent type, age, children's
+age ranges, goals, etc.) without deleting the account and starting
+over. The privacy policy was quietly overpromising this ("They can
+update it any time within the app") until the Fable re-review
+2026-07-05 caught the mismatch. The policy has been amended to
+say "email us to update" and "in-app editing planned for a future
+release" — but this only makes the mismatch honest, it does not
+close it.
+
+**Why it matters now that the policy is honest**: users may email
+kinderwellteam@gmail.com asking for corrections, and there's no
+workflow for handling that beyond hand-editing DB rows in the
+Supabase dashboard. Once we have more than 3 friends using the
+app, that becomes a real support-ticket sink.
+
+**Fix**: build an Edit-Profile section in Settings that lets the
+user re-visit each onboarding screen and update their answers.
+Reuse the onboarding-store setters and the same field validation
+as onboarding itself. Should NOT reset lesson progress or
+subscription state — this is a data-correction feature, not a
+reset.
+
+**Effort**: ~4-6 hours. Not conceptually hard; touches ~10 screens
+plus the store. Wire each onboarding screen so it can be launched
+in "edit" mode (return-to-Settings on save, no navigation to the
+next onboarding screen).
+
+**Blocks**: nothing user-facing today; becomes near-blocking the
+moment we receive our first "please update my info" email.
+
+**Origin**: Fable re-review 2026-07-05 privacy-policy audit
+follow-up. Policy amendment landed on the kinderwell-legal repo
+(commit `6d85d95`); this is the code side of the same fix.
+
 ---
 
 ## v1.1.1+ or v1.1.2 — deferred from prod bug hunt
