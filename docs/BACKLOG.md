@@ -910,6 +910,57 @@ serving a small user base. Becomes worth doing when either:
 "blast radius" — real separation was called out as v1.2 territory
 even by the reviewer.
 
+### 22. Session Replay via PostHog (deliberate v1.2 decision) 🟢
+
+**Context**: PostHog supports mobile session replay in
+`posthog-react-native`. Would let us watch back real user sessions
+to understand paywall drop-off, onboarding confusion, and lesson-
+completion patterns. Highly useful for a new app trying to learn.
+
+**Not added in v1.1.0** because it's an expansion of what we
+collect from users, and every prerequisite for shipping it
+responsibly is nontrivial:
+
+1. **Privacy policy update.** Current policy explicitly enumerates
+   what we DO NOT collect. Session recording is exactly the kind
+   of data that would surprise users. Requires an explicit
+   disclosure section.
+2. **App Store Connect App Privacy questionnaire update.** Would
+   need to declare Screen Interaction data collection with new
+   purposes.
+3. **Masking configuration.** Every sensitive input must be
+   masked BEFORE first release (Apple credential prompt, Google
+   OAuth flow, NameAgeScreen input, any payment sheet). Getting
+   masking wrong = a compliance incident (PII in replay logs).
+4. **App Store review scrutiny.** Apple review has increasingly
+   scrutinized session-recording apps. Not a rejection guarantee
+   but a real added risk vector.
+5. **Cost.** Session replay volume is a real PostHog line item
+   at scale. Zero cost on day 1, real cost at 10k+ users.
+
+**Fix**: dedicated v1.2 release:
+- Enable `posthog-react-native` session replay in config
+- Author a masking-rules audit — every sensitive UI element gets
+  `sensitive` prop or global masking rule
+- Update `legal/privacy.html` with a session-recording disclosure
+  section
+- Update ASC App Privacy → declare Screen Interaction data
+- Test masking end-to-end in TestFlight before shipping
+- Communicate change to existing users (in-app modal on first
+  launch of v1.2)
+
+**Effort**: ~1-2 days total (mostly the audit + privacy work,
+not the SDK toggle).
+
+**Blocks**: nothing. Currently we have PostHog event analytics
+(which is enough for funnel + retention). Session replay is
+"nice to have" not "essential."
+
+**Origin**: user asked 2026-07-05 during pre-build verification —
+"we didn't add session recording?" Deliberate omission rather
+than an oversight; documented here so future-us doesn't reflexively
+enable it without doing the work first.
+
 ---
 
 ## How to add items
