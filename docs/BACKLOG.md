@@ -380,7 +380,17 @@ for correctness — testing needs care.
 overpromises. Ideally close before we get a DSAR/GDPR request
 about it.
 
-**Origin**: Fable review 🟡 security bucket.
+**Also fold in**: PostHog person-property cleanup for users whose
+email was leaked into person properties by the
+`authStore.initialize()` bug that lived on this branch until commit
+`7c75ad5` (2026-07-05). Every signed-in user across the life of the
+bug has `email` set on their PostHog person; when we add the
+person-delete API integration, use the same personal API token to
+run a one-time "remove email property from all existing persons"
+sweep. Fable re-review 2026-07-05.
+
+**Origin**: Fable review 🟡 security bucket; re-review 2026-07-05
+added the historical-cleanup ask.
 
 ### 9k. Encrypt the Supabase session (SecureStore for refresh token) 🟡
 
