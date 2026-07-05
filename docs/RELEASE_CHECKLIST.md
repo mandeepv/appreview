@@ -469,6 +469,27 @@ Do these *before* strangers' data arrives. From the Fable re-review 2026-07-05:
 
 ## Phase 9: Submit to App Store
 
+### Pre-submit sanity check — `eas.json` needs a `submit` block
+
+`eas submit` reads its config from `eas.json`'s **`submit`** block, which is
+SEPARATE from the `build` block. Having only a `build.production` block
+is not sufficient — `eas submit` will fail with
+`Missing submit profile in eas.json: production` (hit this 2026-07-05 mid-
+submission).
+
+- [ ] Confirm `eas.json` has a `submit.production` block that includes:
+  ```json
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6758403231",       // Kinderwell in ASC (App Information → Apple ID)
+        "appleTeamId": "DX4F38J8H4"     // Mandeep Verma (Individual)
+      }
+    }
+  }
+  ```
+  If the block is missing, add it before running the submit command.
+
 - [ ] `eas submit --profile production --platform ios`
 - [ ] Fill out App Store Connect submission:
   - What to test (TestFlight notes)
