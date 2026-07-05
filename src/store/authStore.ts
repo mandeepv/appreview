@@ -91,9 +91,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           session: session,
           isLoading: false
         });
-        posthog.identify(session.user.id, {
-          $set: { email: session.user.email ?? null },
-        } as Record<string, unknown> as never);
+        // Associate the PostHog session with the Supabase user ID so
+        // events on this launch aggregate under the correct person.
+        // No $set — person properties were already written at signup
+        // via identifyUserWithOnboarding, and re-attaching email on
+        // every launch is the exact leak the analytics.ts fix was
+        // meant to close (Fable re-review 2026-07-05: this call was
+        // defeating that fix for 100% of signed-in users). Email
+        // still lives in Supabase auth, which is where it belongs.
+        posthog.identify(session.user.id);
       } else {
         set({ isLoading: false });
       }
