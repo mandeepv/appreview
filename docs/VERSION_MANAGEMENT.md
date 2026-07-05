@@ -21,6 +21,19 @@ find yourself grep-ing for `CFBundleVersion` or `MARKETING_VERSION`,
 you're on the wrong path — those get generated from `app.json` at
 build time.
 
+**How EAS actually reads the version**: `eas.json`'s `cli` block sets
+`"appVersionSource": "local"`. Without this, modern EAS CLI defaults
+to `remote` — EAS Cloud manages the build number and ignores
+`app.json.expo.ios.buildNumber` entirely (it either prompts
+interactively on first build or auto-increments a server-side
+counter). Both would silently break the `bump-version.sh` doctrine.
+The `local` mode makes `app.json` the single source of truth, which
+is what every other version-related check in this repo assumes —
+CI's `version-drift` job, Sentry's `dist` tag, and the kill switch's
+`currentBuild` comparison all rely on this. If you ever see EAS
+prompt "which build number?" during `eas build`, `appVersionSource`
+was reverted — put it back.
+
 ## Bump the version
 
 **Always use the script.** It's the only supported way to bump
