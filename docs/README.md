@@ -27,6 +27,10 @@ Everything process-related lives in this folder. If you're looking for how to do
 ### 🚨 Critical — read before touching auth or subscription code
 - **`DEMO_MODE.md`** — how the 7-tap Apple reviewer bypass works, invariants that MUST hold or App Store rejects your build
 
+### Ship prep (v1.1.0)
+- **`FABLE_RE_REVIEW_2026-07-05.md`** — third-round external re-review with the pre-beta punch list. Read this before building the first TestFlight IPA.
+- **`FABLE_LATEST_REVIEW_STATUS.md`** — live tracker for what's done/open across all Fable rounds.
+
 ### Historical context (rarely needed)
 - **`archive/`** — old launch checklists, compliance history, initial reviews. See `archive/README.md` for what's in there and why it was archived.
 
@@ -49,6 +53,7 @@ Everything process-related lives in this folder. If you're looking for how to do
 | `FABLE_REVIEW.md` | First external code review (2026-06) — findings with status markers | 📚 Historical / reference |
 | `FABLE_LATEST_REVIEW.md` | Second external code review (2026-07-04) — findings and our responses | 📚 Historical / reference |
 | `FABLE_LATEST_REVIEW_STATUS.md` | Live tracker of Fable Latest Review item status | ✅ While addressing review items |
+| `FABLE_RE_REVIEW_2026-07-05.md` | Third external re-review (post-fixes) — beta & release readiness with stage-gated verdict, punch list, and 2 not-fully-landed fixes (PostHog email leak, CORS placeholder) | ✅ Active — driving the pre-beta punch list |
 | `IPHONE_TEST_PLAN_V1.1.0.md` | Manual smoke test plan for v1.1.0 on iPhone XR | ✅ Before every release (adversarial tests should fold into RELEASE_CHECKLIST — see Fable review 🟡 doc/process item) |
 | `PROD_BUG_HUNT.md` | 2026-07-04 systematic prod v1.0.0 bug hunt notes | 📚 Historical / reference for what shipped broken in v1.0.0 |
 | `BACKLOG.md` | Single deferred-work backlog (replaces three prior V1.*.md files, per Fable review 🟡 "one backlog") | ⏭️ Deferred work — read + update when picking next work |
