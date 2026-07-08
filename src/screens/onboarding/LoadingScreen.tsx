@@ -11,6 +11,7 @@ import { Colors, Spacing, Typography } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useConfigStore } from '../../store/configStore';
+import { resolveGateOutcome } from '../../navigation/routingPolicy';
 import { saveUserOnboardingData } from '../../services/onboardingService';
 import { restorePurchases } from '../../services/purchaseService';
 import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
@@ -138,6 +139,28 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     },
   });
 
+  // ACT on a gate outcome computed by resolveGateOutcome (the pure kernel,
+  // SPEC-04 R1). This is the single place the three gate callbacks below turn
+  // a decision into navigation/state side effects — the callbacks themselves
+  // no longer contain routing conditionals, only analytics + the compute call.
+  const applyGateOutcome = (outcome: ReturnType<typeof resolveGateOutcome>) => {
+    switch (outcome) {
+      case 'enter_root':
+        navigation.replace('Root');
+        return;
+      case 're_present':
+        if (__DEV__) console.log('🔒 Paywall dismissed without purchase — re-presenting (hard gate)');
+        // Small delay so Superwall's own dismiss animation completes before we
+        // ask it to present again. Without the delay, the re-present can
+        // no-op silently.
+        setTimeout(() => runGate(), 300);
+        return;
+      case 'retry':
+        setGateStatus('retry');
+        return;
+    }
+  };
+
   const { registerPlacement } = usePlacement({
     onPresent: (paywallInfo) => {
       if (__DEV__) console.log('✅ Paywall presented:', paywallInfo.name);
@@ -149,79 +172,48 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     onDismiss: (paywallInfo, result) => {
       if (__DEV__) console.log('👋 Paywall dismissed:', result.type);
 
-      // Purchase completed — advance to Root. The Superwall subscription-
-      // status listener in App.tsx will flip isSubscribed → true, but we
-      // also set it here so navigation isn't racing that event.
+      // Entitlement side effects (setIsSubscribed + analytics) stay here; the
+      // route decision comes from resolveGateOutcome. purchased and restored
+      // are both entitlements → enter_root; declined → re_present (hard gate).
       if (result.type === 'purchased') {
         if (__DEV__) console.log('💰 Purchase completed! Updating subscription status...');
+        // The App.tsx subscription-status listener will flip isSubscribed →
+        // true, but we also set it here so navigation isn't racing that event.
         setIsSubscribed(true);
-        safeCapture('subscription_purchased', {
-          paywall_name: paywallInfo.name,
-        });
-        navigation.replace('Root');
-        return;
-      }
-
-      // Restore succeeded on the paywall — the user tapped "Restore Purchases"
-      // inside the Superwall template and had a real entitlement. This is an
-      // entitlement just like 'purchased': let them through. The result union
-      // is 'purchased' | 'declined' | 'restored' (see
-      // node_modules/expo-superwall/build/src/SuperwallExpoModule.types.d.ts
-      // PaywallResult, ~lines 147-166) — 'restored' was previously falling
-      // into the re-present branch below, trapping a paying user who
-      // legitimately restored (SPEC-01 R2). We fire subscription_restored
-      // (NOT subscription_purchased — no money changed hands) and advance.
-      if (result.type === 'restored') {
+        safeCapture('subscription_purchased', { paywall_name: paywallInfo.name });
+      } else if (result.type === 'restored') {
+        // Restore succeeded on the paywall — a real entitlement, same as
+        // purchased (SPEC-01 R2; 'restored' used to fall into re-present and
+        // trap a legitimately-restored payer). Fire subscription_restored,
+        // NOT subscription_purchased — no money changed hands.
         if (__DEV__) console.log('♻️ Purchases restored on paywall — treating as entitlement');
         setIsSubscribed(true);
-        safeCapture('subscription_restored', {
+        safeCapture('subscription_restored', { paywall_name: paywallInfo.name });
+      } else {
+        // declined — a dismiss without entitlement. Hard-paywall model: the
+        // template should have no dismiss control, but if one slips through we
+        // re-present rather than let the user past.
+        safeCapture('paywall_dismissed', {
           paywall_name: paywallInfo.name,
+          dismiss_type: result.type,
         });
-        navigation.replace('Root');
-        return;
       }
 
-      // result.type === 'declined' — user tapped X / swiped down / whatever.
-      //
-      // Hard-paywall model: unentitled users MUST NOT navigate past this
-      // screen without a purchase. The Superwall template SHOULD have no
-      // dismiss control at all, but if the template ever ships with one
-      // (older cached template, dashboard misconfig, etc.) we defensively
-      // re-present the paywall rather than falling through to Root.
-      //
-      // Result: even in the worst case (template has an X button), the
-      // user can't bypass — dismissing the paywall just re-shows it.
-      safeCapture('paywall_dismissed', {
-        paywall_name: paywallInfo.name,
-        dismiss_type: result.type,
-      });
-      if (__DEV__) console.log('🔒 Paywall dismissed without purchase — re-presenting (hard gate)');
-      // Small delay so Superwall's own dismiss animation completes before we
-      // ask it to present again. Without the delay, the re-present can
-      // no-op silently.
-      setTimeout(() => runGate(), 300);
+      applyGateOutcome(resolveGateOutcome({ kind: 'dismiss', type: result.type }, isSubscribed));
     },
     onSkip: (reason) => {
       // "Skip" fires when Superwall bypasses paywall presentation itself —
-      // e.g., the user is already entitled and Superwall's own check catches
-      // it before showing the UI. That means: they're paying, let them through.
+      // e.g. the user is already entitled and Superwall's own check catches it
+      // before showing the UI. Every skip reason means "let them through."
       if (__DEV__) console.log('⏭️ Paywall skipped by Superwall (user is entitled):', reason.type);
-      safeCapture('paywall_skipped_by_superwall', {
-        skip_reason: reason.type,
-      });
-      navigation.replace('Root');
+      safeCapture('paywall_skipped_by_superwall', { skip_reason: reason.type });
+      applyGateOutcome(resolveGateOutcome({ kind: 'skip', reason: reason.type }, isSubscribed));
     },
     onError: (error) => {
-      // Superwall SDK error. Two common causes: network unreachable (user
-      // offline OR Superwall down), or the paywall template failed to load.
-      //
-      // Policy (Fable review #9):
-      //   - Confirmed subscribers → fail-open to Root. Don't kick paying
-      //     users off just because Superwall can't reach us right now.
-      //     Their `isSubscribed` was set to true by a prior authoritative
-      //     Superwall event; we trust that until Superwall says otherwise.
-      //   - Everyone else → sit on the loading state. The retry hook
-      //     below will re-attempt registerPlacement.
+      // Superwall SDK error (network unreachable or template load failure).
+      // Policy (Fable review #9): confirmed subscribers fail open to Root;
+      // everyone else sits on retry. That mapping now lives in
+      // resolveGateOutcome — here we just log/report and apply it.
       if (__DEV__) console.error('❌ Paywall error:', error);
       // R4 (structural): an error means no presentation is coming — disarm
       // the frozen-state watchdog so it can't redundantly re-trigger retry.
@@ -234,12 +226,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         screen: 'LoadingScreen',
         context: 'paywall',
       });
-      if (isSubscribed) {
-        if (__DEV__) console.log('[LoadingScreen] Superwall unreachable but user is confirmed subscribed — failing open');
-        navigation.replace('Root');
-      } else {
-        setGateStatus('retry');
+      if (isSubscribed && __DEV__) {
+        console.log('[LoadingScreen] Superwall unreachable but user is confirmed subscribed — failing open');
       }
+      applyGateOutcome(resolveGateOutcome({ kind: 'error' }, isSubscribed));
     },
   });
 
@@ -414,15 +404,11 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       // disarm the watchdog before falling into the retry/fail-open branch.
       clearPresentWatchdog();
       if (__DEV__) console.error('❌ Error running gate:', error);
-      // Duplicates onError logic below because usePlacement's onError only
-      // fires for Superwall SDK errors, not for our own await failures.
-      // Same fail-open policy: confirmed subscribers get through; everyone
-      // else stays put and retries.
-      if (isSubscribed) {
-        navigation.replace('Root');
-      } else {
-        setGateStatus('retry');
-      }
+      // usePlacement's onError only fires for Superwall SDK errors, not for
+      // our own await failures — but the decision is the same, so route it
+      // through the same kernel outcome (error → fail-open for subscribers,
+      // else retry).
+      applyGateOutcome(resolveGateOutcome({ kind: 'error' }, isSubscribed));
     }
   };
 
