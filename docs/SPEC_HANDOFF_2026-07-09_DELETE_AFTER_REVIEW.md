@@ -1,4 +1,12 @@
-# Spec Implementation Log
+# Spec Implementation Handoff — 2026-07-09
+
+> ⚠️ **TEMPORARY DOC — DELETE AFTER REVIEW.** This is a handoff artifact for
+> the spec creator to audit the work done on 2026-07-09. It is not permanent
+> project documentation. Once every spec below has been reviewed and signed
+> off (and any open items closed), delete this file. Do not link permanent
+> docs to it.
+
+**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03 · **Status:** awaiting review
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -284,6 +292,130 @@ Project refs used come from that doc's "Credentials reference" (prod
 
 ---
 
+## SPEC-03 — delete-account edge function hardening
+
+**Branch:** `feature/spec-03-edge-function-hardening` (in progress at time of
+writing; will be merged to `main`, `--no-ff`, then deleted)
+**Files touched:** **new** `supabase/config.toml`,
+`supabase/functions/delete-account/index.ts`,
+`supabase/EDGE_FUNCTION_DEPLOYMENT.md`
+
+Read `supabase/EDGE_FUNCTION_DEPLOYMENT.md` first, as instructed.
+
+### R1 — Codify the gateway flag ✅
+- **Done:** New `supabase/config.toml` with `project_id = "kinderwell"` and a
+  `[functions.delete-account]` section setting `verify_jwt = true`. Kept
+  intentionally minimal per the spec ("add only what's required") — did NOT
+  mirror the full `supabase init` local-dev-stack config, because this
+  project doesn't run the local stack and every extra section is drift risk.
+  `project_id` is the only required top-level key; `[functions.*]` blocks are
+  additive.
+- **Verified in-repo:** ✅ Parses as valid TOML (`python3 -m tomllib`),
+  `functions.delete-account.verify_jwt == true`. Confirmed against a
+  `supabase init` reference config that `project_id` is the sole required
+  top-level key and that a minimal config isn't rejected for parsing (the CLI
+  only complained about project *link* state, not config syntax).
+
+### R2 — In-function verification (defense in depth) ✅ / ❗
+- **Done:**
+  - Added `import * as jose from 'https://esm.sh/jose@5.9.6'` (esm.sh, matching
+    the file's existing esm.sh import style for supabase-js).
+  - Before using `sub`, the function now verifies the JWT **signature and
+    expiry** via `jose.jwtVerify(token, secretKey, { algorithms: ['HS256'] })`,
+    where `secretKey = TextEncoder().encode(SUPABASE_JWT_SECRET)`. `sub` is
+    read only from the verified payload. Algorithms pinned to HS256
+    (alg-confusion defense).
+  - Rewrote the ~120-122 comment block: removed the wrong "deleteUser would
+    fail on an unknown sub" reasoning and replaced it with the real trust
+    model (gateway `verify_jwt` = layer 1, in-function signature check =
+    layer 2; an attacker uses a *known* victim `sub`, so an unverified `sub`
+    is an account-deletion vector).
+  - Added the migration-path comment: if the project moves to asymmetric JWT
+    signing keys, switch to
+    `jose.createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`))`.
+- **❗ DEVIATION — response code on verification failure (400 → 401):** The
+  spec text says "existing 401 behavior," but the function's existing
+  catch-all actually returned **400** (`{ error, step }`), not 401. The
+  acceptance criteria are unambiguous that verification failures should be
+  **401** (tampered → 401, expired → 401). I implemented **401 with an empty
+  body** for all verification failures (bad signature, expired, malformed,
+  missing `sub`), as a dedicated early return — separate from the 400
+  step-error path, whose `{ error, step }` shape is deliberately left
+  unchanged. So the "existing" behavior the spec refers to was 400; I changed
+  verification failures specifically to 401 to satisfy the acceptance
+  criteria. Flagging in case the author intended to keep 400.
+- **❗ Minor — missing-secret returns 500:** When `SUPABASE_JWT_SECRET` is
+  unset the function **fails closed** with a **500** (empty body) and never
+  reaches the delete steps. The acceptance criterion allows "500/401" for
+  this case; I chose 500 because a missing secret is a server
+  misconfiguration, not a client auth failure.
+- **Verified in-repo:** ✅ Response-shape audit via grep — 200 success and
+  400 step-errors unchanged; new 401 (verification fail) and 500 (missing
+  secret) both emit `null` bodies. ✅ jose API/version (`jwtVerify` returning
+  `{ payload }`, HS256, `Uint8Array` key) is correct for jose@5.
+- **⚠️ Could not verify (no `deno` in environment):** could not run
+  `deno check` to type-check the function or actually resolve the remote
+  `jose` import. The import URL and API usage were verified by inspection
+  against jose@5's known signature, not by execution.
+
+### R3 — Deployment doc ✅
+- **Done:** `EDGE_FUNCTION_DEPLOYMENT.md` now opens with:
+  (a) a prominent "🚨 NEVER deploy delete-account with `--no-verify-jwt`"
+  warning (with the ❌/✅ command contrast and why); and
+  (b) a "One-time secret setup" section with
+  `supabase secrets set SUPABASE_JWT_SECRET=<...>` (value from Dashboard →
+  Settings → API → JWT secret), explicitly marked **dev = intern may set**,
+  **prod = owner-only**, and noting the fail-closed behavior if it's missing.
+- **Verified in-repo:** ✅ Both R3 items present; the `--no-verify-jwt` flag
+  name matches `supabase functions deploy --help`.
+
+### SPEC-03 — Constraints honored ✅
+- Deploy/test intended for the DEV project only; no deploy was run at all
+  (no auth in this environment). Prod deploy remains owner-only.
+- Did NOT restructure the deletion sequence — `lesson_progress → user_profiles
+  → auth user` order is untouched (the deliberate belt-and-suspenders over FK
+  cascades).
+
+### SPEC-03 — Out of scope / not delivered ⛔ ⚠️
+- **All live acceptance tests** (need dev deploy + `SUPABASE_JWT_SECRET` set on
+  the dev project — no auth/deno here):
+  - Valid dev-user token → deletion succeeds end-to-end from the dev app build.
+  - Tampered token (flip one payload char, re-encode) via curl → 401,
+    empty/generic body.
+  - Expired token → 401.
+  - Missing `SUPABASE_JWT_SECRET` → fails closed (implemented as 500), never
+    deletes.
+- **PR curl commands** (acceptance criterion: PR description must include the
+  curl commands used for the negative tests). Draft commands to run and paste
+  into the PR (fill in `<DEV_FUNCTION_URL>` and a real dev token):
+
+  ```bash
+  # 1. Tampered token → expect 401, empty body.
+  #    Take a valid dev access token, flip one char in the payload segment.
+  curl -i -X POST "<DEV_FUNCTION_URL>/delete-account" \
+    -H "Authorization: Bearer <TAMPERED_JWT>" \
+    -H "Content-Type: application/json"
+
+  # 2. Expired token → expect 401.
+  curl -i -X POST "<DEV_FUNCTION_URL>/delete-account" \
+    -H "Authorization: Bearer <EXPIRED_JWT>" \
+    -H "Content-Type: application/json"
+
+  # 3. Missing secret → temporarily unset on the DEV project, expect 500,
+  #    never deletes. (Owner/dev on the dev project only.)
+  #    supabase secrets unset SUPABASE_JWT_SECRET   # dev only, then re-set after
+  curl -i -X POST "<DEV_FUNCTION_URL>/delete-account" \
+    -H "Authorization: Bearer <VALID_JWT>" \
+    -H "Content-Type: application/json"
+  ```
+  Note: with the gateway `verify_jwt = true`, cases 1 and 2 may be rejected by
+  the gateway (401) BEFORE reaching the function — which is the intended layer-1
+  behavior. To exercise the in-function layer-2 check specifically, deploy once
+  with `--no-verify-jwt` **on dev only** and repeat; the function must still
+  return 401. Re-deploy without the flag afterward.
+
+---
+
 ## Open items for the owner (consolidated)
 
 **Needs a device/simulator (SPEC-01):**
@@ -301,10 +433,26 @@ Project refs used come from that doc's "Credentials reference" (prod
 - `db-push-prod.sh` dry-run end-to-end against dev; confirm each abort path
   leaves the CLI re-linked to dev (`cat supabase/.temp/linked-project.json`).
 
+**Needs dev deploy + `deno` (SPEC-03):**
+- Set `SUPABASE_JWT_SECRET` on the DEV project (`supabase secrets set …`,
+  value from Dashboard → Settings → API → JWT secret).
+- Deploy `delete-account` to dev and run the four acceptance tests (valid →
+  succeeds; tampered → 401; expired → 401; missing secret → 500, no delete).
+- Paste the curl commands used into the PR description (draft commands are in
+  the SPEC-03 section above).
+- Optionally `deno check supabase/functions/delete-account/index.ts` on a
+  machine with Deno to confirm the `jose` import resolves and types.
+
 **Spec-text corrections to feed back to the author:**
-- SPEC-02 references `supabase/.temp/project-ref`; the actual file is
+- **SPEC-02:** references `supabase/.temp/project-ref`; the actual file is
   `supabase/.temp/linked-project.json` (JSON, `.ref` key). Update the
   requirement text and the acceptance criterion's `cat` command accordingly.
+- **SPEC-03:** R2 says "existing 401 behavior," but the function's existing
+  failure path returned **400**, not 401. Verification failures were
+  implemented as **401** (per the acceptance criteria); confirm this was the
+  intent. Missing-secret was implemented as **500** (fail closed) — allowed by
+  the "500/401" wording.
 
-**Not yet pushed:** `main` is ahead of `origin/main` by 4 commits (both specs
-+ their merges). Nothing has been pushed to any remote; awaiting owner's go.
+**Not yet pushed:** after SPEC-03 merges, `main` will be ahead of
+`origin/main` by ~8 commits (three specs + merges + docs). Nothing has been
+pushed to any remote; awaiting owner's go.

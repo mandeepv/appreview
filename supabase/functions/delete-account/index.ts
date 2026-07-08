@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import * as jose from 'https://esm.sh/jose@5.9.6';
 
 // CORS story: this Edge Function is only ever called from the native
 // mobile app via the Supabase JS SDK's functions.invoke() — a native
@@ -46,8 +47,10 @@ const corsHeaders = {
 //
 // We only need the service-role-equivalent key (for the admin client
 // used to actually perform deletes). The publishable/anon key is no
-// longer needed because we extract the user ID by decoding the JWT
-// manually — see the extract_user_id_from_jwt step below.
+// longer needed because we get the user ID from the JWT directly — but
+// note we do NOT trust it blindly: the token's signature and expiry are
+// cryptographically verified in-function (HS256 against
+// SUPABASE_JWT_SECRET) before `sub` is used. See the verify_jwt step.
 //
 // We check for the new format first, fall back to legacy. That way
 // the same function code works whether the project has migrated or not.
@@ -103,41 +106,76 @@ serve(async (req) => {
       throw new Error('Service role key missing (checked SUPABASE_SECRET_KEYS.default and SUPABASE_SERVICE_ROLE_KEY)');
     }
 
-    step = 'extract_user_id_from_jwt';
-    // Extract the user ID directly from the JWT rather than using
-    // supabaseClient.auth.getUser().
+    step = 'verify_jwt';
+    // Trust model for this function (why we verify the token in-code even
+    // though the gateway already does):
     //
-    // getUser() fails with "Auth session missing" in Edge Functions after
-    // Supabase's JWT signing key migration — the anon/publishable key in
-    // the function's env may live in a different key namespace from the
-    // token the mobile app sends, and the SDK's session recovery path
-    // can't reconcile them. Decoding the token ourselves and using the
-    // `sub` claim is bulletproof: we don't need the anon key to be in
-    // the right namespace, we just need the token to be a well-formed
-    // JWT (which it is — Supabase's own gateway already validated
-    // it before invoking the function).
+    //   Layer 1 — Supabase's Edge Function gateway. With verify_jwt = true
+    //   (codified in supabase/config.toml, R1), the gateway rejects any
+    //   request without a valid, unexpired project JWT before this code even
+    //   runs. That flag is the primary protection.
     //
-    // We DO still validate the user exists via the admin client below —
-    // the deleteUser call would fail on an unknown sub anyway, so a
-    // forged JWT can't do damage here.
+    //   Layer 2 — this in-function signature + expiry check. Defense in
+    //   depth: if the gateway flag is ever flipped off by a bad deploy
+    //   (`--no-verify-jwt`) or a dashboard change, this function must still
+    //   refuse to act on an unverified token.
+    //
+    // The OLD comment here argued the manual base64 decode was safe because
+    // "deleteUser would fail on an unknown sub." That reasoning was WRONG: an
+    // attacker doesn't forge a random sub — they craft a token carrying a
+    // KNOWN victim's sub. deleteUser(victimSub) would then succeed. Trusting
+    // an unverified `sub` is a real account-takeover-by-deletion vector. So
+    // we now cryptographically verify the token's signature and expiry before
+    // reading `sub` at all.
+    //
+    // Verification is HS256 against SUPABASE_JWT_SECRET (the project's JWT
+    // secret — Dashboard → Settings → API → JWT secret — set once per project
+    // via `supabase secrets set`; see EDGE_FUNCTION_DEPLOYMENT.md). Supabase
+    // signs project access tokens with this secret today.
+    //
+    // Migration path: if this project ever moves to ASYMMETRIC JWT signing
+    // keys (the new sb_* signing-key system), replace the HS256 secret verify
+    // below with `jose.createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`))`
+    // and pass that key set to jwtVerify — the public keys are published
+    // there, so no shared secret is needed. Until then, HS256 is correct.
     const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (!bearerToken) {
-      throw new Error('Malformed Authorization header: no bearer token');
+
+    const jwtSecret = Deno.env.get('SUPABASE_JWT_SECRET');
+    if (!jwtSecret) {
+      // Fail CLOSED. Missing the secret means we cannot verify the token, so
+      // we must not proceed to delete anything. This is a server
+      // misconfiguration (the secret wasn't set via `supabase secrets set`),
+      // not a client error — surface it as 500 with a generic body, and
+      // never reach the delete steps.
+      console.error('SUPABASE_JWT_SECRET is not set — cannot verify JWT, refusing to proceed.');
+      return new Response(null, { status: 500, headers: corsHeaders });
     }
-    const jwtParts = bearerToken.split('.');
-    if (jwtParts.length !== 3) {
-      throw new Error(`Malformed JWT: expected 3 parts, got ${jwtParts.length}`);
+
+    let userId: string;
+    try {
+      const secretKey = new TextEncoder().encode(jwtSecret);
+      // jwtVerify checks the HS256 signature AND the exp claim (throws on an
+      // expired token). Pinning algorithms prevents an alg-confusion attack.
+      const { payload } = await jose.jwtVerify(bearerToken, secretKey, {
+        algorithms: ['HS256'],
+      });
+      const sub = payload.sub;
+      if (!sub || typeof sub !== 'string') {
+        throw new Error('verified JWT missing sub claim');
+      }
+      userId = sub;
+    } catch (verifyError) {
+      // Any verification failure — bad signature (tampered token), expired
+      // token, malformed JWT, missing sub — is a 401 with NO detail in the
+      // body. We log server-side for our own diagnostics but tell the caller
+      // nothing beyond "unauthorized"; leaking which check failed helps an
+      // attacker probe. Distinct from the 400 step-errors below, whose
+      // response shape ({ error, step }) is deliberately unchanged.
+      const detail = verifyError instanceof Error ? verifyError.message : String(verifyError);
+      console.error('JWT verification failed:', detail);
+      return new Response(null, { status: 401, headers: corsHeaders });
     }
-    // Standard base64url → base64 for atob compatibility.
-    const payloadB64 = jwtParts[1].replace(/-/g, '+').replace(/_/g, '/');
-    // atob returns a Latin-1 string; we need to decode UTF-8 properly for
-    // any non-ASCII fields, though `sub` is always ASCII.
-    const payloadJson = atob(payloadB64 + '='.repeat((4 - payloadB64.length % 4) % 4));
-    const payload = JSON.parse(payloadJson);
-    const userId = payload.sub as string | undefined;
-    if (!userId) {
-      throw new Error('JWT payload missing sub claim');
-    }
+
     console.log('Deleting account for user:', userId);
 
     step = 'create_admin_client';
