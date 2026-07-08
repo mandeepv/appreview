@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, signOut as supabaseSignOut } from '../lib/supabase';
 import { posthog } from '../config/posthog';
+import { setSentryUser } from '../config/sentry';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
 // isSubscribed persists to disk so we don't paywall a paying user on every
@@ -99,6 +100,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } catch (err) {
         if (__DEV__) console.warn('[authStore] failed to clear isSubscribed on signOut:', err);
       }
+      // Detach from Sentry synchronously on the explicit sign-out path so a
+      // subsequent error can't be attributed to the just-signed-out user even
+      // if the onAuthStateChange listener hasn't fired yet (SPEC-06 R2).
+      setSentryUser(null);
       set({
         user: null,
         session: null,
@@ -158,6 +163,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // defeating that fix for 100% of signed-in users). Email
         // still lives in Supabase auth, which is where it belongs.
         posthog.identify(session.user.id);
+        // Attach the same pseudonymous ID to Sentry (ID only, no PII) so
+        // crashes link back to the Supabase user without copying email
+        // into Sentry (SPEC-06 R2 / invariant #8).
+        setSentryUser(session.user.id);
       } else {
         set({ isLoading: false });
       }
@@ -182,6 +191,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             AsyncStorage.removeItem(IS_SUBSCRIBED_STORAGE_KEY).catch((err) => {
               if (__DEV__) console.warn('[authStore] failed to clear isSubscribed on auth-change:', err);
             });
+            // Detach the user from Sentry so subsequent errors aren't
+            // attributed to a signed-out user (SPEC-06 R2). Consistent with
+            // the existing Sentry.setUser(null) on the delete path.
+            setSentryUser(null);
             set({
               user: null,
               session: null,

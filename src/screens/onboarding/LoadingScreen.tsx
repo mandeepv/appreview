@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { usePostHog } from 'posthog-react-native';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { ProgressBar } from '../../components/ProgressBar';
 import { Button } from '../../components/Button';
@@ -17,7 +16,7 @@ import { restorePurchases } from '../../services/purchaseService';
 import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { safeCapture } from '../../lib/analytics';
-import { reportError } from '../../config/sentry';
+import { reportError, addGateBreadcrumb } from '../../config/sentry';
 
 // Support address for the escape-hatch "Contact support" action. Matches
 // SettingsScreen's handleContactSupport so support routing stays consistent
@@ -76,9 +75,11 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const [scaleAnim] = useState(new Animated.Value(1));
   const [gateStatus, setGateStatus] = useState<'idle' | 'presenting' | 'retry' | 'blocked'>('idle');
   const { identify } = useUser();
-  const posthog = usePostHog();
   const paywallPresentedRef = useRef(false);
   const { signOut } = useAuthStore();
+  // R4 (SPEC-06): track the previous gateStatus so we can breadcrumb each
+  // transition as "from → to". Initialized to the mount value.
+  const prevGateStatusRef = useRef<typeof gateStatus>(gateStatus);
 
   // R5: the paywall gate must not run until the kill-switch (app_config)
   // check has resolved, and must never run if force-update is active.
@@ -164,6 +165,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const { registerPlacement } = usePlacement({
     onPresent: (paywallInfo) => {
       if (__DEV__) console.log('✅ Paywall presented:', paywallInfo.name);
+      // R5 (SPEC-06): funnel event for the paywall actually rendering. Was
+      // previously only a __DEV__ log — now a real event so we can measure
+      // gate → paywall-shown → purchase. safeCapture (house pattern).
+      safeCapture('paywall_presented', { paywall_name: paywallInfo.name });
       // R4: presentation arrived — disarm the frozen-state watchdog.
       clearPresentWatchdog();
       paywallPresentedRef.current = true;
@@ -218,10 +223,8 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       // R4 (structural): an error means no presentation is coming — disarm
       // the frozen-state watchdog so it can't redundantly re-trigger retry.
       clearPresentWatchdog();
-      posthog.captureException(new Error(typeof error === 'string' ? error : 'Paywall error'), {
-        screen: 'LoadingScreen',
-        context: 'paywall',
-      });
+      // Sentry is the single system of record for FAILURES (SPEC-06 R1) —
+      // report to Sentry only, not PostHog. PostHog is for behavior events.
       reportError(new Error(typeof error === 'string' ? error : 'Paywall error'), {
         screen: 'LoadingScreen',
         context: 'paywall',
@@ -389,6 +392,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       presentWatchdogRef.current = setTimeout(() => {
         if (!paywallPresentedRef.current) {
           if (__DEV__) console.log('⏱️ onPresent never fired within 5s — treating presentation as frozen, dropping to retry');
+          // R4 (SPEC-06): breadcrumb the watchdog firing (the R4-SPEC-01
+          // frozen-presentation detection) before dropping to retry.
+          addGateBreadcrumb('gate: present watchdog fired (onPresent never arrived, 5s)');
           setGateStatus('retry');
         }
       }, PRESENT_WATCHDOG_MS);
@@ -492,12 +498,25 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     return () => clearInterval(retryTimer);
   }, [gateStatus, escapeHatchVisible]);
 
+  // R4 (SPEC-06): breadcrumb every gateStatus transition (from → to) into
+  // Sentry so a later error's timeline shows how the gate flow unfolded. No
+  // user data in the message — flow state only.
+  useEffect(() => {
+    const from = prevGateStatusRef.current;
+    if (from !== gateStatus) {
+      addGateBreadcrumb(`gate: ${from} → ${gateStatus}`);
+      prevGateStatusRef.current = gateStatus;
+    }
+  }, [gateStatus]);
+
   // R3b: fire gate_escape_hatch_shown exactly once per screen mount — on the
   // first render of the escape-hatch buttons, not on every retry tick.
   useEffect(() => {
     if (escapeHatchVisible && !escapeHatchCapturedRef.current) {
       escapeHatchCapturedRef.current = true;
       safeCapture('gate_escape_hatch_shown');
+      // R4 (SPEC-06): also breadcrumb the escape-hatch rendering.
+      addGateBreadcrumb('gate: escape hatch rendered');
     }
   }, [escapeHatchVisible]);
 

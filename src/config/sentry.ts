@@ -77,5 +77,40 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
   }
 }
 
+/**
+ * Attach (or detach) the current user to Sentry events — ID ONLY.
+ *
+ * SPEC-06 R2 / invariant #8: Sentry identifies users by their pseudonymous
+ * Supabase user ID and nothing else. No email, no username, no name. The ID
+ * links a crash back to a Supabase auth row (where the email legitimately
+ * lives) without copying PII into Sentry. Pass null on sign-out / auth-null
+ * to stop attributing subsequent errors to a signed-out (or deleted) user.
+ */
+export function setSentryUser(userId: string | null): void {
+  try {
+    if (!isSentryConfigured) return;
+    Sentry.setUser(userId ? { id: userId } : null);
+  } catch (err) {
+    if (__DEV__) console.warn('[Sentry] setSentryUser failed:', err);
+  }
+}
+
+/**
+ * Record a breadcrumb for the subscription-gate flow (SPEC-06 R4). These show
+ * up in the timeline of any Sentry error captured afterward, so when a gate
+ * bug is reported we can see the sequence of gate transitions that led to it.
+ *
+ * NO user data in the message — breadcrumbs are for flow state only
+ * (e.g. "gate: idle → presenting"), never emails/IDs/answers.
+ */
+export function addGateBreadcrumb(message: string): void {
+  try {
+    if (!isSentryConfigured) return;
+    Sentry.addBreadcrumb({ category: 'gate', message, level: 'info' });
+  } catch (err) {
+    if (__DEV__) console.warn('[Sentry] addGateBreadcrumb failed:', err);
+  }
+}
+
 export const isSentryEnabled = isSentryConfigured;
 export const sentryEnvironment = environment;

@@ -47,6 +47,15 @@ export const trackAuthAbandoned = (method: 'google' | 'apple', context: 'new_use
   captureWithProps('auth_abandoned', { auth_method: method, context, reason: reason ?? null });
 };
 
+// auth_succeeded — fired when a provider sign-in returns a valid session
+// (SPEC-06 R5). Mirrors trackAuthAttempted / trackAuthAbandoned's
+// method + context shape so the three form a clean funnel
+// (attempted → succeeded | abandoned). Uses safeCapture per the SPEC-06
+// house-pattern constraint (analytics must never throw into the auth flow).
+export const trackAuthSucceeded = (method: 'google' | 'apple', context: 'new_user' | 'returning_user') => {
+  safeCapture('auth_succeeded', { auth_method: method, context });
+};
+
 export const trackPaywallOptionSelected = (planId: string, source: string) => {
   captureWithProps('paywall_option_selected', { plan_id: planId, source });
 };
@@ -95,14 +104,24 @@ export const identifyUserWithOnboarding = (
     return;
   }
 
-  // signup mode — safe to attach onboarding answers as person properties.
+  // signup mode — attach onboarding answers as person properties.
   //
-  // email deliberately NOT included (Fable review 🟡). Reviewer's concern:
-  // PostHog is a US-based processor; linking email to emotional-challenge
-  // answers (anxious/overwhelmed/burned-out) puts identifiable
-  // mental-health-adjacent data at a third party. Kinderwell's user ID
-  // already links to the Supabase auth user, which carries the email — so
-  // we lose nothing analytically by dropping email from PostHog's copy.
+  // PERSON-PROPERTY RULE (SPEC-06 R3): $set person properties are durable,
+  // low-sensitivity facts ONLY — the kind of stable attribute it's fine to
+  // have permanently attached to a person in PostHog (user_type,
+  // children_count / age-range, experience level, etc.). Sensitive or
+  // free-text answers do NOT belong on the person; they live on the
+  // onboarding EVENT properties instead, where they're scoped to the moment
+  // rather than permanently labelling the individual.
+  //
+  //   - email: NEVER on the person (Fable review 🟡 — PostHog is a US
+  //     processor; the Supabase user ID already links back to the auth row
+  //     that legitimately holds the email).
+  //   - emotional_challenges: mental-health-adjacent (anxious / overwhelmed /
+  //     burned-out). Removed from $set here (SPEC-06 R3). It is already
+  //     captured on the onboarding step EVENT — see
+  //     EmotionalChallengesScreen's trackOnboardingStepCompleted call — which
+  //     is the right place for a sensitive answer.
   posthog.identify(userId, {
     $set: {
       user_type: onboarding.userType,
@@ -114,7 +133,6 @@ export const identifyUserWithOnboarding = (
       partner_involvement: onboarding.partnerInvolvement,
       notifications_enabled: onboarding.notificationsEnabled,
       familiar_parenting_styles: onboarding.familiarParentingStyles,
-      emotional_challenges: onboarding.emotionalChallenges,
     },
     $set_once: {
       first_sign_in_date: new Date().toISOString(),
