@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kinderwell",
     "slug": "kinderwell",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
@@ -16,52 +16,12 @@
       "backgroundColor": "#4F8F8B"
     },
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.kinderwell.app",
-      "buildNumber": "7",
-      "infoPlist": {
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLSchemes": [
-              "com.kinderwell.app"
-            ]
-          }
-        ]
-      },
-      "usesAppleSignIn": true,
-      "privacyManifests": {
-        "NSPrivacyAccessedAPITypes": [
-          {
-            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
-          }
-        ]
-      },
-      "associatedDomains": [
-        "applinks:zqwzdyjfxytvedghujsd.supabase.co"
-      ]
+      "buildNumber": "9"
     },
     "android": {
-      "package": "com.kinderwell.app",
       "versionCode": 1,
       "permissions": [
         "android.permission.NOTIFICATIONS"
-      ],
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "zqwzdyjfxytvedghujsd.supabase.co"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
       ]
     },
     "scheme": "kinderwell",

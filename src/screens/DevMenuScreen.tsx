@@ -1,13 +1,25 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { OnboardingStackParamList } from '../navigation/OnboardingNavigator';
 import { Colors, Typography, BorderRadius, Shadows } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { reportError } from '../config/sentry';
 
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
+
+  const handleThrowTestError = () => {
+    reportError(new Error(`Sentry test error @ ${new Date().toISOString()}`), {
+      source: 'DevMenu',
+      trigger: 'manual_test',
+    });
+    Alert.alert(
+      'Test error sent',
+      'Check Sentry dashboard — should appear in ~30 seconds. Filter by environment=dev.',
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -62,6 +74,13 @@ export const DevMenuScreen: React.FC = () => {
               <Text style={styles.buttonDescription}>Go directly to the learning screen</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.variantSection}>
+          <Text style={styles.variantHeader}>Sentry test</Text>
+          <TouchableOpacity style={styles.variantBtn} onPress={handleThrowTestError}>
+            <Text style={styles.variantBtnText}>Send test error to Sentry</Text>
           </TouchableOpacity>
         </View>
 
@@ -149,5 +168,30 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  variantSection: {
+    marginTop: 32,
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+  },
+  variantHeader: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 12,
+  },
+  variantBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.textTertiary,
+    alignItems: 'center',
+  },
+  variantBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
   },
 });

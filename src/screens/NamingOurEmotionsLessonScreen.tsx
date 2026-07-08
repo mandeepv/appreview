@@ -6,6 +6,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { getCompletedSubLessons } from '../utils/namingEmotionsProgress';
+import { useLessonGate } from '../hooks/useLessonGate';
 
 interface SubLesson {
   id: string;
@@ -48,6 +49,7 @@ const subLessons: SubLesson[] = [
 
 export default function NamingOurEmotionsLessonScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { gateToLesson } = useLessonGate();
   const [completedSubLessons, setCompletedSubLessons] = useState<string[]>([]);
 
   // Load progress when screen comes into focus
@@ -66,16 +68,16 @@ export default function NamingOurEmotionsLessonScreen() {
   };
 
   const handleSubLessonPress = (subLessonId: string) => {
-    // Navigate to the LessonFlow navigator with the specific screen
-    if (subLessonId === '1') {
-      navigation.navigate('LessonFlow', { screen: 'NamingEmotionsSub1Screen1' as any });
-    } else if (subLessonId === '2') {
-      navigation.navigate('LessonFlow', { screen: 'NamingEmotionsSub2Screen1' as any });
-    } else if (subLessonId === '3') {
-      navigation.navigate('LessonFlow', { screen: 'NamingEmotionsSub3Screen1' as any });
-    } else if (subLessonId === '4') {
-      navigation.navigate('LessonFlow', { screen: 'NamingEmotionsSub4Screen1' as any });
-    }
+    const startScreen =
+      subLessonId === '1' ? 'NamingEmotionsSub1Screen1' :
+      subLessonId === '2' ? 'NamingEmotionsSub2Screen1' :
+      subLessonId === '3' ? 'NamingEmotionsSub3Screen1' :
+      subLessonId === '4' ? 'NamingEmotionsSub4Screen1' :
+      null;
+    if (!startScreen) return;
+    gateToLesson(`naming_${subLessonId}`, () => {
+      navigation.navigate('LessonFlow', { screen: startScreen as any });
+    });
   };
 
   return (

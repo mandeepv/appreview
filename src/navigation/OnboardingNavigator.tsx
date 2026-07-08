@@ -1,22 +1,20 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-// Import all screens
 import { DevMenuScreen } from '../screens/DevMenuScreen';
 import { SplashScreen } from '../screens/onboarding/SplashScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
-import { SignInScreen } from '../screens/onboarding/SignInScreen';
 import { UserTypeScreen } from '../screens/onboarding/UserTypeScreen';
 import { NameAgeScreen } from '../screens/onboarding/NameAgeScreen';
 import { ChildrenCountScreen } from '../screens/onboarding/ChildrenCountScreen';
 import { ChildrenGenderScreen } from '../screens/onboarding/ChildrenGenderScreen';
 import { ChildrenAgeScreen } from '../screens/onboarding/ChildrenAgeScreen';
 import { ImprovementGoalsScreen } from '../screens/onboarding/ImprovementGoalsScreen';
+import { EducationalScreen } from '../screens/onboarding/EducationalScreen';
 import { PartnerInvolvementScreen } from '../screens/onboarding/PartnerInvolvementScreen';
 import { GoalSelectionScreen } from '../screens/onboarding/GoalSelectionScreen';
 import { ExperienceLevelScreen } from '../screens/onboarding/ExperienceLevelScreen';
 import { ParentingStylesScreen } from '../screens/onboarding/ParentingStylesScreen';
-import { EducationalScreen } from '../screens/onboarding/EducationalScreen';
 import { EmotionalChallengesScreen } from '../screens/onboarding/EmotionalChallengesScreen';
 import { AuthScreen } from '../screens/onboarding/AuthScreen';
 import { LoadingScreen } from '../screens/onboarding/LoadingScreen';
@@ -27,7 +25,6 @@ export type OnboardingStackParamList = {
   DevMenu: undefined;
   Splash: undefined;
   Welcome: undefined;
-  SignIn: undefined;
   UserType: undefined;
   NameAge: undefined;
   ChildrenCount: undefined;
@@ -40,7 +37,13 @@ export type OnboardingStackParamList = {
   ExperienceLevel: undefined;
   ParentingStyles: undefined;
   EmotionalChallenges: undefined;
-  Auth: undefined;
+  // Auth screen is entered either from onboarding (mode='signup', default) or
+  // from Welcome via the "I already have an account" tap (mode='signin').
+  // The two modes share the same auth code path — the only differences are
+  // copy and post-signin routing. If the user has completed onboarding,
+  // AuthScreen routes to Root regardless of mode; if not, it routes to
+  // Loading (mode='signup') or UserType (mode='signin').
+  Auth: { mode?: 'signin' | 'signup' } | undefined;
   Loading: undefined;
   PremiumUnlocked: undefined;
   Root: undefined;
@@ -60,7 +63,6 @@ export const OnboardingNavigator: React.FC = () => {
       {__DEV__ && <Stack.Screen name="DevMenu" component={DevMenuScreen} />}
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen name="SignIn" component={SignInScreen} />
       <Stack.Screen name="UserType" component={UserTypeScreen} />
       <Stack.Screen name="NameAge" component={NameAgeScreen} />
       <Stack.Screen name="ChildrenCount" component={ChildrenCountScreen} />
@@ -76,10 +78,14 @@ export const OnboardingNavigator: React.FC = () => {
       <Stack.Screen
         name="Auth"
         component={AuthScreen}
-        options={{
-          gestureEnabled: false,
+        options={({ route }) => ({
+          // In signup mode (default), user just finished onboarding — disable
+          // swipe-back so they can't accidentally re-enter the flow. In
+          // signin mode, allow back-swipe to return to Welcome (they may
+          // have tapped "already have an account" by mistake).
+          gestureEnabled: route.params?.mode === 'signin',
           headerBackVisible: false,
-        }}
+        })}
       />
       <Stack.Screen name="Loading" component={LoadingScreen} />
       <Stack.Screen name="PremiumUnlocked" component={PremiumUnlockedScreen} />

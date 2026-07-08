@@ -2,10 +2,13 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
+import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
+import { useLessonGate } from '../hooks/useLessonGate';
 
 interface SubLesson {
   id: string;
@@ -59,10 +62,12 @@ const subLessons: SubLesson[] = [
   },
 ];
 
-const STORAGE_KEY = '@sprinklers_completed_sections';
+const STORAGE_KEY = STORAGE_KEYS.SPRINKLERS_COMPLETED_SECTIONS;
 
 export default function SprinklersLessonScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const posthog = usePostHog();
+  const { gateToLesson } = useLessonGate();
   const [completedSections, setCompletedSections] = useState<string[]>([]);
 
   const loadProgress = async () => {
@@ -133,9 +138,16 @@ export default function SprinklersLessonScreen() {
               key={lesson.id}
               style={styles.lessonCard}
               onPress={() => {
-                if (lesson.startScreen) {
+                if (!lesson.startScreen) return;
+                posthog.capture('lesson_section_started', {
+                  lesson_name: 'Sprinklers: Building Deep Bonds',
+                  section_id: lesson.id,
+                  section_title: lesson.title,
+                  section_number: lesson.number,
+                });
+                gateToLesson(`sprinklers_${lesson.id}`, () => {
                   navigation.navigate('LessonFlow', { screen: lesson.startScreen });
-                }
+                });
               }}
               activeOpacity={0.7}
             >

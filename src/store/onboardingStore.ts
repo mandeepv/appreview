@@ -12,10 +12,11 @@ import {
   ParentingStyle,
   EmotionalChallenge,
 } from '../types/onboarding';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const ONBOARDING_STORAGE_KEY = '@kinderwell_onboarding_state';
-const LAST_SCREEN_KEY = '@kinderwell_last_onboarding_screen';
-const HAS_REACHED_AUTH_KEY = '@kinderwell_has_reached_auth';
+const ONBOARDING_STORAGE_KEY = STORAGE_KEYS.ONBOARDING_STATE;
+const LAST_SCREEN_KEY = STORAGE_KEYS.ONBOARDING_LAST_SCREEN;
+const HAS_REACHED_AUTH_KEY = STORAGE_KEYS.ONBOARDING_HAS_REACHED_AUTH;
 
 const initialState = {
   userType: null,
@@ -45,7 +46,11 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
   updateChildrenCount: (count: number) =>
     set((state) => ({
       childrenCount: count,
-      children: Array.from({ length: count }, (_, i) => state.children[i] || { gender: 'boy' as ChildGender }),
+      // Do NOT default gender. Onboarding does not ask for gender in prod
+      // (the "Optional Expand" toggle is commented out), so writing anything
+      // here fabricates data the user didn't provide. Existing children keep
+      // whatever they had, new children start with no gender / age set.
+      children: Array.from({ length: count }, (_, i) => state.children[i] || {}),
     })),
 
   updateChildGender: (index: number, gender: ChildGender) =>

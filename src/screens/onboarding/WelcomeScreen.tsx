@@ -5,12 +5,15 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { Colors, Spacing, Typography, Animation, BorderRadius } from '../../constants/theme';
+import { trackWelcomeCtaTapped, trackOnboardingRestarted } from '../../lib/analytics';
+import { useOnboardingStore } from '../../store/onboardingStore';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
 
 export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const { getLastScreen } = useOnboardingStore();
 
   useEffect(() => {
     // Entrance animation
@@ -29,12 +32,21 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
     ]).start();
   }, []);
 
-  const handleGetStarted = () => {
+  const handleGetStarted = async () => {
+    trackWelcomeCtaTapped('get_started');
+    // If user had progress from a prior session, tapping Get Started here is a restart
+    const priorLastScreen = await getLastScreen();
+    if (priorLastScreen && priorLastScreen !== 'Welcome') {
+      trackOnboardingRestarted(priorLastScreen);
+    }
     navigation.navigate('UserType');
   };
 
   const handleSignIn = () => {
-    navigation.navigate('SignIn');
+    trackWelcomeCtaTapped('sign_in');
+    // Enter Auth in signin mode — same auth code path, different copy and
+    // post-signin routing. See OnboardingStackParamList.Auth for details.
+    navigation.navigate('Auth', { mode: 'signin' });
   };
 
   return (

@@ -8,6 +8,23 @@ import { Heading1, Subtitle } from '../../components/Typography';
 import { Colors, Spacing, Animation } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { trackOnboardingStarted } from '../../lib/analytics';
+
+/**
+ * SplashScreen is the mandatory first-launch surface. It fires the entrance
+ * animation, waits for auth to hydrate from AsyncStorage, then routes.
+ *
+ * Post-2026-07-05 hard-paywall model: signed-in users are NOT sent
+ * straight to Root anymore. Every launch of a signed-in user routes
+ * through Loading, which is responsible for the subscription gate:
+ *   - if the user is subscribed (or demo)   → Loading forwards to Root
+ *   - if the user is not subscribed         → Loading presents the
+ *                                             mandatory paywall (no
+ *                                             dismiss, no bypass)
+ * That means "close app, reopen" always shows Splash → Paywall for an
+ * unsubscribed signed-in user, which is exactly the mandatory-gate UX
+ * we ship. See docs/PAYWALL_MODEL.md for the full policy.
+ */
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Splash'>;
 
@@ -34,14 +51,21 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
     ]).start();
   }, []);
 
-  // Wait for auth to finish loading, then navigate
+  // Wait for auth to finish loading, then navigate.
+  // Variant resolution runs in parallel and does NOT block routing.
   useEffect(() => {
     if (!isLoading) {
       const timer = setTimeout(async () => {
         if (user) {
-          // User is logged in, go directly to app
-          if (__DEV__) console.log('User already authenticated, navigating to Root');
-          navigation.replace('Root');
+          // User is signed in. Route through Loading, which is the
+          // subscription-gate checkpoint. Loading examines isSubscribed +
+          // isDemoUser and either presents the mandatory paywall or
+          // forwards to Root. Prior code sent signed-in users directly
+          // to Root, which bypassed the gate and let unsubscribed users
+          // reach LearnScreen after a force-quit / cold launch — the
+          // exact scenario the hard-paywall model closes.
+          if (__DEV__) console.log('User already authenticated, navigating to Loading (gate)');
+          navigation.replace('Loading');
         } else {
           // User not logged in - check onboarding state
           const hasReachedAuthScreen = await hasReachedAuth();
@@ -51,11 +75,13 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
             // User completed onboarding before, go to Auth screen
             if (__DEV__) console.log('User has completed onboarding, navigating to Auth');
             await loadState(); // Load their saved onboarding data
+            trackOnboardingStarted('resumed', 'Auth');
             navigation.replace('Auth');
           } else if (lastScreen) {
             // User was in middle of onboarding, resume where they left off
             if (__DEV__) console.log('Resuming onboarding at:', lastScreen);
             await loadState(); // Load their saved answers
+            trackOnboardingStarted('resumed', lastScreen);
             try {
               navigation.replace(lastScreen as any);
             } catch {
@@ -64,6 +90,7 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
           } else {
             // Brand new user, show welcome screen
             if (__DEV__) console.log('New user, showing Welcome screen');
+            trackOnboardingStarted('first_open');
             navigation.replace('Welcome');
           }
         }

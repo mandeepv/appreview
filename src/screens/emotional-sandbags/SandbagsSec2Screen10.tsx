@@ -6,24 +6,16 @@ import { Button } from '../../components/Button';
 import { Colors, Typography, Shadows, BorderRadius } from '../../constants/theme';
 import { LessonStackParamList } from '../../navigation/LessonNavigator';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { markSectionComplete } from '../../utils/emotionalSandbagsProgress';
 
 type Props = NativeStackScreenProps<LessonStackParamList, 'SandbagsSec2Screen10'>;
 
 export const SandbagsSec2Screen10: React.FC<Props> = ({ navigation }) => {
     const handleComplete = async () => {
-        // Record completion of Sublesson 2
-        try {
-            const STORAGE_KEY = '@sandbags_completed_sections';
-            const stored = await AsyncStorage.getItem(STORAGE_KEY);
-            let completedSections = stored ? JSON.parse(stored) : [];
-            if (!completedSections.includes('2')) {
-                completedSections.push('2');
-                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
-            }
-        } catch (error) {
-            if (__DEV__) console.error('Error saving progress:', error);
-        }
+        // Was writing to the wrong key ('@sandbags_...'); the hub reads
+        // '@emotional_sandbags_...' via emotionalSandbagsProgress. Route
+        // through the utility so completion actually surfaces.
+        await markSectionComplete('2');
 
         // Return to the Emotional Sandbags hub
         navigation.navigate('EmotionalSandbagsLesson' as any);

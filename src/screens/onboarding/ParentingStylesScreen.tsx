@@ -7,6 +7,7 @@ import { SelectableCard } from '../../components/SelectableCard';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ParentingStyle } from '../../types/onboarding';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ParentingStyles'>;
 
@@ -14,6 +15,7 @@ export const ParentingStylesScreen: React.FC<Props> = ({ navigation }) => {
   const { familiarParentingStyles, toggleParentingStyle } = useOnboardingStore();
 
   const handleContinue = () => {
+    trackOnboardingStepCompleted('ParentingStyles', familiarParentingStyles);
     navigation.navigate('EmotionalChallenges');
   };
 

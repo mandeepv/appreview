@@ -8,6 +8,7 @@ import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { EmotionalChallenge } from '../../types/onboarding';
 import { Colors } from '../../constants/theme';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'EmotionalChallenges'>;
 
@@ -29,10 +30,12 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleContinue = () => {
+    trackOnboardingStepCompleted('EmotionalChallenges', { challenges: emotionalChallenges, skipped: false });
     navigation.navigate('Auth');
   };
 
   const handleSkip = () => {
+    trackOnboardingStepCompleted('EmotionalChallenges', { challenges: [], skipped: true });
     navigation.navigate('Auth');
   };
 

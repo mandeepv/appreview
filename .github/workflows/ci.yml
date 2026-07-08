@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: TypeScript type check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fails only on errors, not warnings. The current baseline has ~200
+      # warnings (mostly unused-vars and Animated.Value ref pattern in
+      # lesson screens) that the v1.2 lesson refactor will clear. Rules
+      # deliberately downgraded in eslint.config.js so CI only catches
+      # things that are actual bugs — new errors will fail the PR.
+      - name: Lint
+        run: npm run lint
+
+  version-drift:
+    name: Version drift check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The Kinderwell marketing version needs to agree between app.json
+      # (what EAS reads at build time) and package.json (what shows up as
+      # release metadata). Fable review #7 caught real drift: app.json =
+      # 1.1.0, package.json = 1.0.0. Anyone `git blame`-ing to understand
+      # a bug would follow the wrong version string. This job fails the PR
+      # if the two disagree so a bump-version.sh run is enforced.
+      - name: Check app.json and package.json versions agree
+        run: |
+          APP_JSON_VER=$(node -e "console.log(require('./app.json').expo.version)")
+          PACKAGE_VER=$(node -e "console.log(require('./package.json').version)")
+          echo "app.json marketing version:  $APP_JSON_VER"
+          echo "package.json version:        $PACKAGE_VER"
+          if [ "$APP_JSON_VER" != "$PACKAGE_VER" ]; then
+            echo ""
+            echo "::error::Version drift detected — app.json ($APP_JSON_VER) and package.json ($PACKAGE_VER) disagree."
+            echo "Run ./scripts/bump-version.sh <version> <build> to sync them."
+            exit 1
+          fi
+          echo "✅ Versions match"

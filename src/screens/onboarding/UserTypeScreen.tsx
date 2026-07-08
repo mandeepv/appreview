@@ -7,6 +7,7 @@ import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { UserType } from '../../types/onboarding';
 import { Colors } from '../../constants/theme';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'UserType'>;
 
@@ -24,6 +25,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleContinue = () => {
     if (userType) {
+      trackOnboardingStepCompleted('UserType', userType);
       navigation.navigate('NameAge');
     }
   };

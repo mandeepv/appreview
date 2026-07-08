@@ -7,6 +7,7 @@ import { SelectableCard } from '../../components/SelectableCard';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { PartnerInvolvement } from '../../types/onboarding';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PartnerInvolvement'>;
 
@@ -14,6 +15,7 @@ export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
   const { partnerInvolvement, updatePartnerInvolvement } = useOnboardingStore();
 
   const handleContinue = () => {
+    trackOnboardingStepCompleted('PartnerInvolvement', partnerInvolvement);
     navigation.navigate('ExperienceLevel');
   };
 

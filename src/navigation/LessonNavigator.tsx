@@ -368,9 +368,6 @@ import { HelpingProcessEmotionsSec2Screen8 } from '../screens/helpingProcessEmot
 import { HelpingProcessEmotionsSec2Screen9 } from '../screens/helpingProcessEmotions/HelpingProcessEmotionsSec2Screen9';
 import { HelpingProcessEmotionsSec2Screen10 } from '../screens/helpingProcessEmotions/HelpingProcessEmotionsSec2Screen10';
 
-// Serve & Return Lesson
-import { ServeReturnLessonScreen } from '../screens/ServeReturnLessonScreen';
-
 // Serve & Return - Sub-lesson 1
 import { ServeReturnSec1Screen1 } from '../screens/serveReturn/ServeReturnSec1Screen1';
 import { ServeReturnSec1Screen2 } from '../screens/serveReturn/ServeReturnSec1Screen2';
@@ -736,7 +733,6 @@ export type LessonStackParamList = {
   HelpingProcessEmotionsSec2Screen8: undefined;
   HelpingProcessEmotionsSec2Screen9: undefined;
   HelpingProcessEmotionsSec2Screen10: undefined;
-  ServeReturnLesson: undefined;
   ServeReturnSec1Screen1: undefined;
   ServeReturnSec1Screen2: undefined;
   ServeReturnSec1Screen3: undefined;
@@ -1091,7 +1087,6 @@ export const LessonNavigator: React.FC = () => {
       <Stack.Screen name="HelpingProcessEmotionsSec2Screen8" component={HelpingProcessEmotionsSec2Screen8} />
       <Stack.Screen name="HelpingProcessEmotionsSec2Screen9" component={HelpingProcessEmotionsSec2Screen9} />
       <Stack.Screen name="HelpingProcessEmotionsSec2Screen10" component={HelpingProcessEmotionsSec2Screen10} />
-      <Stack.Screen name="ServeReturnLesson" component={ServeReturnLessonScreen} />
       <Stack.Screen name="ServeReturnSec1Screen1" component={ServeReturnSec1Screen1} />
       <Stack.Screen name="ServeReturnSec1Screen2" component={ServeReturnSec1Screen2} />
       <Stack.Screen name="ServeReturnSec1Screen3" component={ServeReturnSec1Screen3} />
