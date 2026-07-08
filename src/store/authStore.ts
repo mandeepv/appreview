@@ -3,7 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, signOut as supabaseSignOut } from '../lib/supabase';
 import { posthog } from '../config/posthog';
-import { setSentryUser } from '../config/sentry';
+import { setSentryUser, reportError } from '../config/sentry';
+import { SuperwallExpoModule } from 'expo-superwall';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
 // isSubscribed persists to disk so we don't paywall a paying user on every
@@ -104,6 +105,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // subsequent error can't be attributed to the just-signed-out user even
       // if the onAuthStateChange listener hasn't fired yet (SPEC-06 R2).
       setSentryUser(null);
+
+      // Reset Superwall identity on sign-out (SPEC-07 R4). Without this, the
+      // Superwall SDK keeps the previous user's identity, so on a shared
+      // device a second person signing in would inherit the first person's
+      // subscription/entitlement state until Superwall's next event. Mirrors
+      // the delete-account path (authService.ts). try/catch + reportError so a
+      // Superwall failure never blocks sign-out.
+      try {
+        await SuperwallExpoModule.reset();
+      } catch (e) {
+        reportError(e instanceof Error ? e : new Error(String(e)), {
+          context: 'sign_out_superwall_reset',
+        });
+      }
+
       set({
         user: null,
         session: null,
