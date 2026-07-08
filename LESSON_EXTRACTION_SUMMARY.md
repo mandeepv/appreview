@@ -4,7 +4,7 @@
 Successfully extracted and compiled all lesson content from 13 lessons across the Mamalearn application into a comprehensive markdown document.
 
 ## Output File
-**Location:** `/Users/mandeepverma/mamalearn/lessons_content.md`
+**Location:** `/Users/mandeepverma/mamalearn/docs/archive/lessons_content.md`
 
 ## Statistics
 - **Total Lines:** 4,542
@@ -109,7 +109,7 @@ Successfully extracted and compiled all lesson content from 13 lessons across th
 ## Technical Details
 
 ### Extraction Method
-- Python script: `/Users/mandeepverma/mamalearn/extract_lessons.py`
+- Python script: `/Users/mandeepverma/mamalearn/scripts/extract_lessons.py`
 - Regex-based text extraction from TypeScript React Native files
 - Pattern matching for various text styles and components
 - Automatic deduplication of content
