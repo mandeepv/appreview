@@ -36,8 +36,27 @@ if [[ ! "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
   exit 1
 fi
 
+# Build number must be a BARE positive integer (^[0-9]+$). This is stricter
+# than it looks and the strictness is load-bearing:
+#
+#   - iOS CFBundleVersion accepts dotted strings like "1.1.0", so Xcode/EAS
+#     would happily build with a "1.1.0" build number. But
+#     Application.nativeBuildVersion is parsed with parseInt() in
+#     appConfig.ts (getCurrentBuildNumber) — parseInt("1.1.0", 10) === 1.
+#     A build stamped "1.1.0" would report build 1 to the kill switch, so
+#     isBelowMinimumBuild() would force-update it the moment
+#     min_supported_ios_build rises above 1. A dotted build number silently
+#     defeats the kill-switch guard.
+#   - A leading zero, spaces, or a "v" prefix have the same class of problem.
+#
+# So: reject anything that isn't purely digits, and explain why.
 if [[ ! "$NEW_BUILD" =~ ^[0-9]+$ ]]; then
-  echo "Build number must be an integer — got '$NEW_BUILD'" >&2
+  echo "ERROR: build number must be a bare positive integer (digits only) — got '$NEW_BUILD'." >&2
+  echo "" >&2
+  echo "Why: getCurrentBuildNumber() in appConfig.ts parses the running build's" >&2
+  echo "CFBundleVersion with parseInt(). A dotted value like '1.1.0' parses to 1," >&2
+  echo "which would silently defeat the kill-switch's min_supported_ios_build" >&2
+  echo "guard. Use a monotonically-increasing integer (e.g. 10, 11, 12)." >&2
   exit 1
 fi
 
