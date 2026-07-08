@@ -44,7 +44,7 @@
 **On dev Supabase (Auth → Providers → Apple):**
 - Enabled: ✅
 - **Client IDs:** `com.kinderwell.app,com.kinderwell.app.auth`
-- **Secret Key (JWT):** freshly generated via `node generate_apple_jwt.js` — valid 180 days (expires ~2026-12-28)
+- **Secret Key (JWT):** freshly generated via `node scripts/generate_apple_jwt.js` — valid 180 days (expires ~2026-12-28)
 - **Callback URL (auto-shown):** `https://xbkkjqvbsnroenqlqkmi.supabase.co/auth/v1/callback`
 - Allow users without email: OFF
 

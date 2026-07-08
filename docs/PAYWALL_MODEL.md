@@ -145,6 +145,37 @@ a negligible share (say <1% for 30 days), safe to delete. Also
 consider the kill-switch route: bump `min_supported_ios_build` in
 `app_config` to force v1.0.0 users to upgrade before deletion.
 
+### ⚠️ `onSkip` cannot tell "entitled" from "dashboard misconfig"
+
+When Superwall's Gated check decides NOT to present the paywall, our
+code sees a single `onSkip` callback and lets the user through to Root.
+But `onSkip` fires for **several different reasons**, and the SDK's skip
+reason (`SuperwallExpoModule` `PaywallSkippedReason`) can be any of:
+
+- `Holdout` — user is in an experiment holdout group.
+- `NoAudienceMatch` — user didn't match the placement's audience rules.
+- `PlacementNotFound` — the `subscription_gate` placement doesn't exist
+  in the dashboard (or was renamed / deleted).
+
+The first is legitimate. The last two are **misconfiguration** — and they
+look identical to "user is entitled" from the app's perspective: in every
+case `onSkip` fires and the user reaches Root **without paying**. A
+fat-fingered dashboard edit (renaming the placement, breaking the
+audience rule, accidentally flipping Gated → Non-Gated) would silently
+turn the paywall off for everyone, and the app would happily let them in.
+
+**The only tripwire is the `paywall_skipped_by_superwall` event** (fired in
+`LoadingScreen.onSkip` with the skip reason). Its count — and especially a
+sudden spike, or a spike in `PlacementNotFound` / `NoAudienceMatch`
+reasons — is how we detect a dashboard misconfig. There is no code-side
+guard that can catch this, because the code can't distinguish the cases.
+
+**Rule: after ANY edit to the `subscription_gate` placement in the
+Superwall dashboard, watch the `paywall_skipped_by_superwall` event
+count** (and its `skip_reason` breakdown) in PostHog. A jump means the
+gate is leaking. See `docs/RELEASE_CHECKLIST.md` Phase 7.5 (Superwall
+dashboard verification).
+
 ---
 
 ## What each code component does

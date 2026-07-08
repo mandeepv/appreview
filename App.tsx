@@ -3,6 +3,7 @@ import { initSentry } from './src/config/sentry';
 initSentry();
 
 import React, { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +27,7 @@ function AppContent() {
   const isInitialMount = useRef(true);
   const configStatus = useConfigStore(state => state.status);
   const checkConfig = useConfigStore(state => state.checkConfig);
+  const maybeRecheckConfig = useConfigStore(state => state.maybeRecheckConfig);
 
   useEffect(() => {
     if (__DEV__) console.log('🚀 Initializing app...');
@@ -64,6 +66,19 @@ function AppContent() {
   // 3s timeout, so a Supabase outage never locks legit users out.
   useEffect(() => {
     checkConfig();
+  }, []);
+
+  // SPEC-07 R3: re-check the kill switch when the app returns to the
+  // foreground, if the last check was > 6h ago. Without this, the config
+  // check is cold-launch-only, so a resident app (never killed) would never
+  // see a forced update. The staleness gate lives in configStore.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        maybeRecheckConfig();
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   // Listen for auth state changes and navigate accordingly

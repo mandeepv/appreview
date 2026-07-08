@@ -263,7 +263,7 @@ If you rotate the Apple JWT secret or Google client secret, **update both dev AN
 
 ```bash
 npm install --no-save jsonwebtoken
-node generate_apple_jwt.js
+node scripts/generate_apple_jwt.js
 ```
 
 Copy the printed JWT into:
