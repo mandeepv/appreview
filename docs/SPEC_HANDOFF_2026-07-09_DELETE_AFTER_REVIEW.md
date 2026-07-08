@@ -6,7 +6,7 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04 · **Status:** awaiting review
+**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05 · **Status:** awaiting review
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -528,6 +528,55 @@ Depends on SPEC-01 (tests the fixed routing). Done as two commits per spec.
 
 ---
 
+## SPEC-05 — CI pipeline updates
+
+**Branch:** `feature/spec-05-ci-pipeline` (merged to `main`, `--no-ff`, deleted).
+**Files touched:** `.github/workflows/ci.yml` only (as the spec scopes it).
+
+Depends on SPEC-04 (the new `test` job needs the tests, which are merged).
+
+### Requirements ✅
+- **(1) Triggers:** `push` now fires on all branches (`branches: ['**']`);
+  `pull_request` kept scoped to `main`. ✅
+- **(2) New `test` job:** same Node setup as the existing jobs (Node 20,
+  `actions/setup-node@v4` with `cache: 'npm'`, `npm ci`), runs
+  `npm test -- --ci`. ✅
+- **(3) New `audit` job:** `npm audit --audit-level=high` with
+  `continue-on-error: true` (advisory) and a comment saying to tighten it
+  once SPEC-07 removes dead deps. ✅
+- **(4) Existing jobs untouched:** `typecheck`, `lint`, `version-drift` are
+  byte-for-byte unchanged (verified: the only removed line in the diff is the
+  `push` trigger's `branches: [main]`). The lint job's warning-baseline
+  comment is preserved. ✅
+- **(5) No branch protection enabled** by the implementer. See the owner
+  action below. ✅
+
+### Verified in-repo
+- ✅ `ci.yml` is valid YAML; jobs = `typecheck, lint, version-drift, test,
+  audit`; `push.branches = ['**']`, `pull_request.branches = ['main']`.
+- ✅ `npm test -- --ci` (what the `test` job runs) → 6 suites, 52 tests green.
+- ✅ `npm audit --audit-level=high` exits nonzero locally (there are high/
+  critical advisories in the current dependency baseline) — which is exactly
+  why the `audit` job is `continue-on-error: true`: it shows advisory/yellow
+  without blocking. Matches the "audit job visibly advisory (yellow allowed)"
+  criterion.
+
+### Could not verify (needs GitHub Actions to actually run) ⚠️
+- The acceptance criteria "a push to the spec branch triggers all five jobs
+  (this PR is its own test)", "all jobs green; audit visibly advisory", and
+  "total pipeline time under ~5 minutes (npm cache)" can only be confirmed by
+  the real Actions run once this branch/PR is pushed. The commands themselves
+  are verified locally; the runner behavior is not.
+
+### Owner action (spec requirement 5, owner-only) 🔒
+- After merge, mark **typecheck / lint / version-drift / test** as **required
+  status checks** in the repo's branch-protection settings for `main`. The
+  spec explicitly says the implementer must NOT enable branch protection —
+  this is the note the PR description should carry. The `audit` job is
+  advisory and should NOT be a required check.
+
+---
+
 ## Open items for the owner (consolidated)
 
 **Needs a device/simulator (SPEC-01):**
@@ -561,6 +610,13 @@ Depends on SPEC-01 (tests the fixed routing). Done as two commits per spec.
   acceptance gate for the refactor. The automated `npm test` suite already
   covers the same routing decisions and passes.
 
+**Needs GitHub Actions + repo settings (SPEC-05):**
+- Confirm the real Actions run: all five jobs run on the branch push, all
+  green, audit advisory (yellow), pipeline < ~5 min.
+- **Owner-only:** mark `typecheck` / `lint` / `version-drift` / `test` as
+  required status checks on `main` in branch-protection settings. Do NOT make
+  `audit` required (it's advisory).
+
 **Spec-text corrections to feed back to the author:**
 - **SPEC-02:** references `supabase/.temp/project-ref`; the actual file is
   `supabase/.temp/linked-project.json` (JSON, `.ref` key). Update the
@@ -571,6 +627,5 @@ Depends on SPEC-01 (tests the fixed routing). Done as two commits per spec.
   intent. Missing-secret was implemented as **500** (fail closed) — allowed by
   the "500/401" wording.
 
-**Not yet pushed:** after SPEC-04 merges, `main` is ahead of `origin/main` by
-~12 commits (four specs + merges + docs). Nothing has been pushed to any
-remote; awaiting owner's go.
+**Push status:** SPEC-01→04 pushed to `origin/main` (through `711e24f`).
+SPEC-05 merges on top; push after merge.
