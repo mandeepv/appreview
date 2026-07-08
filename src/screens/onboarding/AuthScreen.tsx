@@ -85,7 +85,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     if (result.status === 'has_onboarding') {
-      if (__DEV__) console.log('[Auth] returning user, navigating to Root');
+      if (__DEV__) console.log('[Auth] returning user, navigating to Loading (the gate)');
 
       // Clear the local onboarding scratchpad + the has-reached-auth flag.
       //
@@ -114,14 +114,28 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       try {
         await onboardingStore.clearState();
       } catch (e) {
-        // Non-fatal — the user is signed in and we're routing them to
-        // Root. Log it but don't block them.
+        // Non-fatal — the user is signed in and we're routing them into
+        // the gate. Log it but don't block them.
         reportError(e instanceof Error ? e : new Error(String(e)), {
           context: 'post_signin_clear_state',
         });
       }
 
-      navigation.replace('Root');
+      // INVARIANT: AuthScreen never routes to Root. Every entry to Root goes
+      // through the Loading gate (LoadingScreen), which is the single
+      // subscription checkpoint under the hard-paywall model — see
+      // docs/PAYWALL_MODEL.md, load-bearing invariant #1. The prior code
+      // sent returning users straight to Root here, which was the sign-in
+      // bypass: a returning-but-unsubscribed account reached the LearnScreen
+      // without ever passing the paywall (SPEC-01 R1). Routing to Loading
+      // closes it — Loading short-circuits to Root for entitled users and
+      // presents the paywall for everyone else.
+      //
+      // Note we cleared onboardingStore above, so LoadingScreen sees a null
+      // userType and takes its cold-launch path: it skips the onboarding
+      // upsert and goes straight to the gate. That's exactly what we want
+      // for a returning user who already has a profile row.
+      navigation.replace('Loading');
       return;
     }
 
