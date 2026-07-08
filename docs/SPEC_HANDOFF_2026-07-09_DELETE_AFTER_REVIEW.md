@@ -6,7 +6,7 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05, SPEC-06 · **Status:** awaiting review
+**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05, SPEC-06, SPEC-07 · **Status:** awaiting review
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -669,6 +669,102 @@ no email / child names / free-text PII ever (invariant #8).
 
 ---
 
+## SPEC-07 — Codebase hygiene sweep
+
+**Branch:** `feature/spec-07-codebase-hygiene` (merged to `main`, `--no-ff`,
+deleted).
+**Files touched:** `package.json` (+ lock), `App.tsx`,
+`src/store/configStore.ts`, `src/store/authStore.ts`, root-file moves/deletes,
+several docs (`APPLE_JWT_ROTATION.md`, `DEV_PROD_ENVIRONMENTS.md`,
+`DEV_SETUP_LOG_2026-07-01.md`, `LESSON_EXTRACTION_SUMMARY.md`,
+`docs/archive/README.md`, `docs/PAYWALL_MODEL.md`).
+
+Every removal required a zero-importer proof. **Two of the six R1 candidates
+were flagged and NOT removed — see below.**
+
+### R1 — Remove dead dependencies ✅ / ❗ (2 flagged, owner-confirmed) / ⚠️
+- **Removed (zero-importer proven — grep across `src/`, `App.tsx`,
+  `app.config.js`, `babel.config.js`, `app.json` all empty):**
+  `react-hook-form`, `expo-file-system`, `expo-device`, `react-native-dotenv`.
+- **Kept `zod`** (adopted by SPEC-09).
+- **❗ FLAGGED, NOT removed (grep non-empty → R1 says stop and flag;
+  owner confirmed keep-untouched):**
+  - **`expo-asset`** — zero code importers BUT registered as an **active config
+    plugin in `app.json` (line 30)**. This is exactly the "some expo packages
+    act via config plugins" case R1 warns about; removing the package would
+    break the native build. Left the package AND the `app.json` plugin entry
+    completely untouched.
+  - **`expo-notifications`** — zero code importers, but `app.config.js` carries
+    two comments documenting that it's **intentionally kept installed but
+    unregistered** for the planned notifications feature (BACKLOG #13). Grep
+    non-empty (comments); left untouched.
+- **Zero-importer proof (for the PR), for each removed pkg:**
+  `grep -rn "<pkg>" src/ App.tsx app.config.js babel.config.js app.json` → empty.
+- **⚠️ Could not verify (spec requires a full dev build on simulator — no
+  device here):** the spec notes a clean `tsc` alone isn't sufficient because
+  config-plugin packages can break the build silently. The four removed
+  packages have **no** config-plugin involvement (verified: none appear in
+  app.json/app.config.js/babel.config.js), so risk is low — but the owner
+  should run `npx expo run:ios` (or a dev-client build) to confirm the app
+  still boots before relying on this.
+
+### R2 — Root clutter ✅
+- **Moved to `scripts/`** (via `git mv`, history preserved): `convert_svg.js`,
+  `extract_lessons.py`, `generate_apple_jwt.js`. Fixed the operational doc
+  references (`node generate_apple_jwt.js` → `node scripts/generate_apple_jwt.js`
+  in `APPLE_JWT_ROTATION.md`, `DEV_PROD_ENVIRONMENTS.md`, `DEV_SETUP_LOG`;
+  the "Update `generate_apple_jwt.js`" instruction; and the absolute paths in
+  `LESSON_EXTRACTION_SUMMARY.md`).
+- **Deleted:** `Todo.txt` (0 bytes), `CODING_COMPLETE.md`,
+  `posthog-setup-report.md`.
+- **Archived (NOT deleted):** `lessons_content.md` → `docs/archive/` with a new
+  entry in `docs/archive/README.md` (per its per-file format), noting it's
+  likely SPEC-09 source material.
+- **Verified:** ✅ no ACTIVE doc reference points at an old root location.
+  Remaining mentions of the moved filenames live only in historical/archive
+  review docs (`archive/COMPOUND_ENGINEERING_REVIEW.md`, `FABLE_*`) that
+  *describe the pre-move state* — rewriting those would falsify the record, so
+  they're intentionally left.
+
+### R3 — Kill-switch foreground re-check ✅ / ⚠️
+- **Done:** `App.tsx` adds an `AppState` listener; on transition to `active`
+  it calls `maybeRecheckConfig()`. `configStore` now tracks `lastCheckedAt`
+  and re-fetches only if the last check was > 6h ago (constant
+  `RECHECK_INTERVAL_MS`). Unlike the cold-launch `checkConfig`, the foreground
+  path CAN move an already-`ok` resident app to `force_update` (the point of
+  R3), but never downgrades `force_update` → `ok` mid-session. `__DEV__` logs
+  demonstrate both the skip (< 6h) and the re-fetch (> 6h) paths.
+- **Verified:** ✅ tsc/lint clean.
+- **⚠️ Owner to verify on device:** foreground the app after the 6h window and
+  confirm exactly one config re-fetch fires (screenshot the `__DEV__` log).
+
+### R4 — Superwall identity on sign-out ✅ / ⚠️
+- **Done:** `authStore.signOut()` now calls `await SuperwallExpoModule.reset()`
+  in try/catch with `reportError` on failure — mirroring the delete-account
+  path (`authService.ts:~309`). Without it, Superwall kept the previous user's
+  identity, so on a shared device the next sign-in inherited the prior user's
+  entitlement state.
+- **Verified:** ✅ tsc/lint clean; mirrors the existing delete-path pattern.
+- **⚠️ Owner to verify on device (this touches sign-out — spec says re-run the
+  SPEC-01 sign-out/sign-in flow):** sign out → sign in with a DIFFERENT account
+  on the same device → confirm the second user gets its own Superwall identity
+  (check Superwall debug logs in a dev build).
+
+### R5 — PAYWALL_MODEL.md note ✅
+- **Done:** Added a subsection "⚠️ `onSkip` cannot tell 'entitled' from
+  'dashboard misconfig'" to `docs/PAYWALL_MODEL.md` — explains the three skip
+  reasons (Holdout / NoAudienceMatch / PlacementNotFound), that misconfig looks
+  identical to "entitled" (user reaches Root without paying), and that the
+  `paywall_skipped_by_superwall` event count is the ONLY tripwire, so any
+  dashboard edit to the placement must watch it.
+
+### SPEC-07 — Out of scope / not delivered ⛔ ⚠️
+- Dev-build-on-simulator boot check (R1) and the device run-throughs (R3
+  foreground re-fetch log, R4 shared-device Superwall identity) — need a
+  running app; owner to run. Everything else verified in-repo.
+
+---
+
 ## Open items for the owner (consolidated)
 
 **Needs a device/simulator (SPEC-01):**
@@ -715,6 +811,18 @@ no email / child names / free-text PII ever (invariant #8).
   the timeline.
 - Sign-out run-through: a subsequent DevMenu test error has NO user attached.
 
+**Needs a dev build / device (SPEC-07):**
+- Run `npx expo run:ios` (or a dev-client build) after the dep removals to
+  confirm the app still boots — the 4 removed deps have no config-plugin
+  involvement, but the spec requires a real boot as proof.
+- Foreground the app after 6h and confirm exactly one config re-fetch fires
+  (screenshot the `__DEV__` log).
+- Sign out → sign in with a DIFFERENT account on the same device → confirm the
+  second user gets its own Superwall identity (Superwall debug logs).
+- **Two deps were flagged and kept, not removed:** `expo-asset` (active
+  `app.json` config plugin) and `expo-notifications` (documented intentional
+  retention for BACKLOG #13). Confirm you're happy leaving both.
+
 **Spec-text corrections to feed back to the author:**
 - **SPEC-02:** references `supabase/.temp/project-ref`; the actual file is
   `supabase/.temp/linked-project.json` (JSON, `.ref` key). Update the
@@ -725,5 +833,5 @@ no email / child names / free-text PII ever (invariant #8).
   intent. Missing-secret was implemented as **500** (fail closed) — allowed by
   the "500/401" wording.
 
-**Push status:** SPEC-01→05 pushed to `origin/main`. SPEC-06 merges on top;
-push after merge.
+**Push status:** SPEC-01→06 pushed to `origin/main` (CI green each push).
+SPEC-07 merges on top; push after merge.

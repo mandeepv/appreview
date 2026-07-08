@@ -33,6 +33,11 @@ Docs that were once actively used but are now historical. **Nothing has been del
 ### `DEV_SETUP_LOG_2026-07-01.md` *(not yet archived)*
 - Kept active while Saturday's iPhone smoke test is still pending. Move to archive after Saturday's test passes and the setup is verified end-to-end.
 
+### `lessons_content.md`
+- **Original purpose:** Raw extracted lesson source text (the output of `scripts/extract_lessons.py`), used to author the in-app lesson content.
+- **Why archived:** Moved out of the repo root during the SPEC-07 hygiene sweep. Not imported or referenced by app code — it's source material, not a runtime asset.
+- **Still useful for:** Likely source material for SPEC-09 (lesson content work). Do NOT delete — kept here as the canonical extracted text.
+
 ## Adding to archive
 
 When archiving:
