@@ -6,7 +6,7 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03 · **Status:** awaiting review
+**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04 · **Status:** awaiting review
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -416,6 +416,118 @@ Read `supabase/EDGE_FUNCTION_DEPLOYMENT.md` first, as instructed.
 
 ---
 
+## SPEC-04 — Jest harness + policy-kernel tests
+
+**Branch:** `feature/spec-04-jest-policy-kernel` (in progress at time of
+writing; two commits — R1 refactor, then R2 harness + R3 tests — then merged
+to `main`, `--no-ff`, deleted).
+**Files touched:** `package.json` (jest deps + `test` script), **new**
+`jest.config.js`, **new** `src/navigation/routingPolicy.ts`, **new**
+`src/navigation/lessonRoutes.ts`, `src/lib/env.ts`,
+`src/screens/onboarding/AuthScreen.tsx`,
+`src/screens/onboarding/LoadingScreen.tsx`, `src/screens/LearnScreen.tsx`,
+**new** six `__tests__/*.test.ts` files.
+
+Depends on SPEC-01 (tests the fixed routing). Done as two commits per spec.
+
+### R1 — Extract routing decisions into pure functions ✅ / ⚠️
+- **Done (behavior-preserving, separate commit `1004839`):**
+  - New `src/navigation/routingPolicy.ts` with two pure functions:
+    - `resolvePostAuthDestination({ onboardingStatus, mode })` → `{route:'Loading'}`
+      | `{route:'UserType'}` | `{recoverFromError:true}`.
+    - `resolveGateOutcome(result, isSubscribed)` → `'enter_root'` | `'re_present'`
+      | `'retry'`.
+  - `AuthScreen.handlePostSignin` refactored to compute→act: it calls the pure
+    function and performs side effects (clearState, alert, signOut) keyed on
+    the decision. No routing conditionals remain.
+  - `LoadingScreen` gate callbacks (onDismiss/onSkip/onError + the
+    registerPlacement catch) delegate to `resolveGateOutcome` via a single
+    `applyGateOutcome` helper; analytics/state side effects stay in the screen.
+  - `LESSON_NAV` extracted out of `LearnScreen` (a component) into new
+    `src/navigation/lessonRoutes.ts` so the route-coverage test can import it
+    without importing React. Added `ROOT_STACK_ROUTE_NAMES` (runtime list) with
+    a compile-time guard that it matches `RootStackParamList` exactly.
+  - `env.ts`: added pure `resolveEnv(ref)`; the `env` const now calls it.
+- **Verified in-repo:** ✅ `tsc` clean; ✅ `replace('Root')` still lives only
+  in `LoadingScreen` (SPEC-01 R1 invariant preserved); ✅ no routing
+  conditionals left in the screens (they only compute + act).
+- **⚠️ Owner to verify on device (per spec):** the SPEC-01 manual flows still
+  pass after this refactor. The refactor is a pure extraction and the
+  `routingPolicy.test.ts` truth table IS the automated regression test, but
+  the on-device manual flow run is the spec's gate and needs a simulator.
+
+### R2 — Jest harness ✅
+- **Done:** Added dev deps `jest`, `jest-expo@~54.0.0` (matches Expo SDK 54),
+  `@types/jest`; added `"test": "jest"` script; new `jest.config.js` using the
+  `jest-expo` preset, `testMatch` limited to `**/__tests__/**/*.test.ts`, and a
+  `transformIgnorePatterns` allowlist for the RN/Expo ESM the sources pull in.
+  No testing-library, no snapshots, no component rendering.
+- **Mock-boundary note (minor deviation from the literal wording):** the spec
+  says mock `posthog-react-native` at module level. `analytics.ts` imports its
+  posthog instance from `../config/posthog` (which is where the SDK is
+  constructed), and mocking the raw `posthog-react-native` default export
+  didn't take under the jest-expo transform (the constructed instance lacked
+  `register`). I mocked `../config/posthog` instead — the same boundary one
+  level up, still NOT mocking the module under test. `src/lib/supabase` is
+  mocked exactly as specified for the onboardingService test.
+- **Verified:** ✅ harness runs; suite green (below).
+
+### R3 — Six test files ✅
+- **Done — all six files with the required cases:**
+  - `src/lib/__tests__/appConfig.test.ts` — `isBelowMinimumBuild`: below/above/
+    equal minimum; minimum > 40 (CAP) ignored; minimum ≤ 0 ignored; non-numeric
+    current build; build "1.1.0" (parseInt→1) does not force-update against
+    minimum 1; parse-failure/null → refuses. (8 tests)
+  - `src/services/__tests__/onboardingService.test.ts` —
+    `hasUserCompletedOnboarding`: row+user_type → has_onboarding; row w/o
+    user_type → no_onboarding; PGRST116 → no_onboarding; real fetch error →
+    error (never no_onboarding). `saveUserOnboardingData` name filter: 'Parent',
+    '', '   ' excluded; real name included; trimmed. (10 tests)
+  - `src/lib/__tests__/analytics.test.ts` — `identifyUserWithOnboarding`: email
+    NEVER in `$set` (asserted on mock call args); signup vs signin shapes
+    differ; `safeCapture` swallows a throwing client without rethrowing. (4)
+  - `src/lib/__tests__/env.test.ts` — `resolveEnv`: dev→dev, prod→prod,
+    unknown→'unknown', undefined→'unknown' (no throw), ''→unknown. (5)
+  - `src/navigation/__tests__/lessonRoutes.test.ts` — every lesson nav target
+    resolves to a registered RootStack route (import both tables, containment);
+    all 13 lessons mapped. (4)
+  - `src/navigation/__tests__/routingPolicy.test.ts` — FULL truth table for both
+    functions: every onboardingStatus × mode; every gate outcome (purchased,
+    restored, declined, each skip reason, error) × isSubscribed true/false. The
+    `has_onboarding → Loading` case is commented as the v1.1.0-bypass
+    regression test. (22)
+- **Verified in-repo:**
+  - ✅ `npm test` green: **6 suites, 52 tests, ~0.8s** (well under the 30s
+    budget).
+  - ✅ `tsc` clean (tests type-check too).
+  - ✅ Constraints: no snapshots, no testing-library, no React-component
+    imports (verified by grepping every `import` in the test files — only pure
+    functions + the mocked config module).
+  - ✅ **Mutation checks (all four — each temporarily applied, confirmed a test
+    fails, then reverted):**
+    - (a) delete the `'Parent'` filter → 3 onboardingService tests fail. ✓
+    - (b) add email to the `$set` payload → the analytics privacy test fails. ✓
+    - (c) change `has_onboarding` destination to `'Root'` → 3 routingPolicy
+      tests fail (incl. the explicit "never routes to Root" bypass test). ✓
+    - (d) remove the `restored` branch → 2 routingPolicy `restored` tests fail. ✓
+    All four reverted; final suite green.
+
+### SPEC-04 — Constraints honored ✅
+- Assert concrete values; no snapshots.
+- No test imports a React component or requires a simulator.
+- Did not chase coverage numbers — scope is exactly the six files.
+
+### SPEC-04 — Out of scope / not delivered ⛔ ⚠️
+- **On-device SPEC-01 manual-flow re-verification** after the R1 refactor
+  (acceptance criterion: "R1 refactor commit passes the SPEC-01 manual flow
+  checks — record which you ran in the PR"). Needs a simulator; owner to run
+  and record in the PR. The automated truth-table test covers the same
+  decisions.
+- **PR bookkeeping** the spec asks for (record which manual flows were run) —
+  belongs in the PR description at push time.
+
+---
+
 ## Open items for the owner (consolidated)
 
 **Needs a device/simulator (SPEC-01):**
@@ -443,6 +555,12 @@ Read `supabase/EDGE_FUNCTION_DEPLOYMENT.md` first, as instructed.
 - Optionally `deno check supabase/functions/delete-account/index.ts` on a
   machine with Deno to confirm the `jose` import resolves and types.
 
+**Needs a device/simulator (SPEC-04):**
+- Re-run the SPEC-01 manual flows after the R1 routing refactor (behavior
+  should be identical) and record which flows you ran in the PR — the spec's
+  acceptance gate for the refactor. The automated `npm test` suite already
+  covers the same routing decisions and passes.
+
 **Spec-text corrections to feed back to the author:**
 - **SPEC-02:** references `supabase/.temp/project-ref`; the actual file is
   `supabase/.temp/linked-project.json` (JSON, `.ref` key). Update the
@@ -453,6 +571,6 @@ Read `supabase/EDGE_FUNCTION_DEPLOYMENT.md` first, as instructed.
   intent. Missing-secret was implemented as **500** (fail closed) — allowed by
   the "500/401" wording.
 
-**Not yet pushed:** after SPEC-03 merges, `main` will be ahead of
-`origin/main` by ~8 commits (three specs + merges + docs). Nothing has been
-pushed to any remote; awaiting owner's go.
+**Not yet pushed:** after SPEC-04 merges, `main` is ahead of `origin/main` by
+~12 commits (four specs + merges + docs). Nothing has been pushed to any
+remote; awaiting owner's go.

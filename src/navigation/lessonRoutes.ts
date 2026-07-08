@@ -9,6 +9,35 @@
 
 import type { RootStackParamList } from './RootNavigator';
 
+// Runtime list of every route name registered in RootNavigator's
+// RootStackParamList. RootStackParamList is a TYPE (erased at runtime), so the
+// route-coverage test can't enumerate its keys directly — it imports this
+// array instead. The `satisfies` check below makes tsc fail if this list ever
+// drifts from the param list (missing or extra route), so the two can't get
+// out of sync silently. Kept here (a non-component module) so the test never
+// has to import the RootNavigator component.
+export const ROOT_STACK_ROUTE_NAMES = [
+  'MainTabs',
+  'LessonFlow',
+  'LabelingEmotionsLesson',
+  'NamingOurEmotionsLesson',
+  'SprinklersLesson',
+  'EmotionalSandbagsLesson',
+  'CommunicationMistakesLesson',
+  'HelpingSomeoneProcessEmotionsLesson',
+  'DissociationLesson',
+  'ServeAndReturnLesson',
+  'RecordingDeepBondMomentsLesson',
+] as const satisfies readonly (keyof RootStackParamList)[];
+
+// Compile-time guard that ROOT_STACK_ROUTE_NAMES covers EVERY key of
+// RootStackParamList (not just that each entry is valid). If a route is added
+// to RootStackParamList but not to the array above, `_assertAllRoutesListed`
+// fails to type-check. The value is never used at runtime.
+type _MissingRoutes = Exclude<keyof RootStackParamList, (typeof ROOT_STACK_ROUTE_NAMES)[number]>;
+const _assertAllRoutesListed: _MissingRoutes extends never ? true : never = true;
+void _assertAllRoutesListed;
+
 export type LessonNavTarget =
   | { kind: 'flow'; screen: 'Lesson1Screen1' | 'Lesson2Screen1' | 'Lesson3Screen1' | 'Lesson4Screen1' }
   | { kind: 'screen'; name: keyof RootStackParamList };
@@ -32,7 +61,7 @@ export const LESSON_NAV: Record<string, LessonNavTarget> = {
 // The set of `kind: 'screen'` route names a lesson can navigate to directly.
 // Exported so the route-coverage test can assert containment against
 // RootStackParamList's keys without re-deriving the list.
-export const LESSON_SCREEN_ROUTE_NAMES: ReadonlyArray<keyof RootStackParamList> =
+export const LESSON_SCREEN_ROUTE_NAMES: readonly (keyof RootStackParamList)[] =
   Object.values(LESSON_NAV)
     .filter((t): t is Extract<LessonNavTarget, { kind: 'screen' }> => t.kind === 'screen')
     .map((t) => t.name);
