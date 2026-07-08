@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import type { Session } from '@supabase/supabase-js';
 import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
+import { resolvePostAuthDestination } from '../../navigation/routingPolicy';
 import { Colors } from '../../constants/theme';
 import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned } from '../../lib/analytics';
 import { reportError } from '../../config/sentry';
@@ -64,17 +65,28 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   const handlePostSignin = async (userId: string) => {
     const result = await hasUserCompletedOnboarding(userId);
 
-    if (result.status === 'error') {
-      if (__DEV__) console.error('[Auth] onboarding check failed:', result.error);
-      reportError(result.error, {
+    // COMPUTE: the routing decision is a pure function now
+    // (src/navigation/routingPolicy.ts, SPEC-04 R1). This screen contains no
+    // routing conditionals — it only reads the decision and performs the
+    // matching side effects below.
+    const destination = resolvePostAuthDestination({
+      onboardingStatus: result.status,
+      mode,
+    });
+
+    // ACT: error recovery — the check failed and we can't tell whether the
+    // user has onboarding data. Do NOT default to signup (that would
+    // overwrite their real answers). Sign them out to bounce back to Welcome
+    // and let them retry (Fable review #2).
+    if ('recoverFromError' in destination) {
+      // result.status is narrowed to 'error' here by the pure function's
+      // contract, but re-read defensively for the reportError payload.
+      const err = result.status === 'error' ? result.error : new Error('post-signin check failed');
+      if (__DEV__) console.error('[Auth] onboarding check failed:', err);
+      reportError(err, {
         context: 'post_signin_onboarding_check',
         user_id: userId,
       });
-      // The user is now signed in but we can't tell if they have onboarding
-      // data. Do NOT default to signup — that would overwrite their real
-      // answers if they did have data. Sign them out to bounce back to
-      // Welcome and let them retry; the alternative (leaving them signed
-      // in on a broken screen) is worse.
       Alert.alert(
         "Couldn't verify your account",
         "We couldn't check your account — please check your connection and sign in again.",
@@ -84,6 +96,18 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
+    // ACT: start onboarding fresh (signin-mode user with no profile — clicked
+    // "already have an account" by mistake, or signed up on another device).
+    if (destination.route === 'UserType') {
+      if (__DEV__) console.log('[Auth] signin mode with no onboarding — starting onboarding');
+      navigation.replace('UserType');
+      return;
+    }
+
+    // ACT: destination.route === 'Loading' (the gate). Two sub-cases with
+    // different side effects; the ROUTE is the same (SPEC-01 R1 invariant:
+    // AuthScreen never routes to Root — all entries to Root go through the
+    // Loading gate).
     if (result.status === 'has_onboarding') {
       if (__DEV__) console.log('[Auth] returning user, navigating to Loading (the gate)');
 
@@ -121,16 +145,6 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
         });
       }
 
-      // INVARIANT: AuthScreen never routes to Root. Every entry to Root goes
-      // through the Loading gate (LoadingScreen), which is the single
-      // subscription checkpoint under the hard-paywall model — see
-      // docs/PAYWALL_MODEL.md, load-bearing invariant #1. The prior code
-      // sent returning users straight to Root here, which was the sign-in
-      // bypass: a returning-but-unsubscribed account reached the LearnScreen
-      // without ever passing the paywall (SPEC-01 R1). Routing to Loading
-      // closes it — Loading short-circuits to Root for entitled users and
-      // presents the paywall for everyone else.
-      //
       // Note we cleared onboardingStore above, so LoadingScreen sees a null
       // userType and takes its cold-launch path: it skips the onboarding
       // upsert and goes straight to the gate. That's exactly what we want
@@ -139,26 +153,17 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
-    // result.status === 'no_onboarding'
-    if (mode === 'signup') {
-      // Signup flow — their onboarding answers are in the Zustand store,
-      // Loading will persist them + fire the paywall.
-      if (__DEV__) console.log('[Auth] new user from signup flow, navigating to Loading');
-      // Fire onboarding_completed HERE (once, at the actual moment
-      // onboarding completes with a successful signin), not in the mount
-      // effect at the top of the screen. See Fable review #8: firing on
-      // mount inflated funnels because parked users get resumed to Auth
-      // and re-emitted the event on every launch.
-      posthog.capture('onboarding_completed');
-      navigation.replace('Loading');
-    } else {
-      // Signin flow but no onboarding on record — must be a NEW user who
-      // clicked "I already have an account" by mistake, OR a user who signed
-      // up on a different device and hasn't done onboarding here. Either
-      // way, run them through onboarding.
-      if (__DEV__) console.log('[Auth] signin mode with no onboarding — starting onboarding');
-      navigation.replace('UserType');
-    }
+    // result.status === 'no_onboarding' && mode === 'signup': onboarding
+    // answers are in the Zustand store; Loading persists them + fires the
+    // paywall.
+    if (__DEV__) console.log('[Auth] new user from signup flow, navigating to Loading');
+    // Fire onboarding_completed HERE (once, at the actual moment onboarding
+    // completes with a successful signin), not in the mount effect at the top
+    // of the screen. See Fable review #8: firing on mount inflated funnels
+    // because parked users get resumed to Auth and re-emitted the event on
+    // every launch.
+    posthog.capture('onboarding_completed');
+    navigation.replace('Loading');
   };
 
   // Shared provider sign-in body. Google and Apple flows were identical

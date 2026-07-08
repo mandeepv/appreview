@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { LESSON_NAV } from '../navigation/lessonRoutes';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { useLessonGate } from '../hooks/useLessonGate';
 
@@ -123,27 +124,9 @@ const learningModules: LearningModule[] = [
   },
 ];
 
-// Mapping of lesson ID to its navigation target. Kept as a plain lookup so the
-// handler doesn't need a giant if/else and unit tests can assert coverage.
-type LessonNavTarget =
-  | { kind: 'flow'; screen: 'Lesson1Screen1' | 'Lesson2Screen1' | 'Lesson3Screen1' | 'Lesson4Screen1' }
-  | { kind: 'screen'; name: keyof RootStackParamList };
-
-const LESSON_NAV: Record<string, LessonNavTarget> = {
-  '1': { kind: 'flow', screen: 'Lesson1Screen1' },
-  '2': { kind: 'flow', screen: 'Lesson2Screen1' },
-  '3': { kind: 'flow', screen: 'Lesson3Screen1' },
-  '4': { kind: 'flow', screen: 'Lesson4Screen1' },
-  '5': { kind: 'screen', name: 'LabelingEmotionsLesson' },
-  '6': { kind: 'screen', name: 'NamingOurEmotionsLesson' },
-  '7': { kind: 'screen', name: 'SprinklersLesson' },
-  '8': { kind: 'screen', name: 'EmotionalSandbagsLesson' },
-  '9': { kind: 'screen', name: 'CommunicationMistakesLesson' },
-  '10': { kind: 'screen', name: 'HelpingSomeoneProcessEmotionsLesson' },
-  '11': { kind: 'screen', name: 'DissociationLesson' },
-  '12': { kind: 'screen', name: 'ServeAndReturnLesson' },
-  '13': { kind: 'screen', name: 'RecordingDeepBondMomentsLesson' },
-};
+// LESSON_NAV (lesson ID → navigation target) now lives in
+// src/navigation/lessonRoutes.ts so it can be unit-tested without importing
+// this component. Behavior here is unchanged — same lookup, same targets.
 
 export default function LearnScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
