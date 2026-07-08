@@ -59,10 +59,14 @@ describe('identifyUserWithOnboarding', () => {
     expect('email' in set).toBe(false);
     expect(JSON.stringify(props)).not.toContain('email');
 
-    // Sanity: the onboarding answers DID make it into $set.
+    // Sanity: low-sensitivity durable facts DID make it into $set.
     expect(set.user_type).toBe('parent');
     expect(set.experience_level).toBe('some');
-    expect(set.emotional_challenges).toEqual(['overwhelmed']);
+
+    // SPEC-06 R3: emotional_challenges (mental-health-adjacent) must NOT be a
+    // person property. It lives on the onboarding step EVENT instead.
+    expect('emotional_challenges' in set).toBe(false);
+    expect(JSON.stringify(props)).not.toContain('emotional_challenges');
   });
 
   it('signin mode: links ID WITHOUT a $set payload (no property overwrite)', () => {
