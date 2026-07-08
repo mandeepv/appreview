@@ -20,16 +20,23 @@ export const projectRef: string | undefined = (
 )?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 
 /**
+ * Pure ref → env mapping. Extracted so it can be unit-tested without mocking
+ * expo-constants / re-importing the module (SPEC-04). Any ref we don't
+ * recognize (including undefined) collapses to 'unknown' — that's a signal
+ * something's misconfigured, not a fallback we want to silently normalize.
+ */
+export function resolveEnv(ref: string | undefined): Env {
+  if (ref === PROD_PROJECT_REF) return 'prod';
+  if (ref === DEV_PROJECT_REF) return 'dev';
+  return 'unknown';
+}
+
+/**
  * Environment derived from the Supabase project ref. Used to tag PostHog
  * events, Sentry crashes, and Supabase guard logic so we can filter dev vs
- * prod in shared dashboards. Any env we don't recognize collapses to
- * 'unknown' — that's a signal something's misconfigured, not a fallback we
- * want to silently normalize.
+ * prod in shared dashboards.
  */
-export const env: Env =
-  projectRef === PROD_PROJECT_REF ? 'prod'
-  : projectRef === DEV_PROJECT_REF ? 'dev'
-  : 'unknown';
+export const env: Env = resolveEnv(projectRef);
 
 /** True iff the app is talking to the production Supabase project. */
 export const isProd = env === 'prod';
