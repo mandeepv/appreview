@@ -6,7 +6,7 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05 · **Status:** awaiting review
+**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05, SPEC-06 · **Status:** awaiting review
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -577,6 +577,98 @@ Depends on SPEC-04 (the new `test` job needs the tests, which are merged).
 
 ---
 
+## SPEC-06 — Analytics & error-tracking hygiene
+
+**Branch:** `feature/spec-06-analytics-hygiene` (merged to `main`, `--no-ff`,
+deleted).
+**Files touched:** `src/config/sentry.ts`, `src/store/authStore.ts`,
+`src/lib/analytics.ts`, `src/screens/onboarding/LoadingScreen.tsx`,
+`src/screens/onboarding/AuthScreen.tsx`, and the SPEC-04
+`src/lib/__tests__/analytics.test.ts`. (`authService.ts` already had the
+delete-path `Sentry.setUser(null)` — left as-is; sign-out made consistent.)
+
+Depends on SPEC-01 (merged). Principle: Sentry = system of record for
+FAILURES, PostHog = BEHAVIOR, identify by pseudonymous Supabase user ID only,
+no email / child names / free-text PII ever (invariant #8).
+
+### R1 — One system of record for errors ✅
+- **Done:** Removed the `posthog.captureException` calls at
+  `LoadingScreen` (paywall onError) and `AuthScreen` (provider sign-in catch).
+  Both sites keep their `reportError` (Sentry) call. AuthScreen's behavioral
+  signal still goes to PostHog via the existing `trackAuthAbandoned`.
+- **Verified:** ✅ `grep -rn "posthog.captureException" src/` → zero hits.
+
+### R2 — Pseudonymous Sentry user ✅
+- **Done:** Added `setSentryUser(id | null)` to `sentry.ts` (sets
+  `Sentry.setUser({ id })` — ID only, no email/username). Wired:
+  - Sign-in: called alongside `posthog.identify(session.user.id)` in
+    `authStore.initialize`.
+  - Sign-out / auth-state-null: `setSentryUser(null)` in both the
+    `onAuthStateChange` null branch AND the explicit `signOut()` method (the
+    latter synchronous so a subsequent error can't be attributed to the
+    just-signed-out user before the listener fires). Consistent with the
+    existing `Sentry.setUser(null)` on the delete path.
+- **Verified:** ✅ tsc clean; the helper is ID-only by construction.
+
+### R3 — Person-property minimization ✅
+- **Done:** Removed `emotional_challenges` from the `$set` person properties
+  in `identifyUserWithOnboarding`. Verified it is **already** captured on the
+  onboarding step EVENT (`EmotionalChallengesScreen` →
+  `trackOnboardingStepCompleted('EmotionalChallenges', { challenges })`), so
+  nothing was lost — no need to add it to an event. Rewrote the comment to
+  state the rule: person props = durable, low-sensitivity facts only;
+  sensitive answers live on events.
+- **Verified:** ✅ the `$set` block now has only the 9 low-sensitivity fields
+  (no `emotional_challenges`, no `email`); SPEC-04 analytics test updated with
+  an explicit "emotional_challenges absent from $set" assertion (see R-tests).
+
+### R4 — Gate breadcrumbs ✅
+- **Done:** Added `addGateBreadcrumb(message)` to `sentry.ts`
+  (`Sentry.addBreadcrumb({ category: 'gate', level: 'info', message })`, no
+  user data). Fired on:
+  - every `gateStatus` transition — a `useEffect` on `gateStatus` with a
+    `prevGateStatusRef` emits `"gate: <from> → <to>"`.
+  - the R4-SPEC-01 present-watchdog firing.
+  - the escape-hatch rendering.
+- **Verified:** ✅ tsc clean; messages contain flow state only, no PII.
+
+### R5 — Two new funnel events ✅
+- **Done:**
+  - `paywall_presented { paywall_name }` via `safeCapture` in
+    `LoadingScreen.onPresent` (was previously only a `__DEV__` log).
+  - `auth_succeeded { auth_method, context }` — new `trackAuthSucceeded`
+    helper in `analytics.ts` (uses `safeCapture`), fired in AuthScreen at the
+    point a provider sign-in returns a valid session, mirroring
+    `trackAuthAttempted`/`trackAuthAbandoned`'s method+context so
+    attempted → succeeded | abandoned is a clean funnel.
+- **Verified:** ✅ both use `safeCapture` (house pattern); tsc/lint clean.
+
+### SPEC-06 — Constraints honored ✅
+- All new PostHog events go through `safeCapture` (never raw
+  `posthog.capture`). No existing events renamed. Sentry `init` options
+  untouched (the R2/R4 helpers are additive functions, not init changes).
+
+### SPEC-06 — Tests & grep proofs (acceptance criteria) ✅ / ⚠️
+- ✅ **Grep proof (for the PR):**
+  - `grep -rn "posthog.captureException" src/` → **zero**.
+  - No `emotional_challenges` in the `$set` payload (only in an explanatory
+    comment).
+  - No `email` in any analytics payload (only in comments).
+- ✅ **SPEC-04 analytics test updated** with the `emotional_challenges` absent
+  assertion; full suite green (6 suites, 52 tests).
+- ⚠️ **Dev-build run-throughs (owner, need a device + Sentry DevMenu):**
+  - Sign in → PostHog shows `auth_succeeded` then `paywall_presented`; a Sentry
+    test error (DevMenu) shows the user id attached and gate breadcrumbs in the
+    event timeline.
+  - Sign out → a subsequent DevMenu test error has NO user attached.
+
+### SPEC-06 — Out of scope / not delivered ⛔
+- The dev-build/device run-throughs above (PostHog event inspection + Sentry
+  DevMenu error with user + breadcrumbs) — need a running app + Sentry; owner
+  to run. The wiring is verified in-repo (tsc, lint, tests, grep).
+
+---
+
 ## Open items for the owner (consolidated)
 
 **Needs a device/simulator (SPEC-01):**
@@ -611,11 +703,17 @@ Depends on SPEC-04 (the new `test` job needs the tests, which are merged).
   covers the same routing decisions and passes.
 
 **Needs GitHub Actions + repo settings (SPEC-05):**
-- Confirm the real Actions run: all five jobs run on the branch push, all
-  green, audit advisory (yellow), pipeline < ~5 min.
+- ✅ Real Actions run already confirmed green (typecheck/lint/version-drift/test
+  green; audit advisory; ~55s total). Nothing left to verify here.
 - **Owner-only:** mark `typecheck` / `lint` / `version-drift` / `test` as
   required status checks on `main` in branch-protection settings. Do NOT make
   `audit` required (it's advisory).
+
+**Needs a device + Sentry DevMenu (SPEC-06):**
+- Sign-in run-through: PostHog shows `auth_succeeded` then `paywall_presented`;
+  a Sentry DevMenu test error shows the user id attached + gate breadcrumbs in
+  the timeline.
+- Sign-out run-through: a subsequent DevMenu test error has NO user attached.
 
 **Spec-text corrections to feed back to the author:**
 - **SPEC-02:** references `supabase/.temp/project-ref`; the actual file is
@@ -627,5 +725,5 @@ Depends on SPEC-04 (the new `test` job needs the tests, which are merged).
   intent. Missing-secret was implemented as **500** (fail closed) — allowed by
   the "500/401" wording.
 
-**Push status:** SPEC-01→04 pushed to `origin/main` (through `711e24f`).
-SPEC-05 merges on top; push after merge.
+**Push status:** SPEC-01→05 pushed to `origin/main`. SPEC-06 merges on top;
+push after merge.

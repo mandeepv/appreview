@@ -13,7 +13,7 @@ import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { resolvePostAuthDestination } from '../../navigation/routingPolicy';
 import { Colors } from '../../constants/theme';
-import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned } from '../../lib/analytics';
+import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned, trackAuthSucceeded } from '../../lib/analytics';
 import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
@@ -187,6 +187,11 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
         setUser(session.user);
         setSession(session);
         identifyUserWithOnboarding(session.user.id, onboardingStore, mode);
+        // R5 (SPEC-06): auth_succeeded at the point a provider sign-in
+        // returns a valid session — mirrors trackAuthAttempted's
+        // provider + context so attempted → succeeded | abandoned forms a
+        // clean funnel.
+        trackAuthSucceeded(provider, attemptedContext);
         posthog.capture('user_signed_in', {
           auth_method: provider,
           user_type: userTypeAnalytics,
@@ -200,10 +205,10 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
     } catch (error: any) {
       if (__DEV__) console.error(`${userLabel} sign-in error:`, error);
       trackAuthAbandoned(provider, attemptedContext, 'error');
-      posthog.captureException(error instanceof Error ? error : new Error(String(error)), {
-        auth_method: provider,
-        screen: 'AuthScreen',
-      });
+      // Sentry is the single system of record for FAILURES (SPEC-06 R1) —
+      // report to Sentry only. The behavioral signal (that the attempt was
+      // abandoned with reason 'error') already went to PostHog above via
+      // trackAuthAbandoned.
       reportError(error, { auth_method: provider, screen: 'AuthScreen' });
       setIsLoading(false);
       setLoadingProvider(null);
