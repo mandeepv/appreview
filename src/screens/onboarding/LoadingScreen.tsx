@@ -1,18 +1,37 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePostHog } from 'posthog-react-native';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { ProgressBar } from '../../components/ProgressBar';
+import { Button } from '../../components/Button';
+import { Caption } from '../../components/Typography';
 import { Colors, Spacing, Typography } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { useConfigStore } from '../../store/configStore';
 import { saveUserOnboardingData } from '../../services/onboardingService';
+import { restorePurchases } from '../../services/purchaseService';
 import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { safeCapture } from '../../lib/analytics';
 import { reportError } from '../../config/sentry';
+
+// Support address for the escape-hatch "Contact support" action. Matches
+// SettingsScreen's handleContactSupport so support routing stays consistent
+// (SPEC-01 R3, DECISION(owner)).
+const SUPPORT_EMAIL = 'kinderwellteam@gmail.com';
+
+// Number of failed gate attempts before we surface the escape hatch. At 3
+// retries (the retry interval is 3s) the user has been stuck ~9s+ — long
+// enough that "Superwall is unreachable" is a real possibility, not a blip.
+const ESCAPE_HATCH_AFTER_ATTEMPTS = 3;
+
+// How long to wait for onPresent after asking Superwall to present. If it
+// hasn't fired by then, the presentation is considered frozen and we fall
+// back to the retry state (SPEC-01 R4).
+const PRESENT_WATCHDOG_MS = 5000;
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
 
@@ -58,6 +77,39 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const { identify } = useUser();
   const posthog = usePostHog();
   const paywallPresentedRef = useRef(false);
+  const { signOut } = useAuthStore();
+
+  // R5: the paywall gate must not run until the kill-switch (app_config)
+  // check has resolved, and must never run if force-update is active.
+  // configStore is the single source of truth shared with App.tsx (which
+  // renders the ForceUpdateModal), so the two can't present concurrently.
+  const configStatus = useConfigStore(state => state.status);
+
+  // R4: watchdog timer that fires if onPresent doesn't arrive after a
+  // present attempt. Held in a ref so runGate can (re)arm it and onPresent /
+  // unmount can clear it.
+  const presentWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // R3b: how many times the gate has failed to reach Superwall. Drives the
+  // escape hatch (shown once attempts >= ESCAPE_HATCH_AFTER_ATTEMPTS). It's a
+  // ref because the 3s retry interval reads/increments it without needing a
+  // re-render; escapeHatchVisible below is the render-driving mirror.
+  const retryAttemptsRef = useRef(0);
+  const [escapeHatchVisible, setEscapeHatchVisible] = useState(false);
+  // Guards the gate_escape_hatch_shown capture so it fires exactly once per
+  // screen mount (first render of the buttons), not on every retry tick.
+  const escapeHatchCapturedRef = useRef(false);
+  // Inline error under the escape-hatch actions (no Alerts here — the retry
+  // screen is already a degraded state, a modal on top would be worse).
+  const [escapeError, setEscapeError] = useState<string | null>(null);
+  const [isRestoringHatch, setIsRestoringHatch] = useState(false);
+
+  const clearPresentWatchdog = () => {
+    if (presentWatchdogRef.current) {
+      clearTimeout(presentWatchdogRef.current);
+      presentWatchdogRef.current = null;
+    }
+  };
 
   // NOTE: onSubscriptionStatusChange is now handled at the app level in App.tsx
   // so it survives across screen mounts / unmounts. LoadingScreen only listens
@@ -89,6 +141,8 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const { registerPlacement } = usePlacement({
     onPresent: (paywallInfo) => {
       if (__DEV__) console.log('✅ Paywall presented:', paywallInfo.name);
+      // R4: presentation arrived — disarm the frozen-state watchdog.
+      clearPresentWatchdog();
       paywallPresentedRef.current = true;
       setGateStatus('presenting');
     },
@@ -108,7 +162,26 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
-      // Any other dismiss = user tapped X / swiped down / whatever.
+      // Restore succeeded on the paywall — the user tapped "Restore Purchases"
+      // inside the Superwall template and had a real entitlement. This is an
+      // entitlement just like 'purchased': let them through. The result union
+      // is 'purchased' | 'declined' | 'restored' (see
+      // node_modules/expo-superwall/build/src/SuperwallExpoModule.types.d.ts
+      // PaywallResult, ~lines 147-166) — 'restored' was previously falling
+      // into the re-present branch below, trapping a paying user who
+      // legitimately restored (SPEC-01 R2). We fire subscription_restored
+      // (NOT subscription_purchased — no money changed hands) and advance.
+      if (result.type === 'restored') {
+        if (__DEV__) console.log('♻️ Purchases restored on paywall — treating as entitlement');
+        setIsSubscribed(true);
+        safeCapture('subscription_restored', {
+          paywall_name: paywallInfo.name,
+        });
+        navigation.replace('Root');
+        return;
+      }
+
+      // result.type === 'declined' — user tapped X / swiped down / whatever.
       //
       // Hard-paywall model: unentitled users MUST NOT navigate past this
       // screen without a purchase. The Superwall template SHOULD have no
@@ -150,6 +223,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       //   - Everyone else → sit on the loading state. The retry hook
       //     below will re-attempt registerPlacement.
       if (__DEV__) console.error('❌ Paywall error:', error);
+      // R4 (structural): an error means no presentation is coming — disarm
+      // the frozen-state watchdog so it can't redundantly re-trigger retry.
+      clearPresentWatchdog();
       posthog.captureException(new Error(typeof error === 'string' ? error : 'Paywall error'), {
         screen: 'LoadingScreen',
         context: 'paywall',
@@ -236,6 +312,23 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   }, [user, isDemoUser]);
 
   const runGate = async () => {
+    // R5: force-update wins over the paywall. Do not run the gate until the
+    // kill-switch check has resolved, and never run it if a force-update is
+    // required. Both would otherwise present full-screen concurrently with
+    // the ForceUpdateModal (App.tsx). If we're still 'loading', we simply
+    // return; the config-status effect below re-invokes runGate once the
+    // check resolves to 'ok'. If 'force_update', the ForceUpdateModal owns
+    // the screen and the gate never runs.
+    const status = useConfigStore.getState().status;
+    if (status === 'loading') {
+      if (__DEV__) console.log('⏳ Gate deferred — waiting on app_config check');
+      return;
+    }
+    if (status === 'force_update') {
+      if (__DEV__) console.log('🛑 Gate suppressed — force-update is active');
+      return;
+    }
+
     // Entitlement short-circuits — check BEFORE bothering Superwall.
     //
     // Demo users: 7-tap Apple-reviewer bypass. Always let through, always
@@ -293,6 +386,23 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         await identify(user.id);
       }
 
+      // R4: watchdog for the frozen "presenting" state. After a
+      // dismiss→re-present, if Superwall never fires onPresent, gateStatus
+      // would sit on 'presenting' forever (the retry interval only runs on
+      // 'retry'). So: reset the presented flag before every attempt, then
+      // arm a 5s timer. If onPresent hasn't fired when it expires, drop to
+      // the retry state (which re-attempts and, after enough failures,
+      // surfaces the escape hatch). onPresent clears the timer; so does
+      // unmount.
+      paywallPresentedRef.current = false;
+      clearPresentWatchdog();
+      presentWatchdogRef.current = setTimeout(() => {
+        if (!paywallPresentedRef.current) {
+          if (__DEV__) console.log('⏱️ onPresent never fired within 5s — treating presentation as frozen, dropping to retry');
+          setGateStatus('retry');
+        }
+      }, PRESENT_WATCHDOG_MS);
+
       if (__DEV__) console.log('📱 Registering placement: subscription_gate');
       await registerPlacement({
         placement: 'subscription_gate',
@@ -300,6 +410,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
 
       if (__DEV__) console.log('✅ Placement registered');
     } catch (error) {
+      // The register attempt failed outright — no presentation is coming, so
+      // disarm the watchdog before falling into the retry/fail-open branch.
+      clearPresentWatchdog();
       if (__DEV__) console.error('❌ Error running gate:', error);
       // Duplicates onError logic below because usePlacement's onError only
       // fires for Superwall SDK errors, not for our own await failures.
@@ -359,19 +472,112 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [navigation]);
 
+  // R5: if the gate was deferred at mount because the app_config check was
+  // still in flight, re-run it as soon as the check resolves to 'ok'. On
+  // 'force_update' we do nothing — the ForceUpdateModal owns the screen.
+  // Guarded on gateStatus === 'idle' so this only fires the initial deferred
+  // run, never re-triggers a gate that's already presenting/retrying.
+  useEffect(() => {
+    if (configStatus === 'ok' && gateStatus === 'idle') {
+      if (__DEV__) console.log('✅ app_config resolved to ok — running deferred gate');
+      runGate();
+    }
+  }, [configStatus]);
+
   // Auto-retry the gate when it fails to reach Superwall. Runs every 3s
   // while gateStatus === 'retry'. Stops as soon as we successfully
   // present a paywall, navigate away, or detect entitlement. Fine to
   // let this fire forever — the user is stuck on this screen anyway
   // and each retry costs at most one network request.
+  //
+  // R3b: each retry increments retryAttemptsRef. Once we cross the
+  // threshold, surface the escape hatch (Restore / Sign out / Contact
+  // support) so a user who can't reach Superwall isn't trapped forever.
   useEffect(() => {
     if (gateStatus !== 'retry') return;
     const retryTimer = setInterval(() => {
-      if (__DEV__) console.log('🔁 Retrying gate (Superwall was unreachable)');
+      retryAttemptsRef.current += 1;
+      if (__DEV__) console.log(`🔁 Retrying gate (attempt ${retryAttemptsRef.current}, Superwall was unreachable)`);
+      if (retryAttemptsRef.current >= ESCAPE_HATCH_AFTER_ATTEMPTS && !escapeHatchVisible) {
+        setEscapeHatchVisible(true);
+      }
       runGate();
     }, 3000);
     return () => clearInterval(retryTimer);
-  }, [gateStatus]);
+  }, [gateStatus, escapeHatchVisible]);
+
+  // R3b: fire gate_escape_hatch_shown exactly once per screen mount — on the
+  // first render of the escape-hatch buttons, not on every retry tick.
+  useEffect(() => {
+    if (escapeHatchVisible && !escapeHatchCapturedRef.current) {
+      escapeHatchCapturedRef.current = true;
+      safeCapture('gate_escape_hatch_shown');
+    }
+  }, [escapeHatchVisible]);
+
+  // R4: make sure the present-watchdog timer never outlives the screen.
+  useEffect(() => clearPresentWatchdog, []);
+
+  // R3b escape-hatch action 1: Restore Purchases. Reuses purchaseService
+  // (the same StoreKit walk as SettingsScreen — no third copy). On a real
+  // restore, flip isSubscribed and advance to Root. On anything else, show
+  // an inline error (no Alert — we're already on a degraded screen).
+  const handleEscapeRestore = async () => {
+    if (isRestoringHatch) return;
+    setEscapeError(null);
+    setIsRestoringHatch(true);
+    safeCapture('gate_escape_restore_tapped');
+    try {
+      const result = await restorePurchases();
+      if (result.outcome === 'restored') {
+        setIsSubscribed(true);
+        safeCapture('subscription_restored', { paywall_name: 'gate_escape_hatch' });
+        navigation.replace('Root');
+        return;
+      }
+      if (result.outcome === 'no_purchases') {
+        setEscapeError("No previous purchase was found for this Apple ID. Make sure you're signed in with the Apple ID you used to subscribe.");
+      } else if (result.outcome === 'unknown') {
+        setEscapeError("We're still checking with the App Store. Please try again in a moment.");
+      } else {
+        setEscapeError('Something went wrong. Please check your connection and try again.');
+      }
+    } finally {
+      setIsRestoringHatch(false);
+    }
+  };
+
+  // R3b escape-hatch action 2: Sign out. Mirrors SettingsScreen's sign-out
+  // navigation — signOut() clears auth + the persisted subscription flag,
+  // and we reset the nav stack to Welcome.
+  const handleEscapeSignOut = async () => {
+    setEscapeError(null);
+    safeCapture('gate_escape_sign_out_tapped');
+    try {
+      await signOut();
+      navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+    } catch (error) {
+      if (__DEV__) console.error('Escape-hatch sign-out failed:', error);
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        screen: 'LoadingScreen',
+        context: 'gate_escape_sign_out',
+      });
+      setEscapeError('Could not sign out. Please try again.');
+    }
+  };
+
+  // R3b escape-hatch action 3: Contact support. Opens a mailto in try/catch
+  // (Linking.openURL can reject if no mail client is configured).
+  const handleEscapeContactSupport = async () => {
+    setEscapeError(null);
+    safeCapture('gate_escape_contact_support_tapped');
+    try {
+      await Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Kinderwell — trouble reaching the app')}`);
+    } catch (error) {
+      if (__DEV__) console.error('Escape-hatch mailto failed:', error);
+      setEscapeError(`Couldn't open your email app. Please email us at ${SUPPORT_EMAIL}.`);
+    }
+  };
 
   const getMessage = () => {
     if (gateStatus === 'retry') return "Checking your subscription — please make sure you're online...";
@@ -415,6 +621,47 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <Text style={styles.status}>{getMessage()}</Text>
+
+        {/* R3b: escape hatch. Only after the gate has failed to reach
+            Superwall enough times (>= ESCAPE_HATCH_AFTER_ATTEMPTS) do we
+            offer a way out. Rendered visually subordinate to the spinner
+            above — the retry loop keeps running underneath; these are the
+            fallback, not the main event. */}
+        {escapeHatchVisible && (
+          <View style={styles.escapeContainer}>
+            <Caption center style={styles.escapeIntro}>
+              Still having trouble? You can:
+            </Caption>
+
+            <Button
+              title="Restore Purchases"
+              variant="secondary"
+              onPress={handleEscapeRestore}
+              loading={isRestoringHatch}
+              style={styles.escapeButton}
+            />
+            <Button
+              title="Sign out"
+              variant="outline"
+              onPress={handleEscapeSignOut}
+              disabled={isRestoringHatch}
+              style={styles.escapeButton}
+            />
+            <Button
+              title="Contact support"
+              variant="outline"
+              onPress={handleEscapeContactSupport}
+              disabled={isRestoringHatch}
+              style={styles.escapeButton}
+            />
+
+            {escapeError && (
+              <Caption center color={Colors.error} style={styles.escapeError}>
+                {escapeError}
+              </Caption>
+            )}
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -481,5 +728,18 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     textAlign: 'center',
     fontWeight: Typography.weights.medium,
+  },
+  escapeContainer: {
+    width: '100%',
+    marginTop: Spacing['3xl'],
+  },
+  escapeIntro: {
+    marginBottom: Spacing.md,
+  },
+  escapeButton: {
+    marginBottom: Spacing.sm,
+  },
+  escapeError: {
+    marginTop: Spacing.sm,
   },
 });
