@@ -39,7 +39,14 @@ export type EmotionalChallenge =
   | 'okay';
 
 export interface Child {
-  gender: ChildGender;
+  // Gender is optional. We used to hardcode 'boy' as the default when creating
+  // children in the store, then let the user override it in an "Optional Expand"
+  // section on ChildrenCountScreen — but that section was commented out, so
+  // every user's children saved as 'boy' regardless of reality. Now we omit
+  // gender entirely unless the user explicitly sets it. If we resurrect
+  // gender collection in a future release, keep this optional and require an
+  // explicit user action to set it.
+  gender?: ChildGender;
   ageRange?: ChildAgeRange;
 }
 

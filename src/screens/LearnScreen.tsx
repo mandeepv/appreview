@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
+import { useLessonGate } from '../hooks/useLessonGate';
 
 interface LearningModule {
   id: string;
@@ -121,50 +123,62 @@ const learningModules: LearningModule[] = [
   },
 ];
 
+// Mapping of lesson ID to its navigation target. Kept as a plain lookup so the
+// handler doesn't need a giant if/else and unit tests can assert coverage.
+type LessonNavTarget =
+  | { kind: 'flow'; screen: 'Lesson1Screen1' | 'Lesson2Screen1' | 'Lesson3Screen1' | 'Lesson4Screen1' }
+  | { kind: 'screen'; name: keyof RootStackParamList };
+
+const LESSON_NAV: Record<string, LessonNavTarget> = {
+  '1': { kind: 'flow', screen: 'Lesson1Screen1' },
+  '2': { kind: 'flow', screen: 'Lesson2Screen1' },
+  '3': { kind: 'flow', screen: 'Lesson3Screen1' },
+  '4': { kind: 'flow', screen: 'Lesson4Screen1' },
+  '5': { kind: 'screen', name: 'LabelingEmotionsLesson' },
+  '6': { kind: 'screen', name: 'NamingOurEmotionsLesson' },
+  '7': { kind: 'screen', name: 'SprinklersLesson' },
+  '8': { kind: 'screen', name: 'EmotionalSandbagsLesson' },
+  '9': { kind: 'screen', name: 'CommunicationMistakesLesson' },
+  '10': { kind: 'screen', name: 'HelpingSomeoneProcessEmotionsLesson' },
+  '11': { kind: 'screen', name: 'DissociationLesson' },
+  '12': { kind: 'screen', name: 'ServeAndReturnLesson' },
+  '13': { kind: 'screen', name: 'RecordingDeepBondMomentsLesson' },
+};
+
 export default function LearnScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const posthog = usePostHog();
+  const { gateToLesson } = useLessonGate();
 
   const handleModulePress = (moduleId: string) => {
-    if (moduleId === '1') {
-      // Navigate to Lesson 1
-      navigation.navigate('LessonFlow', { screen: 'Lesson1Screen1' });
-    } else if (moduleId === '2') {
-      // Navigate to Lesson 2
-      navigation.navigate('LessonFlow', { screen: 'Lesson2Screen1' });
-    } else if (moduleId === '3') {
-      // Navigate to Lesson 3
-      navigation.navigate('LessonFlow', { screen: 'Lesson3Screen1' });
-    } else if (moduleId === '4') {
-      // Navigate to Lesson 4
-      navigation.navigate('LessonFlow', { screen: 'Lesson4Screen1' });
-    } else if (moduleId === '5') {
-      // Navigate to Labeling Emotions lesson overview
-      navigation.navigate('LabelingEmotionsLesson');
-    } else if (moduleId === '6') {
-      // Navigate to Naming our Emotions lesson overview
-      navigation.navigate('NamingOurEmotionsLesson');
-    } else if (moduleId === '7') {
-      // Navigate to Sprinklers lesson overview
-      navigation.navigate('SprinklersLesson');
-    } else if (moduleId === '8') {
-      // Navigate to Emotional Sandbags lesson overview
-      navigation.navigate('EmotionalSandbagsLesson');
-    } else if (moduleId === '9') {
-      // Navigate to Communication Mistakes lesson overview
-      navigation.navigate('CommunicationMistakesLesson');
-    } else if (moduleId === '10') {
-      // Navigate to Helping Someone Process Emotions lesson overview
-      navigation.navigate('HelpingSomeoneProcessEmotionsLesson');
-    } else if (moduleId === '11') {
-      // Navigate to Dissociation lesson overview
-      navigation.navigate('DissociationLesson');
-    } else if (moduleId === '12') {
-      // Navigate to Serve and Return lesson overview
-      navigation.navigate('ServeAndReturnLesson');
-    } else if (moduleId === '13') {
-      // Navigate to Recording Deep Bond Moments lesson overview
-      navigation.navigate('RecordingDeepBondMomentsLesson');
-    }
+    const module = learningModules.find((m) => m.id === moduleId);
+    const props = {
+      lesson_id: moduleId,
+      lesson_title: module?.title ?? null,
+      lesson_label: module?.label ?? null,
+    };
+
+    // Two events, two questions.
+    //   lesson_tapped fires on TAP — the honest top-of-funnel signal
+    //   (how many people even try to open this lesson).
+    //   lesson_started fires only after gateToLesson lets us through
+    //   — the honest "content actually opened" metric.
+    // Prior code fired lesson_started on tap, so paywall bounces
+    // counted as lesson starts. Funnel analysis was misleading.
+    // Fable review #8.
+    posthog.capture('lesson_tapped', props);
+
+    gateToLesson(`learn_module_${moduleId}`, () => {
+      const target = LESSON_NAV[moduleId];
+      if (!target) return;
+      posthog.capture('lesson_started', props);
+      if (target.kind === 'flow') {
+        navigation.navigate('LessonFlow', { screen: target.screen });
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        navigation.navigate(target.name as any);
+      }
+    });
   };
 
   return (

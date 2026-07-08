@@ -8,6 +8,7 @@ import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ImprovementGoal } from '../../types/onboarding';
 import { Colors } from '../../constants/theme';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 import { ImageSourcePropType } from 'react-native';
 
 const GoalImages = {
@@ -40,6 +41,7 @@ export const ImprovementGoalsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleContinue = () => {
+    trackOnboardingStepCompleted('ImprovementGoals', improvementGoals);
     navigation.navigate('Educational');
   };
 

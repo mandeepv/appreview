@@ -6,24 +6,18 @@ import { Button } from '../../components/Button';
 import { Colors, Typography, Shadows, BorderRadius } from '../../constants/theme';
 import { LessonStackParamList } from '../../navigation/LessonNavigator';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { markSectionComplete } from '../../utils/emotionalSandbagsProgress';
 
 type Props = NativeStackScreenProps<LessonStackParamList, 'SandbagsSec1Screen3'>;
 
 export const SandbagsSec1Screen3: React.FC<Props> = ({ navigation }) => {
     const handleNext = async () => {
-        // Record completion of Sublesson 1
-        try {
-            const STORAGE_KEY = '@sandbags_completed_sections';
-            const stored = await AsyncStorage.getItem(STORAGE_KEY);
-            let completedSections = stored ? JSON.parse(stored) : [];
-            if (!completedSections.includes('1')) {
-                completedSections.push('1');
-                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
-            }
-        } catch (error) {
-            if (__DEV__) console.error('Error saving progress:', error);
-        }
+        // Previously wrote directly to '@sandbags_completed_sections',
+        // but the lesson container reads from '@emotional_sandbags_...'
+        // via utils/emotionalSandbagsProgress. Section 1 completion was
+        // silently orphaned. Use the same helper the rest of the lesson
+        // uses so the hub actually reflects progress.
+        await markSectionComplete('1');
 
         // In a real app, this might show a "Sublesson Complete" state
         // For now, we go back to the hub to see the progress update, 

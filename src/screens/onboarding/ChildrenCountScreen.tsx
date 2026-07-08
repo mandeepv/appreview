@@ -7,6 +7,7 @@ import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildAgeRange, ChildGender } from '../../types/onboarding';
 import { Colors } from '../../constants/theme';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 if (Platform.OS === 'android') {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -40,19 +41,19 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
     updateChildGender
   } = useOnboardingStore();
 
-  const [selectedAges, setSelectedAges] = React.useState<Set<ChildAgeRange>>(new Set());
-  const [showPersonalization, setShowPersonalization] = React.useState(false);
-
-  // Initialize selected ages from store if returning
-  React.useEffect(() => {
+  // Lazy initializer so we hydrate from the store on the first render
+  // instead of doing it in an effect (which caused a cascading render —
+  // caught by react-hooks/set-state-in-effect).
+  const [selectedAges, setSelectedAges] = React.useState<Set<ChildAgeRange>>(() => {
+    const initial = new Set<ChildAgeRange>();
     if (childrenCount) {
-      const existingAges = new Set<ChildAgeRange>();
       children.forEach(child => {
-        if (child.ageRange) existingAges.add(child.ageRange);
+        if (child.ageRange) initial.add(child.ageRange);
       });
-      if (existingAges.size > 0) setSelectedAges(existingAges);
     }
-  }, []);
+    return initial;
+  });
+  const [showPersonalization, setShowPersonalization] = React.useState(false);
 
   const animate = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -102,6 +103,7 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
         updateChildAgeRange(i, ageToAssign);
       }
     }
+    trackOnboardingStepCompleted('ChildrenCount', { count, age_ranges: ages });
     navigation.navigate('ImprovementGoals');
   };
 

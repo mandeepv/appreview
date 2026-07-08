@@ -1,15 +1,31 @@
-// Type definitions for expo-constants extra configuration
+// Type augmentation for expo-constants so `Constants.expoConfig.extra` is typed
+// with our project-specific keys. Keep in sync with `app.config.js`.
+import 'expo-constants';
+
 declare module 'expo-constants' {
-  export interface AppConfig {
+  interface ExpoConfig {
     extra?: {
       supabaseUrl?: string;
       supabaseAnonKey?: string;
       superwallApiKey?: string;
       skipPaywall?: string;
-      showDemoButton?: string;
+      posthogProjectToken?: string;
+      posthogHost?: string;
+      sentryDsn?: string;
       eas?: {
         projectId?: string;
       };
     };
+    ios?: {
+      bundleIdentifier?: string;
+      buildNumber?: string;
+      [key: string]: unknown;
+    };
+    android?: {
+      package?: string;
+      versionCode?: number;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
   }
 }

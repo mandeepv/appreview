@@ -11,33 +11,105 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+import { usePostHog } from 'posthog-react-native';
+import { SuperwallExpoModule } from 'expo-superwall';
 import { useAuthStore } from '../store/authStore';
 import { deleteAccount } from '../services/authService';
+import { resetPostHog } from '../config/posthog';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 
 export const SettingsScreen: React.FC = () => {
-  const { user, signOut, isDemoUser } = useAuthStore();
+  const { user, signOut, isDemoUser, isSubscribed } = useAuthStore();
+  const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const handleRestorePurchases = async () => {
+    // Guard re-entry — tapping twice while restore is in flight must not
+    // trigger a second restore. Also tracked separately from delete-account
+    // isLoading so those buttons don't lock each other out.
+    if (isRestoring) return;
+
+    // Analytics: honest name — fires on tap, before we know outcome.
+    posthog.capture('restore_purchases_tapped');
+
+    setIsRestoring(true);
     try {
-      const url = 'https://apps.apple.com/account/subscriptions';
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
+      // Actually hit StoreKit. Previous code called getSubscriptionStatus()
+      // which is a PURE PROPERTY READ of Superwall's cached
+      // subscriptionStatus — no receipt refresh, no StoreKit sync (see
+      // node_modules/expo-superwall/ios/SuperwallExpoModule.swift:258-262).
+      // A reinstalling subscriber whose cached status was still UNKNOWN got
+      // a false "No Purchases Found" and had to contact support to recover
+      // their subscription.
+      //
+      // restorePurchases() (Swift line 364-368) is the API that actually
+      // calls Superwall.shared.restorePurchases() which walks StoreKit.
+      // It returns { result: 'restored' | 'failed' }. AFTER a successful
+      // restore we still have to read subscriptionStatus to know whether
+      // there was actually anything to restore for this Apple ID.
+      const restoreResult = await SuperwallExpoModule.restorePurchases();
+
+      if (restoreResult.result === 'failed') {
+        if (__DEV__) console.error('Restore failed:', restoreResult.errorMessage);
+        posthog.capture('restore_purchases_completed', {
+          outcome: 'failed',
+          error: restoreResult.errorMessage,
+        });
         Alert.alert(
-          'Restore Purchases',
-          'Please manage your subscriptions in the App Store app under your Apple ID settings.',
-          [{ text: 'OK' }]
+          'Restore Failed',
+          restoreResult.errorMessage
+            ?? 'Something went wrong. Please check your connection and try again.'
+        );
+        return;
+      }
+
+      // Restore call succeeded — StoreKit walked, receipt refreshed. Now
+      // check the resulting subscription status to distinguish "found and
+      // restored a real entitlement" from "no purchases exist for this
+      // Apple ID" from "still resolving, try again."
+      const status = await SuperwallExpoModule.getSubscriptionStatus();
+
+      // We deliberately DO NOT call setIsSubscribed(true) here. The app-level
+      // onSubscriptionStatusChange listener in App.tsx is the single source of
+      // truth for isSubscribed; letting the restore also write it creates a
+      // race condition between two writers.
+
+      if (status?.status === 'ACTIVE') {
+        posthog.capture('restore_purchases_completed', { outcome: 'restored' });
+        Alert.alert('Restored', 'Your subscription has been restored.');
+      } else if (status?.status === 'UNKNOWN') {
+        // Superwall hasn't finished resolving yet. Nudge user to retry
+        // rather than lying that there's nothing to restore.
+        posthog.capture('restore_purchases_completed', { outcome: 'unknown' });
+        Alert.alert(
+          'Still Syncing',
+          "We're still checking with the App Store. Please try again in a moment."
+        );
+      } else {
+        // INACTIVE — StoreKit walk completed but this Apple ID has no
+        // entitlement for our app. Wrong Apple ID is the #1 real cause.
+        posthog.capture('restore_purchases_completed', { outcome: 'no_purchases' });
+        Alert.alert(
+          'No Purchases Found',
+          "No previous purchase was found for this Apple ID. Make sure you're signed in with the Apple ID you used to subscribe."
         );
       }
     } catch (error) {
-      if (__DEV__) console.error('Error opening subscriptions page:', error);
+      if (__DEV__) console.error('Restore threw:', error);
+      posthog.capture('restore_purchases_completed', { outcome: 'threw' });
+      Alert.alert(
+        'Restore Failed',
+        'Something went wrong. Please check your connection and try again.'
+      );
+    } finally {
+      setIsRestoring(false);
     }
   };
 
   const handleManageSubscription = async () => {
+    posthog.capture('subscription_managed');
     try {
       // Open iOS subscription management
       const url = 'https://apps.apple.com/account/subscriptions';
@@ -98,6 +170,8 @@ export const SettingsScreen: React.FC = () => {
           text: 'Log Out',
           onPress: async () => {
             try {
+              posthog.capture('user_logged_out');
+              resetPostHog();
               await signOut();
             } catch (error) {
               if (__DEV__) console.error('Error logging out:', error);
@@ -111,50 +185,72 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone. All your progress and data will be permanently deleted.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          onPress: () => confirmDeleteAccount(),
-          style: 'destructive',
-        },
-      ]
-    );
-  };
+    // Single, clear confirmation. Previously we had a two-step "Are you
+    // sure? / Are you REALLY sure?" pattern which was theatrical, not
+    // informative — added friction without adding clarity. This alert
+    // lists actual consequences and, if the user is subscribed, warns
+    // them that Apple will keep billing until they cancel in App Store
+    // Settings. Required by App Store guideline 5.1.1(v).
+    const subscriptionWarning = isSubscribed
+      ? '\n\n⚠️ Your Kinderwell subscription is billed by Apple and will continue after account deletion. To stop billing, cancel your subscription in Settings → Apple ID → Subscriptions BEFORE deleting.'
+      : '';
 
-  const confirmDeleteAccount = () => {
     Alert.alert(
-      'Final Confirmation',
-      'This is your last chance. Are you absolutely sure you want to delete your account and all data?',
+      'Delete your account?',
+      `This permanently deletes your Kinderwell account and all your data (progress, preferences, children). This cannot be undone.${subscriptionWarning}`,
       [
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Yes, Delete Everything',
+          text: 'Delete Account',
+          style: 'destructive',
           onPress: async () => {
+            // Fire the "attempted" event immediately for funnel analysis
+            // (how many users tap Delete Account?). The "confirmed" event
+            // only fires after the operation actually succeeds — Fable
+            // review #8: prior code fired 'account_deleted' before
+            // deleteAccount() ran, so a network / server failure got
+            // logged as a successful deletion in PostHog.
+            posthog.capture('account_delete_attempted', {
+              is_demo_user: isDemoUser,
+              was_subscribed: isSubscribed,
+            });
+
             try {
               setIsLoading(true);
+
               if (isDemoUser) {
-                // Demo users have no Supabase session — just sign out
+                // Demo users have no Supabase session — just sign out.
+                posthog.capture('account_deleted', {
+                  is_demo_user: true,
+                  was_subscribed: isSubscribed,
+                });
+                resetPostHog();
                 await signOut();
               } else {
                 await deleteAccount();
+                // Only after the API round-trip succeeds. If deleteAccount
+                // throws, we skip this and hit the catch below.
+                posthog.capture('account_deleted', {
+                  is_demo_user: false,
+                  was_subscribed: isSubscribed,
+                });
+                resetPostHog();
                 Alert.alert(
-                  'Account Deleted',
+                  'Account deleted',
                   'Your account and all data have been deleted.',
                   [{ text: 'OK' }]
                 );
               }
             } catch (error) {
               if (__DEV__) console.error('Error deleting account:', error);
+              // Track the failure separately so we can measure the
+              // failure rate. Attributed to the still-alive user (posthog
+              // hasn't been reset yet).
+              posthog.capture('account_delete_failed', {
+                is_demo_user: isDemoUser,
+                was_subscribed: isSubscribed,
+                error: error instanceof Error ? error.message : String(error),
+              });
               Alert.alert(
                 'Delete Failed',
                 'Could not delete account. Please try again or contact support.',
@@ -164,7 +260,6 @@ export const SettingsScreen: React.FC = () => {
               setIsLoading(false);
             }
           },
-          style: 'destructive',
         },
       ]
     );
@@ -229,14 +324,16 @@ export const SettingsScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.menuItem}
             onPress={handleRestorePurchases}
-            disabled={isLoading}
+            disabled={isLoading || isRestoring}
           >
-            {isLoading ? (
+            {isRestoring ? (
               <ActivityIndicator size="small" color={Colors.primary} />
             ) : (
               <Ionicons name="refresh-outline" size={24} color={Colors.textSecondary} />
             )}
-            <Text style={styles.menuItemText}>Restore Purchases</Text>
+            <Text style={styles.menuItemText}>
+              {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+            </Text>
             <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
           </TouchableOpacity>
         </View>
@@ -301,8 +398,15 @@ export const SettingsScreen: React.FC = () => {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>Kinderwell v1.0.0</Text>
-          <Text style={styles.appInfoText}>© 2025 Kinderwell</Text>
+          {/* Read from Constants so this stays in sync with app.json — no
+              more hardcoded "v1.0.0" while the app actually shipped 1.1.0
+              (Fable review #14). Copyright year derived from Date so we
+              stop needing to remember to bump it. */}
+          <Text style={styles.appInfoText}>
+            Kinderwell v{Constants.expoConfig?.version ?? '?'}
+            {Constants.expoConfig?.ios?.buildNumber ? ` (${Constants.expoConfig.ios.buildNumber})` : ''}
+          </Text>
+          <Text style={styles.appInfoText}>© {new Date().getFullYear()} Kinderwell</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

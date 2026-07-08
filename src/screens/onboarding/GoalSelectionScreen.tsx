@@ -8,6 +8,7 @@ import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { LearningGoal } from '../../types/onboarding';
 import { Colors } from '../../constants/theme';
+import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'GoalSelection'>;
 
@@ -16,6 +17,7 @@ export const GoalSelectionScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleContinue = () => {
     if (learningGoal) {
+      trackOnboardingStepCompleted('GoalSelection', learningGoal);
       navigation.navigate('ExperienceLevel');
     }
   };
