@@ -39,6 +39,10 @@ yarn-error.log*
 # Supabase CLI local state (which project you're linked to, cached versions, etc.)
 supabase/.temp/
 
+# Local DB backups produced by scripts/backup-prod.sh — real prod schema+data
+# dumps. Never commit these (they contain user data and bloat the repo).
+backups/
+
 # Claude Code local settings + skills (per-machine, do not commit)
 .claude/
 
