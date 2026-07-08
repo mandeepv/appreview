@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,8 +13,21 @@ interface ForceUpdateModalProps {
 }
 
 export const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({ visible }) => {
-  const handleUpdate = () => {
-    Linking.openURL(Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL);
+  const [linkFailed, setLinkFailed] = useState(false);
+
+  // R6: Linking.openURL can reject (no store app available, malformed URL,
+  // OS refusal). Since this modal is undismissable, an unhandled rejection
+  // here would leave the user with a dead button and no recourse. Wrap it
+  // and, on failure, render an inline fallback telling them how to find the
+  // app manually.
+  const handleUpdate = async () => {
+    setLinkFailed(false);
+    try {
+      await Linking.openURL(Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL);
+    } catch (error) {
+      if (__DEV__) console.error('[ForceUpdateModal] failed to open store URL:', error);
+      setLinkFailed(true);
+    }
   };
 
   return (
@@ -33,11 +46,18 @@ export const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({ visible }) =
             A new version of Kinderwell is available. Please update to continue.
           </Text>
         </View>
-        <TouchableOpacity style={styles.button} onPress={handleUpdate} activeOpacity={0.85}>
-          <Text style={styles.buttonText}>
-            Update on {Platform.OS === 'ios' ? 'App Store' : 'Play Store'}
-          </Text>
-        </TouchableOpacity>
+        <View>
+          <TouchableOpacity style={styles.button} onPress={handleUpdate} activeOpacity={0.85}>
+            <Text style={styles.buttonText}>
+              Update on {Platform.OS === 'ios' ? 'App Store' : 'Play Store'}
+            </Text>
+          </TouchableOpacity>
+          {linkFailed && (
+            <Text style={styles.fallback}>
+              Couldn't open the {Platform.OS === 'ios' ? 'App Store' : 'Play Store'} — search for "Kinderwell".
+            </Text>
+          )}
+        </View>
       </SafeAreaView>
     </Modal>
   );
@@ -85,5 +105,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  fallback: {
+    fontSize: 14,
+    color: '#555',
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 12,
   },
 });

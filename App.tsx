@@ -2,7 +2,7 @@
 import { initSentry } from './src/config/sentry';
 initSentry();
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
@@ -13,7 +13,7 @@ import { useAuthStore } from './src/store/authStore';
 import { SuperwallProvider, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { posthog } from './src/config/posthog';
-import { fetchAppConfig, isBelowMinimumBuild } from './src/lib/appConfig';
+import { useConfigStore } from './src/store/configStore';
 import { ForceUpdateModal } from './src/components/ForceUpdateModal';
 
 function AppContent() {
@@ -24,7 +24,8 @@ function AppContent() {
   const routeNameRef = useRef<string | undefined>(undefined);
   const prevUserRef = useRef(user);
   const isInitialMount = useRef(true);
-  const [forceUpdate, setForceUpdate] = useState(false);
+  const configStatus = useConfigStore(state => state.status);
+  const checkConfig = useConfigStore(state => state.checkConfig);
 
   useEffect(() => {
     if (__DEV__) console.log('🚀 Initializing app...');
@@ -55,16 +56,14 @@ function AppContent() {
   });
 
   // Kill switch — fetch app_config on launch, force-upgrade users on bad builds.
-  // Silently defaults to "not required" on any error, so a Supabase outage
-  // never locks legit users out.
+  // The check now lives in configStore so LoadingScreen can gate the paywall
+  // on it: the gate must not run until the config check resolves, and must
+  // never run if force-update is active (SPEC-01 R5 — previously the fetch
+  // here and the gate ran concurrently and could both present full-screen at
+  // once). configStore silently fails open to 'ok' on any error or after a
+  // 3s timeout, so a Supabase outage never locks legit users out.
   useEffect(() => {
-    (async () => {
-      const config = await fetchAppConfig();
-      if (isBelowMinimumBuild(config)) {
-        if (__DEV__) console.log('[appConfig] current build is below minimum — forcing update');
-        setForceUpdate(true);
-      }
-    })();
+    checkConfig();
   }, []);
 
   // Listen for auth state changes and navigate accordingly
@@ -113,7 +112,7 @@ function AppContent() {
       >
         <StatusBar style="dark" />
         <OnboardingNavigator />
-        <ForceUpdateModal visible={forceUpdate} />
+        <ForceUpdateModal visible={configStatus === 'force_update'} />
       </PostHogProvider>
     </NavigationContainer>
   );
