@@ -1,0 +1,25 @@
+# Supabase project config, committed so the delete-account Edge Function's
+# JWT-verification setting is version-controlled rather than living only as
+# an uncommitted gateway toggle in the dashboard.
+#
+# Why this file is intentionally minimal: it exists to codify ONE thing —
+# that the delete-account function requires a valid JWT at the gateway. We
+# deliberately do NOT mirror the full `supabase init` output (the local
+# dev-stack config for api/db/auth/storage/etc.) here, because we don't run
+# the local Supabase stack for this project and every extra section is
+# another thing that can drift from the hosted project. `project_id` is the
+# only required top-level key; `[functions.*]` blocks are additive.
+#
+# See supabase/EDGE_FUNCTION_DEPLOYMENT.md for the deploy rules — in
+# particular, NEVER deploy this function with --no-verify-jwt.
+project_id = "kinderwell"
+
+# Gateway-level JWT verification for the account-deletion function. With
+# verify_jwt = true, Supabase's Edge Function gateway rejects any request
+# whose Authorization bearer token isn't a valid, unexpired project JWT
+# BEFORE the function code runs. This is the first of two layers; the
+# function ALSO re-verifies the token signature in-code (defense in depth —
+# see index.ts). Committing it here means a redeploy can't silently ship
+# with verification turned off.
+[functions.delete-account]
+verify_jwt = true
