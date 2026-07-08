@@ -75,13 +75,32 @@ module.exports = ({ config }) => {
   // builds throw above if SUPABASE_URL is missing.
   const supabaseHost = (process.env.SUPABASE_URL || 'https://xbkkjqvbsnroenqlqkmi.supabase.co').replace('https://', '');
 
+  // buildNumber is identity that the kill switch depends on. A missing
+  // buildNumber must fail the build LOUDLY, never silently pin to a stale
+  // literal. The old `?? '9'` fallback meant a config where ios.buildNumber
+  // got dropped (bad merge, hand-edit) would build as build 9 — which the
+  // kill switch (min_supported_ios_build) would then treat as an ancient
+  // build and force-update, or worse, mask a real drift. bump-version.sh is
+  // the only sanctioned writer of this field; if it's absent, something is
+  // wrong upstream and we want the build to stop here, the same way the
+  // env-var guards above stop it. Follows their throw style.
+  const iosBuildNumber = config.ios?.buildNumber;
+  if (!iosBuildNumber) {
+    throw new Error(
+      '[app.config.js] REFUSING to build without ios.buildNumber in app.json. ' +
+      'buildNumber is required — the kill switch (min_supported_ios_build) compares ' +
+      'against it, so a missing value must fail the build rather than silently pin to ' +
+      'a default. Run ./scripts/bump-version.sh <version> <build> to set it.',
+    );
+  }
+
   return {
     ...config,
     name: appName,
     ios: {
       ...config.ios,
       bundleIdentifier: iosBundleId,
-      buildNumber: config.ios?.buildNumber ?? '9',
+      buildNumber: iosBuildNumber,
       supportsTablet: false,
       usesAppleSignIn: true,
       infoPlist: {

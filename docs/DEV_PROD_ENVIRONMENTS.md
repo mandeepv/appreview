@@ -373,11 +373,21 @@ supabase db push --linked             # actually applies
 **To prod** — only during a release, following `RELEASE_CHECKLIST.md`:
 
 ```bash
-supabase link --project-ref zqwzdyjfxytvedghujsd
-supabase db push --linked --dry-run   # ALWAYS dry-run against prod first
-supabase db push --linked
-supabase link --project-ref xbkkjqvbsnroenqlqkmi   # IMMEDIATELY re-link back to dev
+./scripts/db-push-prod.sh
 ```
+
+**Do not run the prod link/push commands by hand.** `scripts/db-push-prod.sh`
+is the single source of truth for the prod-push procedure. It runs the whole
+guarded sequence — typed confirmation, a same-day prod backup
+(`scripts/backup-prod.sh`), `migration list` for eyeballing, a mandatory
+`--dry-run` before a second typed confirmation, the real push, and a `trap`
+that **always re-links the CLI back to dev on exit** (including error and
+abort paths, so a Ctrl-C mid-push can't leave you pointed at prod).
+
+The manual four-command list that used to live here was deleted on purpose:
+duplicating the steps as prose is exactly how the release-workflow section
+above drifted from its canonical source. If you need to know or change what
+the prod push does, read the script — not a copy of it.
 
 ### Verifying migration state
 
@@ -472,14 +482,7 @@ Launch dev app → should see force-update modal. Reset back to `'0'::jsonb` whe
 
 ### Applying to prod on next release
 
-The `app_config` table exists on **dev only** as of 2026-07-03. It applies to prod as part of the v1.1.0 release via the standard migration flow:
-
-```bash
-supabase link --project-ref zqwzdyjfxytvedghujsd
-supabase db push --linked --dry-run    # should show 20260703200000_add_app_config_table pending
-supabase db push --linked
-supabase link --project-ref xbkkjqvbsnroenqlqkmi   # re-link back to dev
-```
+The `app_config` table exists on **dev only** as of 2026-07-03. It applies to prod as part of the v1.1.0 release via the standard prod-push flow — run `./scripts/db-push-prod.sh` (see "Applying a migration → To prod" above; the script is the single source of truth for the procedure). The dry-run step should show `20260703200000_add_app_config_table` pending.
 
 **Sequencing rule:** apply DB migration BEFORE submitting the new app build to App Store. Otherwise the new app will call an endpoint that doesn't exist on prod → fetch fails → user sees defaults → still works but skips the kill switch until the migration lands.
 
