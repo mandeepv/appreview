@@ -1,10 +1,15 @@
 name: CI
 
 on:
+  # Run CI on every branch push so checks actually run where development
+  # happens, not just on main (SPEC-05). pull_request stays scoped to PRs
+  # targeting main. A PR from a branch in this same repo would otherwise run
+  # twice (once for the push, once for the PR) — acceptable, and GitHub
+  # dedupes concurrent runs of the same workflow on the same SHA.
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: ['**']
 
 jobs:
   typecheck:
@@ -76,3 +81,51 @@ jobs:
             exit 1
           fi
           echo "✅ Versions match"
+
+  test:
+    name: Jest tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --ci makes Jest fail (rather than write) on a missing snapshot, and
+      # disables watch. Our suite is pure policy-kernel tests (SPEC-04) — no
+      # simulator, fast (<1s locally).
+      - name: Run tests
+        run: npm test -- --ci
+
+  audit:
+    name: Dependency audit (advisory)
+    runs-on: ubuntu-latest
+    # Advisory for now: a vulnerable transitive dep should surface on every PR,
+    # but we don't want it to block merges while the current baseline still has
+    # known advisories in dev-only / build-time deps. Once SPEC-07 removes the
+    # dead dependencies and we've triaged what's left, flip this to a hard gate
+    # by deleting `continue-on-error` below (and bump --audit-level as tolerance
+    # allows).
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (high and above)
+        run: npm audit --audit-level=high
