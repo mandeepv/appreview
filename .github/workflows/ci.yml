@@ -1,16 +1,18 @@
 name: CI
 
 on:
-  # Manual only. CI runs when you click "Run workflow" in the Actions tab
-  # (or `gh workflow run CI`) — intended as a RELEASE GATE: one clean,
-  # independent confirmation from a fresh environment on the exact code about
-  # to ship. We deliberately do NOT run on push or pull_request:
-  #   - This is a private repo (metered GitHub Actions minutes) and automatic
-  #     per-push / per-merge runs were pure redundancy — tsc, lint, and the
-  #     jest suite are already run locally before every merge to main.
-  #   - Running only at release keeps Actions spend near zero.
-  # If you later want automatic gating back, add `push: { branches: [main] }`.
+  # Manual trigger — the RELEASE GATE: one clean, independent confirmation from
+  # a fresh environment on the exact code about to ship (Actions tab → Run
+  # workflow, or `gh workflow run CI`). This is the primary intended use.
   workflow_dispatch:
+  # PR-to-main gate (SPEC-FIX-01 R3c, pre-approved). Runs the 5 jobs on a PR
+  # targeting main — gates the ONE branch that matters, at ~5 job-minutes per
+  # PR. We deliberately do NOT add a `push:` trigger (that would double-spend on
+  # every branch push AND every merge). This is a private repo with metered
+  # Actions minutes; tsc/lint/jest are also run locally during development, so a
+  # per-PR run is the cheapest useful automatic gate.
+  pull_request:
+    branches: [main]
 
 jobs:
   typecheck:

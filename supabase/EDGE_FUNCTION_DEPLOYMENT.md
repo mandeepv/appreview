@@ -18,17 +18,24 @@
 > ```
 >
 > The function ALSO re-verifies the JWT signature + expiry in-code (defense
-> in depth), but that second layer needs `SUPABASE_JWT_SECRET` to be set —
+> in depth), but that second layer needs the `JWT_SECRET` secret to be set —
 > see "One-time secret setup" below. Do not rely on either layer alone.
 
-## One-time secret setup — `SUPABASE_JWT_SECRET`
+## One-time secret setup — `JWT_SECRET`
 
 The in-function JWT verification (HS256) needs the project's JWT secret.
 Set it **once per project** (it persists across deploys):
 
 ```bash
-supabase secrets set SUPABASE_JWT_SECRET=<the project JWT secret>
+supabase secrets set JWT_SECRET=<the project JWT secret>
 ```
+
+> ⚠️ **The name must be `JWT_SECRET`, NOT `SUPABASE_JWT_SECRET`.** The
+> `SUPABASE_` prefix is **reserved** by the Supabase CLI —
+> `supabase secrets set SUPABASE_JWT_SECRET=...` is rejected, so a secret by
+> that name can never be set, and `delete-account` would then take its
+> fail-closed 500 path on every call. `index.ts` reads `Deno.env.get('JWT_SECRET')`
+> to match. Do not rename it back. (SPEC-FIX-01 R2.)
 
 Get the value from the Supabase dashboard: **Settings → API → JWT secret**
 (use the secret for the project you're targeting — dev secret for the dev
