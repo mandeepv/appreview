@@ -50,7 +50,7 @@ const corsHeaders = {
 // longer needed because we get the user ID from the JWT directly — but
 // note we do NOT trust it blindly: the token's signature and expiry are
 // cryptographically verified in-function (HS256 against
-// SUPABASE_JWT_SECRET) before `sub` is used. See the verify_jwt step.
+// JWT_SECRET env var) before `sub` is used. See the verify_jwt step.
 //
 // We check for the new format first, fall back to legacy. That way
 // the same function code works whether the project has migrated or not.
@@ -128,10 +128,16 @@ serve(async (req) => {
     // we now cryptographically verify the token's signature and expiry before
     // reading `sub` at all.
     //
-    // Verification is HS256 against SUPABASE_JWT_SECRET (the project's JWT
+    // Verification is HS256 against the JWT_SECRET env var (the project's JWT
     // secret — Dashboard → Settings → API → JWT secret — set once per project
     // via `supabase secrets set`; see EDGE_FUNCTION_DEPLOYMENT.md). Supabase
     // signs project access tokens with this secret today.
+    //
+    // NAME NOTE (SPEC-FIX-01 R2): the env var is `JWT_SECRET`, NOT
+    // `SUPABASE_JWT_SECRET`. The `SUPABASE_` prefix is RESERVED by the
+    // Supabase CLI — `supabase secrets set SUPABASE_JWT_SECRET=...` is
+    // rejected, so a secret by that name could never be set and this function
+    // would take the fail-closed 500 path on every call. Do not rename it back.
     //
     // Migration path: if this project ever moves to ASYMMETRIC JWT signing
     // keys (the new sb_* signing-key system), replace the HS256 secret verify
@@ -140,14 +146,14 @@ serve(async (req) => {
     // there, so no shared secret is needed. Until then, HS256 is correct.
     const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
 
-    const jwtSecret = Deno.env.get('SUPABASE_JWT_SECRET');
+    const jwtSecret = Deno.env.get('JWT_SECRET');
     if (!jwtSecret) {
       // Fail CLOSED. Missing the secret means we cannot verify the token, so
       // we must not proceed to delete anything. This is a server
       // misconfiguration (the secret wasn't set via `supabase secrets set`),
       // not a client error — surface it as 500 with a generic body, and
       // never reach the delete steps.
-      console.error('SUPABASE_JWT_SECRET is not set — cannot verify JWT, refusing to proceed.');
+      console.error('JWT_SECRET is not set — cannot verify JWT, refusing to proceed.');
       return new Response(null, { status: 500, headers: corsHeaders });
     }
 
