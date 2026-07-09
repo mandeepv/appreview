@@ -74,7 +74,7 @@ npx expo prebuild --clean --platform ios
 
 The `--clean` flag deletes `ios/` first. Regenerates from current env vars. Then you can `pod install` and open Xcode.
 
-**Version numbers:** prebuild regenerates `Info.plist` + `project.pbxproj` from `app.json` on every build. There's nothing to keep in sync inside `ios/`. `bump-version.sh` updates `app.json` (marketing version, `ios.buildNumber`, `android.versionCode`) and `package.json` (marketing version, for git-blame consistency and release metadata). See [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md).
+**Version numbers:** prebuild regenerates `Info.plist` + `project.pbxproj` from `app.json` on every build. There's nothing to keep in sync inside `ios/`. `bump-version.sh` updates `app.json` (marketing version + `ios.buildNumber`) and `package.json` (marketing version, for git-blame consistency and release metadata). **It does NOT touch `android.versionCode`** — the script is iOS-focused today (verify: its Python edits set only `expo.version` and `expo.ios.buildNumber`). Android `versionCode` bumping arrives with the Android-readiness work (SHIP_READY_PLAN 8.24); until then, bump it by hand if you cut an Android build. See [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md).
 
 **When to prebuild:** only when you need to inspect / build native locally. EAS builds do this automatically inside their build container.
 

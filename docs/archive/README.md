@@ -30,8 +30,10 @@ Docs that were once actively used but are now historical. **Nothing has been del
 - **Still useful for:** Reading the methodology, understanding the initial "NO-GO as-is" verdict, seeing what the app looked like BEFORE the 07-03 fixes.
 - **Should be re-run:** After next major architectural work.
 
-### `DEV_SETUP_LOG_2026-07-01.md` *(not yet archived)*
-- Kept active while Saturday's iPhone smoke test is still pending. Move to archive after Saturday's test passes and the setup is verified end-to-end.
+### `DEV_SETUP_LOG_2026-07-01.md`
+- **Original purpose:** Point-in-time receipt of the 2026-07-01 dev-environment setup (Supabase projects, EAS profiles, keys, first prebuild).
+- **Why archived:** A dated snapshot of a one-time setup — the ongoing dev/prod reference lives in `DEV_PROD_ENVIRONMENTS.md`. Archived 2026-07-09 (the smoke-test milestone it was waiting on has passed).
+- **Still useful for:** Reconstructing what the initial environment looked like and the exact one-time setup steps, if you ever re-bootstrap.
 
 ### `lessons_content.md`
 - **Original purpose:** Raw extracted lesson source text (the output of `scripts/extract_lessons.py`), used to author the in-app lesson content.

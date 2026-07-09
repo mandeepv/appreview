@@ -52,9 +52,17 @@ const RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 // Shared fetch+resolve with the 3s fail-open timeout. Returns the resolved
 // status; never throws.
+//
+// SPEC-FIX-01 R1 minor #4: cancel the timeout when the fetch wins the race.
+// Previously the setTimeout callback always fired 3s later and logged "fetch
+// timed out after 3s — failing open to ok" EVEN WHEN the real fetch had
+// already resolved the race — a confusing dev log claiming a timeout that
+// never affected the result. Now the timer is cleared the moment `check`
+// settles, so the timeout log only appears when the timeout genuinely won.
 async function resolveConfigStatus(): Promise<ConfigStatus> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<ConfigStatus>((resolve) => {
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (__DEV__) console.log('[configStore] fetch timed out after 3s — failing open to ok');
       resolve('ok');
     }, CONFIG_FETCH_TIMEOUT_MS);
@@ -72,6 +80,10 @@ async function resolveConfigStatus(): Promise<ConfigStatus> {
     // so this is belt-and-suspenders. Fail open.
     if (__DEV__) console.warn('[configStore] check threw — failing open to ok', err);
     return 'ok';
+  } finally {
+    // Cancel the pending timeout regardless of who won, so its callback can't
+    // fire a spurious "timed out" log after the fetch already resolved.
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }
 
@@ -99,6 +111,15 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   },
 
   maybeRecheckConfig: async () => {
+    // SPEC-FIX-01 R1 minor #4: in-flight guard. The AppState 'active' listener
+    // can fire back-to-back (e.g. rapid background/foreground toggles), which
+    // could launch overlapping rechecks racing to set status. Bail if one is
+    // already running.
+    if (recheckInFlight) {
+      if (__DEV__) console.log('[configStore] foreground re-check skipped — one already in flight');
+      return;
+    }
+
     const { lastCheckedAt } = get();
     const age = lastCheckedAt === null ? Infinity : Date.now() - lastCheckedAt;
     if (age < RECHECK_INTERVAL_MS) {
@@ -106,18 +127,27 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       return;
     }
 
-    if (__DEV__) console.log('[configStore] foreground re-check — last check > 6h ago, re-fetching app_config');
-    const resolved = await resolveConfigStatus();
-    set({ lastCheckedAt: Date.now() });
+    recheckInFlight = true;
+    try {
+      if (__DEV__) console.log('[configStore] foreground re-check — last check > 6h ago, re-fetching app_config');
+      const resolved = await resolveConfigStatus();
+      set({ lastCheckedAt: Date.now() });
 
-    // On foreground we DO enforce a newly-required update on a resident app
-    // (unlike the cold-launch guard above) — that's the point of R3. We never
-    // downgrade force_update back to ok mid-session, though: once we've told a
-    // user to update, keep the modal until they actually relaunch on a good
-    // build.
-    if (resolved === 'force_update' && get().status !== 'force_update') {
-      if (__DEV__) console.log('[configStore] foreground re-check → force_update now required');
-      set({ status: 'force_update' });
+      // On foreground we DO enforce a newly-required update on a resident app
+      // (unlike the cold-launch guard above) — that's the point of R3. We never
+      // downgrade force_update back to ok mid-session, though: once we've told a
+      // user to update, keep the modal until they actually relaunch on a good
+      // build.
+      if (resolved === 'force_update' && get().status !== 'force_update') {
+        if (__DEV__) console.log('[configStore] foreground re-check → force_update now required');
+        set({ status: 'force_update' });
+      }
+    } finally {
+      recheckInFlight = false;
     }
   },
 }));
+
+// Module-level in-flight guard for maybeRecheckConfig (transient; doesn't need
+// to be store state / trigger renders).
+let recheckInFlight = false;
