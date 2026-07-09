@@ -1,15 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { CompositeScreenProps } from '@react-navigation/native';
 import { LessonContainer } from '../../components/LessonContainer';
 import { Button } from '../../components/Button';
 import { Colors, Typography, Shadows } from '../../constants/theme';
-import { LessonStackParamList } from '../../navigation/LessonNavigator';
+import type { LessonStackParamList, RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 
-type Props = NativeStackScreenProps<LessonStackParamList, 'SprinklersSec2Screen13'>;
+// This is a Lesson-stack screen, but "Complete" navigates back to
+// SprinklersLesson, which is a ROOT-stack route. CompositeScreenProps
+// composes both param lists so that parent-route navigate() type-checks
+// without a cast (SPEC-08).
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<LessonStackParamList, 'SprinklersSec2Screen13'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export const SprinklersSec2Screen13: React.FC<Props> = ({ navigation }) => {
     const handleComplete = async () => {
@@ -26,7 +34,7 @@ export const SprinklersSec2Screen13: React.FC<Props> = ({ navigation }) => {
             if (__DEV__) console.error('Error saving progress:', error);
         }
 
-        navigation.navigate('SprinklersLesson' as any);
+        navigation.navigate('SprinklersLesson');
     };
 
     return (

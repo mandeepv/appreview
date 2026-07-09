@@ -1,14 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { CompositeScreenProps } from '@react-navigation/native';
 import { LessonContainer } from '../../components/LessonContainer';
 import { Button } from '../../components/Button';
 import { Colors, Typography, Shadows, BorderRadius } from '../../constants/theme';
-import { LessonStackParamList } from '../../navigation/LessonNavigator';
+import type { LessonStackParamList, RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { markSectionComplete } from '../../utils/emotionalSandbagsProgress';
 
-type Props = NativeStackScreenProps<LessonStackParamList, 'SandbagsSec2Screen10'>;
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<LessonStackParamList, 'SandbagsSec2Screen10'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export const SandbagsSec2Screen10: React.FC<Props> = ({ navigation }) => {
     const handleComplete = async () => {
@@ -18,7 +22,7 @@ export const SandbagsSec2Screen10: React.FC<Props> = ({ navigation }) => {
         await markSectionComplete('2');
 
         // Return to the Emotional Sandbags hub
-        navigation.navigate('EmotionalSandbagsLesson' as any);
+        navigation.navigate('EmotionalSandbagsLesson');
     };
 
     const bullets = [

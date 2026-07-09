@@ -1,15 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { CompositeScreenProps } from '@react-navigation/native';
 import { LessonContainer } from '../../components/LessonContainer';
 import { Button } from '../../components/Button';
 import { Colors, Typography, Shadows } from '../../constants/theme';
-import { LessonStackParamList } from '../../navigation/LessonNavigator';
+import type { LessonStackParamList, RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 
-type Props = NativeStackScreenProps<LessonStackParamList, 'SprinklersSec1Screen10'>;
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<LessonStackParamList, 'SprinklersSec1Screen10'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export const SprinklersSec1Screen10: React.FC<Props> = ({ navigation }) => {
     const handleComplete = async () => {
@@ -26,7 +30,7 @@ export const SprinklersSec1Screen10: React.FC<Props> = ({ navigation }) => {
             if (__DEV__) console.error('Error saving progress:', error);
         }
 
-        navigation.navigate('SprinklersLesson' as any);
+        navigation.navigate('SprinklersLesson');
     };
 
     return (

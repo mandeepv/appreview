@@ -1,15 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { CompositeScreenProps } from '@react-navigation/native';
 import { LessonContainer } from '../../components/LessonContainer';
 import { Button } from '../../components/Button';
 import { Colors, Typography, Shadows } from '../../constants/theme';
-import { LessonStackParamList } from '../../navigation/LessonNavigator';
+import type { LessonStackParamList, RootStackParamList } from '../../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 
-type Props = NativeStackScreenProps<LessonStackParamList, 'SprinklersSec5Screen6'>;
+type Props = CompositeScreenProps<
+  NativeStackScreenProps<LessonStackParamList, 'SprinklersSec5Screen6'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export const SprinklersSec5Screen6: React.FC<Props> = ({ navigation }) => {
     const handleNext = async () => {
@@ -24,11 +28,19 @@ export const SprinklersSec5Screen6: React.FC<Props> = ({ navigation }) => {
         } catch (error) {
             if (__DEV__) console.error('Error saving progress:', error);
         }
-        navigation.navigate('SprinklersLesson' as any);
+        navigation.navigate('SprinklersLesson');
     };
 
     const handleTakeBreak = () => {
-        navigation.navigate('Learn' as any);
+        // SPEC-08 FLAG (runtime discrepancy, intentionally NOT "fixed"):
+        // 'Learn' is a MainTab route nested under Root's 'MainTabs', so the
+        // type-correct call is navigate('MainTabs', { screen: 'Learn' }). But
+        // this screen has ALWAYS called navigate('Learn') at runtime, relying
+        // on React Navigation resolving the nested route name by search. The
+        // spec forbids changing runtime route names/params, so we keep the
+        // existing call and localize the one unavoidable cast here rather than
+        // rewrite the navigation. See the PR notes.
+        navigation.navigate('Learn' as never);
     };
 
     return (
