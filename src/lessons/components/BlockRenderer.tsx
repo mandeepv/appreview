@@ -8,9 +8,10 @@
 // that state is local to the block. The screen-advance is handled by the
 // controller via the onAdvanceReady callback.
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { EmotionPicker } from '../../components/EmotionPicker';
 import { Colors, Typography, Shadows, BorderRadius } from '../../constants/theme';
 import type { Block, RichText, TextSpan } from '../schema';
 
@@ -39,9 +40,20 @@ interface BlockProps {
   // interactiveQuiz signals the controller that Next may be shown (after an
   // answer is revealed). Non-interactive blocks ignore this.
   onInteractiveAnswered?: () => void;
+  // Input blocks (textInput, emotionPicker) report whether their required
+  // field is currently satisfied. The controller keeps Next disabled until
+  // every input block on the screen reports satisfied. Passive blocks ignore
+  // this. `blockKey` distinguishes multiple inputs on one screen.
+  onInputValidityChange?: (blockKey: string, satisfied: boolean) => void;
+  blockKey?: string;
 }
 
-export const BlockRenderer: React.FC<BlockProps> = ({ block, onInteractiveAnswered }) => {
+export const BlockRenderer: React.FC<BlockProps> = ({
+  block,
+  onInteractiveAnswered,
+  onInputValidityChange,
+  blockKey = '0',
+}) => {
   switch (block.type) {
     case 'heading':
       return (
@@ -89,6 +101,22 @@ export const BlockRenderer: React.FC<BlockProps> = ({ block, onInteractiveAnswer
 
     case 'interactiveQuiz':
       return <InteractiveQuizView block={block} onAnswered={onInteractiveAnswered} />;
+
+    case 'textInput':
+      return (
+        <TextInputView
+          block={block}
+          onValidity={(ok) => onInputValidityChange?.(blockKey, ok)}
+        />
+      );
+
+    case 'emotionPicker':
+      return (
+        <EmotionPickerView
+          block={block}
+          onValidity={(ok) => onInputValidityChange?.(blockKey, ok)}
+        />
+      );
 
     case 'quiz':
       // The QuizQuestion-component quiz is rendered by the controller (needs the
@@ -167,7 +195,11 @@ const CardListView: React.FC<{ block: Extract<Block, { type: 'cardList' }> }> = 
         return (
           <View
             key={i}
-            style={[cardStyle, item.color ? { backgroundColor: item.color } : null]}
+            style={[
+              cardStyle,
+              item.color ? { backgroundColor: item.color } : null,
+              item.borderColor ? { borderColor: item.borderColor, borderWidth: 1 } : null,
+            ]}
           >
             {item.number !== undefined ? (
               <View style={styles.numberCircle}>
@@ -185,7 +217,12 @@ const CardListView: React.FC<{ block: Extract<Block, { type: 'cardList' }> }> = 
                 />
               )
             ) : null}
-            <Text style={block.cardStyle === 'chip' ? styles.chipText : styles.cardText}>
+            <Text
+              style={[
+                block.cardStyle === 'chip' ? styles.chipText : styles.cardText,
+                item.textColor ? { color: item.textColor } : null,
+              ]}
+            >
               {item.title}
             </Text>
           </View>
@@ -260,6 +297,98 @@ const InteractiveQuizView: React.FC<{
           <Text style={styles.feedbackText}>{block.correctFeedback}</Text>
         </View>
       )}
+    </View>
+  );
+};
+
+// --- textInput --------------------------------------------------------------
+// A multiline reflective-journaling field. Ephemeral: the text is held in
+// local state and never persisted (matches the hand-built screens). Reports
+// validity so the controller can gate Next when `required`.
+const TextInputView: React.FC<{
+  block: Extract<Block, { type: 'textInput' }>;
+  onValidity: (satisfied: boolean) => void;
+}> = ({ block, onValidity }) => {
+  const [value, setValue] = useState('');
+  const satisfied = !block.required || value.trim().length > 0;
+  useEffect(() => {
+    onValidity(satisfied);
+    // Report on mount and whenever satisfaction flips.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satisfied]);
+
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.inputHeadline}>{block.headline}</Text>
+      {block.helper && <Text style={styles.inputHelper}>{block.helper}</Text>}
+      <TextInput
+        style={[styles.textInput, { minHeight: block.minHeight }]}
+        placeholder={block.placeholder}
+        placeholderTextColor={Colors.textMuted}
+        value={value}
+        onChangeText={setValue}
+        multiline
+        textAlignVertical="top"
+      />
+    </View>
+  );
+};
+
+// --- emotionPicker ----------------------------------------------------------
+// Picker button → shared EmotionPicker modal; conditional "Why did you feel
+// {emotion}?" field revealed after selection. Next gated on emotion chosen AND
+// why non-blank. Reuses the global EmotionPicker component verbatim.
+const EmotionPickerView: React.FC<{
+  block: Extract<Block, { type: 'emotionPicker' }>;
+  onValidity: (satisfied: boolean) => void;
+}> = ({ block, onValidity }) => {
+  const [showPicker, setShowPicker] = useState(false);
+  const [selected, setSelected] = useState('');
+  const [why, setWhy] = useState('');
+  const satisfied = selected.length > 0 && why.trim().length > 0;
+  useEffect(() => {
+    onValidity(satisfied);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satisfied]);
+
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.inputHeadline}>{block.headline}</Text>
+      {block.helper && <Text style={styles.inputHelper}>{block.helper}</Text>}
+
+      <TouchableOpacity
+        style={styles.pickerButton}
+        onPress={() => setShowPicker(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.pickerButtonText, selected ? styles.pickerButtonTextSelected : null]}>
+          {selected || block.buttonPlaceholder}
+        </Text>
+        <Text style={styles.pickerButtonIcon}>▼</Text>
+      </TouchableOpacity>
+
+      {selected ? (
+        <View style={styles.whyContainer}>
+          <Text style={styles.whyLabel}>
+            {block.whyLabel.replace('{emotion}', selected.toLowerCase())}
+          </Text>
+          <TextInput
+            style={[styles.textInput, { minHeight: 100 }]}
+            placeholder={block.whyPlaceholder}
+            placeholderTextColor={Colors.textMuted}
+            value={why}
+            onChangeText={setWhy}
+            multiline
+            textAlignVertical="top"
+          />
+        </View>
+      ) : null}
+
+      <EmotionPicker
+        visible={showPicker}
+        onClose={() => setShowPicker(false)}
+        onSelect={setSelected}
+      />
     </View>
   );
 };
@@ -423,4 +552,56 @@ const styles = StyleSheet.create({
   feedbackHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   feedbackTitle: { fontSize: 18, fontWeight: Typography.weights.bold, color: Colors.textPrimary },
   feedbackText: { fontSize: 16, color: Colors.textSecondary, lineHeight: 24 },
+  // textInput / emotionPicker (styles lifted verbatim from the hand-built
+  // Naming-our-Emotions screens so the data-driven render is identical).
+  inputGroup: { gap: 16, width: '100%' },
+  inputHeadline: {
+    fontSize: 28,
+    fontWeight: Typography.weights.bold,
+    color: Colors.textPrimary,
+    lineHeight: 36,
+    letterSpacing: -0.5,
+  },
+  inputHelper: {
+    fontSize: 15,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textTertiary,
+    lineHeight: 22,
+  },
+  textInput: {
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.lg,
+    padding: 16,
+    fontSize: 16,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textPrimary,
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.lg,
+    padding: 16,
+  },
+  pickerButtonText: {
+    fontSize: 16,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textMuted,
+  },
+  pickerButtonTextSelected: {
+    color: Colors.textPrimary,
+    fontWeight: Typography.weights.semibold,
+  },
+  pickerButtonIcon: { fontSize: 12, color: Colors.textMuted },
+  whyContainer: { gap: 12, marginTop: 4 },
+  whyLabel: {
+    fontSize: 16,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.textPrimary,
+  },
 });

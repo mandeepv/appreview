@@ -178,6 +178,11 @@ export const LessonController: React.FC<LessonControllerProps> = ({
   );
 };
 
+// The block types that own a required input and must gate the Next button
+// (Next stays visible but disabled until satisfied — mirrors the hand-built
+// journaling screens' `disabled={value.trim().length === 0}`).
+const INPUT_BLOCK_TYPES = ['textInput', 'emotionPicker'] as const;
+
 // Content screen view — separated so it can hold the "interactive answered"
 // state that gates the Next button.
 const ContentScreenView: React.FC<{
@@ -189,7 +194,39 @@ const ContentScreenView: React.FC<{
   gateNextOnInteractive: boolean;
 }> = ({ screen, currentStep, totalSteps, onBack, onNext, gateNextOnInteractive }) => {
   const [answered, setAnswered] = React.useState(false);
+
+  // Input-block gating: Next is shown but DISABLED until every required input
+  // block on this screen reports satisfied. Track the unsatisfied set by block
+  // key (a block reports satisfied=false to add itself, true to remove). We
+  // seed the set with every input block's key so Next starts disabled until
+  // each reports in.
+  const inputKeys = React.useMemo(
+    () =>
+      screen.blocks
+        .map((b, i) => ((INPUT_BLOCK_TYPES as readonly string[]).includes(b.type) ? String(i) : null))
+        .filter((k): k is string => k !== null),
+    [screen.blocks],
+  );
+  const [unsatisfied, setUnsatisfied] = React.useState<Set<string>>(() => new Set(inputKeys));
+  const onInputValidityChange = React.useCallback((blockKey: string, satisfied: boolean) => {
+    setUnsatisfied((prev) => {
+      const has = prev.has(blockKey);
+      if (satisfied && has) {
+        const next = new Set(prev);
+        next.delete(blockKey);
+        return next;
+      }
+      if (!satisfied && !has) {
+        const next = new Set(prev);
+        next.add(blockKey);
+        return next;
+      }
+      return prev;
+    });
+  }, []);
+
   const showNext = !gateNextOnInteractive || answered;
+  const nextDisabled = unsatisfied.size > 0;
   return (
     <LessonContainer
       currentStep={currentStep}
@@ -200,12 +237,23 @@ const ContentScreenView: React.FC<{
       <View style={styles.container}>
         <View style={styles.content}>
           {screen.blocks.map((block, i) => (
-            <BlockRenderer key={i} block={block} onInteractiveAnswered={() => setAnswered(true)} />
+            <BlockRenderer
+              key={i}
+              block={block}
+              blockKey={String(i)}
+              onInteractiveAnswered={() => setAnswered(true)}
+              onInputValidityChange={onInputValidityChange}
+            />
           ))}
         </View>
         {showNext && (
           <View style={styles.buttonContainer}>
-            <Button title={screen.cta ?? 'Next'} onPress={onNext} variant="gradient" />
+            <Button
+              title={screen.cta ?? 'Next'}
+              onPress={onNext}
+              variant="gradient"
+              disabled={nextDisabled}
+            />
           </View>
         )}
       </View>

@@ -11,6 +11,7 @@ import { recordingDeepBondMoments } from './content/recordingDeepBondMoments';
 import { emotionalSandbags } from './content/emotionalSandbags';
 import { helpingProcessEmotions } from './content/helpingProcessEmotions';
 import { dissociation } from './content/dissociation';
+import { namingEmotions } from './content/namingEmotions';
 
 export const LESSON_REGISTRY: Record<string, Lesson> = {
   sprinklers,
@@ -18,6 +19,7 @@ export const LESSON_REGISTRY: Record<string, Lesson> = {
   emotionalSandbags,
   helpingProcessEmotions,
   dissociation,
+  namingEmotions,
 };
 
 export function getLesson(slug: string): Lesson | undefined {
