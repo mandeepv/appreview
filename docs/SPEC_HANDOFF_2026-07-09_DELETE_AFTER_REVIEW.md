@@ -916,13 +916,33 @@ Phase 1 is ~schema + templates only.
   under `src/lessons/` + `docs/spec-09/`** — nothing existing modified, nothing
   deleted, no gate/paywall code touched.
 
-### 🛑 CHECKPOINT A — awaiting owner sign-off (BLOCKING)
-Per the spec, mass conversion must NOT start until the owner reviews the survey
-table + schema. **Owner: review `docs/spec-09/PHASE1_BLOCK_SURVEY.md` and
-`src/lessons/schema.ts`**, and answer the 4 open questions at the bottom of the
-survey (eyebrow-vs-label, callout unification, the `pill` block, carrying
-one-off colours as data). Only after sign-off do I proceed to Phase 2 (the
-Sprinklers pilot → CHECKPOINT B → Phase 3 mass conversion → Phase 4 deletion).
+### CHECKPOINT A — CLOSED (owner delegated the calls)
+Owner reviewed and said "use your discretion." The 4 open questions were
+resolved (recorded at the bottom of `docs/spec-09/PHASE1_BLOCK_SURVEY.md`):
+keep eyebrow + label separate; unify callout with a `variant`; keep `pill` as
+its own block; carry one-off colours as data (required for byte-identical
+look). Schema already implemented all four — no change.
+
+### Phase 2 — IN PROGRESS (Sprinklers pilot)
+- **Extraction source checked:** `docs/archive/lessons_content.md` has
+  Sprinklers prose but it's a flattened markdown dump (loses block structure,
+  colours, quiz flags, section boundaries). NOT usable for a faithful port —
+  transcribing from the actual `.tsx` screens instead (they also carry the
+  exact styling for byte-identical rendering).
+- **Engine extended** for the bespoke variants the pilot revealed (footer,
+  heroEmoji, interactiveQuiz, callout insight/highlight, cardList
+  chips/emoji/styles) — schema + renderer + controller, tsc clean.
+- **Sprinklers content transcription** (52 screens → `content/sprinklers.ts`)
+  is being produced by a subagent against the schema; will be reviewed for
+  byte-fidelity + `parseLesson` validity before Checkpoint B. Typos logged to
+  `docs/spec-09/CONTENT_ERRATA.md` (not fixed).
+- **Not yet:** side-by-side simulator fidelity check (owner, device), wiring
+  the generic route into the navigator, and deleting the old Sprinklers
+  screens (all Phase 3/4, behind Checkpoint B).
+
+### 🛑 CHECKPOINT B — next blocking gate (not yet reached)
+Owner approves pilot fidelity (side-by-side on simulator) before mass
+conversion of the remaining 12 lessons.
 
 ### Not started (behind the checkpoints)
 - Phase 2 (Sprinklers pilot, side-by-side, → Checkpoint B), Phase 3 (12 lessons,
