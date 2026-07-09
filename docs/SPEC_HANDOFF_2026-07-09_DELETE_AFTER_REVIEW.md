@@ -955,19 +955,37 @@ look). Schema already implemented all four — no change.
   but has 6 screens (original shows a 6/7 progress bar). See the decision
   needed below.
 
-### 🛑 CHECKPOINT B — awaiting owner sign-off (BLOCKING)
-Owner approves pilot fidelity before mass conversion of the remaining 12
-lessons. **Owner to do:**
-1. **Side-by-side on simulator** (device — I can't): run the data-driven
-   Sprinklers next to the live hand-built version, confirm no visible
-   difference screen-by-screen. (Requires wiring the generic route for a
-   throwaway preview, or I can wire a temporary dev entry point on request.)
-2. **Decide the §5 `totalSteps` quirk:** reproduce the original's (buggy) 6/7
-   progress denominator for strict byte-identity, OR use the correct 6/6
-   (tiny visible progress-bar diff, better UX). I did NOT decide this
-   unilaterally — it's a fidelity-vs-correctness call for the checkpoint.
-3. **Go/no-go** on Phase 3 mass conversion (12 lessons, one commit each) +
-   Phase 4 deletion.
+### CHECKPOINT B — owner delegated ("use your discretion")
+Resolved on discretion: (1) §5 `totalSteps` quirk → use the **correct 6/6**
+(a never-filling progress bar is a defect, not content; the verbatim rule is
+about lesson text) — the controller already does this. (2) Proceed to a
+**de-risked** Phase 3 rather than a full blind conversion.
+
+### Phase 3 — engine glue + 2-lesson proof (DE-RISK GATE for owner)
+Built the reusable machinery and proved it generalizes on a 2nd lesson, all
+**additive + dev-only** (nothing existing modified beyond a dev route reg;
+nothing deleted; gate/paywall untouched):
+- **`createProgressStore(storageKey)`** factory (`src/lessons/progressStore.ts`)
+  replaces the 8 `utils/*Progress.ts` clones — byte-compatible key/format, with
+  a **round-trip test** (`progressStore.test.ts`) proving old-format progress
+  survives.
+- **Generic `LessonHubScreen`** (data-driven) reproduces the hub look.
+- **Lesson registry** + **dev-only preview** wired into DevMenu under `__DEV__`
+  (stripped from production). Two lessons registered: **Sprinklers** (52
+  screens) and **RecordingDeepBondMoments** (6 screens) — the 2nd needed NO
+  engine/schema change, proving the engine generalizes.
+- `content.test.ts` now zod-parses **every** registered lesson (previews the
+  Phase-4 CI content-validation test). 62 tests green, tsc clean.
+
+### 🛑 DE-RISK GATE — owner gut-check before the remaining 10 lessons
+The big spend (converting ~290 more screens across 10 lessons) is deliberately
+NOT started until you eyeball fidelity on device:
+- Build a **dev** build, open **DevMenu → "Preview: Sprinklers (data engine)"**
+  and **"Preview: Recording Moments (data engine)"**, compare each against the
+  live hand-built version.
+- If fidelity is good → I convert the remaining 10 lessons (one commit each),
+  build the real navigator cutover, then Phase 4 deletion.
+- If a screen drifts → we fix the engine/schema ONCE before that spend.
 
 ### Not started (behind the checkpoints)
 - Phase 2 (Sprinklers pilot, side-by-side, → Checkpoint B), Phase 3 (12 lessons,
