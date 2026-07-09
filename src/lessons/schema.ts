@@ -56,31 +56,69 @@ const EyebrowBlock = z.object({
   text: z.string(),
 });
 
-// Coloured callout box with a left accent border. One family covers the quote
-// box, the summary box, and the NEXT-preview card — they differ only by
-// colour + optional label. Survey Q2.
+// Italic footer/bridge line under the body ("These do matter — but…";
+// "And learning these tools…"). Distinct from `paragraph` (italic, muted).
+// Phase-2 addition (Sprinklers §1).
+const FooterBlock = z.object({
+  type: z.literal('footer'),
+  text: z.string(),
+});
+
+// A big emoji in a coloured circle (the "👫" / hero emoji screens).
+// Phase-2 addition (Sprinklers §1 Screen7).
+const HeroEmojiBlock = z.object({
+  type: z.literal('heroEmoji'),
+  emoji: z.string(),
+  // Circle background (one-off, e.g. '#FFF3E0'). Defaults to a theme tint.
+  bg: z.string().optional(),
+});
+
+// Coloured callout box. One family covers the quote box, the summary/insight
+// box, the NEXT-preview card, and the "highlight" boxes — they differ by
+// colour, optional label, and whether they have a left accent border. Survey
+// Q2, extended in Phase 2 for the insight/highlight variants.
 const CalloutBlock = z.object({
   type: z.literal('callout'),
-  variant: z.enum(['quote', 'summary', 'preview']).default('summary'),
-  // Optional small label above the text (e.g. "NEXT:").
+  variant: z
+    .enum(['quote', 'summary', 'preview', 'insight', 'highlight'])
+    .default('summary'),
+  // Optional small label above the text (e.g. "NEXT:", "BUT SCIENCE IS CLEAR:").
   label: z.string().optional(),
   // One or more lines. Each line is rich text (may carry inline emphasis).
   lines: z.array(RichTextSchema).min(1),
+  // Whether to draw the left accent border (summary/preview do; quote/insight
+  // are centred boxes without it). Defaults per-variant in the renderer.
+  leftAccent: z.boolean().optional(),
+  // Whether a divider line sits between lines (Screen7 highlight box).
+  dividers: z.boolean().optional(),
   // Optional one-off colour overrides to reproduce the exact look.
   bg: z.string().optional(),
+  labelColor: z.string().optional(),
   textColor: z.string().optional(),
   accentColor: z.string().optional(),
+  // Centre-align the text (insight/highlight boxes are centred).
+  center: z.boolean().optional(),
 });
 
-// A vertical list of cards: icon OR number + title (+ optional subtitle/color).
+// A vertical (or wrapping "chips") list of cards. Covers: icon-circle rows,
+// numbered phase cards, plain bulleted cards, emoji cards, and chip rows.
 const CardListBlock = z.object({
   type: z.literal('cardList'),
+  // Layout: 'stack' = full-width rows (default); 'chips' = wrapping pill row.
+  layout: z.enum(['stack', 'chips']).default('stack'),
+  // Card visual style, matching the observed treatments.
+  cardStyle: z
+    .enum(['surface', 'bordered', 'plain', 'chip'])
+    .default('surface'),
   items: z
     .array(
       z.object({
-        // Ionicons glyph name; validated as a string here (the render maps it
-        // to the icon). Either an icon or a number is shown in the leading slot.
+        // Leading glyph. `iconKind` distinguishes an Ionicons name from a
+        // literal emoji/character (e.g. '✨', a bullet dot). Either an icon or
+        // a number is shown in the leading slot; both optional (plain cards).
         icon: z.string().optional(),
+        iconKind: z.enum(['ionicon', 'emoji']).default('ionicon'),
+        iconColor: z.string().optional(),
         number: z.number().optional(),
         title: z.string(),
         subtitle: z.string().optional(),
@@ -89,6 +127,19 @@ const CardListBlock = z.object({
       }),
     )
     .min(1),
+});
+
+// An interactive single-answer question that reveals per-option correct/wrong
+// colouring + an inline feedback panel, then shows Next (Sprinklers §1
+// Screen6/8). Distinct from `quiz` (the QuizQuestion component, which forces a
+// correct answer before advancing). Phase-2 addition.
+const InteractiveQuizBlock = z.object({
+  type: z.literal('interactiveQuiz'),
+  question: z.string(),
+  options: z.array(z.object({ text: z.string(), isCorrect: z.boolean() })).min(2),
+  correctFeedback: z.string(),
+  // Some screens show the same feedback regardless of answer; others differ.
+  // Single feedback string reproduces the observed screens (one feedback body).
 });
 
 // The "⏱️ ~3–4 minutes" pill. Rare (2 occurrences) but modelled to avoid
@@ -114,8 +165,11 @@ export const BlockSchema = z.discriminatedUnion('type', [
   HeadingBlock,
   ParagraphBlock,
   EyebrowBlock,
+  FooterBlock,
+  HeroEmojiBlock,
   CalloutBlock,
   CardListBlock,
+  InteractiveQuizBlock,
   PillBlock,
   QuizBlock,
 ]);

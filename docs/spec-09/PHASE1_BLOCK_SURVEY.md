@@ -76,3 +76,24 @@ Two screen kinds cover everything:
 
 **No content is ported and nothing is deleted until you sign off on this table
 + the schema.**
+
+---
+
+## CHECKPOINT A — resolutions (owner delegated the calls, 2026-07-09)
+
+The owner reviewed and delegated the 4 open questions ("use your discretion").
+Resolutions, each chosen to serve the byte-identical-look / progress-survives
+constraints:
+
+1. **eyebrow vs label** → **Keep both.** Screen-level "SECTION x OF y" stays on
+   `LessonContainer.label` (chrome); in-body uppercase labels use the `eyebrow`
+   block. They render differently in the real screens.
+2. **callout unification** → **Unified with a `variant`** (quote/summary/preview)
+   + optional colour overrides. Same visual family; less duplication.
+3. **pill** → **Kept as its own block.** Trivial; avoids special-casing the intro.
+4. **one-off colours** → **Carried as optional per-block data.** Required for the
+   byte-identical-look acceptance criterion; normalizing to theme tokens would
+   visibly change screens.
+
+The schema (`src/lessons/schema.ts`) already implements all four — no change
+needed. **Checkpoint A closed; proceeding to Phase 2 (Sprinklers pilot).**
