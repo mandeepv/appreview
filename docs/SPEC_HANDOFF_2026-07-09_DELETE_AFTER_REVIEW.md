@@ -6,7 +6,11 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01 … SPEC-08, SPEC-09 (Phase 1 only) · **Status:** awaiting review · **SPEC-09 is paused at CHECKPOINT A**
+**Created:** 2026-07-09 · **Covers:** SPEC-01 … SPEC-08, SPEC-10, SPEC-FIX-01 (merged) + SPEC-09 (this branch, in progress → completion) · **Status:** awaiting review
+
+> **This copy is on the SPEC-09 branch** (`feature/spec-09-lesson-engine-phase1`),
+> which merges current `main` and adds the full SPEC-09 per-phase writeup below.
+> SPEC-09 (the data-driven lesson engine) is being taken to completion here.
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -993,6 +997,162 @@ NOT started until you eyeball fidelity on device:
   Phase 4 (delete replaced screens/navigator regs/progress utils + the SPEC-08
   deprecated re-export shims; `DECISION(owner)` on `lessonProgressService.ts`
   keep-vs-delete and on removing `useLessonGate`; content-validation Jest test).
+## SPEC-10 — Docs drift fixes
+
+**Branch:** `feature/spec-10-doc-drift` (merged to `main`, `--no-ff`, deleted).
+**Files touched:** docs only — `IPHONE_TEST_PLAN_V1.1.0.md`,
+`STOREKIT_SETUP_GUIDE.md`, `FABLE_LATEST_REVIEW_STATUS.md`,
+`RELEASE_CHECKLIST.md`, `PAYWALL_MODEL.md`, `DEV_PROD_ENVIRONMENTS.md`,
+`README.md`, `archive/README.md`, `archive/DEV_SETUP_LOG_2026-07-01.md`
+(moved), plus PII scrubbing in `BEST_PRACTICES.md` and `BACKLOG.md`. **No
+code.**
+
+Core rule honored: **every claim verified against current code before editing**
+(flag if code contradicts, don't guess).
+
+### The 9 fixes ✅
+1. **IPHONE_TEST_PLAN** — header now uses the `preview` profile + single
+   `com.kinderwell.app` bundle; the "TWO separate icons" check → a
+   single-bundle check. Verified the `.dev` split was reverted (app.config.js).
+2. **STOREKIT_SETUP_GUIDE** — added a HISTORICAL banner. Verified `ios/` is
+   **gitignored** (managed workflow), so the Xcode-workspace / StoreKit-file
+   steps are historical; real IAP testing points at the Sandbox Apple ID
+   section. (The spec's "ios/ no longer exists" is correct — it's not
+   committed; it only appears on disk after a local prebuild.)
+3. **FABLE_LATEST_REVIEW_STATUS** — dated annotation on the "add close button"
+   row (superseded by the hard-paywall pivot, commit `147477a` — NO dismiss
+   control). Snapshot kept, not rewritten (per spec).
+4. **RELEASE_CHECKLIST** — kill-switch dev test `9999` → `39` + explanation.
+   Verified `MIN_SUPPORTED_BUILD_CAP = 40` in `appConfig.ts` makes any value
+   >40 a no-op, so `9999` would never trigger the modal.
+5. **PAYWALL_MODEL** — corrected the claim that the kill switch can force
+   v1.0.0 users to upgrade — it **cannot**. Verified `appConfig.ts` doesn't
+   exist at the `appstore-live-v1.0.0` tag, so v1.0.0 clients never fetch
+   `app_config`. `show_paywall` must stay until the v1.0.0 cohort drops off.
+6. **RELEASE_CHECKLIST** — removed the v1.1.0-specific blocks (CORS deploy
+   specifics; the `app_config` `404`→`200`-and-rows expectation now that the
+   table has shipped), removed tester PII, and added a **standing rule** at the
+   top: per-release blocks get deleted after that version ships.
+7. **DEV_PROD_ENVIRONMENTS** — corrected the claim that `bump-version.sh`
+   updates `android.versionCode` — it doesn't (iOS-only today; Android arrives
+   with SHIP_READY_PLAN 8.24). Flag: the spec also cited
+   `VERSION_MANAGEMENT.md:14`, but that line is a legit field-description table
+   (not a false claim), so it was left as-is.
+8. **DEV_SETUP_LOG_2026-07-01.md** — `git mv`'d to `docs/archive/` + archive
+   README entry (removed the "not yet archived / Saturday pending" caveat).
+9. **README index** — dropped the archived DEV_SETUP_LOG row; also corrected
+   the stale repo-root file list (`lessons_content.md` moved / `CODING_COMPLETE.md`
+   deleted in SPEC-07 — "any renames above" per the spec).
+
+### PII scrub (acceptance criterion) ✅
+- The acceptance criterion is "**no tester emails or other third-party PII
+  anywhere in docs/**" — broader than the RELEASE_CHECKLIST fixes. Grepped all
+  of `docs/` and scrubbed real tester/sandbox emails from 5 more files
+  (`STOREKIT_SETUP_GUIDE`, `IPHONE_TEST_PLAN`, `BEST_PRACTICES`, `BACKLOG`, and
+  the RELEASE_CHECKLIST ones). Kept the legit support address
+  `kinderwellteam@gmail.com` and the `apple-id@icloud.com` placeholder. Final
+  grep confirms no real PII remains.
+
+### Verified ✅
+- All line references checked against current code before editing.
+- No tester PII in `docs/` (final grep clean).
+- README index consistent with the new file state (no dead refs).
+- The one "fails-by-design" step (the `9999` kill-switch dev test) is fixed to
+  `39`. **Owner to run the checklist on a dev build to confirm no step fails by
+  design** — the only device-side acceptance item.
+- Pure docs → no tsc/tests/CI needed (CI is manual-only now anyway).
+
+---
+
+## SPEC-FIX-01 — Release blockers from the 2026-07-09 review
+
+**Branch:** `feature/spec-fix-01-release-blockers` (merged to `main`, `--no-ff`,
+deleted). ONE PR fixing two code BLOCKERS + review polish that gate the v1.1.1
+submission. **Fixes bugs in already-shipped SPEC-01 / SPEC-03 / SPEC-07 code.**
+**Files:** `LoadingScreen.tsx`, `configStore.ts`, `delete-account/index.ts`,
+`EDGE_FUNCTION_DEPLOYMENT.md`, new `.nvmrc`, `package.json`, `appConfig.ts`,
+`appConfig.test.ts`, `README.md`, `ci.yml`.
+
+### R1 — BLOCKER: gate double-fire (SPEC-01 R5 wiring) ✅
+- **The bug (verified in code):** the SPEC-07-R5 deferred-gate effect fired
+  `runGate` at mount whenever config was ALREADY `'ok'` (the common cold-launch
+  case), while the pre-existing mount effect ALSO scheduled `runGate` — so
+  nearly every launch ran the gate TWICE (double `identify()` + double
+  `registerPlacement`, theater bypassed, and the 2nd run reset
+  `paywallPresentedRef` so the watchdog could fire a spurious retry/escape-hatch
+  behind a healthy paywall).
+- **Fix:** made deferral EXPLICIT. `runGate` sets `wasDeferredRef` only when it
+  actually bails on `'loading'`; the config effect fires `runGate` ONLY if
+  `wasDeferredRef` (then clears it). When config is already `'ok'` at mount,
+  `runGate` never hits the `'loading'` return → the mount timer is the single
+  scheduler. Plus a belt-and-braces `gateInFlightRef` idempotence guard (any
+  duplicate scheduler call becomes a logged no-op). Comment block updated.
+- **4 same-area minors (all done):**
+  1. Escape hatch rendered from LIVE state (`gateStatus === 'retry' &&
+     retryCount >= threshold`), not the latched `escapeHatchVisible` boolean
+     that stayed mounted after recovery. Kept the fire-once ref for the
+     `gate_escape_hatch_shown` event.
+  2. Watchdog armed BEFORE `await identify()` (a hung identify was previously
+     un-watched).
+  3. Retry interval + deferred effect route through `latestRunGateRef` so a
+     mid-retry `isSubscribed` flip is respected (no stale closure).
+  4. `configStore`: cancel the 3s timeout when the fetch wins the race (it was
+     logging a timeout that didn't happen) + in-flight guard on
+     `maybeRecheckConfig`.
+- **Constraint honored:** `routingPolicy.ts` untouched — the fix changes WHEN
+  the gate runs, not WHAT it decides.
+- **⚠️ Owner acceptance (device, `__DEV__` logs / Superwall debug):** exactly
+  ONE `registerPlacement` + one `paywall_presented` per cold launch; theater
+  plays full length then paywall (no retry flash); deferred case fires once;
+  escape hatch appears after ~3 airplane-mode retries and disappears on
+  recovery.
+
+### R2 — BLOCKER: delete-account secret rename (SPEC-03 spec bug) ✅
+- **The bug:** SPEC-03 named the secret `SUPABASE_JWT_SECRET`, but the
+  `SUPABASE_` prefix is **RESERVED** by `supabase secrets set` — the command is
+  rejected, so the secret could never be set and `delete-account` would take
+  its fail-closed **500 path on every call**. (This supersedes the SPEC-03
+  section above, which documents the original `SUPABASE_JWT_SECRET` name.)
+- **Fix:** `index.ts` now reads `Deno.env.get('JWT_SECRET')`; everything else
+  byte-identical (HS256 pinning, 401 empty body, 500 fail-closed, deletion
+  sequence). `EDGE_FUNCTION_DEPLOYMENT.md` setup command → `JWT_SECRET=...` with
+  a prominent reserved-prefix trap note so nobody renames it back.
+- **⚠️ Owner acceptance (auth'd machine):** `supabase secrets set
+  JWT_SECRET=<dev secret>` succeeds on dev; re-run SPEC-03's four tests.
+
+### R3 — CI guardrails (manual-only decision) ✅
+- New `.nvmrc` (`20`) + `package.json` `"engines": { "node": ">=20" }` — the
+  guardrail the manual-CI posture depends on (the suite hard-fails on Node 16).
+- `RELEASE_CHECKLIST.md` Phase 2 records the decision: CI is manual-only by
+  owner decision (metered minutes, private repo); the release gate = run the
+  workflow on `main` and get the 4 gating jobs green.
+- **R3c (pre-approved):** added `pull_request: [main]` to `ci.yml` (kept
+  `workflow_dispatch`, NO `push` trigger) — gates the one branch that matters
+  at ~5 job-minutes/PR. YAML validated.
+
+### R4 — small review findings ✅
+1. `appConfig.getCurrentBuildNumber` now rejects any build not matching
+   `^[0-9]+$` (returns 0 / fail-open) — a dotted `"1.1.0"` used to `parseInt`
+   to `1` and could be force-updated. **Fixed the vacuous test** to assert a
+   dotted build with a real minimum (39) does NOT force-update. *(Surfaced a
+   latent test-harness bug: the expo-application mock snapshotted its value at
+   import, so several build-number assertions were passing vacuously. Fixed the
+   mock to use a getter so per-test mutations propagate.)*
+2. `docs/README.md`: removed the dead `posthog-setup-report.md` bullet (deleted
+   in SPEC-07) + fixed the stranded list formatting.
+3. Escape-hatch `subscription_restored` now sends `source: 'escape_hatch'`
+   instead of a synthetic `paywall_name: 'gate_escape_hatch'` — `paywall_name`
+   stays reserved for real Superwall names. (No event renames.)
+
+### SPEC-FIX-01 — Verified ✅
+- `tsc --noEmit` clean (Node 20); `npm test` green (52 tests, incl. the now-
+  meaningful appConfig dotted-build test); lint 0 errors.
+- Constraints: `routingPolicy.ts`, `onSkip`, the `subscription_gate` placement
+  name, and `eas.json` all untouched; no new dependencies (only `engines`);
+  `replace('Root')` grep invariant still holds (LoadingScreen only).
+- **Owner-only (not run here):** the device acceptance sweep (R1) and the dev
+  `delete-account` deploy + 4 tests (R2) — need a device / authenticated
+  Supabase; listed as PR checklist items.
 
 ---
 

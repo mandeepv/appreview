@@ -92,14 +92,43 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // unmount can clear it.
   const presentWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // R3b: how many times the gate has failed to reach Superwall. Drives the
-  // escape hatch (shown once attempts >= ESCAPE_HATCH_AFTER_ATTEMPTS). It's a
-  // ref because the 3s retry interval reads/increments it without needing a
-  // re-render; escapeHatchVisible below is the render-driving mirror.
+  // SPEC-FIX-01 R1: the two-scheduler trap.
+  //
+  // Two effects can schedule runGate: the mount effect (200ms cold-launch
+  // timer, or the ~4.6s post-onboarding theater) AND the config-status effect
+  // (fires when app_config resolves to 'ok'). On the common cold launch,
+  // config is ALREADY 'ok' at mount, so the config effect fired immediately
+  // WHILE the mount timer was also pending — running the gate twice (double
+  // identify() + double registerPlacement, theater bypassed, and the 2nd run
+  // resetting paywallPresentedRef so the watchdog could fire a spurious retry
+  // behind a healthy paywall).
+  //
+  // Fix: make deferral EXPLICIT. runGate only sets wasDeferredRef when it
+  // actually bails on 'loading'. The config effect then fires runGate ONLY if
+  // we truly deferred (wasDeferredRef), then clears the ref. When config is
+  // already 'ok' at mount, runGate never hits the 'loading' return, so
+  // wasDeferredRef stays false and the config effect does nothing — the mount
+  // timer is the single scheduler.
+  const wasDeferredRef = useRef(false);
+  // Belt-and-braces: true while a gate attempt is in flight OR a paywall is
+  // presented. Any extra scheduler call becomes a logged no-op instead of a
+  // second registerPlacement.
+  const gateInFlightRef = useRef(false);
+
+  // R3b: how many times the gate has failed to reach Superwall.
+  //
+  // SPEC-FIX-01 R1 minor #1: the escape hatch is now derived from LIVE state
+  // (see `showEscapeHatch` in render: gateStatus === 'retry' AND retryCount >=
+  // threshold), NOT a latched `escapeHatchVisible` boolean. The old latched
+  // boolean stayed true after the gate recovered — so if the gate started
+  // presenting a healthy paywall, the escape-hatch buttons could still be
+  // mounted behind it. Deriving from live state means the hatch disappears the
+  // instant gateStatus leaves 'retry'. `retryCount` is state (drives render);
+  // `retryAttemptsRef` mirrors it for the interval's synchronous increment.
   const retryAttemptsRef = useRef(0);
-  const [escapeHatchVisible, setEscapeHatchVisible] = useState(false);
-  // Guards the gate_escape_hatch_shown capture so it fires exactly once per
-  // screen mount (first render of the buttons), not on every retry tick.
+  const [retryCount, setRetryCount] = useState(0);
+  // Fire-once guard for the gate_escape_hatch_shown analytics event (kept — the
+  // event should fire once per mount even though the UI is now live-derived).
   const escapeHatchCapturedRef = useRef(false);
   // Inline error under the escape-hatch actions (no Alerts here — the retry
   // screen is already a degraded state, a modal on top would be worse).
@@ -145,6 +174,11 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // a decision into navigation/state side effects — the callbacks themselves
   // no longer contain routing conditionals, only analytics + the compute call.
   const applyGateOutcome = (outcome: ReturnType<typeof resolveGateOutcome>) => {
+    // SPEC-FIX-01 R1: this outcome is the end of the current gate attempt —
+    // release the in-flight flag so the legitimate next attempt (re-present /
+    // retry) isn't blocked by the idempotence guard. (enter_root unmounts the
+    // screen, so clearing is moot but harmless.)
+    gateInFlightRef.current = false;
     switch (outcome) {
       case 'enter_root':
         navigation.replace('Root');
@@ -305,22 +339,37 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   }, [user, isDemoUser]);
 
   const runGate = async () => {
+    // SPEC-FIX-01 R1 (belt-and-braces): if a gate attempt is already in
+    // flight or a paywall is already presented, this call is a duplicate
+    // scheduler firing — no-op it (logged) instead of running a second
+    // registerPlacement. Converts any future two-scheduler regression from
+    // revenue-path noise into a harmless logged no-op.
+    if (gateInFlightRef.current) {
+      if (__DEV__) console.log('🚫 runGate ignored — a gate attempt is already in flight / presented');
+      return;
+    }
+
     // R5: force-update wins over the paywall. Do not run the gate until the
     // kill-switch check has resolved, and never run it if a force-update is
     // required. Both would otherwise present full-screen concurrently with
-    // the ForceUpdateModal (App.tsx). If we're still 'loading', we simply
-    // return; the config-status effect below re-invokes runGate once the
-    // check resolves to 'ok'. If 'force_update', the ForceUpdateModal owns
-    // the screen and the gate never runs.
+    // the ForceUpdateModal (App.tsx). If we're still 'loading', we mark that
+    // we DEFERRED (wasDeferredRef) and return; the config-status effect below
+    // re-invokes runGate once the check resolves to 'ok' — but ONLY because
+    // we deferred. If 'force_update', the ForceUpdateModal owns the screen
+    // and the gate never runs.
     const status = useConfigStore.getState().status;
     if (status === 'loading') {
       if (__DEV__) console.log('⏳ Gate deferred — waiting on app_config check');
+      wasDeferredRef.current = true;
       return;
     }
     if (status === 'force_update') {
       if (__DEV__) console.log('🛑 Gate suppressed — force-update is active');
       return;
     }
+
+    // Past the guards — a real gate attempt is now in flight.
+    gateInFlightRef.current = true;
 
     // Entitlement short-circuits — check BEFORE bothering Superwall.
     //
@@ -370,6 +419,32 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     if (__DEV__) console.log('=== 🚀 RUNNING GATE (unsubscribed user) ===');
     if (__DEV__) console.log('User ID:', user?.id);
 
+    // R4 watchdog for the frozen "presenting" state. After a
+    // dismiss→re-present, if Superwall never fires onPresent, gateStatus would
+    // sit on 'presenting' forever (the retry interval only runs on 'retry').
+    // So: reset the presented flag, then arm a 5s timer. If onPresent hasn't
+    // fired when it expires, drop to retry.
+    //
+    // SPEC-FIX-01 R1 minor #2: arm the watchdog BEFORE the `await identify()`,
+    // not after. A hung identify() would otherwise stall the gate with NO
+    // watchdog running (the timer was armed only after identify resolved), so
+    // a Superwall auth hang left the user stuck on the spinner indefinitely.
+    // Arming first means a hang in EITHER identify() or registerPlacement is
+    // caught by the 5s watchdog → drops to retry.
+    paywallPresentedRef.current = false;
+    clearPresentWatchdog();
+    presentWatchdogRef.current = setTimeout(() => {
+      if (!paywallPresentedRef.current) {
+        if (__DEV__) console.log('⏱️ onPresent never fired within 5s — treating presentation as frozen, dropping to retry');
+        // R4 (SPEC-06): breadcrumb the watchdog firing before dropping to retry.
+        addGateBreadcrumb('gate: present watchdog fired (onPresent never arrived, 5s)');
+        // The stalled attempt is over — release the in-flight flag so retry
+        // can re-attempt (SPEC-FIX-01 R1).
+        gateInFlightRef.current = false;
+        setGateStatus('retry');
+      }
+    }, PRESENT_WATCHDOG_MS);
+
     try {
       // Identify user with Superwall so subscription state is scoped to
       // this user, not the device. Handles the case of two people sharing
@@ -378,26 +453,6 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         if (__DEV__) console.log('👤 Identifying user with Superwall:', user.id);
         await identify(user.id);
       }
-
-      // R4: watchdog for the frozen "presenting" state. After a
-      // dismiss→re-present, if Superwall never fires onPresent, gateStatus
-      // would sit on 'presenting' forever (the retry interval only runs on
-      // 'retry'). So: reset the presented flag before every attempt, then
-      // arm a 5s timer. If onPresent hasn't fired when it expires, drop to
-      // the retry state (which re-attempts and, after enough failures,
-      // surfaces the escape hatch). onPresent clears the timer; so does
-      // unmount.
-      paywallPresentedRef.current = false;
-      clearPresentWatchdog();
-      presentWatchdogRef.current = setTimeout(() => {
-        if (!paywallPresentedRef.current) {
-          if (__DEV__) console.log('⏱️ onPresent never fired within 5s — treating presentation as frozen, dropping to retry');
-          // R4 (SPEC-06): breadcrumb the watchdog firing (the R4-SPEC-01
-          // frozen-presentation detection) before dropping to retry.
-          addGateBreadcrumb('gate: present watchdog fired (onPresent never arrived, 5s)');
-          setGateStatus('retry');
-        }
-      }, PRESENT_WATCHDOG_MS);
 
       if (__DEV__) console.log('📱 Registering placement: subscription_gate');
       await registerPlacement({
@@ -418,6 +473,15 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  // SPEC-FIX-01 R1 minor #3: the 3s retry interval and the config effect close
+  // over `runGate`, which itself closes over `isSubscribed`. Those closures are
+  // captured once and go stale — if a subscription-status event flips
+  // isSubscribed to true WHILE the user sits on the retry screen, the stale
+  // runGate would still treat them as unsubscribed. Route every deferred/
+  // interval invocation through this ref, which always points at the freshest
+  // runGate, so a mid-retry isSubscribed flip short-circuits to Root correctly.
+  const latestRunGateRef = useRef(runGate);
+  latestRunGateRef.current = runGate;
 
   useEffect(() => {
     // Gentle continuous breathing animation runs on every path.
@@ -464,39 +528,44 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [navigation]);
 
-  // R5: if the gate was deferred at mount because the app_config check was
-  // still in flight, re-run it as soon as the check resolves to 'ok'. On
-  // 'force_update' we do nothing — the ForceUpdateModal owns the screen.
-  // Guarded on gateStatus === 'idle' so this only fires the initial deferred
-  // run, never re-triggers a gate that's already presenting/retrying.
+  // R5: re-run the gate when app_config resolves to 'ok' — but ONLY if we
+  // actually deferred (wasDeferredRef, set by runGate's 'loading' return).
+  //
+  // SPEC-FIX-01 R1: gating on wasDeferredRef (not just gateStatus === 'idle')
+  // is what fixes the double-fire. On the common cold launch, config is
+  // already 'ok' at mount, so runGate never hits the 'loading' return,
+  // wasDeferredRef stays false, and this effect does nothing — the mount timer
+  // is the single scheduler. Only when the config check was genuinely still in
+  // flight at mount does this fire the deferred run.
   useEffect(() => {
-    if (configStatus === 'ok' && gateStatus === 'idle') {
+    if (configStatus === 'ok' && wasDeferredRef.current) {
+      wasDeferredRef.current = false;
       if (__DEV__) console.log('✅ app_config resolved to ok — running deferred gate');
-      runGate();
+      latestRunGateRef.current();
     }
   }, [configStatus]);
 
   // Auto-retry the gate when it fails to reach Superwall. Runs every 3s
   // while gateStatus === 'retry'. Stops as soon as we successfully
-  // present a paywall, navigate away, or detect entitlement. Fine to
-  // let this fire forever — the user is stuck on this screen anyway
-  // and each retry costs at most one network request.
+  // present a paywall, navigate away, or detect entitlement.
   //
-  // R3b: each retry increments retryAttemptsRef. Once we cross the
-  // threshold, surface the escape hatch (Restore / Sign out / Contact
-  // support) so a user who can't reach Superwall isn't trapped forever.
+  // R3b: each retry increments retryAttemptsRef. Once we cross the threshold,
+  // the escape hatch (Restore / Sign out / Contact support) is rendered — but
+  // that's computed from live state in render now (SPEC-FIX-01 R1 minor #1),
+  // not latched here. This effect only fires the analytics event once.
+  //
+  // SPEC-FIX-01 R1 minor #3: call through latestRunGateRef so the interval
+  // never runs a stale runGate (a mid-retry isSubscribed flip is respected).
   useEffect(() => {
     if (gateStatus !== 'retry') return;
     const retryTimer = setInterval(() => {
       retryAttemptsRef.current += 1;
+      setRetryCount(retryAttemptsRef.current); // drive render (escape-hatch derivation)
       if (__DEV__) console.log(`🔁 Retrying gate (attempt ${retryAttemptsRef.current}, Superwall was unreachable)`);
-      if (retryAttemptsRef.current >= ESCAPE_HATCH_AFTER_ATTEMPTS && !escapeHatchVisible) {
-        setEscapeHatchVisible(true);
-      }
-      runGate();
+      latestRunGateRef.current();
     }, 3000);
     return () => clearInterval(retryTimer);
-  }, [gateStatus, escapeHatchVisible]);
+  }, [gateStatus]);
 
   // R4 (SPEC-06): breadcrumb every gateStatus transition (from → to) into
   // Sentry so a later error's timeline shows how the gate flow unfolded. No
@@ -509,16 +578,23 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [gateStatus]);
 
-  // R3b: fire gate_escape_hatch_shown exactly once per screen mount — on the
-  // first render of the escape-hatch buttons, not on every retry tick.
+  // SPEC-FIX-01 R1 minor #1: the escape hatch is derived from LIVE state —
+  // visible only while the gate is actually stuck retrying past the threshold.
+  // The moment the gate recovers (gateStatus leaves 'retry'), this goes false
+  // and the buttons unmount, so they can never sit behind a healthy paywall.
+  const showEscapeHatch = gateStatus === 'retry' && retryCount >= ESCAPE_HATCH_AFTER_ATTEMPTS;
+
+  // R3b: fire gate_escape_hatch_shown exactly once per screen mount, the first
+  // time the hatch becomes visible. (Fire-once via the ref even though
+  // showEscapeHatch may toggle off/on as the gate recovers and re-fails.)
   useEffect(() => {
-    if (escapeHatchVisible && !escapeHatchCapturedRef.current) {
+    if (showEscapeHatch && !escapeHatchCapturedRef.current) {
       escapeHatchCapturedRef.current = true;
       safeCapture('gate_escape_hatch_shown');
       // R4 (SPEC-06): also breadcrumb the escape-hatch rendering.
       addGateBreadcrumb('gate: escape hatch rendered');
     }
-  }, [escapeHatchVisible]);
+  }, [showEscapeHatch]);
 
   // R4: make sure the present-watchdog timer never outlives the screen.
   useEffect(() => clearPresentWatchdog, []);
@@ -536,7 +612,12 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       const result = await restorePurchases();
       if (result.outcome === 'restored') {
         setIsSubscribed(true);
-        safeCapture('subscription_restored', { paywall_name: 'gate_escape_hatch' });
+        // SPEC-FIX-01 R4.3: this restore came from the escape hatch, not a
+        // Superwall paywall — so tag it with source: 'escape_hatch' rather
+        // than stuffing a synthetic value into paywall_name. paywall_name is
+        // reserved for REAL Superwall paywall names (see the onDismiss path),
+        // so it stays absent here.
+        safeCapture('subscription_restored', { source: 'escape_hatch' });
         navigation.replace('Root');
         return;
       }
@@ -632,7 +713,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             offer a way out. Rendered visually subordinate to the spinner
             above — the retry loop keeps running underneath; these are the
             fallback, not the main event. */}
-        {escapeHatchVisible && (
+        {showEscapeHatch && (
           <View style={styles.escapeContainer}>
             <Caption center style={styles.escapeIntro}>
               Still having trouble? You can:

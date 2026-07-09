@@ -32,7 +32,7 @@ work through the review.
 | # | Finding | Status | Commit / notes |
 |---|---|---|---|
 | 9 | Configure Superwall `learn_access` placement | ✅ | User verified dashboard + `129ce6d` — code fail-open fallback for confirmed subscribers |
-| 10 | Verify paywall template (dismiss control, 3.1.2 risk) | ⚠️ | `222e989` — bookkeeping in RELEASE_CHECKLIST.md Phase 7.5. **User to add close button in Superwall dashboard before submitting.** |
+| 10 | Verify paywall template (dismiss control, 3.1.2 risk) | ⚠️ | `222e989` — bookkeeping in RELEASE_CHECKLIST.md Phase 7.5. **User to add close button in Superwall dashboard before submitting.** _[Superseded 2026-07-09: the "add a close button" instruction predates the hard-paywall pivot (commit `147477a`), which makes `subscription_gate` mandatory and undismissable — the paywall has NO dismiss control by design. Do NOT add a close button; Phase 7.5 now verifies the ABSENCE of one. This row is a historical snapshot, kept as-is with this annotation. See `docs/PAYWALL_MODEL.md`.]_ |
 | 11 | Apply `app_config` migration to prod + idempotence | ⚠️ | `21f3364` — migration made idempotent, Phase 4 strengthened. **Actual `db push` deferred to release-time.** |
 | 12 | Run UPGRADE test, not fresh-install | ✅ | `1a29143` — Phase 8 rewritten as 8.1/8.2/8.3 with mandatory upgrade test |
 | 13 | 7-tap demo mode decision (2.3.1 risk) | ✅ | `400d993` — kept for v1.1.0 with corrected docs, PostHog monitoring added, dual-path Apple Review notes |

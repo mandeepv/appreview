@@ -51,7 +51,6 @@ Everything process-related lives in this folder. If you're looking for how to do
 | `SETUP_GUIDE.md` | Supabase + Superwall setup | 🔧 New machine only |
 | `STOREKIT_SETUP_GUIDE.md` | StoreKit Xcode setup + sandbox Apple ID | 🔧 New machine only |
 | `Branding.md` | Design principles | 📖 Reference |
-| `DEV_SETUP_LOG_2026-07-01.md` | Point-in-time setup receipt (will be archived after Saturday tests) | 🕰️ Temporary |
 | `FABLE_REVIEW.md` | First external code review (2026-06) — findings with status markers | 📚 Historical / reference |
 | `FABLE_LATEST_REVIEW.md` | Second external code review (2026-07-04) — findings and our responses | 📚 Historical / reference |
 | `FABLE_LATEST_REVIEW_STATUS.md` | Live tracker of Fable Latest Review item status | ✅ While addressing review items |
@@ -63,9 +62,10 @@ Everything process-related lives in this folder. If you're looking for how to do
 ## What lives at the repo root (not here)
 
 - `README.md` — project readme
-- `lessons_content.md` — app content, not process docs
-- `CODING_COMPLETE.md`, `LESSON_EXTRACTION_SUMMARY.md` — historical snapshots
-- `posthog-setup-report.md` — PostHog wizard's setup summary
+- `LESSON_EXTRACTION_SUMMARY.md` — historical snapshot of the lesson-extraction work
+- `scripts/` — ops scripts (`bump-version.sh`, `backup-prod.sh`, `db-push-prod.sh`, `convert_svg.js`, `extract_lessons.py`, `generate_apple_jwt.js`)
+
+_(Note: `lessons_content.md` was moved to `docs/archive/`, and `CODING_COMPLETE.md` + `posthog-setup-report.md` were deleted during the SPEC-07 hygiene sweep — they're no longer at the repo root.)_
 
 ## Adding new docs
 

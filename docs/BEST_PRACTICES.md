@@ -179,7 +179,7 @@ User acknowledged the risk but explicitly deferred. Not tracked as a pending ite
 
 ### ~~10. Document sandbox Apple ID setup~~ ✅ DONE 2026-07-03
 
-`STOREKIT_SETUP_GUIDE.md` updated with sandbox tester (`sandeepv98@gmail.com`), iOS 18 sign-in path notes, and troubleshooting.
+`STOREKIT_SETUP_GUIDE.md` updated with sandbox tester (the sandbox tester Apple ID), iOS 18 sign-in path notes, and troubleshooting.
 
 ---
 
