@@ -26,11 +26,21 @@ const DEFAULT_CONFIG: AppConfigValues = {
 export function getCurrentBuildNumber(): number {
   const raw = Application.nativeBuildVersion;
   if (!raw) return 0;
-  if (Platform.OS === 'ios') {
-    // nativeBuildVersion is a string on iOS (CFBundleVersion).
-    return parseInt(raw, 10) || 0;
+  // SPEC-FIX-01 R4.1: only a BARE positive integer is a valid build number.
+  // parseInt('1.1.0', 10) returns 1 — so a dotted CFBundleVersion like "1.1.0"
+  // would silently become build 1 and could be force-updated the moment
+  // min_supported_ios_build rises above 1. That's the opposite of the intended
+  // "a malformed build never force-updates" property. Reject anything that
+  // isn't purely digits and return 0 (the refuse / fail-open value — build 0
+  // never triggers a force update; see isBelowMinimumBuild). bump-version.sh
+  // enforces the same `^[0-9]+$` rule at write time; this makes the guarantee
+  // hold in code, not just in the script.
+  if (!/^[0-9]+$/.test(raw)) {
+    if (__DEV__) console.warn(`[appConfig] nativeBuildVersion "${raw}" is not a bare integer — treating as 0 (no force-update).`);
+    return 0;
   }
-  // On Android it's still a string that wraps versionCode.
+  // Same parse on both platforms (iOS CFBundleVersion string, Android
+  // versionCode string).
   return parseInt(raw, 10) || 0;
 }
 

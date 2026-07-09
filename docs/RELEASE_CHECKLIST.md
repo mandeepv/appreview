@@ -57,11 +57,12 @@ Everything else in this checklist is code, config, or timing — these five are 
 
 ### Run CI (manual — this is the release gate)
 
-CI does **not** run automatically on push or PR (private repo → metered
-GitHub Actions minutes; the checks are also run locally during development).
-It runs **only when you trigger it manually, at release time** — this is that
-moment. It's one clean, independent confirmation from a fresh environment on
-the exact code you're about to ship.
+**CI is manual-only by owner decision** (metered Actions minutes, private
+repo); the release gate = run the workflow on `main` and get the 4 gating jobs
+green. It does **not** run automatically on push or PR (the checks are also run
+locally during development). Trigger it **at release time** — this is that
+moment. One clean, independent confirmation from a fresh environment on the
+exact code you're about to ship.
 
 - [ ] Trigger the CI workflow on `main` (the commit you're releasing):
   - GitHub → **Actions** tab → **CI** workflow → **Run workflow** → pick
