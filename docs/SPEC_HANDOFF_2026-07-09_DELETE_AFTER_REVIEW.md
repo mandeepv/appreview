@@ -6,14 +6,11 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01 … SPEC-08, SPEC-10, SPEC-FIX-01 (merged); SPEC-09 in progress on its branch · **Status:** awaiting review
+**Created:** 2026-07-09 · **Updated:** 2026-07-10 · **Covers:** SPEC-01 … SPEC-10, SPEC-FIX-01, and **SPEC-09 (COMPLETE — all 13 lessons data-driven, navigator cut over, old screens deleted, ~-40.8K LOC)** · **Status:** awaiting review + on-device gut-check
 
-> **SPEC-09 note:** SPEC-09 (data-driven lesson engine) is a large phased
-> migration that is **NOT merged** — it lives on branch
-> `feature/spec-09-lesson-engine-phase1`, ~30–40% done (2 of 13 lessons
-> converted, engine built; remaining 10 lessons + navigator cutover + deletion
-> not done). Its detailed per-phase writeup lives in the handoff doc **on that
-> branch**, not here. This main copy covers the 9 merged specs (01–08, 10).
+> **This copy is on the SPEC-09 branch** (`feature/spec-09-lesson-engine-phase1`),
+> which merges current `main` and adds the full SPEC-09 per-phase writeup below.
+> SPEC-09 (the data-driven lesson engine) is being taken to completion here.
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -891,6 +888,168 @@ ONLY — route names and param objects are byte-identical to before.
 
 ---
 
+## SPEC-09 — Lesson engine (data-driven lessons) — ✅ COMPLETE (all 4 phases)
+
+> **STATUS UPDATE (2026-07-10): SPEC-09 is DONE.** All 13 lessons are
+> data-driven, the navigator is cut over to the generic engine, and the
+> ~343 hand-built lesson screens have been deleted. The per-phase log below is
+> kept for history; this block is the current truth.
+>
+> **What shipped:**
+> - **All 13 lessons converted** to `src/lessons/content/*.ts` (schema-validated
+>   data): sprinklers, recordingDeepBondMoments, emotionalSandbags,
+>   helpingProcessEmotions, dissociation, namingEmotions, serveReturn,
+>   labelingEmotions, communicationMistakes, and flow lessons lesson1–lesson4.
+>   Each registered in `src/lessons/registry.ts`.
+> - **Progress byte-compatibility preserved:** every section-based lesson carries
+>   its exact original `storageKey`; section ids match what the old screens wrote
+>   (verified per lesson via the source `markSectionComplete` call sites). Flow
+>   lessons omit `storageKey` (they never persisted progress). Existing users'
+>   AsyncStorage progress survives untouched.
+> - **Engine extended 3× to preserve interactivity byte-faithfully** (rather than
+>   flatten it): `textInput` + `emotionPicker` blocks (NamingEmotions journaling,
+>   reusing the existing global `EmotionPicker` component; input is ephemeral,
+>   never persisted — matching the originals) and a `multiSelectQuiz` block
+>   (Lesson3/4 check-all-that-apply questions, reusing `QuizQuestionMultiSelect`).
+>   Also `heroEmoji` icon form + coloured chip fields.
+> - **Cutover (Phase 3):** one generic `LessonScreen` route
+>   (`src/lessons/LessonScreen.tsx`) resolves a lesson by slug via the registry
+>   and renders it through `LessonController`. The 8 launchable hubs + LearnScreen
+>   (flow lessons) navigate to it by `{ lessonId, sectionIndex, screenIndex,
+>   returnTo }`. **Gate/paywall code was NOT touched** — gating still happens at
+>   the tap site via `useLessonGate`, exactly as before.
+> - **Deletion (Phase 4):** removed the 10 old lesson screen dirs + `LessonNavigator`
+>   + the ~343-route `LessonStackParamList` + `LessonFlow` route + `lessonFlowParams`
+>   + 2 now-dead progress utils + the RootNavigator SPEC-08 shim. Net **~-40.8K LOC**
+>   (past the -30K goal). `Lesson5Complete` (the Labeling all-done card) was the one
+>   old screen still used — relocated to `src/screens/Lesson5Complete.tsx` as a
+>   standalone route, behaviour unchanged.
+>
+> **Fidelity:** all content transcribed VERBATIM (typos/quotes preserved);
+> compromises logged in `docs/spec-09/CONTENT_ERRATA.md` (several earlier
+> "not reproduced" items were later RESOLVED by the engine extensions above).
+>
+> **Verification:** ✅ `tsc --noEmit` clean · **86 Jest tests green** (per-lesson
+> structure + schema-parse + route-coverage). ⚠️ **NOT yet gut-checked on device**
+> — the old screens were deleted per owner decision (recoverable via git if a
+> lesson misbehaves: `git revert` the Phase-3/4 commits). A device pass of a few
+> lessons (render + Back + progress-save + a gated lesson) is the recommended
+> next step before the next release.
+>
+> **Deliberately left out of scope** (pre-existing, not lesson code): the
+> `OnboardingNavigator` SPEC-08 re-export shim + its 16 consumers, and the dead
+> `PremiumUnlockedScreen` — a separate cleanup, not bundled into SPEC-09.
+
+---
+
+### Historical per-phase log (kept for context)
+
+**Branch:** `feature/spec-09-lesson-engine-phase1`. SPEC-09 is
+phased with hard owner checkpoints; the log below tracked progress through them.
+
+**Depends on SPEC-08** (merged — the generic route is typed via SPEC-08's
+ParamLists). This is a multi-day migration (~343 hand-built screens → data);
+Phase 1 is ~schema + templates only.
+
+### Phase 1 — done (schema + templates) ✅
+- **Empirical block survey** (`docs/spec-09/PHASE1_BLOCK_SURVEY.md`): surveyed
+  Sprinklers (52 screens) + Emotional Sandbags (47) = 99 files, via a
+  representative read + a programmatic scan. Produced the pattern → count →
+  block-type table. Vocabulary: `heading`, `paragraph` (with inline emphasis),
+  `eyebrow`, `callout` (quote/summary/preview variants), `cardList`, `pill`,
+  `quiz` (maps to the existing `QuizQuestion` component); two screen kinds
+  (`content`, `sectionComplete`). No images / no text-input in these lessons.
+- **zod schema** (`src/lessons/schema.ts`): `Lesson → sections → screens →
+  blocks`, TS via `z.infer`. Lesson carries its exact current `storageKey` so
+  progress stays byte-compatible. `parseLesson()` for the Phase-4 content-
+  validation CI test.
+- **Block templates** (`src/lessons/components/BlockRenderer.tsx`): one renderer
+  per block type, styles lifted from the real survey screens — reproduces the
+  existing look, no redesign.
+- **Generic route + controller** (`src/lessons/LessonController.tsx`): drives a
+  data lesson (Next/Back/section-complete), writes the SAME AsyncStorage
+  key/format. NOT yet wired into the navigator (that's Phase 2/3).
+- **Verified:** ✅ tsc clean · 52 tests green · lint 0 errors · **only new files
+  under `src/lessons/` + `docs/spec-09/`** — nothing existing modified, nothing
+  deleted, no gate/paywall code touched.
+
+### CHECKPOINT A — CLOSED (owner delegated the calls)
+Owner reviewed and said "use your discretion." The 4 open questions were
+resolved (recorded at the bottom of `docs/spec-09/PHASE1_BLOCK_SURVEY.md`):
+keep eyebrow + label separate; unify callout with a `variant`; keep `pill` as
+its own block; carry one-off colours as data (required for byte-identical
+look). Schema already implemented all four — no change.
+
+### Phase 2 — IN PROGRESS (Sprinklers pilot)
+- **Extraction source checked:** `docs/archive/lessons_content.md` has
+  Sprinklers prose but it's a flattened markdown dump (loses block structure,
+  colours, quiz flags, section boundaries). NOT usable for a faithful port —
+  transcribing from the actual `.tsx` screens instead (they also carry the
+  exact styling for byte-identical rendering).
+- **Engine extended** for the bespoke variants the pilot revealed (footer,
+  heroEmoji, interactiveQuiz, callout insight/highlight, cardList
+  chips/emoji/styles) — schema + renderer + controller, tsc clean.
+- **Sprinklers content transcription** (52 screens → `content/sprinklers.ts`)
+  is being produced by a subagent against the schema; will be reviewed for
+  byte-fidelity + `parseLesson` validity before Checkpoint B. Typos logged to
+  `docs/spec-09/CONTENT_ERRATA.md` (not fixed).
+- **Not yet:** side-by-side simulator fidelity check (owner, device), wiring
+  the generic route into the navigator, and deleting the old Sprinklers
+  screens (all Phase 3/4, behind Checkpoint B).
+
+### Phase 2 pilot — DONE, reviewed (🛑 at CHECKPOINT B)
+- `src/lessons/content/sprinklers.ts`: all 52 Sprinklers screens transcribed to
+  data (subagent-produced, **reviewed by me** for byte-fidelity). Sections
+  [10,13,14,9,6] = 52; storageKey `@sprinklers_completed_sections`; verbatim
+  content (curly quotes/dashes/emoji/inline-emphasis/one-off colours preserved).
+- **Regression caught + fixed in review:** the controller now writes section
+  progress on the LAST screen of EVERY section (the original does this for all
+  5 sections; the subagent had only §1 as a `sectionComplete` screen, which
+  would have skipped progress writes for §2–5). Byte-compatible key/format.
+- New `src/lessons/__tests__/content.test.ts` (parseLesson + structure) — 54
+  tests green, tsc clean. Original screens untouched.
+- **Errata** (`docs/spec-09/CONTENT_ERRATA.md`): §5 declares `totalSteps={7}`
+  but has 6 screens (original shows a 6/7 progress bar). See the decision
+  needed below.
+
+### CHECKPOINT B — owner delegated ("use your discretion")
+Resolved on discretion: (1) §5 `totalSteps` quirk → use the **correct 6/6**
+(a never-filling progress bar is a defect, not content; the verbatim rule is
+about lesson text) — the controller already does this. (2) Proceed to a
+**de-risked** Phase 3 rather than a full blind conversion.
+
+### Phase 3 — engine glue + 2-lesson proof (DE-RISK GATE for owner)
+Built the reusable machinery and proved it generalizes on a 2nd lesson, all
+**additive + dev-only** (nothing existing modified beyond a dev route reg;
+nothing deleted; gate/paywall untouched):
+- **`createProgressStore(storageKey)`** factory (`src/lessons/progressStore.ts`)
+  replaces the 8 `utils/*Progress.ts` clones — byte-compatible key/format, with
+  a **round-trip test** (`progressStore.test.ts`) proving old-format progress
+  survives.
+- **Generic `LessonHubScreen`** (data-driven) reproduces the hub look.
+- **Lesson registry** + **dev-only preview** wired into DevMenu under `__DEV__`
+  (stripped from production). Two lessons registered: **Sprinklers** (52
+  screens) and **RecordingDeepBondMoments** (6 screens) — the 2nd needed NO
+  engine/schema change, proving the engine generalizes.
+- `content.test.ts` now zod-parses **every** registered lesson (previews the
+  Phase-4 CI content-validation test). 62 tests green, tsc clean.
+
+### 🛑 DE-RISK GATE — owner gut-check before the remaining 10 lessons
+The big spend (converting ~290 more screens across 10 lessons) is deliberately
+NOT started until you eyeball fidelity on device:
+- Build a **dev** build, open **DevMenu → "Preview: Sprinklers (data engine)"**
+  and **"Preview: Recording Moments (data engine)"**, compare each against the
+  live hand-built version.
+- If fidelity is good → I convert the remaining 10 lessons (one commit each),
+  build the real navigator cutover, then Phase 4 deletion.
+- If a screen drifts → we fix the engine/schema ONCE before that spend.
+
+### Not started (behind the checkpoints)
+- Phase 2 (Sprinklers pilot, side-by-side, → Checkpoint B), Phase 3 (12 lessons,
+  one commit each, `createProgressStore` factory, `LessonNavigator` shrink),
+  Phase 4 (delete replaced screens/navigator regs/progress utils + the SPEC-08
+  deprecated re-export shims; `DECISION(owner)` on `lessonProgressService.ts`
+  keep-vs-delete and on removing `useLessonGate`; content-validation Jest test).
 ## SPEC-10 — Docs drift fixes
 
 **Branch:** `feature/spec-10-doc-drift` (merged to `main`, `--no-ff`, deleted).
