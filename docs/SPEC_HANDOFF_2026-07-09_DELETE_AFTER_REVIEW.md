@@ -6,7 +6,7 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01 … SPEC-08, SPEC-10, SPEC-FIX-01 (merged) + SPEC-09 (this branch, in progress → completion) · **Status:** awaiting review
+**Created:** 2026-07-09 · **Updated:** 2026-07-10 · **Covers:** SPEC-01 … SPEC-10, SPEC-FIX-01, and **SPEC-09 (COMPLETE — all 13 lessons data-driven, navigator cut over, old screens deleted, ~-40.8K LOC)** · **Status:** awaiting review + on-device gut-check
 
 > **This copy is on the SPEC-09 branch** (`feature/spec-09-lesson-engine-phase1`),
 > which merges current `main` and adds the full SPEC-09 per-phase writeup below.
@@ -888,11 +888,64 @@ ONLY — route names and param objects are byte-identical to before.
 
 ---
 
-## SPEC-09 — Lesson engine (data-driven lessons) — PHASE 1 ONLY
+## SPEC-09 — Lesson engine (data-driven lessons) — ✅ COMPLETE (all 4 phases)
 
-**Branch:** `feature/spec-09-lesson-engine-phase1` — **NOT merged.** SPEC-09 is
-phased with hard owner checkpoints; this branch stops at **CHECKPOINT A** and
-awaits sign-off before any lesson content is converted.
+> **STATUS UPDATE (2026-07-10): SPEC-09 is DONE.** All 13 lessons are
+> data-driven, the navigator is cut over to the generic engine, and the
+> ~343 hand-built lesson screens have been deleted. The per-phase log below is
+> kept for history; this block is the current truth.
+>
+> **What shipped:**
+> - **All 13 lessons converted** to `src/lessons/content/*.ts` (schema-validated
+>   data): sprinklers, recordingDeepBondMoments, emotionalSandbags,
+>   helpingProcessEmotions, dissociation, namingEmotions, serveReturn,
+>   labelingEmotions, communicationMistakes, and flow lessons lesson1–lesson4.
+>   Each registered in `src/lessons/registry.ts`.
+> - **Progress byte-compatibility preserved:** every section-based lesson carries
+>   its exact original `storageKey`; section ids match what the old screens wrote
+>   (verified per lesson via the source `markSectionComplete` call sites). Flow
+>   lessons omit `storageKey` (they never persisted progress). Existing users'
+>   AsyncStorage progress survives untouched.
+> - **Engine extended 3× to preserve interactivity byte-faithfully** (rather than
+>   flatten it): `textInput` + `emotionPicker` blocks (NamingEmotions journaling,
+>   reusing the existing global `EmotionPicker` component; input is ephemeral,
+>   never persisted — matching the originals) and a `multiSelectQuiz` block
+>   (Lesson3/4 check-all-that-apply questions, reusing `QuizQuestionMultiSelect`).
+>   Also `heroEmoji` icon form + coloured chip fields.
+> - **Cutover (Phase 3):** one generic `LessonScreen` route
+>   (`src/lessons/LessonScreen.tsx`) resolves a lesson by slug via the registry
+>   and renders it through `LessonController`. The 8 launchable hubs + LearnScreen
+>   (flow lessons) navigate to it by `{ lessonId, sectionIndex, screenIndex,
+>   returnTo }`. **Gate/paywall code was NOT touched** — gating still happens at
+>   the tap site via `useLessonGate`, exactly as before.
+> - **Deletion (Phase 4):** removed the 10 old lesson screen dirs + `LessonNavigator`
+>   + the ~343-route `LessonStackParamList` + `LessonFlow` route + `lessonFlowParams`
+>   + 2 now-dead progress utils + the RootNavigator SPEC-08 shim. Net **~-40.8K LOC**
+>   (past the -30K goal). `Lesson5Complete` (the Labeling all-done card) was the one
+>   old screen still used — relocated to `src/screens/Lesson5Complete.tsx` as a
+>   standalone route, behaviour unchanged.
+>
+> **Fidelity:** all content transcribed VERBATIM (typos/quotes preserved);
+> compromises logged in `docs/spec-09/CONTENT_ERRATA.md` (several earlier
+> "not reproduced" items were later RESOLVED by the engine extensions above).
+>
+> **Verification:** ✅ `tsc --noEmit` clean · **86 Jest tests green** (per-lesson
+> structure + schema-parse + route-coverage). ⚠️ **NOT yet gut-checked on device**
+> — the old screens were deleted per owner decision (recoverable via git if a
+> lesson misbehaves: `git revert` the Phase-3/4 commits). A device pass of a few
+> lessons (render + Back + progress-save + a gated lesson) is the recommended
+> next step before the next release.
+>
+> **Deliberately left out of scope** (pre-existing, not lesson code): the
+> `OnboardingNavigator` SPEC-08 re-export shim + its 16 consumers, and the dead
+> `PremiumUnlockedScreen` — a separate cleanup, not bundled into SPEC-09.
+
+---
+
+### Historical per-phase log (kept for context)
+
+**Branch:** `feature/spec-09-lesson-engine-phase1`. SPEC-09 is
+phased with hard owner checkpoints; the log below tracked progress through them.
 
 **Depends on SPEC-08** (merged — the generic route is typed via SPEC-08's
 ParamLists). This is a multi-day migration (~343 hand-built screens → data);
