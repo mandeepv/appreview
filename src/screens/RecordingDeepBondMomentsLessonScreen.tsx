@@ -51,8 +51,15 @@ export default function RecordingDeepBondMomentsLessonScreen() {
 
   const handleSubLessonPress = (subLesson: SubLesson) => {
     if (!subLesson.startScreen) return;
+    // SPEC-09 Phase 3: launch the generic data-driven lesson (single section,
+    // id '1' → sectionIndex 0). Gate + return-to-hub unchanged.
     gateToLesson(`recording_${subLesson.id}`, () => {
-      navigation.navigate('LessonFlow', lessonFlowParams(subLesson.startScreen));
+      navigation.navigate('LessonScreen', {
+        lessonId: 'recordingDeepBondMoments',
+        sectionIndex: Number(subLesson.id) - 1,
+        screenIndex: 0,
+        returnTo: 'RecordingDeepBondMomentsLesson',
+      });
     });
   };
 

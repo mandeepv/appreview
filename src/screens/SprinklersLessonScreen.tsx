@@ -149,7 +149,15 @@ export default function SprinklersLessonScreen() {
                   section_number: lesson.number,
                 });
                 gateToLesson(`sprinklers_${lesson.id}`, () => {
-                  navigation.navigate('LessonFlow', lessonFlowParams(lesson.startScreen));
+                  // SPEC-09 Phase 3: launch the generic data-driven lesson at
+                  // this section. sectionIndex = id - 1; return to this hub on
+                  // section-complete. Gate + PostHog above are unchanged.
+                  navigation.navigate('LessonScreen', {
+                    lessonId: 'sprinklers',
+                    sectionIndex: Number(lesson.id) - 1,
+                    screenIndex: 0,
+                    returnTo: 'SprinklersLesson',
+                  });
                 });
               }}
               activeOpacity={0.7}

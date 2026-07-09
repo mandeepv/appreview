@@ -19,6 +19,7 @@ import type { RootStackParamList } from './RootNavigator';
 export const ROOT_STACK_ROUTE_NAMES = [
   'MainTabs',
   'LessonFlow',
+  'LessonScreen',
   'LabelingEmotionsLesson',
   'NamingOurEmotionsLesson',
   'SprinklersLesson',
@@ -38,15 +39,29 @@ type _MissingRoutes = Exclude<keyof RootStackParamList, (typeof ROOT_STACK_ROUTE
 const _assertAllRoutesListed: _MissingRoutes extends never ? true : never = true;
 void _assertAllRoutesListed;
 
+// The param-less RootStack routes a `kind:'screen'` target may navigate to
+// directly (the lesson hubs — reached via navigate(name) with no params). This
+// EXCLUDES routes that require params (e.g. the SPEC-09 generic LessonScreen),
+// so `navigation.navigate(target.name)` type-checks against the no-param
+// overload. `undefined extends Params` picks exactly the routes whose params
+// are optional.
+type ParamlessRootRoute = {
+  [K in keyof RootStackParamList]: undefined extends RootStackParamList[K] ? K : never;
+}[keyof RootStackParamList];
+
 export type LessonNavTarget =
-  | { kind: 'flow'; screen: 'Lesson1Screen1' | 'Lesson2Screen1' | 'Lesson3Screen1' | 'Lesson4Screen1' }
-  | { kind: 'screen'; name: keyof RootStackParamList };
+  // SPEC-09 Phase 3 — the flow lessons (1-4) now launch directly into the
+  // generic data-driven LessonScreen by slug, instead of the old per-screen
+  // LessonFlow route. Single section, launched at sectionIndex 0 / screenIndex
+  // 0; returns to MainTabs on completion (flow lessons have no hub).
+  | { kind: 'data'; lessonId: string }
+  | { kind: 'screen'; name: ParamlessRootRoute };
 
 export const LESSON_NAV: Record<string, LessonNavTarget> = {
-  '1': { kind: 'flow', screen: 'Lesson1Screen1' },
-  '2': { kind: 'flow', screen: 'Lesson2Screen1' },
-  '3': { kind: 'flow', screen: 'Lesson3Screen1' },
-  '4': { kind: 'flow', screen: 'Lesson4Screen1' },
+  '1': { kind: 'data', lessonId: 'lesson1' },
+  '2': { kind: 'data', lessonId: 'lesson2' },
+  '3': { kind: 'data', lessonId: 'lesson3' },
+  '4': { kind: 'data', lessonId: 'lesson4' },
   '5': { kind: 'screen', name: 'LabelingEmotionsLesson' },
   '6': { kind: 'screen', name: 'NamingOurEmotionsLesson' },
   '7': { kind: 'screen', name: 'SprinklersLesson' },

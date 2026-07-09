@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MainTabNavigator from './MainTabNavigator';
 import { LessonNavigator } from './LessonNavigator';
+import { LessonScreen } from '../lessons/LessonScreen';
 import LabelingEmotionsLessonScreen from '../screens/LabelingEmotionsLessonScreen';
 import NamingOurEmotionsLessonScreen from '../screens/NamingOurEmotionsLessonScreen';
 import SprinklersLessonScreen from '../screens/SprinklersLessonScreen';
@@ -31,6 +32,7 @@ export const RootNavigator: React.FC = () => {
     >
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="LessonFlow" component={LessonNavigator} />
+      <Stack.Screen name="LessonScreen" component={LessonScreen} />
       <Stack.Screen name="LabelingEmotionsLesson" component={LabelingEmotionsLessonScreen} />
       <Stack.Screen name="NamingOurEmotionsLesson" component={NamingOurEmotionsLessonScreen} />
       <Stack.Screen name="SprinklersLesson" component={SprinklersLessonScreen} />

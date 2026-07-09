@@ -18,12 +18,13 @@ describe('lesson nav targets resolve to registered routes', () => {
     }
   });
 
-  it('every flow-lesson routes through the LessonFlow registered route', () => {
-    // kind:'flow' targets navigate to 'LessonFlow' with a nested screen param,
-    // so LessonFlow itself must be registered.
-    const hasFlowLessons = Object.values(LESSON_NAV).some((t) => t.kind === 'flow');
-    expect(hasFlowLessons).toBe(true);
-    expect(registered.has('LessonFlow')).toBe(true);
+  it('every kind:"data" (flow) lesson routes through the LessonScreen route', () => {
+    // SPEC-09 Phase 3: the flow lessons (1-4) now launch the generic
+    // data-driven LessonScreen directly (by slug), so LessonScreen must be
+    // registered.
+    const hasDataLessons = Object.values(LESSON_NAV).some((t) => t.kind === 'data');
+    expect(hasDataLessons).toBe(true);
+    expect(registered.has('LessonScreen')).toBe(true);
   });
 
   it('no lesson target points at an unknown route (containment, exhaustive)', () => {
@@ -31,8 +32,9 @@ describe('lesson nav targets resolve to registered routes', () => {
       if (target.kind === 'screen') {
         expect(registered.has(target.name)).toBe(true);
       } else {
-        // flow → LessonFlow must exist
-        expect(registered.has('LessonFlow')).toBe(true);
+        // data (flow) → LessonScreen must exist, and it must carry a slug.
+        expect(registered.has('LessonScreen')).toBe(true);
+        expect(target.lessonId.length).toBeGreaterThan(0);
       }
       // sanity: lesson id is a non-empty string
       expect(lessonId.length).toBeGreaterThan(0);

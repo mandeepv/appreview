@@ -194,7 +194,7 @@ export default function CommunicationMistakesLessonScreen() {
               <TouchableOpacity
                 key={lesson.id}
                 style={styles.lessonCard}
-                onPress={() => isAvailable && gateToLesson(`comms_${lesson.id}`, () => navigation.navigate('LessonFlow', lessonFlowParams(lesson.startScreen)))}
+                onPress={() => isAvailable && gateToLesson(`comms_${lesson.id}`, () => navigation.navigate('LessonScreen', { lessonId: 'communicationMistakes', sectionIndex: Number(lesson.id) - 1, screenIndex: 0, returnTo: 'CommunicationMistakesLesson' }))}
                 activeOpacity={isAvailable ? 0.7 : 1}
               >
                 {/* Connecting Line (for all except the last one) */}
