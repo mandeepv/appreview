@@ -47,6 +47,29 @@ Everything else in this checklist is code, config, or timing — these five are 
 
 ## Phase 2: Pre-release verification (on dev)
 
+### Run CI (manual — this is the release gate)
+
+CI does **not** run automatically on push or PR (private repo → metered
+GitHub Actions minutes; the checks are also run locally during development).
+It runs **only when you trigger it manually, at release time** — this is that
+moment. It's one clean, independent confirmation from a fresh environment on
+the exact code you're about to ship.
+
+- [ ] Trigger the CI workflow on `main` (the commit you're releasing):
+  - GitHub → **Actions** tab → **CI** workflow → **Run workflow** → pick
+    `main` → **Run workflow**. Or from a terminal: `gh workflow run CI --ref main`.
+- [ ] Confirm the run is green. Jobs: **TypeScript type check**, **ESLint**,
+  **Version drift**, **Jest tests** must all pass. **Dependency audit** is
+  advisory (yellow/failure is allowed — it never blocks).
+- [ ] If any of the four gating jobs is red, fix before building the IPA — do
+  NOT proceed to a device build on a red CI.
+
+> Why manual: automatic per-push/per-merge runs were redundant (tsc, lint, and
+> the jest suite are run locally before every merge) and burned Actions
+> minutes on a private repo. The trigger lives in `.github/workflows/ci.yml`
+> as `workflow_dispatch`. To re-enable automatic gating later, add
+> `push: { branches: [main] }` back to the `on:` block.
+
 ### Build a real-device dev IPA first
 
 Never trust simulator-only testing. Every regression in v1.0.0 that Fable review caught reproduced on real device but not in the iOS Simulator. Section 12 of the test plan assumes a real IPA on a real iPhone.

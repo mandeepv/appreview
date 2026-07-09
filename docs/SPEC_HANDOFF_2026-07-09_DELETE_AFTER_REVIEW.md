@@ -535,6 +535,20 @@ Depends on SPEC-01 (tests the fixed routing). Done as two commits per spec.
 
 Depends on SPEC-04 (the new `test` job needs the tests, which are merged).
 
+> ### ⚠️ POST-MERGE AMENDMENT (owner-directed) — CI is now MANUAL-only
+> SPEC-05 shipped with `push: ['**']` + `pull_request`, i.e. CI on every branch
+> push and PR. **After merge, the owner changed CI to run on
+> `workflow_dispatch` only** (commit `f7e827b`, 2026-07-09). Reason: this is a
+> **private repo with metered GitHub Actions minutes**, automatic per-push /
+> per-merge runs were redundant with the local tsc/lint/test we run before
+> every merge, and (unrelated) a SPEC-08 run got stuck in the runner queue and
+> was cancelled — which surfaced the cost concern. The 5 jobs are unchanged;
+> only the trigger changed. CI is now run **manually as a release gate** — see
+> `docs/RELEASE_CHECKLIST.md` Phase 2. **This means requirements (1) and (5)
+> below no longer describe the live state.** Flag to the spec author as an
+> agreed amendment. To restore automatic gating, add `push: { branches: [main] }`
+> back to `on:`.
+
 ### Requirements ✅
 - **(1) Triggers:** `push` now fires on all branches (`branches: ['**']`);
   `pull_request` kept scoped to `main`. ✅
@@ -569,11 +583,13 @@ Depends on SPEC-04 (the new `test` job needs the tests, which are merged).
   are verified locally; the runner behavior is not.
 
 ### Owner action (spec requirement 5, owner-only) 🔒
-- After merge, mark **typecheck / lint / version-drift / test** as **required
-  status checks** in the repo's branch-protection settings for `main`. The
-  spec explicitly says the implementer must NOT enable branch protection —
-  this is the note the PR description should carry. The `audit` job is
-  advisory and should NOT be a required check.
+- **SUPERSEDED by the manual-CI amendment above.** The original plan was to
+  mark typecheck/lint/version-drift/test as required status checks under branch
+  protection. Since CI no longer runs on push/PR (manual-only now), required
+  checks don't apply — there's nothing for them to gate. If you later re-enable
+  `push: { branches: [main] }`, revisit this and set those four as required
+  checks (audit stays advisory). For now the release gate is running CI
+  manually in Phase 2 of `docs/RELEASE_CHECKLIST.md`.
 
 ---
 
@@ -901,12 +917,18 @@ ONLY — route names and param objects are byte-identical to before.
   acceptance gate for the refactor. The automated `npm test` suite already
   covers the same routing decisions and passes.
 
-**Needs GitHub Actions + repo settings (SPEC-05):**
-- ✅ Real Actions run already confirmed green (typecheck/lint/version-drift/test
-  green; audit advisory; ~55s total). Nothing left to verify here.
-- **Owner-only:** mark `typecheck` / `lint` / `version-drift` / `test` as
-  required status checks on `main` in branch-protection settings. Do NOT make
-  `audit` required (it's advisory).
+**CI (SPEC-05, now manual — see the amendment in the SPEC-05 section):**
+- ✅ CI was confirmed green on SPEC-05/06/07 pushes (~1 min each). It is now
+  **manual-only** (`workflow_dispatch`) — no action needed per-merge.
+- **At release time:** trigger CI on `main` (Actions tab → CI → Run workflow,
+  or `gh workflow run CI --ref main`) and confirm the 4 gating jobs are green.
+  This is written into `docs/RELEASE_CHECKLIST.md` Phase 2.
+- Branch-protection "required checks" no longer apply (nothing runs on push).
+  Only revisit if you re-enable `push:` triggers.
+- **Note:** the SPEC-08 CI run was cancelled by a GitHub runner-queue timeout
+  (not a code failure; billing showed 151/2000 min used). SPEC-08 was verified
+  locally (tsc clean, 52 tests green); re-run CI manually at the next release
+  to get a fresh green on it.
 
 **Needs a device + Sentry DevMenu (SPEC-06):**
 - Sign-in run-through: PostHog shows `auth_succeeded` then `paywall_presented`;
