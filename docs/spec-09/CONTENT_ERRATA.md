@@ -20,3 +20,13 @@ than silently fixed.
 - emotionalSandbags §2 screen3: the original screen defines unused label-position styles (`label1/label2/label3`) and ends with a stray comment `// Re-adjusting labels in the code snippet for clarity`; the three floating labels (`STRESS`, `ANGER`, `OVERWHELM`) are absolutely-positioned decorations layered over the 🎒 emoji circle and carry no body text — the hero emoji is transcribed but the decorative overlay labels are not reproducible as data blocks.
 - emotionalSandbags §1 screen3 / §2 screen4 / §5 screen8 & others: several screens open with a decorative Ionicon inside a coloured circle (e.g. `bulb-outline`, `people-outline`) rather than an emoji. The schema's `heroEmoji` block carries an emoji, not an Ionicon, so these purely-decorative Ionicon hero circles are omitted (no text is lost).
 - emotionalSandbags §4 screen2–5: these are interactive accordions (one of four steps expanded, the rest collapsed as tappable previews). Transcribed as a static step-list `cardList` plus the expanded step's content blocks; the collapse/expand interaction is not reproducible in the data model.
+
+# Content errata — Helping Someone Process Emotions transcription
+
+Issues found during the faithful transcription of the hand-built Helping Someone
+Process Emotions screens into `src/lessons/content/helpingProcessEmotions.ts`.
+Text was copied VERBATIM (errors preserved); each observed problem is logged here
+rather than silently fixed.
+
+- helpingProcessEmotions §1–§2 (all screens): quotation marks and apostrophes are straight ASCII (`aren't`, `They're`, `you'll`, `Let's`, `That's`, `She's`, `don't`, `it's`, `Everyone's`, `I'm`, `you're`, `there's`, `didn't`, `wasn't`, `you can't`, `"fix it"`, `"perfect"`) rather than the curly typographic quotes (`"…"`, `'`) used across the other converted lessons — inconsistent typography. Transcribed verbatim as-is.
+- helpingProcessEmotions §2 screen1: the original screen is a Dad/Daughter dialogue card (`dialogueCard` with bold `speaker:` labels above italic `dialogue` lines) — there is no dialogue block in the schema, and the `cardList` block renders only an item title (subtitle is dropped). To preserve ALL dialogue text verbatim, each exchange is transcribed as a `paragraph` with the speaker name as an inline `emphasis` span followed by the plain dialogue text; the closing `helperBox` ("Notice what Dad isn't doing.") is transcribed as the italic `footer`. The two-column card styling is not reproduced.
