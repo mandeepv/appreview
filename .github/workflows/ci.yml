@@ -1,15 +1,16 @@
 name: CI
 
 on:
-  # Run CI on every branch push so checks actually run where development
-  # happens, not just on main (SPEC-05). pull_request stays scoped to PRs
-  # targeting main. A PR from a branch in this same repo would otherwise run
-  # twice (once for the push, once for the PR) — acceptable, and GitHub
-  # dedupes concurrent runs of the same workflow on the same SHA.
-  pull_request:
-    branches: [main]
-  push:
-    branches: ['**']
+  # Manual only. CI runs when you click "Run workflow" in the Actions tab
+  # (or `gh workflow run CI`) — intended as a RELEASE GATE: one clean,
+  # independent confirmation from a fresh environment on the exact code about
+  # to ship. We deliberately do NOT run on push or pull_request:
+  #   - This is a private repo (metered GitHub Actions minutes) and automatic
+  #     per-push / per-merge runs were pure redundancy — tsc, lint, and the
+  #     jest suite are already run locally before every merge to main.
+  #   - Running only at release keeps Actions spend near zero.
+  # If you later want automatic gating back, add `push: { branches: [main] }`.
+  workflow_dispatch:
 
 jobs:
   typecheck:
