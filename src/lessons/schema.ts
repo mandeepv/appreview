@@ -212,6 +212,25 @@ const QuizBlock = z.object({
   feedback: z.string(),
 });
 
+// Maps 1:1 to the existing QuizQuestionMultiSelect component — a "check all
+// that apply" graded question (checkboxes, a Check-Answer gate, retry-on-wrong,
+// Next on a fully-correct selection). Distinct from `quiz` (single answer).
+// Phase-3 addition: the flow-lesson quizzes (Lesson 3/4) use multi-select
+// questions; flattening them to single-answer would change the interaction, so
+// the block reuses the existing component verbatim. Same field shape as
+// QuizBlock (options carry per-option isCorrect; the component requires exactly
+// the correct set).
+const MultiSelectQuizBlock = z.object({
+  type: z.literal('multiSelectQuiz'),
+  questionNumber: z.number(),
+  totalQuestions: z.number(),
+  question: z.string(),
+  options: z
+    .array(z.object({ label: z.string(), isCorrect: z.boolean() }))
+    .min(2),
+  feedback: z.string(),
+});
+
 export const BlockSchema = z.discriminatedUnion('type', [
   HeadingBlock,
   ParagraphBlock,
@@ -225,6 +244,7 @@ export const BlockSchema = z.discriminatedUnion('type', [
   TextInputBlock,
   EmotionPickerBlock,
   QuizBlock,
+  MultiSelectQuizBlock,
 ]);
 export type Block = z.infer<typeof BlockSchema>;
 
