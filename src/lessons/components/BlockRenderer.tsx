@@ -62,7 +62,15 @@ export const BlockRenderer: React.FC<BlockProps> = ({ block, onInteractiveAnswer
     case 'heroEmoji':
       return (
         <View style={[styles.heroCircle, block.bg ? { backgroundColor: block.bg } : null]}>
-          <Text style={styles.heroEmoji}>{block.emoji}</Text>
+          {block.icon ? (
+            <Ionicons
+              name={block.icon as keyof typeof Ionicons.glyphMap}
+              size={40}
+              color={block.iconColor ?? Colors.primary}
+            />
+          ) : (
+            <Text style={styles.heroEmoji}>{block.emoji ?? ''}</Text>
+          )}
         </View>
       );
 

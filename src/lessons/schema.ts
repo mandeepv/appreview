@@ -64,11 +64,17 @@ const FooterBlock = z.object({
   text: z.string(),
 });
 
-// A big emoji in a coloured circle (the "👫" / hero emoji screens).
-// Phase-2 addition (Sprinklers §1 Screen7).
+// A big glyph in a coloured circle — the hero graphic at the top of many
+// screens. Either an emoji ("👫") OR a decorative Ionicon (e.g. 'bulb-outline'
+// in a tinted circle). Phase-2 addition (Sprinklers §1 Screen7); Phase-3
+// extended with the icon form (Emotional Sandbags and others open with an
+// Ionicon hero circle rather than an emoji — SPEC-09 fidelity).
 const HeroEmojiBlock = z.object({
   type: z.literal('heroEmoji'),
-  emoji: z.string(),
+  // Provide exactly one of emoji / icon. `icon` is an Ionicons glyph name.
+  emoji: z.string().optional(),
+  icon: z.string().optional(),
+  iconColor: z.string().optional(),
   // Circle background (one-off, e.g. '#FFF3E0'). Defaults to a theme tint.
   bg: z.string().optional(),
 });
