@@ -123,6 +123,11 @@ export const BlockRenderer: React.FC<BlockProps> = ({
       // onCorrect advance). Returning null keeps this switch exhaustive.
       return null;
 
+    case 'multiSelectQuiz':
+      // Same as `quiz`: rendered by the controller via QuizQuestionMultiSelect
+      // (needs the onCorrect advance). Null keeps the switch exhaustive.
+      return null;
+
     default: {
       const _never: never = block;
       return _never;

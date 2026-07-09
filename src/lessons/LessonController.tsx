@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LessonContainer } from '../components/LessonContainer';
 import { Button } from '../components/Button';
 import { QuizQuestion } from '../components/QuizQuestion';
+import { QuizQuestionMultiSelect } from '../components/QuizQuestionMultiSelect';
 import { BlockRenderer } from './components/BlockRenderer';
 import { Colors, Typography, Shadows } from '../constants/theme';
 import type { Lesson, LessonScreen } from './schema';
@@ -156,6 +157,32 @@ export const LessonController: React.FC<LessonControllerProps> = ({
             question={quizBlock.question}
             options={quizBlock.options}
             feedback={quizBlock.feedback}
+            onCorrect={goNext}
+          />
+        </View>
+      </LessonContainer>
+    );
+  }
+
+  // A lone multiSelectQuiz block renders the QuizQuestionMultiSelect component
+  // (check-all-that-apply), parallel to the single-answer quiz branch above.
+  const msqBlock = screen.blocks.find((b) => b.type === 'multiSelectQuiz');
+  const isMultiSelectScreen = screen.blocks.length === 1 && msqBlock?.type === 'multiSelectQuiz';
+  if (isMultiSelectScreen && msqBlock?.type === 'multiSelectQuiz') {
+    return (
+      <LessonContainer
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        label={screen.label}
+        onBack={onBack}
+      >
+        <View style={styles.container}>
+          <QuizQuestionMultiSelect
+            questionNumber={msqBlock.questionNumber}
+            totalQuestions={msqBlock.totalQuestions}
+            question={msqBlock.question}
+            options={msqBlock.options}
+            feedback={msqBlock.feedback}
             onCorrect={goNext}
           />
         </View>

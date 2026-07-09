@@ -9,6 +9,10 @@ import { namingEmotions } from '../content/namingEmotions';
 import { serveReturn } from '../content/serveReturn';
 import { labelingEmotions } from '../content/labelingEmotions';
 import { communicationMistakes } from '../content/communicationMistakes';
+import { lesson1 } from '../content/lesson1';
+import { lesson2 } from '../content/lesson2';
+import { lesson3 } from '../content/lesson3';
+import { lesson4 } from '../content/lesson4';
 
 // Previews the Phase-4 content-validation CI test: every registered lesson
 // must zod-parse. Broken content fails this test (and, in Phase 4, CI).
@@ -116,5 +120,33 @@ describe('communicationMistakes content', () => {
       [6, 9, 6, 4, 7, 3, 2, 3, 1, 3, 4, 6, 5],
     );
     expect(p.sections.reduce((n, s) => n + s.screens.length, 0)).toBe(59);
+  });
+});
+
+describe('flow lessons 1-4', () => {
+  // Flow lessons are single-section, linear, and DO NOT persist progress —
+  // storageKey must be absent so the controller skips the progress write.
+  const cases: Array<[string, ReturnType<typeof parseLesson> extends never ? never : any, number]> = [
+    ['lesson1', lesson1, 16],
+    ['lesson2', lesson2, 17],
+    ['lesson3', lesson3, 20],
+    ['lesson4', lesson4, 19],
+  ];
+  for (const [slug, raw, screens] of cases) {
+    it(`${slug}: single section, no storageKey, ${screens} screens`, () => {
+      const p = parseLesson(raw);
+      expect(p.storageKey).toBeUndefined();
+      expect(p.sections).toHaveLength(1);
+      expect(p.sections[0].id).toBe('1');
+      expect(p.sections[0].screens.length).toBe(screens);
+    });
+  }
+
+  it('preserves the multi-select quizzes as multiSelectQuiz blocks', () => {
+    const types = [lesson3, lesson4].flatMap((l) =>
+      parseLesson(l).sections.flatMap((s) => s.screens.flatMap((sc) =>
+        sc.kind === 'content' ? sc.blocks.map((b) => b.type) : [])));
+    // Lesson3 has 1 multiSelectQuiz, Lesson4 has 3.
+    expect(types.filter((t) => t === 'multiSelectQuiz')).toHaveLength(4);
   });
 });

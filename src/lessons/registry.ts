@@ -6,6 +6,10 @@
 // commit per lesson), its content module is registered here.
 
 import type { Lesson } from './schema';
+import { lesson1 } from './content/lesson1';
+import { lesson2 } from './content/lesson2';
+import { lesson3 } from './content/lesson3';
+import { lesson4 } from './content/lesson4';
 import { sprinklers } from './content/sprinklers';
 import { recordingDeepBondMoments } from './content/recordingDeepBondMoments';
 import { emotionalSandbags } from './content/emotionalSandbags';
@@ -17,6 +21,10 @@ import { labelingEmotions } from './content/labelingEmotions';
 import { communicationMistakes } from './content/communicationMistakes';
 
 export const LESSON_REGISTRY: Record<string, Lesson> = {
+  lesson1,
+  lesson2,
+  lesson3,
+  lesson4,
   sprinklers,
   recordingDeepBondMoments,
   emotionalSandbags,
