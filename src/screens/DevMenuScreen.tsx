@@ -92,6 +92,21 @@ export const DevMenuScreen: React.FC = () => {
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate('LessonPreview', { slug: 'recordingDeepBondMoments' })}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: '#E8F2F1' }]}>
+              <Ionicons name="flask-outline" size={32} color={Colors.primary} />
+            </View>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>Preview: Recording Moments (data engine)</Text>
+              <Text style={styles.buttonDescription}>2nd data-driven lesson — proves the engine generalizes</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.variantSection}>

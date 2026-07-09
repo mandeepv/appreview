@@ -21,6 +21,11 @@ const HUB_META: Record<string, LessonHubMeta> = {
     description:
       'This lesson will teach you how to build deep bonds with loved ones by recognizing "sprinklers".',
   },
+  recordingDeepBondMoments: {
+    emoji: '📸',
+    label: 'WELLNESS',
+    description: 'Rethinking how we capture meaningful moments',
+  },
 };
 
 type View =
