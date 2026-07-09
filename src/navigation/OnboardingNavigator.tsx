@@ -20,34 +20,13 @@ import { AuthScreen } from '../screens/onboarding/AuthScreen';
 import { LoadingScreen } from '../screens/onboarding/LoadingScreen';
 import PremiumUnlockedScreen from '../screens/PremiumUnlockedScreen';
 import { RootNavigator } from './RootNavigator';
+import type { OnboardingStackParamList } from './types';
 
-export type OnboardingStackParamList = {
-  DevMenu: undefined;
-  Splash: undefined;
-  Welcome: undefined;
-  UserType: undefined;
-  NameAge: undefined;
-  ChildrenCount: undefined;
-  ChildrenGender: undefined;
-  ChildrenAge: undefined;
-  ImprovementGoals: undefined;
-  Educational: undefined;
-  PartnerInvolvement: undefined;
-  GoalSelection: undefined;
-  ExperienceLevel: undefined;
-  ParentingStyles: undefined;
-  EmotionalChallenges: undefined;
-  // Auth screen is entered either from onboarding (mode='signup', default) or
-  // from Welcome via the "I already have an account" tap (mode='signin').
-  // The two modes share the same auth code path — the only differences are
-  // copy and post-signin routing. If the user has completed onboarding,
-  // AuthScreen routes to Root regardless of mode; if not, it routes to
-  // Loading (mode='signup') or UserType (mode='signin').
-  Auth: { mode?: 'signin' | 'signup' } | undefined;
-  Loading: undefined;
-  PremiumUnlocked: undefined;
-  Root: undefined;
-};
+// DEPRECATED transitional shim (SPEC-08). The ParamList now lives in
+// navigation/types.ts (the single composition home) — import it from there in
+// new code. This re-export only keeps existing importers compiling; it dies
+// with the SPEC-09 screen-deletion dead-code pass (plan 5.5).
+export type { OnboardingStackParamList };
 
 const Stack = createNativeStackNavigator<OnboardingStackParamList>();
 

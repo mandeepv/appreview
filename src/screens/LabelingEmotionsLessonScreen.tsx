@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { RootStackParamList, LessonStackParamList } from '../navigation/types';
+import { lessonFlowParams } from '../navigation/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +16,8 @@ interface SubLesson {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  startScreen: any;
+  // SPEC-08 R5: was `any`; narrowed to a real lesson route (same runtime values).
+  startScreen: keyof LessonStackParamList;
 }
 
 const subLessons: SubLesson[] = [
@@ -85,7 +87,7 @@ export default function LabelingEmotionsLessonScreen() {
 
   const handleSectionPress = (lesson: SubLesson) => {
     gateToLesson(`labeling_${lesson.id}`, () => {
-      navigation.navigate('LessonFlow', { screen: lesson.startScreen });
+      navigation.navigate('LessonFlow', lessonFlowParams(lesson.startScreen));
     });
   };
 
@@ -102,7 +104,7 @@ export default function LabelingEmotionsLessonScreen() {
   useEffect(() => {
     if (allCompleted) {
       gateToLesson('labeling_complete', () => {
-        navigation.navigate('LessonFlow', { screen: 'Lesson5Complete' });
+        navigation.navigate('LessonFlow', lessonFlowParams('Lesson5Complete'));
       });
     }
   }, [allCompleted, navigation, gateToLesson]);
