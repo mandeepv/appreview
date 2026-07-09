@@ -8,6 +8,7 @@ import { dissociation } from '../content/dissociation';
 import { namingEmotions } from '../content/namingEmotions';
 import { serveReturn } from '../content/serveReturn';
 import { labelingEmotions } from '../content/labelingEmotions';
+import { communicationMistakes } from '../content/communicationMistakes';
 
 // Previews the Phase-4 content-validation CI test: every registered lesson
 // must zod-parse. Broken content fails this test (and, in Phase 4, CI).
@@ -101,5 +102,19 @@ describe('labelingEmotions content', () => {
     expect(p.storageKey).toBe('@lesson5_completed_sections');
     expect(p.sections.map((s) => s.id)).toEqual(['1', '2', '3', '4']);
     expect(p.sections.map((s) => s.screens.length)).toEqual([7, 4, 8, 4]);
+  });
+});
+
+describe('communicationMistakes content', () => {
+  it('has the exact storage key and 13 sections summing to 59 screens', () => {
+    const p = parseLesson(communicationMistakes);
+    expect(p.storageKey).toBe('@communication_mistakes_completed_sections');
+    expect(p.sections.map((s) => s.id)).toEqual(
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'],
+    );
+    expect(p.sections.map((s) => s.screens.length)).toEqual(
+      [6, 9, 6, 4, 7, 3, 2, 3, 1, 3, 4, 6, 5],
+    );
+    expect(p.sections.reduce((n, s) => n + s.screens.length, 0)).toBe(59);
   });
 });
