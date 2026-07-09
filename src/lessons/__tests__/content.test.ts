@@ -5,6 +5,7 @@ import { recordingDeepBondMoments } from '../content/recordingDeepBondMoments';
 import { emotionalSandbags } from '../content/emotionalSandbags';
 import { helpingProcessEmotions } from '../content/helpingProcessEmotions';
 import { dissociation } from '../content/dissociation';
+import { namingEmotions } from '../content/namingEmotions';
 
 // Previews the Phase-4 content-validation CI test: every registered lesson
 // must zod-parse. Broken content fails this test (and, in Phase 4, CI).
@@ -60,5 +61,25 @@ describe('dissociation content', () => {
     expect(p.storageKey).toBe('@dissociation_completed_sections');
     expect(p.sections.map((s) => s.id)).toEqual(['1', '2', '3', '4']);
     expect(p.sections.map((s) => s.screens.length)).toEqual([7, 6, 9, 3]);
+  });
+});
+
+describe('namingEmotions content', () => {
+  it('maps 4 sublessons to sections ids 1..4, 6 screens each', () => {
+    const p = parseLesson(namingEmotions);
+    // Sublesson ids '1'..'4' MUST equal what markSubLessonComplete stores, so
+    // existing progress in @naming_emotions_completed_sublessons survives.
+    expect(p.storageKey).toBe('@naming_emotions_completed_sublessons');
+    expect(p.sections.map((s) => s.id)).toEqual(['1', '2', '3', '4']);
+    expect(p.sections.map((s) => s.screens.length)).toEqual([6, 6, 6, 6]);
+  });
+
+  it('preserves the interactive input blocks (not flattened to text)', () => {
+    const p = parseLesson(namingEmotions);
+    const types = p.sections.flatMap((s) => s.screens.flatMap((sc) =>
+      sc.kind === 'content' ? sc.blocks.map((b) => b.type) : []));
+    // Screen 2 of each sublesson = textInput (4); Screens 4 & 5 = emotionPicker (8).
+    expect(types.filter((t) => t === 'textInput')).toHaveLength(4);
+    expect(types.filter((t) => t === 'emotionPicker')).toHaveLength(8);
   });
 });

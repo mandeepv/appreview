@@ -130,6 +130,11 @@ const CardListBlock = z.object({
         subtitle: z.string().optional(),
         // One-off card background colour (e.g. the coloured phase cards).
         color: z.string().optional(),
+        // One-off chip border + text colour (the per-sublesson coloured
+        // emotion chips in Naming-our-Emotions §3 — HAPPY amber, SAD blue,
+        // etc.). Optional; chips without these use the default pink chip.
+        borderColor: z.string().optional(),
+        textColor: z.string().optional(),
       }),
     )
     .min(1),
@@ -155,6 +160,46 @@ const PillBlock = z.object({
   text: z.string(),
 });
 
+// A free-text reflective journaling field: a bold headline + a multiline
+// TextInput. The user's text is EPHEMERAL — it is not persisted, not gated,
+// and discarded on completion (matches the hand-built Naming-our-Emotions
+// screens, which hold it in local useState only). When `required` is true the
+// screen's Next button is disabled until the field is non-blank (source uses
+// `disabled={value.trim().length === 0}`). Phase-3 addition (SPEC-09 fidelity:
+// the journaling lesson is genuinely interactive, not passive content).
+const TextInputBlock = z.object({
+  type: z.literal('textInput'),
+  headline: z.string(),
+  // Optional muted helper line under the headline.
+  helper: z.string().optional(),
+  placeholder: z.string(),
+  // Whether Next is gated on this field being non-blank. Defaults to true —
+  // every journaling field in the source disables Next until filled.
+  required: z.boolean().default(true),
+  // Approx. box height. Source uses 140 for the sole-field screens, 100 for
+  // the "why did you feel…" follow-up. Defaults to the common 140.
+  minHeight: z.number().default(140),
+});
+
+// The emotion-picker screen: a picker button that opens the shared
+// EmotionPicker modal, and a CONDITIONAL "Why did you feel {emotion}?" text
+// area that appears only after an emotion is chosen. Next is disabled until an
+// emotion is selected AND the why field is non-blank. Reuses the existing
+// EmotionPicker component verbatim (no per-lesson emotion data — the picker's
+// vocabulary is global). Ephemeral state, like textInput. Phase-3 addition.
+const EmotionPickerBlock = z.object({
+  type: z.literal('emotionPicker'),
+  headline: z.string(),
+  helper: z.string().optional(),
+  // Placeholder shown in the picker button before a selection ("Select an
+  // emotion").
+  buttonPlaceholder: z.string().default('Select an emotion'),
+  // The follow-up prompt. `{emotion}` is replaced with the chosen emotion,
+  // lowercased, matching the source's `Why did you feel {emotion.toLowerCase()}?`.
+  whyLabel: z.string(),
+  whyPlaceholder: z.string(),
+});
+
 // Maps 1:1 to the existing QuizQuestion component — no new UI.
 const QuizBlock = z.object({
   type: z.literal('quiz'),
@@ -177,6 +222,8 @@ export const BlockSchema = z.discriminatedUnion('type', [
   CardListBlock,
   InteractiveQuizBlock,
   PillBlock,
+  TextInputBlock,
+  EmotionPickerBlock,
   QuizBlock,
 ]);
 export type Block = z.infer<typeof BlockSchema>;
