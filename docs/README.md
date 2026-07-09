@@ -65,8 +65,7 @@ Everything process-related lives in this folder. If you're looking for how to do
 - `LESSON_EXTRACTION_SUMMARY.md` — historical snapshot of the lesson-extraction work
 - `scripts/` — ops scripts (`bump-version.sh`, `backup-prod.sh`, `db-push-prod.sh`, `convert_svg.js`, `extract_lessons.py`, `generate_apple_jwt.js`)
 
-_(Note: `lessons_content.md` was moved to `docs/archive/` and `CODING_COMPLETE.md` was deleted during the SPEC-07 hygiene sweep — they're no longer at the repo root.)_
-- `posthog-setup-report.md` — PostHog wizard's setup summary
+_(Note: `lessons_content.md` was moved to `docs/archive/`, and `CODING_COMPLETE.md` + `posthog-setup-report.md` were deleted during the SPEC-07 hygiene sweep — they're no longer at the repo root.)_
 
 ## Adding new docs
 

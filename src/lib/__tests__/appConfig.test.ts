@@ -5,7 +5,17 @@
 
 const appMock = { nativeBuildVersion: '10' as string | null };
 
-jest.mock('expo-application', () => appMock);
+// Expose nativeBuildVersion via a GETTER so `Application.nativeBuildVersion`
+// re-reads the current value on every access. A plain property gets snapshot
+// at first import under jest's `import *` interop, which silently made the
+// per-test `appMock.nativeBuildVersion = ...` mutations invisible to the module
+// under test (older assertions passed vacuously against the initial '10').
+// SPEC-FIX-01 R4.1.
+jest.mock('expo-application', () => ({
+  get nativeBuildVersion() {
+    return appMock.nativeBuildVersion;
+  },
+}));
 
 // appConfig.ts imports the supabase client (for fetchAppConfig, which we don't
 // test here). Stub it so we don't drag in AsyncStorage / native modules.
@@ -52,18 +62,17 @@ describe('isBelowMinimumBuild', () => {
     expect(isBelowMinimumBuild(cfg(-5))).toBe(false);
   });
 
-  it('non-numeric current build ("1.1.0") must NOT trigger force-update', () => {
-    // parseInt('1.1.0') === 1, but getCurrentBuildNumber only accepts a clean
-    // integer parse... actually parseInt('1.1.0',10) === 1, so guard against
-    // that: even though 1 < minimum, the "0/parse-failure" refusal only fires
-    // for a true 0. So the real protection here is that a dotted build string
-    // parses to a low integer — we assert it does NOT force-update against a
-    // sane minimum, i.e. the build tooling (SPEC-02 R3) rejects dotted builds
-    // upstream and here we confirm a "1.1.0"-derived build isn't force-updated
-    // by a below-cap minimum that a legit integer build would pass.
-    appMock.nativeBuildVersion = '1.1.0'; // parseInt → 1
-    // With a minimum of 1, current(1) < min(1) is false → no force update.
-    expect(isBelowMinimumBuild(cfg(1))).toBe(false);
+  it('dotted build ("1.1.0") does NOT force-update against a real minimum (SPEC-FIX-01 R4.1)', () => {
+    // The case that ACTUALLY fails without the R4.1 fix: a minimum in the
+    // sane 2–40 range. Old code: parseInt('1.1.0') === 1, and 1 < 39 → would
+    // force-update (wrong — a malformed build string shouldn't be treated as a
+    // low integer). Fixed code: getCurrentBuildNumber rejects the non-integer
+    // and returns 0, so isBelowMinimumBuild refuses (build 0 never
+    // force-updates). This is the meaningful assertion — the previous version
+    // used minimum 1, where 1 < 1 is false anyway, so it passed even WITH the
+    // bug (vacuous).
+    appMock.nativeBuildVersion = '1.1.0';
+    expect(isBelowMinimumBuild(cfg(39))).toBe(false);
   });
 
   it('current build parses to 0 (parse failure) → refuses to force-update', () => {
