@@ -86,8 +86,15 @@ export default function LabelingEmotionsLessonScreen() {
   };
 
   const handleSectionPress = (lesson: SubLesson) => {
+    // SPEC-09 Phase 3: launch the generic data-driven lesson at this section
+    // (id '1'..'4' → sectionIndex 0..3). Gate + return-to-hub unchanged.
     gateToLesson(`labeling_${lesson.id}`, () => {
-      navigation.navigate('LessonFlow', lessonFlowParams(lesson.startScreen));
+      navigation.navigate('LessonScreen', {
+        lessonId: 'labelingEmotions',
+        sectionIndex: Number(lesson.id) - 1,
+        screenIndex: 0,
+        returnTo: 'LabelingEmotionsLesson',
+      });
     });
   };
 

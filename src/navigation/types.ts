@@ -376,6 +376,16 @@ export type LessonStackParamList = {
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   LessonFlow: NavigatorScreenParams<LessonStackParamList> | undefined;
+  // SPEC-09 Phase 3 — the generic data-driven lesson route. One screen renders
+  // every lesson via the registry + LessonController. `returnTo` is the route
+  // to return to on section-complete (the lesson's hub, or 'MainTabs' for flow
+  // lessons launched from the Learn tab).
+  LessonScreen: {
+    lessonId: string;
+    sectionIndex: number;
+    screenIndex: number;
+    returnTo?: keyof RootStackParamList;
+  };
   LabelingEmotionsLesson: undefined;
   NamingOurEmotionsLesson: undefined;
   SprinklersLesson: undefined;

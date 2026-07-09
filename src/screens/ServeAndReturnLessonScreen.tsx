@@ -91,8 +91,15 @@ export default function ServeAndReturnLessonScreen() {
 
   const handleSubLessonPress = (subLesson: SubLesson) => {
     if (!subLesson.startScreen) return;
+    // SPEC-09 Phase 3: launch the generic data-driven lesson at this section
+    // (id '1'..'6' → sectionIndex 0..5). Gate + return-to-hub unchanged.
     gateToLesson(`serveandreturn_${subLesson.id}`, () => {
-      navigation.navigate('LessonFlow', lessonFlowParams(subLesson.startScreen));
+      navigation.navigate('LessonScreen', {
+        lessonId: 'serveReturn',
+        sectionIndex: Number(subLesson.id) - 1,
+        screenIndex: 0,
+        returnTo: 'ServeAndReturnLesson',
+      });
     });
   };
 

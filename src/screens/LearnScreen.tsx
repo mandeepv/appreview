@@ -155,8 +155,15 @@ export default function LearnScreen() {
       const target = LESSON_NAV[moduleId];
       if (!target) return;
       posthog.capture('lesson_started', props);
-      if (target.kind === 'flow') {
-        navigation.navigate('LessonFlow', { screen: target.screen });
+      if (target.kind === 'data') {
+        // Flow lessons (1-4): launch the generic data-driven lesson directly.
+        // Single section, first screen; return to MainTabs on completion.
+        navigation.navigate('LessonScreen', {
+          lessonId: target.lessonId,
+          sectionIndex: 0,
+          screenIndex: 0,
+          returnTo: 'MainTabs',
+        });
       } else {
         navigation.navigate(target.name);
       }
