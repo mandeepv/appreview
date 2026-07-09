@@ -2,6 +2,7 @@ import { parseLesson } from '../schema';
 import { LESSON_REGISTRY } from '../registry';
 import { sprinklers } from '../content/sprinklers';
 import { recordingDeepBondMoments } from '../content/recordingDeepBondMoments';
+import { emotionalSandbags } from '../content/emotionalSandbags';
 
 // Previews the Phase-4 content-validation CI test: every registered lesson
 // must zod-parse. Broken content fails this test (and, in Phase 4, CI).
@@ -29,5 +30,15 @@ describe('recordingDeepBondMoments content', () => {
     expect(p.storageKey).toBe('@recording_deep_bond_moments_completed_sections');
     expect(p.sections.map((s) => s.id)).toEqual(['1']);
     expect(p.sections[0].screens.length).toBe(6);
+  });
+});
+
+describe('emotionalSandbags content', () => {
+  it('has the exact storage key and 6 sections summing to 47 screens', () => {
+    const p = parseLesson(emotionalSandbags);
+    expect(p.storageKey).toBe('@emotional_sandbags_completed_sections');
+    expect(p.sections.map((s) => s.id)).toEqual(['1', '2', '3', '4', '5', '6']);
+    expect(p.sections.map((s) => s.screens.length)).toEqual([3, 10, 10, 8, 10, 6]);
+    expect(p.sections.reduce((n, s) => n + s.screens.length, 0)).toBe(47);
   });
 });
