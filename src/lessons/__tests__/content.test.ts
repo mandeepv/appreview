@@ -6,6 +6,7 @@ import { emotionalSandbags } from '../content/emotionalSandbags';
 import { helpingProcessEmotions } from '../content/helpingProcessEmotions';
 import { dissociation } from '../content/dissociation';
 import { namingEmotions } from '../content/namingEmotions';
+import { serveReturn } from '../content/serveReturn';
 
 // Previews the Phase-4 content-validation CI test: every registered lesson
 // must zod-parse. Broken content fails this test (and, in Phase 4, CI).
@@ -81,5 +82,14 @@ describe('namingEmotions content', () => {
     // Screen 2 of each sublesson = textInput (4); Screens 4 & 5 = emotionPicker (8).
     expect(types.filter((t) => t === 'textInput')).toHaveLength(4);
     expect(types.filter((t) => t === 'emotionPicker')).toHaveLength(8);
+  });
+});
+
+describe('serveReturn content', () => {
+  it('has the exact storage key and 6 sections summing to 22 screens', () => {
+    const p = parseLesson(serveReturn);
+    expect(p.storageKey).toBe('@serve_return_completed_sections');
+    expect(p.sections.map((s) => s.id)).toEqual(['1', '2', '3', '4', '5', '6']);
+    expect(p.sections.map((s) => s.screens.length)).toEqual([4, 4, 5, 3, 3, 3]);
   });
 });
