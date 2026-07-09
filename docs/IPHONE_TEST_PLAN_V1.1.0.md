@@ -2,12 +2,12 @@
 
 **Purpose:** end-to-end verification of every meaningful change we've made this weekend before merging `setup/dev-environment` to `main`. If ANY test fails, we fix and re-verify before the merge.
 
-**Device:** iPhone XR (Apple ID: `kinderwelltry1@gmail.com`)
-**Build:** dev IPA from `eas build --profile development --platform ios` (bundle: `com.kinderwell.app.dev`, name: "Kinderwell Dev")
+**Device:** iPhone XR (a dedicated tester Apple ID)
+**Build:** dev IPA from `eas build --profile preview --platform ios` (bundle: `com.kinderwell.app`, name: "Kinderwell Dev"). Section 0.0 explains why `preview` (not `development`) is the profile that installs on a real device. The dev/preview build shows the "Kinderwell Dev" display name via `APP_DISPLAY_NAME`, but the bundle ID is the single `com.kinderwell.app` — the earlier `com.kinderwell.app.dev` split was reverted (app.config.js: single bundle across all profiles).
 **Backend:** dev Supabase (`xbkkjqvbsnroenqlqkmi`)
 **Prerequisites:**
-- ✅ TestFlight installed and signed in with `kinderwelltry1@gmail.com`
-- ✅ Sandbox Apple ID `sandeepv98@gmail.com` created in App Store Connect
+- ✅ TestFlight installed and signed in with the tester Apple ID
+- ✅ Sandbox Apple ID (managed in App Store Connect) created in App Store Connect
 - ✅ Mac connected to same wifi as iPhone (for Metro logs)
 - ✅ `npx expo start` running on Mac
 
@@ -38,7 +38,7 @@ Watch for the `🍏 Open this link on your iOS devices` block at the end of the 
 - [ ] Tap **Install** on the Expo build page
 - [ ] iOS may prompt "Untrusted Enterprise Developer" on first launch → Settings → General → VPN & Device Management → trust the profile
 - [ ] App icon shows as **"Kinderwell Dev"** (not "Kinderwell") on home screen — this is `APP_DISPLAY_NAME` from the dev/preview profile env vars
-- [ ] If prod v1.0.0 is also installed: they appear as TWO separate icons (proves bundle ID split works)
+- [ ] Single-bundle check: because dev/preview and prod now share the **same** bundle ID (`com.kinderwell.app`), installing the dev build **replaces** the store app rather than appearing as a second icon. Confirm there is exactly ONE Kinderwell icon after install (the `.dev` bundle-split that used to produce two icons was reverted — see app.config.js "Bundle ID collapse").
 - [ ] Launch the dev app — no crash, no "REFUSING to connect" alert (the structural guards would fire if bundle-ID / project-ref drift ever regresses)
 
 **If fail:** bundle ID split broken → managed workflow migration issue
@@ -728,7 +728,7 @@ If Section 12 fails on anything → do NOT proceed to RELEASE_CHECKLIST. Fix, re
 ## Post-verification tasks (if all green)
 
 - [ ] Merge PR `setup/dev-environment` → `main`
-- [ ] Move `docs/DEV_SETUP_LOG_2026-07-01.md` to `docs/archive/` (its Saturday verification is done)
+- [x] Move `docs/DEV_SETUP_LOG_2026-07-01.md` to `docs/archive/` (done 2026-07-09 — SPEC-10 doc-drift pass)
 - [ ] Keep `appreview` public repo mirrored (used for external reviews — do NOT delete)
 - [ ] Move `docs/IPHONE_TEST_PLAN_V1.1.0.md` to `docs/archive/` ONLY after v1.1.0 has actually shipped (App Store live). Before then it's still the active plan.
 - [ ] Following `RELEASE_CHECKLIST.md` from Phase 3 onwards is the next step — bump build number, EAS prod build, TestFlight, mandatory UPGRADE test (Phase 8.3), 4 external actions (Superwall dashboard, prod migration, App Privacy questionnaire, submit for review).

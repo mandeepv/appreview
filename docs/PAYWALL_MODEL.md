@@ -141,9 +141,21 @@ without touching what v1.0.0 sees.
 
 **When to retire `show_paywall`:** monitor App Store Connect →
 Analytics → app version breakdown. Once v1.0.0 installations drop to
-a negligible share (say <1% for 30 days), safe to delete. Also
-consider the kill-switch route: bump `min_supported_ios_build` in
-`app_config` to force v1.0.0 users to upgrade before deletion.
+a negligible share (say <1% for 30 days), safe to delete.
+
+**The kill switch CANNOT force v1.0.0 users off `show_paywall`.** A
+tempting shortcut would be to bump `min_supported_ios_build` in
+`app_config` to force v1.0.0 users to upgrade. That does NOT work: the
+kill switch is implemented in `src/lib/appConfig.ts`, which **did not
+exist in the v1.0.0 binary** (verify: `git show
+appstore-live-v1.0.0:src/lib/appConfig.ts` returns nothing). A v1.0.0
+client never fetches `app_config` and never shows the force-update
+modal, so bumping the minimum is invisible to it. Implication:
+`show_paywall` must stay configured in the Superwall dashboard until the
+v1.0.0 cohort naturally drops off (App Store analytics) — you cannot
+force them out early. This is load-bearing invariant #4 (defense in
+depth): removing `show_paywall` while real v1.0.0 clients still call it
+would break their paywall.
 
 ### ⚠️ `onSkip` cannot tell "entitled" from "dashboard misconfig"
 

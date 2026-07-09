@@ -198,8 +198,8 @@ simplification that becomes possible once the field is required.
 
 **Problem**: PostHog dashboards have a "Filter out internal and
 test users" toggle that currently filters nothing — no test users
-are tagged as internal. Every test session (mandeepv98@gmail.com,
-sandbox testers, TestFlight users) currently pollutes prod
+are tagged as internal. Every test session (the owner's test
+account, sandbox testers, TestFlight users) currently pollutes prod
 funnels once we ship. Blast radius is small (dev events are already
 tagged `environment: dev` so filtering by that gives clean prod
 funnels), but it's annoying whenever anyone opens PostHog and

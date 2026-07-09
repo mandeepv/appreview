@@ -8,6 +8,14 @@
 - [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) — where the 3 version files live
 - [`BEST_PRACTICES.md`](./BEST_PRACTICES.md) — ongoing gap tracking
 
+> **📌 Standing rule — this checklist is version-agnostic.** Steps that are
+> specific to ONE release (e.g. "for v1.1.0, redeploy delete-account because
+> its CORS changed") are one-time carrying instructions, not permanent steps.
+> **Delete a release-specific block once that version has shipped**, so the
+> next release doesn't inherit stale, confusing instructions. If a step names
+> a specific version number or a specific commit, it's a candidate for removal
+> after that version is live.
+
 ---
 
 ## 🚨 Submission blockers — do not skip
@@ -106,7 +114,7 @@ If you see `Internal Server Error from Apple's App Store Connect / Developer Por
 - [ ] **Full flow smoke test on dev — Apple + Google both:**
   - Fresh sign-up → onboarding → paywall → sandbox purchase → complete a lesson → log out → log back in
 - [ ] **Delete account flow works** (tests Edge Function)
-- [ ] **Kill switch works on dev:** temporarily set `min_supported_ios_build` to 9999 in dev, launch dev app, verify force-update modal appears; reset to `0` after
+- [ ] **Kill switch works on dev:** temporarily set `min_supported_ios_build` to `39` in dev, launch dev app, verify force-update modal appears; reset to `0` after. (Do NOT use `9999` — `isBelowMinimumBuild` in `src/lib/appConfig.ts` ignores any minimum above the `MIN_SUPPORTED_BUILD_CAP` of `40`, a sanity cap that prevents a typo'd DB value from bricking the whole fleet with an undismissable modal. A value >40 is silently ignored, so `9999` would NOT trigger the modal. Use a value in `1..40` that exceeds the current dev build number — `39` is safely above today's build and under the cap.)
 - [ ] **Analytics events show up** in PostHog dashboard for the flows you tested
 - [ ] **Section 12 of `IPHONE_TEST_PLAN_V1.1.0.md` all passes** — this is the post-Fable-review regression addendum and must go green before promoting to production build.
 
@@ -162,15 +170,17 @@ stale.
 
 - [ ] Query prod for the tables/columns you're about to modify.
       Confirm nothing surprising exists.
-- [ ] For v1.1.0 specifically: `app_config` table should NOT exist
-      on prod yet. Verify with a REST query:
+- [ ] Sanity-check that expected tables exist on prod (adjust the table
+      name to whatever this release touches). Example for `app_config`:
   ```bash
-  curl -s -o /dev/null -w "%{http_code}\n" \
+  curl -s -w "\n%{http_code}\n" \
     "https://zqwzdyjfxytvedghujsd.supabase.co/rest/v1/app_config?select=*&limit=1" \
     -H "apikey: $PROD_ANON_KEY" -H "Authorization: Bearer $PROD_ANON_KEY"
   ```
-  Expect `404` (table doesn't exist). If you get `200`, the table
-  already exists — investigate before proceeding.
+  `app_config` shipped to prod with v1.1.0, so **expect `200` and a row**
+  now — NOT the old `404`. That `404` expectation was for the pre-v1.1.0
+  state, before the table existed. A `404` here would mean the migration
+  never landed; investigate before proceeding.
 
 - [ ] **⚠️ Backup reality check.** As of 2026-07-04, prod has NO automated backups (Free tier). If this migration breaks something in a way we can't roll forward, there is no recovery. Review the SQL one more time; make sure `--dry-run` output matches expectations exactly. See `BEST_PRACTICES.md` item #2 for the deferred-fix options.
 - [ ] Confirm every SQL file in `supabase/migrations/` that's new since last release is backward-compatible (see [`DEV_PROD_ENVIRONMENTS.md`](./DEV_PROD_ENVIRONMENTS.md) → "Schema migrations — backward compatibility"). If it's a breaking change → STOP, refactor to expand-only.
@@ -207,13 +217,20 @@ stale.
   ```
 - [ ] **Re-test the affected feature from the app** after deploy. For `delete-account` specifically, sign in on the shipped iOS build, tap Settings → Delete Account, verify: single confirmation, subscription warning, success alert, session cleared, no 401. If you get a 401, the refresh + Edge Function chain broke — do NOT ship until fixed.
 
-### v1.1.0 specifics — Edge Function changes this branch
+### If an Edge Function changed this release (generic)
 
-For the v1.1.0 release, the `delete-account` function changed on this branch (CORS tightening — commit `5510406`). Additional carrying instructions from the Fable re-review 2026-07-05:
+Whenever an Edge Function's code changed on the release branch, its prod
+redeploy is a **submission blocker** — skipping it means the app calls the old
+prod function code and behavior diverges from what was tested.
 
-- [ ] Before the deploy, remove the `Access-Control-Allow-Origin` header entirely from `supabase/functions/delete-account/index.ts`. The `null` value shipped by the previous fix is not a lockdown — the literal string `null` is a real origin browsers will send. Native fetch (what our app uses) ignores CORS entirely, so removing the header has zero app impact and closes the browser-side hygiene gap.
-- [ ] Verify locally that `deno check supabase/functions/delete-account/index.ts` (or `supabase functions serve` invocation) still passes before deploying.
-- [ ] The Edge Function redeploy is a **submission blocker** for v1.1.0 (see the callout at the top of this doc).
+- [ ] `deno check` (or `supabase functions serve`) the changed function passes locally before deploying.
+- [ ] Redeploy it to prod during Phase 5 and re-test the affected feature from the shipped build.
+
+_(Per the standing rule at the top: any release-specific carrying instructions
+for a particular version's Edge Function change — e.g. the v1.1.0
+`delete-account` CORS tightening, commits `5510406` / SPEC-03 — belong in that
+release's PR, and are deleted from this checklist once that version ships. The
+v1.1.0 CORS work has shipped; its one-time steps were removed here.)_
 
 ---
 
@@ -344,8 +361,8 @@ overhead only.
 
 ### 8.1 TestFlight install available
 
-- [ ] Confirm build shows up in App Store Connect → Kinderwell → TestFlight → Internal Testing → **Homies** group (has 3 testers: `mandeepv98@gmail.com`, `kinderwelltry1@gmail.com`, `jacobf1607@gmail.com`)
-- [ ] Sandbox Apple ID signed in on the test iPhone (`sandeepv98@gmail.com`) so real IAP is exercised, not real money
+- [ ] Confirm build shows up in App Store Connect → Kinderwell → TestFlight → Internal Testing → **Homies** group (the internal tester group). Tester Apple IDs are managed in App Store Connect, not listed here.
+- [ ] Sandbox Apple ID signed in on the test iPhone so real IAP is exercised, not real money (the sandbox tester account lives in App Store Connect → Users and Access → Sandbox)
 
 ### 8.2 Fresh-install smoke test (do this second)
 
@@ -450,7 +467,7 @@ Homies briefing (send this to the 3 testers **before** they install):
 >
 > 1. **The paywall has no close button in this build.** If you see the paywall and don't want to subscribe (with a sandbox Apple ID or otherwise), **force-quit the app and reopen** — you'll land on the LearnScreen, not stuck in a loop. This is a known issue being fixed before external beta.
 > 2. **You will be running against production Supabase.** Please DO NOT run through onboarding with real test data multiple times — every fresh sign-in creates a real prod user record. If you complete a flow and want to re-test, use Settings → Delete Account first.
-> 3. **Sandbox payments:** if you want to test subscription flows, you'll need to be signed into a Sandbox Apple ID. **On iOS 18, the classic `Settings → App Store → Sandbox Account` path is gone** — it moved to `Settings → Apps → App Store → Sandbox Account` (nested under Apps). Easier alternative: tap Buy on any paywall option and iOS will prompt for sandbox sign-in inline. Use `sandeepv98@gmail.com` for both. See `docs/STOREKIT_SETUP_GUIDE.md` "Sandbox Apple ID" section for the full walkthrough and how to reset the password. Sandbox subs auto-renew every 5 minutes so we can verify renewal behavior quickly.
+> 3. **Sandbox payments:** if you want to test subscription flows, you'll need to be signed into a Sandbox Apple ID. **On iOS 18, the classic `Settings → App Store → Sandbox Account` path is gone** — it moved to `Settings → Apps → App Store → Sandbox Account` (nested under Apps). Easier alternative: tap Buy on any paywall option and iOS will prompt for sandbox sign-in inline. Use the project's sandbox tester Apple ID (in App Store Connect → Users and Access → Sandbox) for both. See `docs/STOREKIT_SETUP_GUIDE.md` "Sandbox Apple ID" section for the full walkthrough and how to reset the password. Sandbox subs auto-renew every 5 minutes so we can verify renewal behavior quickly.
 > 4. **7-tap demo mode:** on the "Save your progress" auth screen, tap the title 7 times quickly to unlock all premium content without a purchase. This is the reviewer-testing path — please only use it if you want to skip the paywall entirely for testing.
 > 5. **Please report:** any crash, any confusing screen, any behavior that "feels wrong." Even small things. TestFlight has a "Send Beta Feedback" button, or email kinderwellteam@gmail.com.
 
