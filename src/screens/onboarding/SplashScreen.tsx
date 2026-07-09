@@ -3,7 +3,7 @@ import { View, StyleSheet, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
+import type { OnboardingStackParamList } from '../../navigation/types';
 import { Heading1, Subtitle } from '../../components/Typography';
 import { Colors, Spacing, Animation } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
@@ -83,7 +83,16 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
             await loadState(); // Load their saved answers
             trackOnboardingStarted('resumed', lastScreen);
             try {
-              navigation.replace(lastScreen as any);
+              // SPEC-08 FLAG: `lastScreen` is a persisted string from
+              // AsyncStorage (getLastScreen(): Promise<string | null>), so it
+              // is NOT type-guaranteed to be a real onboarding route — a stale
+              // or renamed key could be anything. We narrow to the ParamList
+              // key type for the call, but keep the existing try/catch that
+              // falls back to 'Welcome' if replace() throws on an unknown
+              // route. This is a runtime string → route-name boundary; the
+              // cast is the honest type for "we can't prove this at compile
+              // time." Not a lazy `as any` — it's `keyof` + a runtime guard.
+              navigation.replace(lastScreen as keyof OnboardingStackParamList);
             } catch {
               navigation.replace('Welcome');
             }

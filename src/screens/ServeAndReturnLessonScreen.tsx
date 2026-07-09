@@ -2,7 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { RootStackParamList, LessonStackParamList } from '../navigation/types';
+import { lessonFlowParams } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { getCompletedSections } from '../utils/serveReturnProgress';
@@ -14,7 +15,7 @@ interface SubLesson {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  startScreen?: string;
+  startScreen: keyof LessonStackParamList;
 }
 
 export default function ServeAndReturnLessonScreen() {
@@ -91,7 +92,7 @@ export default function ServeAndReturnLessonScreen() {
   const handleSubLessonPress = (subLesson: SubLesson) => {
     if (!subLesson.startScreen) return;
     gateToLesson(`serveandreturn_${subLesson.id}`, () => {
-      navigation.navigate('LessonFlow' as any, { screen: subLesson.startScreen } as any);
+      navigation.navigate('LessonFlow', lessonFlowParams(subLesson.startScreen));
     });
   };
 
