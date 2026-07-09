@@ -1,13 +1,23 @@
+// SPEC-09 Phase 4 — Labeling Emotions all-sections-complete screen.
+//
+// This is the ONE old-lesson screen that survived the Phase-4 deletion of the
+// hand-built lesson screens + LessonNavigator. It's a hub-level completion
+// card (not part of any section's content flow — it was never modelled as a
+// data-driven lesson screen), shown by LabelingEmotionsLessonScreen when all 4
+// sections are done. Relocated out of src/screens/lessons/ (deleted) and
+// registered directly in RootNavigator (no longer nested under LessonFlow).
+// Content and look are unchanged from the original.
+
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Button } from '../../components/Button';
-import { Colors, Typography, Shadows } from '../../constants/theme';
-import { LessonStackParamList } from '../../navigation/LessonNavigator';
+import { Button } from '../components/Button';
+import { Colors, Typography, Shadows } from '../constants/theme';
+import type { RootStackParamList } from '../navigation/types';
 
-type Props = NativeStackScreenProps<LessonStackParamList, 'Lesson5Complete'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Lesson5Complete'>;
 
 export const Lesson5Complete: React.FC<Props> = ({ navigation }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -32,7 +42,9 @@ export const Lesson5Complete: React.FC<Props> = ({ navigation }) => {
   }, []);
 
   const handleNext = () => {
-    navigation.getParent()?.navigate('MainTabs', { screen: 'Learn' });
+    // Now a direct RootStack screen (was nested under LessonFlow, hence the old
+    // getParent() hop). Navigate straight to the Learn tab.
+    navigation.navigate('MainTabs', { screen: 'Learn' });
   };
 
   return (
@@ -166,23 +178,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     color: Colors.textPrimary,
     lineHeight: 22,
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.primary + '30',
-    marginTop: 8,
-  },
-  shareText: {
-    fontSize: 16,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.primary,
   },
   buttonContainer: {
     paddingTop: 20,

@@ -2,8 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, LessonStackParamList } from '../navigation/types';
-import { lessonFlowParams } from '../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { getCompletedSections } from '../utils/recordingDeepBondMomentsProgress';
@@ -15,7 +14,9 @@ interface SubLesson {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  startScreen: keyof LessonStackParamList;
+  // Availability flag only (SPEC-09 Phase 4 — old route type deleted; nav now
+  // goes through the generic LessonScreen by slug + sectionIndex).
+  startScreen: string;
 }
 
 export default function RecordingDeepBondMomentsLessonScreen() {

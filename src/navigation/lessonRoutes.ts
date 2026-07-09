@@ -7,7 +7,7 @@
 // that doesn't exist. Keeping this table and the param list as the two
 // importable "tables" makes that a pure set-containment check.
 
-import type { RootStackParamList } from './RootNavigator';
+import type { RootStackParamList } from './types';
 
 // Runtime list of every route name registered in RootNavigator's
 // RootStackParamList. RootStackParamList is a TYPE (erased at runtime), so the
@@ -18,8 +18,8 @@ import type { RootStackParamList } from './RootNavigator';
 // has to import the RootNavigator component.
 export const ROOT_STACK_ROUTE_NAMES = [
   'MainTabs',
-  'LessonFlow',
   'LessonScreen',
+  'Lesson5Complete',
   'LabelingEmotionsLesson',
   'NamingOurEmotionsLesson',
   'SprinklersLesson',

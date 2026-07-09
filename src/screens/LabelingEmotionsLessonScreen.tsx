@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, LessonStackParamList } from '../navigation/types';
-import { lessonFlowParams } from '../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +16,9 @@ interface SubLesson {
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
   // SPEC-08 R5: was `any`; narrowed to a real lesson route (same runtime values).
-  startScreen: keyof LessonStackParamList;
+  // Availability flag only (SPEC-09 Phase 4 — old route type deleted; nav now
+  // goes through the generic LessonScreen by slug + sectionIndex).
+  startScreen: string;
 }
 
 const subLessons: SubLesson[] = [
@@ -111,7 +112,7 @@ export default function LabelingEmotionsLessonScreen() {
   useEffect(() => {
     if (allCompleted) {
       gateToLesson('labeling_complete', () => {
-        navigation.navigate('LessonFlow', lessonFlowParams('Lesson5Complete'));
+        navigation.navigate('Lesson5Complete');
       });
     }
   }, [allCompleted, navigation, gateToLesson]);
