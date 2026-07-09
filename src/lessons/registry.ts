@@ -10,12 +10,14 @@ import { sprinklers } from './content/sprinklers';
 import { recordingDeepBondMoments } from './content/recordingDeepBondMoments';
 import { emotionalSandbags } from './content/emotionalSandbags';
 import { helpingProcessEmotions } from './content/helpingProcessEmotions';
+import { dissociation } from './content/dissociation';
 
 export const LESSON_REGISTRY: Record<string, Lesson> = {
   sprinklers,
   recordingDeepBondMoments,
   emotionalSandbags,
   helpingProcessEmotions,
+  dissociation,
 };
 
 export function getLesson(slug: string): Lesson | undefined {

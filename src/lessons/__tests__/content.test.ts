@@ -4,6 +4,7 @@ import { sprinklers } from '../content/sprinklers';
 import { recordingDeepBondMoments } from '../content/recordingDeepBondMoments';
 import { emotionalSandbags } from '../content/emotionalSandbags';
 import { helpingProcessEmotions } from '../content/helpingProcessEmotions';
+import { dissociation } from '../content/dissociation';
 
 // Previews the Phase-4 content-validation CI test: every registered lesson
 // must zod-parse. Broken content fails this test (and, in Phase 4, CI).
@@ -50,5 +51,14 @@ describe('helpingProcessEmotions content', () => {
     expect(p.storageKey).toBe('@helping_process_emotions_completed_sections');
     expect(p.sections.map((s) => s.id)).toEqual(['1', '2']);
     expect(p.sections.map((s) => s.screens.length)).toEqual([1, 10]);
+  });
+});
+
+describe('dissociation content', () => {
+  it('has the exact storage key and 4 sections summing to 25 screens', () => {
+    const p = parseLesson(dissociation);
+    expect(p.storageKey).toBe('@dissociation_completed_sections');
+    expect(p.sections.map((s) => s.id)).toEqual(['1', '2', '3', '4']);
+    expect(p.sections.map((s) => s.screens.length)).toEqual([7, 6, 9, 3]);
   });
 });
