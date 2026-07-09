@@ -5,8 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, LessonStackParamList } from '../navigation/types';
-import { lessonFlowParams } from '../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { useLessonGate } from '../hooks/useLessonGate';
@@ -17,9 +16,10 @@ interface SubLesson {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  // Narrowed from `string` to a real lesson route (SPEC-08) — same runtime
-  // values, now type-checked so navigate('LessonFlow', { screen }) needs no cast.
-  startScreen: keyof LessonStackParamList;
+  // Retained only as an "is this section available yet" flag (truthy = has a
+  // start point). SPEC-09 Phase 4: the old per-screen route type was deleted;
+  // navigation now goes through the generic LessonScreen by slug + sectionIndex.
+  startScreen: string;
 }
 
 const subLessons: SubLesson[] = [

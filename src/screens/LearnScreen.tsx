@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useNavigation } from '@react-navigation/native';
 import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { RootStackParamList } from '../navigation/types';
 import { LESSON_NAV } from '../navigation/lessonRoutes';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { useLessonGate } from '../hooks/useLessonGate';
