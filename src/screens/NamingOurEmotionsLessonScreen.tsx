@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, LessonStackParamList } from '../navigation/types';
-import { lessonFlowParams } from '../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { getCompletedSubLessons } from '../utils/namingEmotionsProgress';
@@ -69,15 +68,18 @@ export default function NamingOurEmotionsLessonScreen() {
   };
 
   const handleSubLessonPress = (subLessonId: string) => {
-    const startScreen =
-      subLessonId === '1' ? 'NamingEmotionsSub1Screen1' :
-      subLessonId === '2' ? 'NamingEmotionsSub2Screen1' :
-      subLessonId === '3' ? 'NamingEmotionsSub3Screen1' :
-      subLessonId === '4' ? 'NamingEmotionsSub4Screen1' :
-      null;
-    if (!startScreen) return;
+    // SPEC-09 Phase 3: launch the generic data-driven lesson at this
+    // sublesson (modelled as a section, id '1'..'4' → sectionIndex 0..3).
+    // Gate + return-to-hub unchanged.
+    const sectionIndex = Number(subLessonId) - 1;
+    if (sectionIndex < 0 || sectionIndex > 3) return;
     gateToLesson(`naming_${subLessonId}`, () => {
-      navigation.navigate('LessonFlow', lessonFlowParams(startScreen));
+      navigation.navigate('LessonScreen', {
+        lessonId: 'namingEmotions',
+        sectionIndex,
+        screenIndex: 0,
+        returnTo: 'NamingOurEmotionsLesson',
+      });
     });
   };
 

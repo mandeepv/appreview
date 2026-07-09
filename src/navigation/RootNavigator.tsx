@@ -1,7 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MainTabNavigator from './MainTabNavigator';
-import { LessonNavigator } from './LessonNavigator';
+import { LessonScreen } from '../lessons/LessonScreen';
+import { Lesson5Complete } from '../screens/Lesson5Complete';
 import LabelingEmotionsLessonScreen from '../screens/LabelingEmotionsLessonScreen';
 import NamingOurEmotionsLessonScreen from '../screens/NamingOurEmotionsLessonScreen';
 import SprinklersLessonScreen from '../screens/SprinklersLessonScreen';
@@ -14,11 +15,6 @@ import RecordingDeepBondMomentsLessonScreen from '../screens/RecordingDeepBondMo
 
 import type { RootStackParamList } from './types';
 
-// DEPRECATED transitional shim (SPEC-08) — see navigation/types.ts (the single
-// composition home). New code imports RootStackParamList from there. Dies with
-// the SPEC-09 dead-code pass (plan 5.5).
-export type { RootStackParamList };
-
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
@@ -30,7 +26,8 @@ export const RootNavigator: React.FC = () => {
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-      <Stack.Screen name="LessonFlow" component={LessonNavigator} />
+      <Stack.Screen name="LessonScreen" component={LessonScreen} />
+      <Stack.Screen name="Lesson5Complete" component={Lesson5Complete} />
       <Stack.Screen name="LabelingEmotionsLesson" component={LabelingEmotionsLessonScreen} />
       <Stack.Screen name="NamingOurEmotionsLesson" component={NamingOurEmotionsLessonScreen} />
       <Stack.Screen name="SprinklersLesson" component={SprinklersLessonScreen} />

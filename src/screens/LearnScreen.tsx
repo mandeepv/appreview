@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useNavigation } from '@react-navigation/native';
 import { usePostHog } from 'posthog-react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { RootStackParamList } from '../navigation/types';
 import { LESSON_NAV } from '../navigation/lessonRoutes';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { useLessonGate } from '../hooks/useLessonGate';
@@ -155,8 +155,15 @@ export default function LearnScreen() {
       const target = LESSON_NAV[moduleId];
       if (!target) return;
       posthog.capture('lesson_started', props);
-      if (target.kind === 'flow') {
-        navigation.navigate('LessonFlow', { screen: target.screen });
+      if (target.kind === 'data') {
+        // Flow lessons (1-4): launch the generic data-driven lesson directly.
+        // Single section, first screen; return to MainTabs on completion.
+        navigation.navigate('LessonScreen', {
+          lessonId: target.lessonId,
+          sectionIndex: 0,
+          screenIndex: 0,
+          returnTo: 'MainTabs',
+        });
       } else {
         navigation.navigate(target.name);
       }
