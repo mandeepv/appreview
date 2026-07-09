@@ -12,19 +12,12 @@ import DissociationLessonScreen from '../screens/DissociationLessonScreen';
 import ServeAndReturnLessonScreen from '../screens/ServeAndReturnLessonScreen';
 import RecordingDeepBondMomentsLessonScreen from '../screens/RecordingDeepBondMomentsLessonScreen';
 
-export type RootStackParamList = {
-  MainTabs: { screen?: string } | undefined;
-  LessonFlow: { screen?: string } | undefined;
-  LabelingEmotionsLesson: undefined;
-  NamingOurEmotionsLesson: undefined;
-  SprinklersLesson: undefined;
-  EmotionalSandbagsLesson: undefined;
-  CommunicationMistakesLesson: undefined;
-  HelpingSomeoneProcessEmotionsLesson: undefined;
-  DissociationLesson: undefined;
-  ServeAndReturnLesson: undefined;
-  RecordingDeepBondMomentsLesson: undefined;
-};
+import type { RootStackParamList } from './types';
+
+// DEPRECATED transitional shim (SPEC-08) — see navigation/types.ts (the single
+// composition home). New code imports RootStackParamList from there. Dies with
+// the SPEC-09 dead-code pass (plan 5.5).
+export type { RootStackParamList };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

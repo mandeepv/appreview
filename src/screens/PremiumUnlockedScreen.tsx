@@ -1,14 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../components/Button';
 import { Colors, Typography, Spacing, Shadows } from '../constants/theme';
+import type { OnboardingStackParamList } from '../navigation/types';
 
-interface PremiumUnlockedScreenProps {
-  navigation: any;
-}
+// SPEC-08 R5: was `navigation: any`. PremiumUnlocked is a screen in the
+// Onboarding stack (registered in OnboardingNavigator), so use the generated
+// screen props for it.
+type Props = NativeStackScreenProps<OnboardingStackParamList, 'PremiumUnlocked'>;
 
-export default function PremiumUnlockedScreen({ navigation }: PremiumUnlockedScreenProps) {
+export default function PremiumUnlockedScreen({ navigation }: Props) {
   const confettiRef = useRef<any>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;

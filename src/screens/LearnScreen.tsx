@@ -158,8 +158,7 @@ export default function LearnScreen() {
       if (target.kind === 'flow') {
         navigation.navigate('LessonFlow', { screen: target.screen });
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        navigation.navigate(target.name as any);
+        navigation.navigate(target.name);
       }
     });
   };

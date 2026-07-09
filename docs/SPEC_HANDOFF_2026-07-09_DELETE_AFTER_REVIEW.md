@@ -6,7 +6,7 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05, SPEC-06, SPEC-07 · **Status:** awaiting review
+**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05, SPEC-06, SPEC-07, SPEC-08 · **Status:** awaiting review
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -765,6 +765,109 @@ were flagged and NOT removed — see below.**
 
 ---
 
+## SPEC-08 — Navigation typing
+
+**Branch:** `feature/spec-08-navigation-typing` (merged to `main`, `--no-ff`,
+deleted).
+**Files touched:** **new** `src/navigation/types.ts`, the 4 navigator files,
+and ~15 screen files. 22 files total (21 modified + 1 new).
+
+Must merge BEFORE SPEC-09 (makes the lesson refactor type-checked). TYPES
+ONLY — route names and param objects are byte-identical to before.
+
+### ❗ Agreed spec amendment — transitional re-export shims (owner-approved)
+- The spec said define ParamLists in `types.ts` with no re-export. Strictly
+  that means rewriting ~370 import sites (RootStackParamList ~13,
+  OnboardingStackParamList ~17, LessonStackParamList 342 — mostly the
+  hand-built lesson screens SPEC-09 is about to delete). Per owner direction,
+  we relaxed "no re-export" to "no re-export **as the permanent state**":
+  - **Definitions live only in `types.ts`** (the single composition home —
+    `types.ts` imports nothing from navigator/screen files).
+  - Each navigator keeps a **one-line `export type { X } from './types'` shim**,
+    commented DEPRECATED, to keep existing importers compiling. `export type`
+    is compile-time-erased, so no runtime cycles.
+  - Any file we edited (and all new code) imports from `types.ts` directly.
+  - The shims get swept in SPEC-09's dead-code pass (plan 5.5).
+
+### R1/R2 — types.ts + typed navigators ✅
+- **Done:** New `src/navigation/types.ts` is the single home for
+  `OnboardingStackParamList`, `RootStackParamList`, `LessonStackParamList`, and
+  a NEW `MainTabParamList`. Nested navigators composed with
+  `NavigatorScreenParams` (Onboarding's `Root` → RootStackParamList; Root's
+  `LessonFlow` → LessonStackParamList and `MainTabs` → MainTabParamList). A
+  `declare global { namespace ReactNavigation { interface RootParamList extends
+  OnboardingStackParamList {} } }` block types `useNavigation()` without
+  per-call generics. Route names/param shapes copied byte-identical. Every
+  navigator typed: the 3 stacks already were; `MainTabNavigator` now uses
+  `createBottomTabNavigator<MainTabParamList>()`.
+
+### R3 — Remove navigation `as any` ✅ / ❗ (2 flags)
+- **Enumerated first (grep), then classified** — the ~20 `as any` hits:
+  - **Navigation (must-fix) — all removed:** 6× `navigate('LessonFlow' as any,
+    { screen: … } as any)`, 5× `navigate('SprinklersLesson' as any)`, 1×
+    `navigate('EmotionalSandbagsLesson' as any)`, 1× `navigate(target.name as
+    any)` (LearnScreen), 1× `replace(lastScreen as any)` (SplashScreen), 1×
+    `{ screen: startScreen as any }` (NamingOurEmotions).
+  - **Ionicons `name={… as any}` — LEAVE (5):** SprinklersSec3Screen2,
+    SandbagsSec1Screen2, SandbagsSec2Screen9/5/3. Icon-name typing, unrelated
+    to navigation, per req 3.
+  - **Non-navigation `: any` — LEFT (pre-existing, out of scope):**
+    `catch (error: any)` ×2, `handleScroll (event: any)` ×2, the PostHog
+    `as Record<string,unknown> as never` ×2 in analytics.
+- **How the nav casts were removed:**
+  - Lesson-launcher screens: narrowed `startScreen` from `string`/`any` to
+    `keyof LessonStackParamList` (zero runtime change), and route the nested
+    navigate through a new `lessonFlowParams(screen)` helper in `types.ts`.
+    **Why the helper:** `NavigatorScreenParams` is a distributed union
+    requiring `screen` to be a single literal, so `{ screen: <union var> }`
+    won't type-check when the route is chosen from data — `lessonFlowParams`
+    is the one bridge, and it returns **exactly `{ screen }`** at runtime
+    (byte-identical).
+  - Lesson sub-screens that navigate to a parent (Root) route: typed with
+    `CompositeScreenProps<NativeStackScreenProps<Lesson…>,
+    NativeStackScreenProps<Root…>>` — the correct RN pattern for a nested
+    screen reaching a parent route.
+  - `LearnScreen.navigate(target.name)`: cast dropped (`target.name` is already
+    `keyof RootStackParamList`).
+- **❗ TWO FLAGS (runtime discrepancies intentionally NOT "fixed", per req 4):**
+  1. **`SprinklersSec5Screen6` → `navigate('Learn')`** — `Learn` is a MainTab
+     route nested under Root's `MainTabs`, so the type-correct call is
+     `navigate('MainTabs', { screen: 'Learn' })`. But this screen has ALWAYS
+     called `navigate('Learn')`, relying on RN's runtime nested-route-name
+     resolution. Changing the call would change runtime args (forbidden), so we
+     kept `navigate('Learn')` with a localized `as never` and a flag comment.
+  2. **`SplashScreen` → `replace(lastScreen …)`** — `lastScreen` is a persisted
+     AsyncStorage string (`getLastScreen(): Promise<string | null>`), NOT
+     type-guaranteed to be a real route. Narrowed to
+     `as keyof OnboardingStackParamList` (not `any`) and KEPT the existing
+     try/catch that falls back to `'Welcome'`. Honest runtime-string → route
+     boundary.
+
+### R5 — Screen props (was `navigation: any`) ✅
+- **Done:** `LabelingEmotionsLessonScreen` (`startScreen: any` → `keyof
+  LessonStackParamList`, callsites via `lessonFlowParams`) and
+  `PremiumUnlockedScreen` (`navigation: any` → `NativeStackScreenProps<
+  OnboardingStackParamList, 'PremiumUnlocked'>`).
+
+### SPEC-08 — Verified in-repo ✅
+- ✅ `npx tsc --noEmit` clean (0 errors).
+- ✅ `grep -rn "as any" src/` — remaining hits are ONLY the classified
+  non-navigation ones (5 Ionicons, the 1 documented `'Learn' as never` flag,
+  and pre-existing catch/scroll/PostHog casts); listed above for the PR.
+- ✅ No runtime diffs: every navigate/replace route-name string is
+  byte-identical; `{ screen: X }` → `lessonFlowParams(X)` returns exactly
+  `{ screen }` (reviewed the diff line-by-line).
+- ✅ `npm test` green (52 tests) — the policy-kernel/route-coverage tests that
+  import these ParamLists still pass through the shims.
+
+### SPEC-08 — Out of scope / not delivered ⚠️
+- **Simulator spot-check (acceptance criterion):** launch → gate → open 2
+  lessons from LearnScreen → complete a section → all navigate correctly.
+  Needs a device; owner to run. All navigation is type-checked and runtime
+  route names are unchanged, so behavior should be identical.
+
+---
+
 ## Open items for the owner (consolidated)
 
 **Needs a device/simulator (SPEC-01):**
@@ -811,6 +914,11 @@ were flagged and NOT removed — see below.**
   the timeline.
 - Sign-out run-through: a subsequent DevMenu test error has NO user attached.
 
+**Needs a simulator (SPEC-08):**
+- Spot-check: launch → gate → open 2 lessons from LearnScreen → complete a
+  section → all navigate correctly. Route names are unchanged so behavior
+  should be identical; this just confirms the byte-identical claim on device.
+
 **Needs a dev build / device (SPEC-07):**
 - Run `npx expo run:ios` (or a dev-client build) after the dep removals to
   confirm the app still boots — the 4 removed deps have no config-plugin
@@ -833,5 +941,5 @@ were flagged and NOT removed — see below.**
   intent. Missing-secret was implemented as **500** (fail closed) — allowed by
   the "500/401" wording.
 
-**Push status:** SPEC-01→06 pushed to `origin/main` (CI green each push).
-SPEC-07 merges on top; push after merge.
+**Push status:** SPEC-01→07 pushed to `origin/main` (CI green each push).
+SPEC-08 merges on top; push after merge.
