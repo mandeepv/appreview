@@ -20,6 +20,7 @@ import { AuthScreen } from '../screens/onboarding/AuthScreen';
 import { LoadingScreen } from '../screens/onboarding/LoadingScreen';
 import PremiumUnlockedScreen from '../screens/PremiumUnlockedScreen';
 import { RootNavigator } from './RootNavigator';
+import { LessonPreviewRoute } from '../lessons/LessonPreviewRoute';
 import type { OnboardingStackParamList } from './types';
 
 // DEPRECATED transitional shim (SPEC-08). The ParamList now lives in
@@ -40,6 +41,7 @@ export const OnboardingNavigator: React.FC = () => {
       initialRouteName="Splash"
     >
       {__DEV__ && <Stack.Screen name="DevMenu" component={DevMenuScreen} />}
+      {__DEV__ && <Stack.Screen name="LessonPreview" component={LessonPreviewRoute} />}
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="UserType" component={UserTypeScreen} />

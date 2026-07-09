@@ -75,6 +75,23 @@ export const DevMenuScreen: React.FC = () => {
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
+
+          {/* SPEC-09: preview the data-driven lesson engine (Sprinklers pilot)
+              side-by-side against the hand-built version. Dev-only. */}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate('LessonPreview', { slug: 'sprinklers' })}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: '#E8F2F1' }]}>
+              <Ionicons name="flask-outline" size={32} color={Colors.primary} />
+            </View>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>Preview: Sprinklers (data engine)</Text>
+              <Text style={styles.buttonDescription}>Data-driven Sprinklers — compare vs the live version</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.variantSection}>
