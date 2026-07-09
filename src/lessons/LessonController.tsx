@@ -80,25 +80,33 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     ? screenIndex >= section.screens.length - 1
     : true;
 
-  // Advance to the next screen, or hand off to the next section / hub.
-  const goNext = useCallback(() => {
-    if (!section) return;
-    if (!isLastScreenInSection) {
-      onAdvance({ sectionIndex, screenIndex: screenIndex + 1 });
-    } else {
-      // Last screen of the section: the sectionComplete screen writes progress
-      // (below) and returns to the hub. A content screen that happens to be
-      // last just returns to the hub.
-      onSectionComplete();
-    }
-  }, [section, isLastScreenInSection, sectionIndex, screenIndex, onAdvance, onSectionComplete]);
-
-  const handleSectionCompleteContinue = useCallback(async () => {
+  // Complete the current section: write its progress key, then return to the
+  // hub. Called from the LAST screen of a section regardless of screen kind —
+  // in the original hand-built lessons, every section's final screen writes
+  // the completed-sections key (verified: Sec{1..5} final screens each push
+  // their id), so the completion write must NOT be tied to the sparse
+  // `sectionComplete` visual (only §1 uses that; §2–5 end on rich `content`
+  // screens). Byte-compatible key/format; existing progress survives.
+  const completeSection = useCallback(async () => {
     if (section) {
       await markSectionComplete(lesson.storageKey, section.id);
     }
     onSectionComplete();
   }, [lesson.storageKey, section, onSectionComplete]);
+
+  // Advance to the next screen, or complete the section on the last screen.
+  const goNext = useCallback(() => {
+    if (!section) return;
+    if (!isLastScreenInSection) {
+      onAdvance({ sectionIndex, screenIndex: screenIndex + 1 });
+    } else {
+      // Last screen of the section (content OR sectionComplete) → write
+      // progress + return to hub.
+      completeSection();
+    }
+  }, [section, isLastScreenInSection, sectionIndex, screenIndex, onAdvance, completeSection]);
+
+  const handleSectionCompleteContinue = completeSection;
 
   if (!screen) return null;
 
