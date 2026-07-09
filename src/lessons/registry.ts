@@ -12,6 +12,7 @@ import { emotionalSandbags } from './content/emotionalSandbags';
 import { helpingProcessEmotions } from './content/helpingProcessEmotions';
 import { dissociation } from './content/dissociation';
 import { namingEmotions } from './content/namingEmotions';
+import { serveReturn } from './content/serveReturn';
 
 export const LESSON_REGISTRY: Record<string, Lesson> = {
   sprinklers,
@@ -20,6 +21,7 @@ export const LESSON_REGISTRY: Record<string, Lesson> = {
   helpingProcessEmotions,
   dissociation,
   namingEmotions,
+  serveReturn,
 };
 
 export function getLesson(slug: string): Lesson | undefined {
