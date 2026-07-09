@@ -230,7 +230,13 @@ export const LessonSchema = z.object({
   // array TODAY (from src/constants/storageKeys.ts). Carried as data so the
   // generic progress store writes the identical key/format — no data
   // migration, existing progress survives (SPEC-09 constraint).
-  storageKey: z.string(),
+  //
+  // OPTIONAL: the "flow" lessons (the numbered Lesson 1–4) are linear and do
+  // NOT persist section progress today — they just return to MainTabs on
+  // completion. Those lessons omit storageKey; the controller then skips the
+  // progress write (see LessonController.completeSection). Section-based
+  // lessons (5–13) always carry their key.
+  storageKey: z.string().optional(),
   sections: z.array(SectionSchema).min(1),
 });
 export type Lesson = z.infer<typeof LessonSchema>;

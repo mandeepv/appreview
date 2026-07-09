@@ -88,7 +88,11 @@ export const LessonController: React.FC<LessonControllerProps> = ({
   // `sectionComplete` visual (only §1 uses that; §2–5 end on rich `content`
   // screens). Byte-compatible key/format; existing progress survives.
   const completeSection = useCallback(async () => {
-    if (section) {
+    // Flow lessons (numbered 1–4) have no storageKey and don't persist
+    // section progress — they just return to MainTabs on completion. Only
+    // write progress when the lesson actually has a key (section-based
+    // lessons 5–13).
+    if (section && lesson.storageKey) {
       await markSectionComplete(lesson.storageKey, section.id);
     }
     onSectionComplete();
