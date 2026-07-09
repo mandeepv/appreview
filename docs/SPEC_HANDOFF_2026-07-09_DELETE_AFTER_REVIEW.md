@@ -940,9 +940,34 @@ look). Schema already implemented all four — no change.
   the generic route into the navigator, and deleting the old Sprinklers
   screens (all Phase 3/4, behind Checkpoint B).
 
-### 🛑 CHECKPOINT B — next blocking gate (not yet reached)
-Owner approves pilot fidelity (side-by-side on simulator) before mass
-conversion of the remaining 12 lessons.
+### Phase 2 pilot — DONE, reviewed (🛑 at CHECKPOINT B)
+- `src/lessons/content/sprinklers.ts`: all 52 Sprinklers screens transcribed to
+  data (subagent-produced, **reviewed by me** for byte-fidelity). Sections
+  [10,13,14,9,6] = 52; storageKey `@sprinklers_completed_sections`; verbatim
+  content (curly quotes/dashes/emoji/inline-emphasis/one-off colours preserved).
+- **Regression caught + fixed in review:** the controller now writes section
+  progress on the LAST screen of EVERY section (the original does this for all
+  5 sections; the subagent had only §1 as a `sectionComplete` screen, which
+  would have skipped progress writes for §2–5). Byte-compatible key/format.
+- New `src/lessons/__tests__/content.test.ts` (parseLesson + structure) — 54
+  tests green, tsc clean. Original screens untouched.
+- **Errata** (`docs/spec-09/CONTENT_ERRATA.md`): §5 declares `totalSteps={7}`
+  but has 6 screens (original shows a 6/7 progress bar). See the decision
+  needed below.
+
+### 🛑 CHECKPOINT B — awaiting owner sign-off (BLOCKING)
+Owner approves pilot fidelity before mass conversion of the remaining 12
+lessons. **Owner to do:**
+1. **Side-by-side on simulator** (device — I can't): run the data-driven
+   Sprinklers next to the live hand-built version, confirm no visible
+   difference screen-by-screen. (Requires wiring the generic route for a
+   throwaway preview, or I can wire a temporary dev entry point on request.)
+2. **Decide the §5 `totalSteps` quirk:** reproduce the original's (buggy) 6/7
+   progress denominator for strict byte-identity, OR use the correct 6/6
+   (tiny visible progress-bar diff, better UX). I did NOT decide this
+   unilaterally — it's a fidelity-vs-correctness call for the checkpoint.
+3. **Go/no-go** on Phase 3 mass conversion (12 lessons, one commit each) +
+   Phase 4 deletion.
 
 ### Not started (behind the checkpoints)
 - Phase 2 (Sprinklers pilot, side-by-side, → Checkpoint B), Phase 3 (12 lessons,
