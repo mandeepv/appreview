@@ -151,6 +151,33 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     );
   }
 
+  // interactiveQuiz screens hide the Next button until an answer is revealed
+  // (matches the hand-built screens). Any other screen shows Next immediately.
+  const hasInteractiveQuiz = screen.blocks.some((b) => b.type === 'interactiveQuiz');
+  return (
+    <ContentScreenView
+      screen={screen}
+      currentStep={currentStep}
+      totalSteps={totalSteps}
+      onBack={onBack}
+      onNext={goNext}
+      gateNextOnInteractive={hasInteractiveQuiz}
+    />
+  );
+};
+
+// Content screen view — separated so it can hold the "interactive answered"
+// state that gates the Next button.
+const ContentScreenView: React.FC<{
+  screen: Extract<LessonScreen, { kind: 'content' }>;
+  currentStep: number;
+  totalSteps: number;
+  onBack: () => void;
+  onNext: () => void;
+  gateNextOnInteractive: boolean;
+}> = ({ screen, currentStep, totalSteps, onBack, onNext, gateNextOnInteractive }) => {
+  const [answered, setAnswered] = React.useState(false);
+  const showNext = !gateNextOnInteractive || answered;
   return (
     <LessonContainer
       currentStep={currentStep}
@@ -161,12 +188,14 @@ export const LessonController: React.FC<LessonControllerProps> = ({
       <View style={styles.container}>
         <View style={styles.content}>
           {screen.blocks.map((block, i) => (
-            <BlockRenderer key={i} block={block} />
+            <BlockRenderer key={i} block={block} onInteractiveAnswered={() => setAnswered(true)} />
           ))}
         </View>
-        <View style={styles.buttonContainer}>
-          <Button title={screen.cta ?? 'Next'} onPress={goNext} variant="gradient" />
-        </View>
+        {showNext && (
+          <View style={styles.buttonContainer}>
+            <Button title={screen.cta ?? 'Next'} onPress={onNext} variant="gradient" />
+          </View>
+        )}
       </View>
     </LessonContainer>
   );
