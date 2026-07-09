@@ -496,12 +496,12 @@ Since Kinderwell has real users paying real money, here are things you're NOT do
 2. **Verify prod backups exist and know how to restore.** Free tier Supabase has limited backups — consider upgrading to Pro for point-in-time recovery. Test a restore to dev at least once so you know the process.
 3. **Add error tracking to the app.** Sentry (free tier is generous) or Bugsnag. Right now if a paid user hits a crash, you find out via a 1-star review. Not acceptable for a paid app.
 4. **Set up branch protection on `main`.** GitHub → Settings → Branches → require PR before merge. Even solo, this forces a diff review moment.
-5. **Version bump automation.** ✅ Done. `scripts/bump-version.sh` updates `app.json` + `package.json` and refuses to run on drift. CI's `version-drift` job enforces on every PR. See [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md).
+5. **Version bump automation.** ✅ Done. `scripts/bump-version.sh` updates `app.json` + `package.json` and refuses to run on drift. CI's `version-drift` job enforces it — but note CI is **manual-only** now (see #7), so run CI at release time to catch drift before shipping. See [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md).
 
 ### 🟡 Medium priority — next month
 
 6. **Add a `min_supported_version` config for emergency kill switch.** Read on app launch, show a "please update" screen if the user is on a bad version.
-7. **Add at least one CI check** — GitHub Actions that runs `tsc --noEmit` on every PR. Cheap to set up, catches type errors before they ship.
+7. **CI checks.** ✅ Done (`.github/workflows/ci.yml`): TypeScript type check, ESLint, version-drift, Jest tests, and an advisory dependency audit. **Runs manually only** (`workflow_dispatch`) as a release gate — NOT on push/PR — because this is a private repo with metered Actions minutes and the checks are already run locally during development. Trigger it in Phase 2 of `RELEASE_CHECKLIST.md`. To re-enable automatic gating, add `push: { branches: [main] }` back to the workflow's `on:` block (and set the four gating jobs as required checks under branch protection).
 8. **Rotate the shared dev/prod DB password to different values.** Currently the same — a leak of one leaks both.
 9. **Set up a status/monitoring dashboard.** Supabase logs + App Store Connect crash reports + Superwall metrics. Ideally aggregated somewhere you check daily.
 10. **Set up a Sandbox Apple ID** and document it in `STOREKIT_SETUP_GUIDE.md`. So future you doesn't have to figure it out again.
