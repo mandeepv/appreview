@@ -7,6 +7,7 @@ import { helpingProcessEmotions } from '../content/helpingProcessEmotions';
 import { dissociation } from '../content/dissociation';
 import { namingEmotions } from '../content/namingEmotions';
 import { serveReturn } from '../content/serveReturn';
+import { labelingEmotions } from '../content/labelingEmotions';
 
 // Previews the Phase-4 content-validation CI test: every registered lesson
 // must zod-parse. Broken content fails this test (and, in Phase 4, CI).
@@ -91,5 +92,14 @@ describe('serveReturn content', () => {
     expect(p.storageKey).toBe('@serve_return_completed_sections');
     expect(p.sections.map((s) => s.id)).toEqual(['1', '2', '3', '4', '5', '6']);
     expect(p.sections.map((s) => s.screens.length)).toEqual([4, 4, 5, 3, 3, 3]);
+  });
+});
+
+describe('labelingEmotions content', () => {
+  it('has the exact storage key and 4 sections summing to 23 screens', () => {
+    const p = parseLesson(labelingEmotions);
+    expect(p.storageKey).toBe('@lesson5_completed_sections');
+    expect(p.sections.map((s) => s.id)).toEqual(['1', '2', '3', '4']);
+    expect(p.sections.map((s) => s.screens.length)).toEqual([7, 4, 8, 4]);
   });
 });
