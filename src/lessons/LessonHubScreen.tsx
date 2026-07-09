@@ -39,10 +39,17 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
   onOpenSection,
 }) => {
   const [completed, setCompleted] = useState<string[]>([]);
-  const store = React.useMemo(() => createProgressStore(lesson.storageKey), [lesson.storageKey]);
+  // Flow lessons have no storageKey (no persisted progress) — the hub then
+  // just shows 0/… complete and never reads/writes. Only section-based lessons
+  // have a store.
+  const store = React.useMemo(
+    () => (lesson.storageKey ? createProgressStore(lesson.storageKey) : null),
+    [lesson.storageKey],
+  );
 
   useFocusEffect(
     useCallback(() => {
+      if (!store) return;
       let alive = true;
       store.getCompletedSections().then((c) => {
         if (alive) setCompleted(c);
