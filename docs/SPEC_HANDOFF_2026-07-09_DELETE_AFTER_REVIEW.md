@@ -6,7 +6,7 @@
 > off (and any open items closed), delete this file. Do not link permanent
 > docs to it.
 
-**Created:** 2026-07-09 · **Covers:** SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05, SPEC-06, SPEC-07, SPEC-08 · **Status:** awaiting review
+**Created:** 2026-07-09 · **Covers:** SPEC-01 … SPEC-08, SPEC-09 (Phase 1 only) · **Status:** awaiting review · **SPEC-09 is paused at CHECKPOINT A**
 
 Audit trail for spec work handed to the implementer, written for the spec
 creator to verify each requirement was done correctly. One section per spec.
@@ -881,6 +881,55 @@ ONLY — route names and param objects are byte-identical to before.
   lessons from LearnScreen → complete a section → all navigate correctly.
   Needs a device; owner to run. All navigation is type-checked and runtime
   route names are unchanged, so behavior should be identical.
+
+---
+
+## SPEC-09 — Lesson engine (data-driven lessons) — PHASE 1 ONLY
+
+**Branch:** `feature/spec-09-lesson-engine-phase1` — **NOT merged.** SPEC-09 is
+phased with hard owner checkpoints; this branch stops at **CHECKPOINT A** and
+awaits sign-off before any lesson content is converted.
+
+**Depends on SPEC-08** (merged — the generic route is typed via SPEC-08's
+ParamLists). This is a multi-day migration (~343 hand-built screens → data);
+Phase 1 is ~schema + templates only.
+
+### Phase 1 — done (schema + templates) ✅
+- **Empirical block survey** (`docs/spec-09/PHASE1_BLOCK_SURVEY.md`): surveyed
+  Sprinklers (52 screens) + Emotional Sandbags (47) = 99 files, via a
+  representative read + a programmatic scan. Produced the pattern → count →
+  block-type table. Vocabulary: `heading`, `paragraph` (with inline emphasis),
+  `eyebrow`, `callout` (quote/summary/preview variants), `cardList`, `pill`,
+  `quiz` (maps to the existing `QuizQuestion` component); two screen kinds
+  (`content`, `sectionComplete`). No images / no text-input in these lessons.
+- **zod schema** (`src/lessons/schema.ts`): `Lesson → sections → screens →
+  blocks`, TS via `z.infer`. Lesson carries its exact current `storageKey` so
+  progress stays byte-compatible. `parseLesson()` for the Phase-4 content-
+  validation CI test.
+- **Block templates** (`src/lessons/components/BlockRenderer.tsx`): one renderer
+  per block type, styles lifted from the real survey screens — reproduces the
+  existing look, no redesign.
+- **Generic route + controller** (`src/lessons/LessonController.tsx`): drives a
+  data lesson (Next/Back/section-complete), writes the SAME AsyncStorage
+  key/format. NOT yet wired into the navigator (that's Phase 2/3).
+- **Verified:** ✅ tsc clean · 52 tests green · lint 0 errors · **only new files
+  under `src/lessons/` + `docs/spec-09/`** — nothing existing modified, nothing
+  deleted, no gate/paywall code touched.
+
+### 🛑 CHECKPOINT A — awaiting owner sign-off (BLOCKING)
+Per the spec, mass conversion must NOT start until the owner reviews the survey
+table + schema. **Owner: review `docs/spec-09/PHASE1_BLOCK_SURVEY.md` and
+`src/lessons/schema.ts`**, and answer the 4 open questions at the bottom of the
+survey (eyebrow-vs-label, callout unification, the `pill` block, carrying
+one-off colours as data). Only after sign-off do I proceed to Phase 2 (the
+Sprinklers pilot → CHECKPOINT B → Phase 3 mass conversion → Phase 4 deletion).
+
+### Not started (behind the checkpoints)
+- Phase 2 (Sprinklers pilot, side-by-side, → Checkpoint B), Phase 3 (12 lessons,
+  one commit each, `createProgressStore` factory, `LessonNavigator` shrink),
+  Phase 4 (delete replaced screens/navigator regs/progress utils + the SPEC-08
+  deprecated re-export shims; `DECISION(owner)` on `lessonProgressService.ts`
+  keep-vs-delete and on removing `useLessonGate`; content-validation Jest test).
 
 ---
 
