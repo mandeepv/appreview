@@ -9,11 +9,13 @@ import type { Lesson } from './schema';
 import { sprinklers } from './content/sprinklers';
 import { recordingDeepBondMoments } from './content/recordingDeepBondMoments';
 import { emotionalSandbags } from './content/emotionalSandbags';
+import { helpingProcessEmotions } from './content/helpingProcessEmotions';
 
 export const LESSON_REGISTRY: Record<string, Lesson> = {
   sprinklers,
   recordingDeepBondMoments,
   emotionalSandbags,
+  helpingProcessEmotions,
 };
 
 export function getLesson(slug: string): Lesson | undefined {
