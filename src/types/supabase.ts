@@ -36,6 +36,7 @@ export type Database = {
         Row: {
           completed: boolean | null
           completed_at: string | null
+          completed_sections: string[]
           created_at: string | null
           id: string
           lesson_id: string
@@ -45,6 +46,7 @@ export type Database = {
         Insert: {
           completed?: boolean | null
           completed_at?: string | null
+          completed_sections?: string[]
           created_at?: string | null
           id?: string
           lesson_id: string
@@ -54,6 +56,7 @@ export type Database = {
         Update: {
           completed?: boolean | null
           completed_at?: string | null
+          completed_sections?: string[]
           created_at?: string | null
           id?: string
           lesson_id?: string

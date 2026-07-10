@@ -1,228 +1,111 @@
-import { supabase } from '../lib/supabase';
+// SPEC-13 R2 — account-scoped lesson-progress sync (section level).
+//
+// This service is the DB side of lesson progress. It is wired BEHIND the
+// createProgressStore factory (src/lessons/progressStore.ts), not called by
+// screens directly (house rule: screens never import the Supabase client).
+//
+// Model: one row per (user_id, lesson_id) where lesson_id is the lesson SLUG
+// (e.g. 'sprinklers'). `completed_sections text[]` mirrors the AsyncStorage
+// array of section-id strings exactly, so a sign-in merge is a plain set union
+// (idempotent, never destructive in either direction). The `completed` boolean
+// is derived (all sections done) and kept for existing consumers.
+//
+// Sync posture (owner-decided):
+//   - Local-first: AsyncStorage is the source of truth for the UI. The DB write
+//     is background fire-and-forget; it NEVER surfaces a user-facing error for
+//     progress sync. reportError only on a repeated (non-transient) failure.
+//   - Payload is lesson slug + section IDs only. No free text, no extra fields
+//     (INVARIANTS #8 posture).
 
-export interface LessonProgress {
-  id?: string;
-  user_id: string;
-  lesson_id: string;
-  completed: boolean;
-  completed_at?: string;
-  created_at?: string;
-  updated_at?: string;
+import { supabase } from '../lib/supabase';
+import { reportError } from '../config/sentry';
+
+/** Read the completed-section array for one lesson from the DB (empty if none
+ *  / signed-out / error). */
+export async function getRemoteSections(lessonSlug: string): Promise<string[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('lesson_progress')
+      .select('completed_sections')
+      .eq('user_id', user.id)
+      .eq('lesson_id', lessonSlug)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return []; // no row yet
+      throw error;
+    }
+    return data?.completed_sections ?? [];
+  } catch (error) {
+    if (__DEV__) console.warn('[lessonProgress] getRemoteSections failed:', error);
+    return [];
+  }
+}
+
+/** Read ALL of the current user's lesson progress as a slug → sections map.
+ *  Used by the sign-in merge. Empty map if signed-out / error. */
+export async function getAllRemoteProgress(): Promise<Record<string, string[]>> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return {};
+
+    const { data, error } = await supabase
+      .from('lesson_progress')
+      .select('lesson_id, completed_sections')
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    const out: Record<string, string[]> = {};
+    for (const row of data ?? []) {
+      out[row.lesson_id] = row.completed_sections ?? [];
+    }
+    return out;
+  } catch (error) {
+    if (__DEV__) console.warn('[lessonProgress] getAllRemoteProgress failed:', error);
+    return {};
+  }
 }
 
 /**
- * Mark a lesson as completed
+ * Upsert the completed-section array for one lesson. `completed` is derived:
+ * true iff every section is done (sectionCount = the lesson's section count in
+ * the registry). Returns true on success, false on failure — the caller
+ * (the factory's background sync) decides whether to reportError. Never throws.
  */
-export const markLessonComplete = async (lessonId: string): Promise<void> => {
+export async function upsertSections(
+  lessonSlug: string,
+  sections: string[],
+  sectionCount: number,
+): Promise<boolean> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false; // signed-out: local-only, nothing to sync
 
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
+    const completed = sectionCount > 0 && sections.length >= sectionCount;
+    const now = new Date().toISOString();
 
     const { error } = await supabase
       .from('lesson_progress')
       .upsert(
         {
           user_id: user.id,
-          lesson_id: lessonId,
-          completed: true,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          lesson_id: lessonSlug,
+          completed_sections: sections,
+          completed,
+          completed_at: completed ? now : null,
+          updated_at: now,
         },
-        {
-          onConflict: 'user_id,lesson_id',
-        }
+        { onConflict: 'user_id,lesson_id' },
       );
 
     if (error) throw error;
+    return true;
   } catch (error) {
-    if (__DEV__) console.error('Error marking lesson complete:', error);
-    throw error;
-  }
-};
-
-/**
- * Check if a lesson is completed
- */
-export const isLessonCompleted = async (lessonId: string): Promise<boolean> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return false;
-    }
-
-    const { data, error } = await supabase
-      .from('lesson_progress')
-      .select('completed')
-      .eq('user_id', user.id)
-      .eq('lesson_id', lessonId)
-      .single();
-
-    if (error) {
-      // If not found, lesson is not completed
-      if (error.code === 'PGRST116') {
-        return false;
-      }
-      throw error;
-    }
-
-    return data?.completed || false;
-  } catch (error) {
-    if (__DEV__) console.error('Error checking lesson completion:', error);
+    if (__DEV__) console.warn('[lessonProgress] upsertSections failed:', error);
     return false;
   }
-};
-
-/**
- * Get all completed lessons for the current user
- */
-export const getCompletedLessons = async (): Promise<string[]> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return [];
-    }
-
-    const { data, error } = await supabase
-      .from('lesson_progress')
-      .select('lesson_id')
-      .eq('user_id', user.id)
-      .eq('completed', true);
-
-    if (error) throw error;
-
-    return data?.map((item) => item.lesson_id) || [];
-  } catch (error) {
-    if (__DEV__) console.error('Error getting completed lessons:', error);
-    return [];
-  }
-};
-
-/**
- * Get lesson progress for a specific lesson
- */
-export const getLessonProgress = async (lessonId: string): Promise<LessonProgress | null> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return null;
-    }
-
-    const { data, error } = await supabase
-      .from('lesson_progress')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('lesson_id', lessonId)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return null;
-      }
-      throw error;
-    }
-
-    return data as LessonProgress;
-  } catch (error) {
-    if (__DEV__) console.error('Error getting lesson progress:', error);
-    return null;
-  }
-};
-
-/**
- * Reset progress for a specific lesson
- */
-export const resetLessonProgress = async (lessonId: string): Promise<void> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    const { error } = await supabase
-      .from('lesson_progress')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('lesson_id', lessonId);
-
-    if (error) throw error;
-  } catch (error) {
-    if (__DEV__) console.error('Error resetting lesson progress:', error);
-    throw error;
-  }
-};
-
-/**
- * Reset all progress for the current user
- */
-export const resetAllProgress = async (): Promise<void> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    const { error } = await supabase
-      .from('lesson_progress')
-      .delete()
-      .eq('user_id', user.id);
-
-    if (error) throw error;
-  } catch (error) {
-    if (__DEV__) console.error('Error resetting all progress:', error);
-    throw error;
-  }
-};
-
-/**
- * Get progress statistics
- */
-export const getProgressStats = async (): Promise<{
-  totalCompleted: number;
-  totalLessons: number;
-  percentComplete: number;
-}> => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return {
-        totalCompleted: 0,
-        totalLessons: 13, // Total number of lessons in the app
-        percentComplete: 0,
-      };
-    }
-
-    const { count, error } = await supabase
-      .from('lesson_progress')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('completed', true);
-
-    if (error) throw error;
-
-    const totalCompleted = count || 0;
-    const totalLessons = 13;
-    const percentComplete = Math.round((totalCompleted / totalLessons) * 100);
-
-    return {
-      totalCompleted,
-      totalLessons,
-      percentComplete,
-    };
-  } catch (error) {
-    if (__DEV__) console.error('Error getting progress stats:', error);
-    return {
-      totalCompleted: 0,
-      totalLessons: 13,
-      percentComplete: 0,
-    };
-  }
-};
+}
