@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # Kinderwell Code Review — setup/dev-environment → main
 
 **Date:** 2026-07-04

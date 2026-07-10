@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # Prod bug hunt — v1.0.0 (Build 8) on iPhone XR
 
 Use this checklist while poking at the currently-live App Store version to
