@@ -52,21 +52,28 @@ async function syncSectionsToRemote(storageKey: string, sections: string[]): Pro
     // and the AsyncStorage-only test (see the module-header note). require() is
     // used over dynamic import() because it's synchronous, Metro-friendly, and
     // mockable in jest (jest's default env can't execute import()).
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getLessonByStorageKey } = require('./registry') as typeof import('./registry');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { upsertSections } = require('../services/lessonProgressService') as typeof import('../services/lessonProgressService');
 
     const lesson = getLessonByStorageKey(storageKey);
     if (!lesson) return; // not a synced lesson (e.g. flow lessons) — local only
 
-    const ok = await upsertSections(lesson.slug, sections, lesson.sections.length);
-    if (ok) {
+    const outcome = await upsertSections(lesson.slug, sections, lesson.sections.length);
+    // SPEC-FIX-03 R2: 'skipped' (no session) is a deliberate no-op — it neither
+    // resets nor increments the failure streak, so a signed-out / demo user
+    // completing sections never trips reportError (which would fire during
+    // Apple review). Only a real 'failed' counts.
+    if (outcome === 'skipped') {
+      return;
+    }
+    if (outcome === 'ok') {
       syncFailureStreak[storageKey] = 0;
     } else {
       syncFailureStreak[storageKey] = (syncFailureStreak[storageKey] ?? 0) + 1;
       if (syncFailureStreak[storageKey] >= SYNC_FAILURE_ALERT_THRESHOLD) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { reportError } = require('../config/sentry') as typeof import('../config/sentry');
         reportError(new Error('lesson progress sync repeatedly failing'), {
           lesson: lesson.slug,
@@ -133,12 +140,17 @@ export function createProgressStore(storageKey: string): ProgressStore {
  */
 export async function mergeRemoteIntoLocal(): Promise<void> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { LESSON_REGISTRY } = require('./registry') as typeof import('./registry');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getAllRemoteProgress } = require('../services/lessonProgressService') as typeof import('../services/lessonProgressService');
 
-    const remote = await getAllRemoteProgress(); // slug -> sections
+    const remote = await getAllRemoteProgress(); // slug -> sections, or null on fetch error
+    // SPEC-FIX-03 R1: a null fetch is "unknown", NOT "empty". Skip the whole
+    // merge — do not write anything back — so an errored fetch can't wipe the
+    // user's remote progress. Local stays as-is; retries on the next sign-in.
+    if (remote === null) return;
+
     for (const lesson of Object.values(LESSON_REGISTRY)) {
       if (!lesson.storageKey) continue; // flow lessons don't sync
       const key = lesson.storageKey;
