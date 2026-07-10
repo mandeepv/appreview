@@ -7,6 +7,7 @@ Taxonomy (see `../README.md`): these are **snapshots** of a plan at a point in t
 ## Contents
 
 - `SPEC-11-notifications.md` — local reminders (Phase 1). Parked until owner go + a reminder-shape decision.
-- _(SPEC-12-android-readiness.md, NEW_APP_CHECKLIST.md — owner to supply.)_
+- `SPEC-12-android-readiness.md` — Android readiness (code-side). Parked on product demand.
+- _(NEW_APP_CHECKLIST.md — owner to supply.)_
 
 Related: `../ANALYTICS_DASHBOARDS.md` (PostHog dashboard spec, post-v1.2.0) is the same kind of parked artifact but lives at the `docs/` top level, not here.
