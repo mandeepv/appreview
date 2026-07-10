@@ -30,7 +30,7 @@ Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-educat
 
 ## Commands
 
-- Typecheck: `npx tsc --noEmit` · Lint: `npx eslint .` (baseline ~200 warnings — add zero new ones) · Tests: `npm test`
+- Typecheck: `npx tsc --noEmit` · Lint: `npx eslint .` (baseline ~107 warnings — add zero new ones) · Tests: `npm test`
 - Version bump: `scripts/bump-version.sh <version> <build>` (buildNumber must be a bare integer)
 - Node 20 (see `.nvmrc`); lint crashes on Node 16.
 

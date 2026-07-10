@@ -18,7 +18,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Supabase | prod password last rotated | **never** — risk accepted by owner | 2026-07-09 | Supabase dashboard → Settings → Database |
 | Supabase | last manual backup run | unverified | unverified | Supabase dashboard → Database → Backups |
 | Supabase | last restore drill | **never** | unverified | — |
-| Supabase | prod migrations applied through | unverified (**pending** `completed_sections`) | unverified | `supabase migration list --linked` |
+| Supabase | prod migrations applied through | unverified (**pending**: `completed_sections` [SPEC-13] + `rls_update_with_check` [SPEC-FIX-04 R4] — one prod push covers both) | unverified | `supabase migration list --linked` |
 | Supabase | delete-account deployed version | pre-hardening (**SPEC-03 version NOT deployed**) | unverified | Supabase → Edge Functions |
 | Supabase | gateway `verify_jwt` | on (per `config.toml`); live-state unverified | unverified | `supabase/config.toml` + dashboard |
 | Supabase | `JWT_SECRET` set | dev: no / prod: no | unverified | `supabase secrets list` |
