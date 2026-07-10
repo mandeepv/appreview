@@ -36,9 +36,9 @@ function AppContent() {
 
   // App-level Superwall subscription-status listener. Keeps `isSubscribed` in
   // sync for UI display only (e.g., hide "Subscribe" button in Settings).
-  // Actual paid-content gating is done via usePlacement()/feature() at the
-  // point of access — see LearnScreen.tsx. Demo users are not flipped here,
-  // see docs/DEMO_MODE.md.
+  // Actual paid-content gating is at the Loading gate on entry to Root (the
+  // hard paywall) — see docs/PAYWALL_MODEL.md. `useLessonGate` is a no-op seam
+  // (SPEC-13). Demo users are not flipped here, see docs/DEMO_MODE.md.
   useSuperwallEvents({
     onSubscriptionStatusChange: (subscriptionStatus) => {
       const { isDemoUser } = useAuthStore.getState();
