@@ -1,387 +1,44 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+// SPEC-13 R3 — thin wrapper over the generic LessonHubScreen.
+//
+// The hand-built hub was replaced by the data-driven LessonHubScreen (fed by
+// HUB_META for pixel-parity). This wrapper supplies the lesson + meta and wires
+// section taps through the gate — the paywall seam (useLessonGate) is preserved.
+
+import React from 'react';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
-import { createProgressStore } from '../lessons/progressStore';
-import { STORAGE_KEYS } from '../constants/storageKeys';
+import { getLesson } from '../lessons/registry';
+import { LessonHubScreen } from '../lessons/LessonHubScreen';
+import { HUB_META } from '../lessons/hubMeta';
 import { useLessonGate } from '../hooks/useLessonGate';
 
-interface SubLesson {
-  id: string;
-  number: string;
-  title: string;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}
-
-const subLessons: SubLesson[] = [
-  {
-    id: '1',
-    number: '1',
-    title: 'Happy Situation',
-    description: 'Reflect on a time when you felt happy',
-    icon: 'happy-outline',
-  },
-  {
-    id: '2',
-    number: '2',
-    title: 'Sad Situation',
-    description: 'Reflect on a time when you felt sad',
-    icon: 'sad-outline',
-  },
-  {
-    id: '3',
-    number: '3',
-    title: 'Mad Situation',
-    description: 'Reflect on a time when you felt angry',
-    icon: 'flame-outline',
-  },
-  {
-    id: '4',
-    number: '4',
-    title: 'Bad Situation',
-    description: 'Reflect on a difficult situation you experienced',
-    icon: 'alert-circle-outline',
-  },
-];
+const SLUG = 'namingEmotions';
+const GATE_PREFIX = 'naming';
+const RETURN_TO = 'NamingOurEmotionsLesson' as const;
 
 export default function NamingOurEmotionsLessonScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { gateToLesson } = useLessonGate();
-  const [completedSubLessons, setCompletedSubLessons] = useState<string[]>([]);
-
-  // Load progress when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      const loadProgress = async () => {
-        const completed = await createProgressStore(STORAGE_KEYS.NAMING_EMOTIONS_COMPLETED_SUBLESSONS).getCompletedSections();
-        setCompletedSubLessons(completed);
-      };
-      loadProgress();
-    }, [])
-  );
-
-  const handleBack = () => {
-    navigation.goBack();
-  };
-
-  const handleSubLessonPress = (subLessonId: string) => {
-    // SPEC-09 Phase 3: launch the generic data-driven lesson at this
-    // sublesson (modelled as a section, id '1'..'4' → sectionIndex 0..3).
-    // Gate + return-to-hub unchanged.
-    const sectionIndex = Number(subLessonId) - 1;
-    if (sectionIndex < 0 || sectionIndex > 3) return;
-    gateToLesson(`naming_${subLessonId}`, () => {
-      navigation.navigate('LessonScreen', {
-        lessonId: 'namingEmotions',
-        sectionIndex,
-        screenIndex: 0,
-        returnTo: 'NamingOurEmotionsLesson',
-      });
-    });
-  };
+  const lesson = getLesson(SLUG);
+  if (!lesson) return null;
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleBack}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Title Section */}
-        <View style={styles.titleSection}>
-          <View style={styles.iconContainer}>
-            <Text style={styles.mainIcon}>📝</Text>
-          </View>
-          <Text style={styles.label}>SKILL</Text>
-          <Text style={styles.title}>Naming our Emotions</Text>
-          <Text style={styles.description}>
-            In this exercise you will recall past situations, name your emotions during that situation and explain the reasons you might have felt that way. Think of specific events, not general time periods of life.
-          </Text>
-        </View>
-
-        {/* Progress Indicator */}
-        <View style={styles.progressSection}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Reflection Exercises</Text>
-            <View style={styles.progressBadge}>
-              <Text style={styles.progressText}>{completedSubLessons.length}/4 Complete</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Sub Lessons */}
-        <View style={styles.lessonsContainer}>
-          {subLessons.map((lesson, index) => {
-            const isCompleted = completedSubLessons.includes(lesson.id);
-
-            return (
-              <TouchableOpacity
-                key={lesson.id}
-                style={styles.lessonCard}
-                onPress={() => handleSubLessonPress(lesson.id)}
-                activeOpacity={0.7}
-              >
-                {/* Connecting Line (for all except the last one) */}
-                {index < subLessons.length - 1 && (
-                  <View style={styles.connectingLine} />
-                )}
-
-                <View style={styles.lessonContent}>
-                  {/* Number Circle */}
-                  <View style={[styles.numberCircle, isCompleted && styles.numberCircleCompleted]}>
-                    {isCompleted ? (
-                      <Ionicons name="checkmark" size={24} color="#10B981" />
-                    ) : (
-                      <Text style={styles.numberText}>{lesson.number}</Text>
-                    )}
-                  </View>
-
-                  {/* Lesson Info */}
-                  <View style={styles.lessonInfo}>
-                    <View style={styles.lessonHeader}>
-                      <Ionicons
-                        name={lesson.icon}
-                        size={20}
-                        color={Colors.textTertiary}
-                        style={styles.lessonIcon}
-                      />
-                      <Text style={styles.lessonTitle}>{lesson.title}</Text>
-                    </View>
-                    <Text style={styles.lessonDescription}>{lesson.description}</Text>
-                  </View>
-
-                  {/* Status Indicator */}
-                  {isCompleted ? (
-                    <View style={styles.completedBadge}>
-                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                    </View>
-                  ) : (
-                    <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Bottom Info */}
-        <View style={styles.bottomInfo}>
-          <View style={styles.infoCard}>
-            <Ionicons name="pencil-outline" size={20} color={Colors.primary} />
-            <Text style={styles.infoText}>
-              Each exercise takes about 5-10 minutes for thoughtful reflection
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-    </View>
+    <LessonHubScreen
+      lesson={lesson}
+      meta={HUB_META[SLUG]}
+      onBack={() => navigation.goBack()}
+      onOpenSection={(sectionIndex) => {
+        const section = lesson.sections[sectionIndex];
+        gateToLesson(`${GATE_PREFIX}_${section.id}`, () => {
+          navigation.navigate('LessonScreen', {
+            lessonId: SLUG,
+            sectionIndex,
+            screenIndex: 0,
+            returnTo: RETURN_TO,
+          });
+        });
+      }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.backgroundGray,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingBottom: 40,
-  },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Shadows.sm,
-  },
-  titleSection: {
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.successBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    ...Shadows.md,
-  },
-  mainIcon: {
-    fontSize: 40,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: Typography.weights.bold,
-    color: Colors.primary,
-    letterSpacing: 1.2,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 12,
-    lineHeight: 32,
-  },
-  description: {
-    fontSize: 15,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 12,
-  },
-  progressSection: {
-    paddingHorizontal: 24,
-    marginBottom: 20,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressTitle: {
-    fontSize: 16,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-  },
-  progressBadge: {
-    backgroundColor: Colors.primaryBg,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.sm,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.primary,
-  },
-  lessonsContainer: {
-    paddingHorizontal: 24,
-    gap: 0,
-  },
-  lessonCard: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  connectingLine: {
-    position: 'absolute',
-    left: 23,
-    top: 48,
-    bottom: -16,
-    width: 2,
-    backgroundColor: Colors.border,
-  },
-  lessonContent: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    ...Shadows.sm,
-  },
-  numberCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.successBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  numberCircleCompleted: {
-    backgroundColor: '#D1FAE5',
-  },
-  numberText: {
-    fontSize: 20,
-    fontWeight: Typography.weights.bold,
-    color: '#E65100',
-  },
-  lessonInfo: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  lessonHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  lessonIcon: {
-    marginRight: 6,
-  },
-  lessonTitle: {
-    fontSize: 16,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-    flex: 1,
-  },
-  lessonDescription: {
-    fontSize: 13,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textTertiary,
-    lineHeight: 18,
-  },
-  comingSoonBadge: {
-    backgroundColor: Colors.accent,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.sm,
-    alignSelf: 'flex-start',
-  },
-  comingSoonText: {
-    fontSize: 11,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.textPrimary,
-  },
-  completedBadge: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bottomInfo: {
-    paddingHorizontal: 24,
-    marginTop: 24,
-  },
-  infoCard: {
-    backgroundColor: Colors.primaryBg,
-    borderRadius: BorderRadius.lg,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-});
