@@ -295,17 +295,19 @@ follow-up. Policy amendment landed on the kinderwell-legal repo
 
 ### 9b. Clear ESLint warning backlog 🟢
 
-Adding ESLint (Fable 🟡) surfaced ~200 warnings — mostly
+Adding ESLint (Fable 🟡) originally surfaced roughly two hundred
+warnings — mostly
 `@typescript-eslint/no-unused-vars` (destructured-but-unused
 callback args), `react-hooks/refs` (`useRef(new Animated.Value(0)).current`
 pattern), and `react-hooks/exhaustive-deps` on animation effects.
-None are errors; CI now catches new errors but tolerates the
-warning baseline.
+None are errors; CI catches new errors but tolerates the warning
+baseline.
 
-Most of the volume lives in duplicated lesson screens under
-`src/screens/sprinklers/` and `src/screens/serveReturn/` — item
-18 (v1.2 lesson data-driven refactor) will collapse those into a
-few shared components, and the warnings vanish with them.
+**Update (2026-07-10):** most of that volume lived in the duplicated
+lesson screens under `src/screens/sprinklers/` etc. — SPEC-09/SPEC-13
+deleted them (data-driven engine + hub consolidation), so the baseline
+dropped to **~107**. The remainder is the residual animation-ref /
+exhaustive-deps pattern in the surviving onboarding + component screens.
 
 Standalone cleanup (before or after that refactor):
 - Delete truly unused imports flagged by unused-vars
@@ -658,36 +660,15 @@ as bait-and-switch. Preempt with a "Coming Soon" label on the
 LearnScreen card itself so nobody feels lied to. Option (b) is a
 follow-up for v1.1.1 or later — actually shipping the content.
 
-### 12. Lesson progress not synced to Supabase 🟡
+### 12. Lesson progress synced to Supabase — DONE (SPEC-13)
 
-`src/services/lessonProgressService.ts` has 7 functions querying
-the `lesson_progress` table in Supabase — but **nothing in the app
-calls any of them**. The service is 100% dead code, and the
-matching `lesson_progress` table in Supabase is dead schema (empty
-for every user).
-
-Lesson progress today is stored per-lesson in AsyncStorage via
-utility files like `src/utils/sprinklersProgress.ts`,
-`src/utils/communicationMistakesProgress.ts`, etc. Each lesson has
-its own storage key.
-
-**Consequences**:
-- Force-quit + reopen → progress survives (AsyncStorage persists) ✅
-- Uninstall + reinstall → progress lost ❌
-- Signed in on second device → no progress there ❌
-- User buys new iPhone → starts over ❌
-
-**Fix scope**:
-- Modify each of the ~8 progress-tracking utility files to also
-  write to Supabase (upsert into `lesson_progress` keyed on user_id
-  + lesson_id)
-- Add a hydration step on app launch that pulls the user's Supabase
-  progress into AsyncStorage if it's more complete
-- Handle the merge-conflict case (device has progress, so does
-  server) with last-write-wins or a smarter merge
-
-**Effort**: 2-3 hours. Prod has always worked this way; users on
-the same device don't notice. Cross-device is a real feature to
+Superseded. `lessonProgressService.ts` is no longer dead code — SPEC-13
+wired it as the account-scoped sync layer behind the
+`createProgressStore` factory (local-first write + background DB upsert;
+sign-in union-merge). The `lesson_progress` table gained a
+`completed_sections` column and is populated. The two residual
+refinements from the 2026-07-10 review live at #23 (union-before-push)
+and #24 (missing `lesson_completed` derivation test). See those.
 build later.
 
 ### 13. Notifications feature not implemented 🟡
@@ -731,19 +712,22 @@ per-alert fix. Multi-day.
 
 ### 15. Delete old / dead code 🟢
 
-Multiple dead-code paths surfaced during v1.1.0 work:
-- `lessonProgressService.ts` — all 7 functions unused (see #12)
-- `ChildrenGenderScreen.tsx` — registered as a route, nothing
-  navigates to it
-- `updateChildGender` action in onboarding store — never called
+Dead-code paths surfaced during v1.1.0 work — corrected after the
+2026-07-10 audit (some earlier entries were wrong):
+- `ChildrenGenderScreen.tsx` — registered as a route (`OnboardingNavigator`),
+  but nothing navigates to it. Genuine dead route.
 - The dead `showPersonalization` toggle inside `ChildrenCountScreen`
-  (commented out but the state variable + section still exist)
+  (commented out but the state variable + section still exist).
+- ~~`lessonProgressService.ts` unused~~ — WRONG now: it's the SPEC-13 sync
+  layer (see #12).
+- ~~`updateChildGender` never called~~ — WRONG: it IS called from
+  `ChildrenCountScreen.tsx:~202` (the gender picker). Keep the action.
 
-**Fix**: grep for orphaned exports and delete. Reduces bug
-surface. TypeScript will catch anything that actually needs the
-removed code.
+**Fix**: delete only the confirmed-dead route (ChildrenGenderScreen) +
+the dead `showPersonalization` toggle. TypeScript will catch anything
+that actually needs the removed code.
 
-**Effort**: ~30 min
+**Effort**: ~20 min
 
 ### 16. Section 4: Data integrity checks not fully covered 🟢
 

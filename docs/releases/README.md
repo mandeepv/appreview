@@ -4,6 +4,8 @@ For **every** release, copy `docs/RELEASE_CHECKLIST.md` → `docs/releases/v<X.Y
 
 `RELEASE_CHECKLIST.md` is the TEMPLATE (never ticked). These instances are the executed copies. Taxonomy (see `../README.md`): **instances = snapshots** (born with a date, frozen after shipping); this directory itself is a **living convention**.
 
+**After copying the template, rewrite its relative links `./` → `../`** — the instance lives one directory deeper than the template, so `[..](./FOO.md)` must become `[..](../FOO.md)` (else the links 404).
+
 ## Instances
 
 - `v1.2.0.md` — seeded (unticked), scope: paywall fixes + lesson engine + progress sync. Owner fills as v1.2.0 ships.

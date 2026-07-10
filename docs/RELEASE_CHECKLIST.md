@@ -26,7 +26,7 @@ _(The git tagging convention, formerly `RELEASE_PROCESS.md`, is now folded into 
 Every release, these five manual steps happen *outside* the code and *outside* CI. If you skip any of them you either get rejected by Apple, ship an app that doesn't work for existing users, or corrupt prod data. They are covered by their own phases below — this list exists so nobody skims past them:
 
 1. **Phase 4** — Apply schema migrations to prod (`supabase db push`) if any are pending. Skipping = new app talks to old schema, writes fail silently.
-2. **Phase 5** — Redeploy any Edge Functions that changed on this branch. **For v1.1.0 specifically this includes `delete-account` (CORS was tightened)**. Skipping = the app calls the old function code, so account-deletion behavior on prod diverges from what was tested. Also: the Fable re-review 2026-07-05 flagged that the `ACAO: null` value in the shipped code is not a lockdown — remove the `Access-Control-Allow-Origin` header entirely in the same deploy.
+2. **Phase 5** — Redeploy any Edge Functions that changed on this branch. Skipping = the app calls the old function code, so behavior on prod diverges from what was tested. **If an edge function changed, list its env-var / secret prerequisites in the release's runbook** (`releases/v<X.Y.Z>.md`) — check the `Deno.env.get(...)` calls in the function's diff. A function that reads a secret and fails closed (e.g. `delete-account` needs `JWT_SECRET`, else 500 on every call) MUST have that secret set on each environment BEFORE (or as part of) the deploy, and be verified DEV-first with acceptance curls. A missing secret is a broken feature in prod, not a safe no-op.
 3. **Phase 7.5** — Verify each Superwall paywall in the Superwall dashboard has a dismiss control (X, "Not now", or swipe-to-dismiss). Skipping = Apple 3.1.2 rejection.
 4. **Phase 8.3** — Run the mandatory UPGRADE test on TestFlight (old app → new app on same device, subscription + progress preserved). Skipping = existing users break the moment they update; hotfix takes 24–72h through Apple.
 5. **Phase 9a** — Update the App Store Connect App Privacy questionnaire so it matches `PrivacyInfo.xcprivacy` and `legal/PRIVACY_POLICY.md`. Skipping = Apple review rejection for privacy-manifest mismatch.
@@ -60,12 +60,15 @@ Everything else in this checklist is code, config, or timing — these five are 
 
 ### Run CI (manual — this is the release gate)
 
-**CI is manual-only by owner decision** (metered Actions minutes, private
-repo); the release gate = run the workflow on `main` and get the 4 gating jobs
-green. It does **not** run automatically on push or PR (the checks are also run
-locally during development). Trigger it **at release time** — this is that
-moment. One clean, independent confirmation from a fresh environment on the
-exact code you're about to ship.
+**The manual run is the release gate** (owner decision, metered Actions minutes
+on a private repo): run the workflow on `main` and get the 4 gating jobs green.
+CI also runs automatically on a **`pull_request` targeting `main`** (SPEC-FIX-01
+R3c) — that gates the one branch that matters at ~5 job-minutes per PR. There is
+deliberately **no `push:` trigger** (that would double-spend on every branch
+push AND every merge); the checks are also run locally during development. So:
+PRs into main auto-gate, and you STILL do one manual run at release time — a
+clean, independent confirmation from a fresh environment on the exact code
+you're about to ship.
 
 - [ ] Trigger the CI workflow on `main` (the commit you're releasing):
   - GitHub → **Actions** tab → **CI** workflow → **Run workflow** → pick
@@ -76,11 +79,12 @@ exact code you're about to ship.
 - [ ] If any of the four gating jobs is red, fix before building the IPA — do
   NOT proceed to a device build on a red CI.
 
-> Why manual: automatic per-push/per-merge runs were redundant (tsc, lint, and
-> the jest suite are run locally before every merge) and burned Actions
-> minutes on a private repo. The trigger lives in `.github/workflows/ci.yml`
-> as `workflow_dispatch`. To re-enable automatic gating later, add
-> `push: { branches: [main] }` back to the `on:` block.
+> Why this shape: per-push/per-merge runs were redundant (tsc, lint, and the
+> jest suite are run locally before every merge) and burned Actions minutes on a
+> private repo. `.github/workflows/ci.yml`'s `on:` block therefore has
+> `workflow_dispatch` (the manual release-gate run) + `pull_request: { branches:
+> [main] }` (auto-gate the PR into main), but NO `push:` trigger. To also gate
+> every push to main later, add `push: { branches: [main] }` back.
 
 ### Build a real-device dev IPA first
 
@@ -219,7 +223,7 @@ stale.
   ```bash
   supabase link --project-ref xbkkjqvbsnroenqlqkmi
   ```
-- [ ] **Re-test the affected feature from the app** after deploy. For `delete-account` specifically, sign in on the shipped iOS build, tap Settings → Delete Account, verify: single confirmation, subscription warning, success alert, session cleared, no 401. If you get a 401, the refresh + Edge Function chain broke — do NOT ship until fixed.
+- [ ] **Re-test the affected feature from the app** after deploy. For `delete-account` specifically, sign in on the shipped iOS build, tap Settings → Delete Account, verify: single confirmation, subscription warning, success alert, session cleared, **and no 401 or 500**. A 401 = the refresh + Edge Function auth chain broke. A 500 = `JWT_SECRET` is missing on that environment (the hardened function fails closed) — set it and redeploy. Either code: do NOT ship until fixed.
 
 ### If an Edge Function changed this release (generic)
 
