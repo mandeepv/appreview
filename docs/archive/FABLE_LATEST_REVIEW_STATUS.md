@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # Fable Latest Review — Item Tracker
 
 Companion to `FABLE_LATEST_REVIEW.md`. Every finding, its status, and the

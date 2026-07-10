@@ -3,10 +3,11 @@
 **Purpose:** the single ordered list of things to do when shipping a new version of Kinderwell. Use this every release, top to bottom, don't skip steps.
 
 **Related docs:**
-- [`RELEASE_PROCESS.md`](./RELEASE_PROCESS.md) — the git tagging convention (referenced in Phase 4)
 - [`DEV_PROD_ENVIRONMENTS.md`](./DEV_PROD_ENVIRONMENTS.md) — dev/prod switching, kill switch, migrations
 - [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) — where the 3 version files live
-- [`BEST_PRACTICES.md`](./BEST_PRACTICES.md) — ongoing gap tracking
+- [`BACKLOG.md`](./BACKLOG.md) — the living work tracker (open hardening items)
+
+_(The git tagging convention, formerly `RELEASE_PROCESS.md`, is now folded into the "Tag the release" step below — one doc for one activity.)_
 
 > **📌 Standing rule — this checklist is version-agnostic.** Steps that are
 > specific to ONE release (e.g. "for v1.1.0, redeploy delete-account because
@@ -183,7 +184,7 @@ stale.
   state, before the table existed. A `404` here would mean the migration
   never landed; investigate before proceeding.
 
-- [ ] **⚠️ Backup reality check.** As of 2026-07-04, prod has NO automated backups (Free tier). If this migration breaks something in a way we can't roll forward, there is no recovery. Review the SQL one more time; make sure `--dry-run` output matches expectations exactly. See `BEST_PRACTICES.md` item #2 for the deferred-fix options.
+- [ ] **⚠️ Backup reality check.** As of 2026-07-04, prod has NO automated backups (Free tier). If this migration breaks something in a way we can't roll forward, there is no recovery. Review the SQL one more time; make sure `--dry-run` output matches expectations exactly. See `BACKLOG.md` item #9h (pre-migration prod dump) for the deferred-fix options.
 - [ ] Confirm every SQL file in `supabase/migrations/` that's new since last release is backward-compatible (see [`DEV_PROD_ENVIRONMENTS.md`](./DEV_PROD_ENVIRONMENTS.md) → "Schema migrations — backward compatibility"). If it's a breaking change → STOP, refactor to expand-only.
 
 **How to actually verify backward compat (do this, don't just say it's fine):**
@@ -591,11 +592,12 @@ The exact data types to declare (matching what our app actually does — see `le
 - [ ] **Do NOT click "Release" immediately.** Apple has approved; the build is now in "Pending Developer Release" state. Take a beat.
 - [ ] Install the approved build via TestFlight one more time and run the full smoke test on real device. Any last-minute issue? DO NOT release; go back and fix.
 - [ ] If clean → click **"Release This Version"** in App Store Connect at a low-traffic window (early morning your timezone is fine).
-- [ ] Follow [`RELEASE_PROCESS.md`](./RELEASE_PROCESS.md) — create build-specific tag `v1.1.0-build-9`
-- [ ] Move production marker tag `appstore-live-v1.1.0`
-- [ ] Push tags to GitHub
+- [ ] **Tag the release** (dual-tag scheme — one build tag per build, one live marker per platform):
+  - [ ] Build-specific tag on the exact shipped commit: `v{MAJOR}.{MINOR}.{PATCH}-build-{BUILD}` (e.g. `v1.1.0-build-9`). Marks specific builds, including rejected ones.
+  - [ ] Move the production marker tag `appstore-live-v{MAJOR}.{MINOR}.{PATCH}` (e.g. `appstore-live-v1.1.0`) — quickly identifies what's live. Only one production marker per platform at a time (delete the previous one).
+  - [ ] Push tags to GitHub (`git push origin --tags`).
+  - _Tagged the wrong commit? Delete locally + on remote (`git tag -d <t>` / `git push origin :refs/tags/<t>`), recreate on the correct commit._
 - [ ] Delete test users from prod Supabase → Authentication → Users
-- [ ] Update `docs/BEST_PRACTICES.md` "Done" section with this release date
 
 ---
 
@@ -642,11 +644,23 @@ Something's on fire post-release. In order of preference:
 
 ---
 
+## Post-release retro — docs pruning (standing 15-min step, per INVARIANTS #18)
+
+Do this immediately after each release, before context fades. Docs are AI-session context — a stale snapshot read as truth poisons every future session, so curating what's "live" is real maintenance, not busywork.
+
+- [ ] **Verify the release was actually tagged** — `git tag | grep appstore-live` must show the version you just shipped as the current marker, on the exact built commit (INVARIANTS #17). This catches a skipped Phase-10 tag step: the v1.1.0 marker was missed once (marker sat at v1.0.0 while v1.1.0 was live) — that miss is what this check exists to prevent.
+- [ ] **Strip per-release blocks** from this checklist — any step that was specific to the version just shipped (e.g. "for v1.1.0, redeploy delete-account") is a one-time carrying instruction, not a permanent step. Delete it (INVARIANTS #18: stale instructions are treated as bugs).
+- [ ] **Archive what's now dated** — any doc whose content stopped being maintained (a shipped release's test plan, a completed review's findings) → `git mv` into `docs/archive/`, add a `SNAPSHOT` banner at the top, add an `archive/README.md` entry, and remove it from `docs/README.md`.
+- [ ] **Spot-check the evergreen core against the code** — pick 1–2 evergreen docs and confirm they still match reality (`INVARIANTS.md`, `PAYWALL_MODEL.md`, `DEV_PROD_ENVIRONMENTS.md` are the highest-stakes). If one drifted, fix it here or downgrade it to a snapshot.
+- [ ] **After 1.1.1 ships:** extract the reusable regression sections from `IPHONE_TEST_PLAN_V1.1.0.md` into an evergreen `TEST_PLAN_TEMPLATE.md`, then archive the V1.1.0 plan — so the next release's plan starts from structure, not scratch.
+
+---
+
 ## Between releases — recurring hygiene
 
 - [ ] Weekly: check App Store Connect crashes + PostHog funnels
 - [ ] Weekly: PostHog dashboard → filter events to `demo_mode_activated`, `environment = prod`, `$app_version = <latest>` and count activations over the last 7 days. **Threshold: ~20/week.** Expected baseline is 1-5/week (Apple reviewers only). If the count spikes above ~20/week, the 7-tap gesture has been discovered by end users — remove it in the next release before Apple notices in review. See `docs/DEMO_MODE.md` "Guideline 2.3.1 concern" section for the full rip-out decision framework. Also rip out if Apple raises 2.3.1 in a submission review, regardless of the count.
-- [ ] Monthly: check `BEST_PRACTICES.md` gap list — anything worth doing?
+- [ ] Monthly: check `BACKLOG.md` — anything worth doing?
 - [ ] Every 6 months: rotate Apple JWT — see [`APPLE_JWT_ROTATION.md`](./APPLE_JWT_ROTATION.md)
 - [ ] Every 6 months: rotate DB passwords for good hygiene
 - [ ] Quarterly: verify backups exist and can restore — see [`DEV_PROD_ENVIRONMENTS.md`](./DEV_PROD_ENVIRONMENTS.md) → "Rollback plans"

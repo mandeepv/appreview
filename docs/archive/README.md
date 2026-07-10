@@ -40,6 +40,46 @@ Docs that were once actively used but are now historical. **Nothing has been del
 - **Why archived:** Moved out of the repo root during the SPEC-07 hygiene sweep. Not imported or referenced by app code — it's source material, not a runtime asset.
 - **Still useful for:** Likely source material for SPEC-09 (lesson content work). Do NOT delete — kept here as the canonical extracted text.
 
+### `FABLE_REVIEW.md`, `FABLE_LATEST_REVIEW.md`, `FABLE_RE_REVIEW_2026-07-05.md`
+- **Original purpose:** The 2026-07 Fable release-review passes (findings + severities) for the v1.1.0 hardening cycle.
+- **Why archived:** Point-in-time review snapshots. The review *methodology* is now the evergreen `REVIEW_PROTOCOL.md`; the *findings* were addressed in code (see the status tracker below).
+- **Still useful for:** "What did the 2026-07 review find, and how did we respond?" Historical audit trail with commit references.
+
+### `FABLE_LATEST_REVIEW_STATUS.md`
+- **Original purpose:** Live item tracker for the Fable review — every finding, its status, and the commit that closed it.
+- **Why archived:** Its state was migrated — every open item now lives in `BACKLOG.md` (items #9c–9k, #18, #21), which is the work queue. This tracker is the historical audit of what the review found.
+- **Still useful for:** Cross-referencing a Fable finding to the exact commit that fixed it.
+
+### `PROD_BUG_HUNT.md`
+- **Original purpose:** A point-in-time production bug-hunt sweep.
+- **Why archived:** Dated snapshot; findings were triaged into code fixes / `BACKLOG.md`.
+- **Still useful for:** Reconstructing what was hunted and found in that pass.
+
+### `RELEASE_PROCESS.md`
+- **Original purpose:** The git-tagging convention (build tags + production-marker tags).
+- **Why archived:** Two docs about one activity drift apart (invariant 18). Folded into `RELEASE_CHECKLIST.md` ("Tag the release") — the single source for release mechanics.
+- **Still useful for:** The full tag-troubleshooting detail (wrong-commit recovery, viewing tags) if the checklist's summary isn't enough.
+
+### `BEST_PRACTICES.md`
+- **Original purpose:** A "where we are today" gap analysis / practices tracker.
+- **Why archived:** A point-in-time snapshot that mixed done-items with a live gap list — the two drift. Open items live in `BACKLOG.md`; the rest is history.
+- **Still useful for:** The historical "gap analysis" framing and the record of what was done when.
+
+### `SETUP_GUIDE.md`
+- **Original purpose:** Full local dev-environment setup walkthrough (API keys, initial config).
+- **Why archived:** A one-time setup snapshot; the ongoing dev/prod reference is `DEV_PROD_ENVIRONMENTS.md`.
+- **Still useful for:** Re-bootstrapping a fresh machine — the step-by-step get-keys detail.
+
+### `Branding.md`
+- **Original purpose:** Early branding / visual-identity notes.
+- **Why archived:** Reference material, not a maintained process doc.
+- **Still useful for:** The original colour/typography/brand intent.
+
+### `SPEC_HANDOFF_2026-07-09_DELETE_AFTER_REVIEW.md`
+- **Original purpose:** Temporary handoff writeup of SPEC-01…SPEC-10 + SPEC-FIX-01 + the full SPEC-09 per-phase log, for a reviewer.
+- **Why archived:** A dated handoff snapshot (SPEC-09 is now complete; the writeup is history). Kept rather than deleted per its own "review" purpose.
+- **Still useful for:** The blow-by-blow record of what each SPEC changed and why during the 2026-07 hardening cycle.
+
 ## Adding to archive
 
 When archiving:

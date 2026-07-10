@@ -120,4 +120,4 @@ Options considered:
 - [ ] Dev Supabase Apple provider Secret Key
 - [ ] "Current JWT expires" line at the top of this doc
 - [ ] Calendar reminder for next rotation (~5.5 months from now)
-- [ ] `BEST_PRACTICES.md` "Done" section — add a "Rotated Apple JWT — YYYY-MM-DD" entry
+- [ ] Log the rotation date (this doc's "Current JWT expires" line is the source of truth)

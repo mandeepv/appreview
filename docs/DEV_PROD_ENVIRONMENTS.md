@@ -341,7 +341,7 @@ Section pointers, so you know where things live:
 |---|---|
 | The whole release checklist end-to-end | [`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md) |
 | Version bump rules + the sync script | [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) |
-| Git tagging after Apple approval | [`RELEASE_PROCESS.md`](./RELEASE_PROCESS.md) |
+| Git tagging after Apple approval | [`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md) → "Tag the release" |
 | Kill switch operation + rollback | Sections below in this doc |
 | Schema migration mechanics + backward-compat rules | Sections above in this doc |
 | Apple JWT rotation (every 6 months) | [`APPLE_JWT_ROTATION.md`](./APPLE_JWT_ROTATION.md) |
@@ -557,7 +557,7 @@ Watch for `[Supabase] Env: PROD ⚠️` — do NOT sign up test accounts or writ
 2. Test pre-release build: `eas build --profile preview` (dev backend, release-mode)
 3. Build for store: `eas build --profile production` (prod backend)
 4. Submit: `eas submit --profile production`
-5. After Apple approval, follow `RELEASE_PROCESS.md` to tag
+5. After Apple approval, follow `RELEASE_CHECKLIST.md` ("Tag the release") to tag
 
 ## Danger zone — do NOT do these
 
