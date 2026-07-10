@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # App Store Release Process
 
 This document outlines the process for tagging and tracking App Store releases for the Kinderwell app.

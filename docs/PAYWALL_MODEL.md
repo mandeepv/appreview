@@ -284,6 +284,6 @@ have the fallback ready.
   paywall model
 - `docs/BACKLOG.md` #20 — Paywall UX polish (post-launch A/B testing,
   headline iteration, etc.)
-- `docs/FABLE_RE_REVIEW_2026-07-05.md` — the review that flagged the
+- `docs/archive/FABLE_RE_REVIEW_2026-07-05.md` — the review that flagged the
   original two-placement confusion. This model was designed after
   the review to eliminate the confusion entirely.

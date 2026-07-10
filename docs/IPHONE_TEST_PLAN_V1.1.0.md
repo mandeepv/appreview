@@ -528,7 +528,7 @@ The Fable re-review 2026-07-05 caught that this test was asserting on the wrong 
 - [ ] Rush-tap through onboarding, providing DIFFERENT answers than your original ones (e.g. change parent type).
 - [ ] Reach the Auth screen at the end of onboarding.
 - [ ] Sign in with the same OAuth provider (existing account).
-- [ ] Land on Home / Learn. Verify (via dev Supabase → `user_profiles` row inspection, or PostHog `identifyUserWithOnboarding` event) that your **original** answers are still there — the fresh answers from this rush-through were discarded. This is the documented pushback (see `FABLE_LATEST_REVIEW.md` Response 2026-07-04 for finding #3), not a bug.
+- [ ] Land on Home / Learn. Verify (via dev Supabase → `user_profiles` row inspection, or PostHog `identifyUserWithOnboarding` event) that your **original** answers are still there — the fresh answers from this rush-through were discarded. This is the documented pushback (see `archive/FABLE_LATEST_REVIEW.md` Response 2026-07-04 for finding #3), not a bug.
 
 **12.2c — `has_reached_auth` flag-leak fix (the actual bug that was fixed):**
 

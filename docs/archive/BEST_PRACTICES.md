@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # Best Practices & Gap Analysis — Kinderwell
 
 **Purpose:** honest inventory of what Kinderwell is doing well, what it's not, and — since real users pay real money — what to fix in what order.
