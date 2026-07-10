@@ -23,6 +23,7 @@ import { QuizQuestion } from '../components/QuizQuestion';
 import { QuizQuestionMultiSelect } from '../components/QuizQuestionMultiSelect';
 import { BlockRenderer } from './components/BlockRenderer';
 import { createProgressStore } from './progressStore';
+import { safeCapture } from '../lib/analytics';
 import { Colors, Typography, Shadows } from '../constants/theme';
 import type { Lesson, LessonScreen } from './schema';
 
@@ -70,6 +71,35 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     ? screenIndex >= section.screens.length - 1
     : true;
 
+  // SPEC-13 R4/R5 — lesson analytics. `lesson_started` fires at the true
+  // "opened" moment, ONCE per lesson visit. That moment differs by lesson kind:
+  //   - Flow lessons (no storageKey): the controller mount IS the opening, so
+  //     the controller fires it (below).
+  //   - Hub lessons (have a storageKey): the user lands on the hub first, so
+  //     LessonHubScreen owns the fire (see there). Firing here too would
+  //     double-count, so the controller SKIPS hub lessons.
+  // Static registry IDs only (slug + title), no content text (INVARIANTS #8).
+  React.useEffect(() => {
+    const isFlowLesson = !lesson.storageKey;
+    if (isFlowLesson && sectionIndex === 0 && screenIndex === 0) {
+      safeCapture('lesson_started', { lesson_id: lesson.slug, lesson_title: lesson.title });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // SPEC-13 R4/R5 — `lesson_section_started` fires at the entry (screen 0) of
+  // EVERY section, for ALL lessons (generalizes the old Sprinklers-hub-only
+  // event). Static IDs only.
+  React.useEffect(() => {
+    if (section && screenIndex === 0) {
+      safeCapture('lesson_section_started', {
+        lesson_id: lesson.slug,
+        section_id: section.id,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionIndex]);
+
   // Complete the current section: write its progress key, then return to the
   // hub. Called from the LAST screen of a section regardless of screen kind —
   // in the original hand-built lessons, every section's final screen writes
@@ -85,8 +115,21 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     if (section && lesson.storageKey) {
       await createProgressStore(lesson.storageKey).markSectionComplete(section.id);
     }
+    if (section) {
+      // SPEC-13 R4 — a section finished. Static IDs only.
+      safeCapture('lesson_section_completed', {
+        lesson_id: lesson.slug,
+        section_id: section.id,
+      });
+      // The whole lesson completes when its LAST section finishes (derive from
+      // the registry's section count — the lesson object here IS the registry
+      // entry).
+      if (sectionIndex >= lesson.sections.length - 1) {
+        safeCapture('lesson_completed', { lesson_id: lesson.slug });
+      }
+    }
     onSectionComplete();
-  }, [lesson.storageKey, section, onSectionComplete]);
+  }, [lesson, section, sectionIndex, onSectionComplete]);
 
   // Advance to the next screen, or complete the section on the last screen.
   const goNext = useCallback(() => {

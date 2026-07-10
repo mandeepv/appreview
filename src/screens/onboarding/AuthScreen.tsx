@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Lin
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AntDesign } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { usePostHog } from 'posthog-react-native';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingContainer } from '../../components/OnboardingContainer';
 import { useOnboardingStore } from '../../store/onboardingStore';
@@ -13,7 +12,7 @@ import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { resolvePostAuthDestination } from '../../navigation/routingPolicy';
 import { Colors } from '../../constants/theme';
-import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned, trackAuthSucceeded } from '../../lib/analytics';
+import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned, trackAuthSucceeded, safeCapture } from '../../lib/analytics';
 import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
@@ -22,7 +21,6 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   const onboardingStore = useOnboardingStore();
   const { setAuthMethod, markAuthReached } = onboardingStore;
   const { setUser, setSession, setDemoUser, signOut } = useAuthStore();
-  const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'apple' | null>(null);
   const [tapCount, setTapCount] = useState(0);
@@ -162,7 +160,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
     // of the screen. See Fable review #8: firing on mount inflated funnels
     // because parked users get resumed to Auth and re-emitted the event on
     // every launch.
-    posthog.capture('onboarding_completed');
+    safeCapture('onboarding_completed');
     navigation.replace('Loading');
   };
 
@@ -192,7 +190,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
         // provider + context so attempted → succeeded | abandoned forms a
         // clean funnel.
         trackAuthSucceeded(provider, attemptedContext);
-        posthog.capture('user_signed_in', {
+        safeCapture('user_signed_in', {
           auth_method: provider,
           user_type: userTypeAnalytics,
         });
@@ -239,7 +237,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       // monitor this in prod — expected ~1-5 activations/week (Apple
       // reviewers only). A spike means end users have discovered the
       // gesture and we should remove it before Apple notices in review.
-      posthog.capture('demo_mode_activated');
+      safeCapture('demo_mode_activated');
       Alert.alert(
         'Demo Mode Activated',
         'You now have full access to all premium features for review purposes.',
