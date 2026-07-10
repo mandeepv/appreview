@@ -7,9 +7,9 @@ A Duolingo-style parenting app helping parents learn to be better through daily 
 All process and setup guides live in [`docs/`](./docs/README.md). Quick links:
 
 - [Dev/Prod environment switching + release workflow](./docs/DEV_PROD_ENVIRONMENTS.md)
-- [Release tagging process](./docs/RELEASE_PROCESS.md)
-- [Best practices & prioritized gap list](./docs/BEST_PRACTICES.md)
-- [Setup guide (new machine)](./docs/SETUP_GUIDE.md)
+- [Release checklist (incl. git tagging)](./docs/RELEASE_CHECKLIST.md)
+- [Work backlog / open items](./docs/BACKLOG.md)
+- [Invariants — read before changing anything](./docs/INVARIANTS.md)
 - [Docs index](./docs/README.md)
 
 ## Tech Stack
