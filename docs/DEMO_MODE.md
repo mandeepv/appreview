@@ -19,7 +19,7 @@ On the `AuthScreen` (last screen of onboarding — the "Save your progress" scre
 
 After the 7th tap:
 1. Alert shows: "Demo Mode Activated — You now have full access to all premium features for review purposes."
-2. On dismiss, `setDemoUser()` fires (see `src/store/authStore.ts:36`)
+2. On dismiss, `setDemoUser()` fires (see `setDemoUser` in `src/store/authStore.ts`)
 3. Auth state gets:
    - A synthetic user with id `demo-reviewer-user`, email `demo@kinderwell.app`
    - `session: null` (no real Supabase session — never touches DB)
@@ -39,7 +39,7 @@ The number is arbitrary. Could be 5 or 10. The concealment (hidden vs visible bu
 Apple's Guideline 2.3.1 forbids apps from including "hidden or dormant features" that a normal user could discover and use. The 7-tap gesture is arguably an example — a normal user browsing the app who accidentally taps the title 7 times gets free premium. Fable review #13 flagged this as a rejection risk we've been carrying since day 1.
 
 Mitigations:
-1. **PostHog monitoring** (v1.1.0): the app fires a dedicated `demo_mode_activated` event on every 7-tap activation (`AuthScreen.tsx:218` — `posthog.capture('demo_mode_activated')`). The event has no properties; count it directly in PostHog to measure activation volume. **Filter by `$app_version = 1.1.0` and `environment = prod` to exclude dev/beta noise.**
+1. **PostHog monitoring** (v1.1.0): the app fires a dedicated `demo_mode_activated` event on every 7-tap activation (in the 7-tap handler in `src/screens/onboarding/AuthScreen.tsx` — `safeCapture('demo_mode_activated')`). The event has no properties; count it directly in PostHog to measure activation volume. **Filter by `$app_version = 1.1.0` and `environment = prod` to exclude dev/beta noise.**
 
    Note: `authMethod: 'demo'` is a related but different signal — it's a *user property* / auth-store field that tags the session type after activation, and it shows up attached to downstream events like `user_signed_in`. It is NOT what you filter on to count activations. If you're looking at the wrong signal you'll under-report by an order of magnitude. Earlier drafts of this doc referenced `authMethod: 'demo'` here; that was wrong and was corrected 2026-07-05 by the Fable re-review.
 
@@ -51,10 +51,10 @@ Mitigations:
 
 ## Where it's referenced
 
-- **`src/store/authStore.ts:36-53`** — `setDemoUser()` function. Sets `isDemoUser: true` and `isSubscribed: true`. Also seeds the synthetic user.
-- **`src/screens/onboarding/AuthScreen.tsx:117-149`** — 7-tap gesture handler on the title text.
+- **`setDemoUser()` in `src/store/authStore.ts`** — sets `isDemoUser: true` and `isSubscribed: true`. Also seeds the synthetic user.
+- **The 7-tap gesture handler in `src/screens/onboarding/AuthScreen.tsx`** (`handleTitlePress`) — counts taps on the title text; on the 7th, fires `safeCapture('demo_mode_activated')` then `setDemoUser()`.
 - **`src/screens/onboarding/LoadingScreen.tsx`** — checks `isDemoUser` before triggering Superwall paywall (skips paywall for demo users).
-- **`src/screens/onboarding/AuthScreen.tsx:14` (title press)** — `onPress={handleTitlePress}` attached to the "Save your progress" `<Text>`.
+- **The title `<Text>` in `AuthScreen.tsx`** — `onPress={handleTitlePress}` attached to the "Save your progress" title.
 
 ## What Apple Review Instructions should say
 
@@ -122,7 +122,7 @@ The `App.tsx` or `Splash` cold-start "check subscription status" logic must retu
 
 ### 4. Sign-out MUST clear demo mode
 
-`signOut()` currently sets `isDemoUser: false` (see `authStore.ts:58`). If we ever refactor sign-out, make sure this stays.
+`signOut()` currently sets `isDemoUser: false` (see `signOut` in `authStore.ts`). If we ever refactor sign-out, make sure this stays.
 
 ### 5. Session restoration on relaunch MUST NOT wipe demo mode
 

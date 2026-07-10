@@ -83,5 +83,5 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Prod DB password never rotated (leaked in old public git history) | 2026-07-09 | Apps use the anon key, not the DB password. Revisit if the repo history is ever shared again |
 | No 2FA/recovery hardening on Apple ID & co. | 2026-07-09 | None — accepted as-is |
 | No support playbook (tickets handled ad hoc) | 2026-07-09 | Revive if ticket volume appears |
-| No mechanical merge-blocking on `main` (GitHub paywalls branch protection on private repos) | 2026-07-10 | The 4 CI checks run on every PR to main + "never merge on red" working rule. Revisit on a GitHub Team upgrade |
+| No mechanical merge-blocking on `main` (GitHub paywalls branch protection on private repos) | 2026-07-10 | The 4 blocking checks (+1 advisory `audit` job) run on every PR to main + "never merge on red" working rule. Revisit on a GitHub Team upgrade |
 | CI runs on PRs + manual release gate only (not every push) | 2026-07-09 | Metered Actions minutes; local tsc/lint/test before merges; manual CI run is a release-checklist step |
