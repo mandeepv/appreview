@@ -16,6 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { createProgressStore } from './progressStore';
+import { safeCapture } from '../lib/analytics';
 import type { Lesson } from './schema';
 
 export interface LessonHubMeta {
@@ -52,6 +53,20 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
     () => (lesson.storageKey ? createProgressStore(lesson.storageKey) : null),
     [lesson.storageKey],
   );
+
+  // SPEC-13 R4/R5 — for hub lessons, landing on the hub IS the "opened" moment,
+  // so the hub owns the single lesson_started fire (the controller skips hub
+  // lessons to avoid double-counting). Same event name + same-or-richer props
+  // (id + title + label) that LearnScreen used to send — PostHog continuity.
+  // Fires once per hub mount.
+  React.useEffect(() => {
+    safeCapture('lesson_started', {
+      lesson_id: lesson.slug,
+      lesson_title: lesson.title,
+      lesson_label: meta.label,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useFocusEffect(
     useCallback(() => {

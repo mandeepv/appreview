@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { usePostHog } from 'posthog-react-native';
+import { safeCapture } from '../lib/analytics';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { LESSON_NAV } from '../navigation/lessonRoutes';
@@ -130,7 +130,6 @@ const learningModules: LearningModule[] = [
 
 export default function LearnScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const posthog = usePostHog();
   const { gateToLesson } = useLessonGate();
 
   const handleModulePress = (moduleId: string) => {
@@ -149,12 +148,16 @@ export default function LearnScreen() {
     // Prior code fired lesson_started on tap, so paywall bounces
     // counted as lesson starts. Funnel analysis was misleading.
     // Fable review #8.
-    posthog.capture('lesson_tapped', props);
+    // SPEC-13 R5: lesson_tapped stays here (the intent event); lesson_started
+    // is now fired by the ENGINE at the true "opened" moment (LessonHubScreen
+    // for hub lessons, LessonController for flow lessons) — see R4. Firing it
+    // here too would double-count, so it's removed. Funnel: tapped → gate →
+    // started. Migrated to safeCapture.
+    safeCapture('lesson_tapped', props);
 
     gateToLesson(`learn_module_${moduleId}`, () => {
       const target = LESSON_NAV[moduleId];
       if (!target) return;
-      posthog.capture('lesson_started', props);
       if (target.kind === 'data') {
         // Flow lessons (1-4): launch the generic data-driven lesson directly.
         // Single section, first screen; return to MainTabs on completion.
