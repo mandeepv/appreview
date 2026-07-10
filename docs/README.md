@@ -30,6 +30,8 @@ The live process docs live here. **Everything in this folder (outside `archive/`
 |---|---|
 | `BACKLOG.md` | The single work queue — open hardening items. Read + update when picking next work. |
 | `PRODUCT_ROADMAP.md` | Feature / experiment queue with prioritization |
+| `OPS_STATE.md` | Living register of external (non-code) state — DB migrations applied, dashboard settings, secrets, App Store Connect config. Update the row whenever you touch the setting; `unverified` = genuinely unknown. |
+| `releases/` | Per-release runbook **instances** (a dated, ticked copy of `RELEASE_CHECKLIST.md` per version). The directory is a living convention; each `v<X.Y.Z>.md` file is a snapshot — frozen after that version ships. See `releases/README.md`. |
 
 ## Per-release (delete or archive when its version ships)
 

@@ -14,6 +14,7 @@ Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-educat
   - AsyncStorage keys only via `src/constants/storageKeys.ts`; never rename a shipped key without a migration.
 - `docs/PAYWALL_MODEL.md` — before touching anything in the launch/auth/gate path.
 - `docs/DEV_PROD_ENVIRONMENTS.md` — before touching env config, migrations, or the Supabase CLI.
+- `docs/OPS_STATE.md` — the living register of external state (DB/dashboard/secrets/ASC). Check it before asking the owner "is X done?"; `unverified` means genuinely unknown, not "no".
 
 ## Docs: what's truth and what's history
 
