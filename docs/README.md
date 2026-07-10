@@ -43,7 +43,8 @@ The live process docs live here. **Everything in this folder (outside `archive/`
 
 - **`archive/`** — frozen snapshots: old launch/compliance history, the 2026-07 Fable reviews + status tracker, the prod bug hunt, the folded `RELEASE_PROCESS`/`BEST_PRACTICES`/`SETUP_GUIDE`, the SPEC handoff, etc. See `archive/README.md` for what's in there and why. **`archive/` is history, not truth — if a snapshot contradicts current code, the code wins.**
 - **`spec-09/`** — SPEC-09 (data-driven lesson engine) working artifacts: the block survey and content errata. Snapshots of that migration.
-- **`specs/`** — future work packages (parked planning artifacts, e.g. SPEC-11 notifications). Snapshots — not started work; each is parked until its trigger (see `BACKLOG.md` → "Parked work"). See `specs/README.md`.
+- **`specs/`** — future work packages (parked planning artifacts, e.g. SPEC-11 notifications, SPEC-12 android-readiness). Snapshots — not started work; each is parked until its trigger (see `BACKLOG.md` → "Parked work"). See `specs/README.md`.
+- **`ANALYTICS_DASHBOARDS.md`** — the PostHog dashboard spec (SHIP_READY_PLAN Appendix C). A parked artifact: the 4 dashboards are built after v1.2.0 ships. Not an active process doc.
 
 ## What lives at the repo root (not here)
 
