@@ -46,5 +46,5 @@ Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-educat
 ## Current state pointers
 
 - Live docs index: `docs/README.md` (the evergreen core + living trackers). Open work queue: `docs/BACKLOG.md`.
-- The master hardening plan + intern specs live OUTSIDE this repo (owner's planning workspace) — they are not committed here.
+- Future/parked work packages: `docs/specs/` (snapshots — parked until their trigger; see `docs/BACKLOG.md` → "Parked work"). The master hardening plan lives outside this repo (owner's workspace).
 - Live App Store version and release history: git tags (`v*-build-*`, `appstore-live-*`).

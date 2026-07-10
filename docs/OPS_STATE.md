@@ -35,10 +35,11 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
-| Sentry | alert rules prod-scoped | unverified | unverified | Sentry → Alerts |
-| Sentry | spike alert | unverified | unverified | Sentry → Alerts |
-| Sentry | quota/spike protection + per-key rate limit | unverified | unverified | Sentry → Settings |
-| Sentry | sourcemaps for live build | unverified | unverified | Sentry → release artifacts |
+| Sentry | new-issue alert rule | prod-scoped, notifies owner email — **VERIFIED** | 2026-07-10 | Sentry → Alerts |
+| Sentry | spike-regression rule | "Spike / regression (prod)" — escalation + resolved→unresolved → owner email — **CREATED** | 2026-07-10 | Sentry → Alerts |
+| Sentry | spike protection | **ON** — VERIFIED | 2026-07-10 | Sentry → Settings → Quotas |
+| Sentry | client-key rate limit | 100 events per 1 hour — SET | 2026-07-10 | Sentry → Settings → Client Keys |
+| Sentry | sourcemaps for live build | 3 uploads present for release 1.1.0 (dist 9) — VERIFIED | 2026-07-10 | Sentry → Releases → artifacts |
 
 ## PostHog
 
@@ -64,7 +65,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
 | GitHub | canonical repo private | yes (owner) | unverified | GitHub → repo settings |
-| GitHub | branch protection / required checks | not enabled | unverified | GitHub → Settings → Branches |
+| GitHub | branch protection / required checks | **SKIPPED** — paid feature on private repos (owner decision; compensating controls: PR-triggered CI + never-merge-on-red) | 2026-07-10 | GitHub → Settings → Branches |
 | GitHub | public `appreview` copy | pending deletion | unverified | GitHub → appreview repo |
 
 ## Apple
@@ -73,3 +74,14 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 |---|---|---|---|---|
 | Apple | SIWA key expiry | per `APPLE_JWT_ROTATION.md` calendar | unverified | `APPLE_JWT_ROTATION.md` |
 | Apple | Apple ID recovery hardening | declined by owner (F6) | 2026-07-10 | — |
+
+## Accepted risks (owner decisions — revisit only on the stated trigger)
+
+| Risk accepted | Decided | Compensating control / revisit trigger |
+|---|---|---|
+| EU analytics tracking without a consent gate | 2026-07-09 | Data already minimal (no PII, pseudonymous IDs, deletion path). Revisit at 5K MAU, first EU data-subject request, or any regulator/App-Review privacy contact |
+| Prod DB password never rotated (leaked in old public git history) | 2026-07-09 | Apps use the anon key, not the DB password. Revisit if the repo history is ever shared again |
+| No 2FA/recovery hardening on Apple ID & co. | 2026-07-09 | None — accepted as-is |
+| No support playbook (tickets handled ad hoc) | 2026-07-09 | Revive if ticket volume appears |
+| No mechanical merge-blocking on `main` (GitHub paywalls branch protection on private repos) | 2026-07-10 | The 4 CI checks run on every PR to main + "never merge on red" working rule. Revisit on a GitHub Team upgrade |
+| CI runs on PRs + manual release gate only (not every push) | 2026-07-09 | Metered Actions minutes; local tsc/lint/test before merges; manual CI run is a release-checklist step |
