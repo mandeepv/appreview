@@ -80,6 +80,11 @@ Docs that were once actively used but are now historical. **Nothing has been del
 - **Why archived:** A dated handoff snapshot (SPEC-09 is now complete; the writeup is history). Kept rather than deleted per its own "review" purpose.
 - **Still useful for:** The blow-by-blow record of what each SPEC changed and why during the 2026-07 hardening cycle.
 
+### `LESSON_EXTRACTION_SUMMARY.md`
+- **Original purpose:** A receipt/summary of the one-time lesson-content extraction that produced `lessons_content.md` (stats: 13 lessons, line/char counts, output location).
+- **Why archived:** A Mamalearn-branded orphan at the repo root, outside every index. The extraction it describes is superseded by the SPEC-09 data-driven lesson engine (`src/lessons/content/*.ts`). Moved out of root during the SPEC-FIX-05 doc-accuracy sweep.
+- **Still useful for:** Reconstructing the original extraction run's stats/output, alongside `lessons_content.md` itself.
+
 ## Adding to archive
 
 When archiving:
