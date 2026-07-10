@@ -5,7 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
-import { getCompletedSections } from '../utils/recordingDeepBondMomentsProgress';
+import { createProgressStore } from '../lessons/progressStore';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { useLessonGate } from '../hooks/useLessonGate';
 
 interface SubLesson {
@@ -25,7 +26,7 @@ export default function RecordingDeepBondMomentsLessonScreen() {
   const [completedSections, setCompletedSections] = useState<string[]>([]);
 
   const loadProgress = useCallback(async () => {
-    const completed = await getCompletedSections();
+    const completed = await createProgressStore(STORAGE_KEYS.RECORDING_DEEP_BOND_MOMENTS_COMPLETED_SECTIONS).getCompletedSections();
     setCompletedSections(completed);
   }, []);
 

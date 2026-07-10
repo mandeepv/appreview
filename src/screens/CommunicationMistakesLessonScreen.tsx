@@ -5,7 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
-import { getCompletedSections } from '../utils/communicationMistakesProgress';
+import { createProgressStore } from '../lessons/progressStore';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { useLessonGate } from '../hooks/useLessonGate';
 
 interface SubLesson {
@@ -134,7 +135,7 @@ export default function CommunicationMistakesLessonScreen() {
   useFocusEffect(
     React.useCallback(() => {
       const loadProgress = async () => {
-        const completed = await getCompletedSections();
+        const completed = await createProgressStore(STORAGE_KEYS.COMMUNICATION_MISTAKES_COMPLETED_SECTIONS).getCompletedSections();
         setCompletedSections(completed);
       };
       loadProgress();

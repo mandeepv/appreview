@@ -17,12 +17,12 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LessonContainer } from '../components/LessonContainer';
 import { Button } from '../components/Button';
 import { QuizQuestion } from '../components/QuizQuestion';
 import { QuizQuestionMultiSelect } from '../components/QuizQuestionMultiSelect';
 import { BlockRenderer } from './components/BlockRenderer';
+import { createProgressStore } from './progressStore';
 import { Colors, Typography, Shadows } from '../constants/theme';
 import type { Lesson, LessonScreen } from './schema';
 
@@ -48,23 +48,12 @@ interface LessonControllerProps {
   onSectionComplete: () => void;
 }
 
-/**
- * Append a section id to the lesson's completed-sections array in AsyncStorage,
- * using the SAME key + JSON format as the current hand-built screens. Idempotent
- * (won't duplicate an already-recorded section).
- */
-async function markSectionComplete(storageKey: string, sectionId: string): Promise<void> {
-  try {
-    const stored = await AsyncStorage.getItem(storageKey);
-    const completed: string[] = stored ? JSON.parse(stored) : [];
-    if (!completed.includes(sectionId)) {
-      completed.push(sectionId);
-      await AsyncStorage.setItem(storageKey, JSON.stringify(completed));
-    }
-  } catch (error) {
-    if (__DEV__) console.error('[LessonController] failed to save progress:', error);
-  }
-}
+// SPEC-13 R1: progress writes go through the ONE chokepoint —
+// createProgressStore. The controller no longer has its own inline
+// markSectionComplete; the factory is the single reader/writer (and, via
+// SPEC-13 R2, the seam where account-scoped DB sync is layered in behind it).
+// Byte-compatible key + JSON format is unchanged (progressStore.test.ts proves
+// the round-trip).
 
 export const LessonController: React.FC<LessonControllerProps> = ({
   lesson,
@@ -94,7 +83,7 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     // write progress when the lesson actually has a key (section-based
     // lessons 5–13).
     if (section && lesson.storageKey) {
-      await markSectionComplete(lesson.storageKey, section.id);
+      await createProgressStore(lesson.storageKey).markSectionComplete(section.id);
     }
     onSectionComplete();
   }, [lesson.storageKey, section, onSectionComplete]);
