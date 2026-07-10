@@ -1,76 +1,55 @@
 # Kinderwell docs
 
-Everything process-related lives in this folder. If you're looking for how to do a thing, start here.
+The live process docs live here. **Everything in this folder (outside `archive/`) is evergreen — maintained to track the code.** Point-in-time snapshots live in `archive/` and are frozen history, not current process.
 
-## When you need to...
+> **Docs taxonomy (three species — every doc is exactly one):**
+> - **Evergreen** — must track the code; standing maintenance debt. Lives in `docs/`.
+> - **Living** — trackers, updated constantly (`BACKLOG.md`, `PRODUCT_ROADMAP.md`). Lives in `docs/`.
+> - **Snapshot** — valuable history, frozen, NEVER edited again. Lives in `docs/archive/` with a `SNAPSHOT` banner.
+>
+> **Admission rule:** a new doc enters the evergreen core **only if you commit to updating it whenever the code changes.** Otherwise it's born as a snapshot with a date in its name and goes straight to `archive/`. (Three historical drift incidents all came from snapshots that kept "live" status after their content stopped being maintained.)
 
-### Ship a new release
-- **`RELEASE_CHECKLIST.md`** — the ordered checklist to follow every release
-- **`DEV_PROD_ENVIRONMENTS.md`** — env switching, migrations, kill switch, backing details
-- **`RELEASE_PROCESS.md`** — git tagging after App Store approval
-- **`VERSION_MANAGEMENT.md`** — how to bump versions and build numbers (has the `scripts/bump-version.sh` reference)
-- **`APPLE_JWT_ROTATION.md`** — 6-month JWT rotation procedure
+## The evergreen core
 
-### Set up dev / test something safely
-- **`DEV_PROD_ENVIRONMENTS.md`** — switching between dev and prod, applying schema changes safely, backward compatibility rules, kill switch
-- **`STOREKIT_SETUP_GUIDE.md`** — StoreKit testing in Xcode + sandbox Apple ID
+| File | What it's for |
+|---|---|
+| `README.md` | This index |
+| `INVARIANTS.md` | The rules correctness silently depends on — check every diff against it |
+| `REVIEW_PROTOCOL.md` | How to run the six-lens release review (repeatable with any capable reviewer) |
+| `RELEASE_CHECKLIST.md` | The ordered checklist for every release (incl. the git tag scheme) |
+| `DEV_PROD_ENVIRONMENTS.md` | Dev/prod switching, migrations, kill switch, backward-compat rules |
+| `VERSION_MANAGEMENT.md` | Version + build-number rules + `scripts/bump-version.sh` |
+| `PAYWALL_MODEL.md` | 🚨 Hard-paywall gating model + `isSubscribed` persistence + Superwall placement — read before touching `LoadingScreen` / `SplashScreen` / `authStore` / `useLessonGate` |
+| `DEMO_MODE.md` | 🚨 7-tap Apple-reviewer bypass invariants — read before touching auth/subscription code |
+| `APPLE_JWT_ROTATION.md` | 6-month Apple JWT rotation procedure |
+| `STOREKIT_SETUP_GUIDE.md` | StoreKit Xcode setup + sandbox Apple ID |
 
-### Set up a new machine or environment
-- **`SETUP_GUIDE.md`** — full Supabase + Superwall setup
-- **`STOREKIT_SETUP_GUIDE.md`** — StoreKit test setup
+## Living docs (trackers)
 
-### Get your bearings on the codebase / plan work
-- **`Branding.md`** — colors, tone, principles
-- **`BEST_PRACTICES.md`** — where Kinderwell is following (and not following) best practices, prioritized
-- **`PRODUCT_ROADMAP.md`** — feature/experiment queue with prioritization
+| File | What it's for |
+|---|---|
+| `BACKLOG.md` | The single work queue — open hardening items. Read + update when picking next work. |
+| `PRODUCT_ROADMAP.md` | Feature / experiment queue with prioritization |
 
-### 🚨 Critical — read before touching auth or subscription code
-- **`PAYWALL_MODEL.md`** — the hard-paywall gating model, isSubscribed persistence, Superwall placement layout, and Apple review considerations. Anyone editing `LoadingScreen`, `SplashScreen`, `authStore`, or `useLessonGate` MUST read this first.
-- **`DEMO_MODE.md`** — how the 7-tap Apple reviewer bypass works, invariants that MUST hold or App Store rejects your build
+## Per-release (delete or archive when its version ships)
 
-### Ship prep (v1.1.0)
-- **`FABLE_RE_REVIEW_2026-07-05.md`** — third-round external re-review with the pre-beta punch list. Read this before building the first TestFlight IPA.
-- **`FABLE_LATEST_REVIEW_STATUS.md`** — live tracker for what's done/open across all Fable rounds.
+| File | What it's for |
+|---|---|
+| `IPHONE_TEST_PLAN_V1.1.0.md` | Manual smoke-test plan for v1.1.0 on iPhone XR. **After 1.1.1 ships**, extract its reusable regression sections into an evergreen `TEST_PLAN_TEMPLATE.md`, then archive this file. |
 
-### Historical context (rarely needed)
-- **`archive/`** — old launch checklists, compliance history, initial reviews. See `archive/README.md` for what's in there and why it was archived.
+## Historical context (rarely needed)
 
-## Doc directory
-
-| File | What it's for | Actively used? |
-|---|---|---|
-| `BEST_PRACTICES.md` | Gap analysis + prioritized what-to-fix list | ✅ Always |
-| `RELEASE_CHECKLIST.md` | The ordered checklist for every release | ✅ Every release |
-| `DEV_PROD_ENVIRONMENTS.md` | Dev/prod switching, release workflow, migrations, kill switch | ✅ Every release |
-| `RELEASE_PROCESS.md` | Git tagging after App Store approval | ✅ Every release |
-| `VERSION_MANAGEMENT.md` | Version + build number rules + bump script | ✅ Every release |
-| `APPLE_JWT_ROTATION.md` | 6-month Apple JWT rotation | ✅ Every 6 months |
-| `PRODUCT_ROADMAP.md` | Feature and experiment queue | ✅ Ongoing |
-| `DEMO_MODE.md` | 7-tap Apple reviewer bypass invariants | ✅ Read before touching auth or subscription code |
-| `PAYWALL_MODEL.md` | Hard-paywall gating model + isSubscribed persistence + Superwall placement layout | ✅ Read before touching LoadingScreen / SplashScreen / authStore / useLessonGate |
-| `SETUP_GUIDE.md` | Supabase + Superwall setup | 🔧 New machine only |
-| `STOREKIT_SETUP_GUIDE.md` | StoreKit Xcode setup + sandbox Apple ID | 🔧 New machine only |
-| `Branding.md` | Design principles | 📖 Reference |
-| `FABLE_REVIEW.md` | First external code review (2026-06) — findings with status markers | 📚 Historical / reference |
-| `FABLE_LATEST_REVIEW.md` | Second external code review (2026-07-04) — findings and our responses | 📚 Historical / reference |
-| `FABLE_LATEST_REVIEW_STATUS.md` | Live tracker of Fable Latest Review item status | ✅ While addressing review items |
-| `FABLE_RE_REVIEW_2026-07-05.md` | Third external re-review (post-fixes) — beta & release readiness with stage-gated verdict, punch list, and 2 not-fully-landed fixes (PostHog email leak, CORS placeholder) | ✅ Active — driving the pre-beta punch list |
-| `IPHONE_TEST_PLAN_V1.1.0.md` | Manual smoke test plan for v1.1.0 on iPhone XR | ✅ Before every release (adversarial tests should fold into RELEASE_CHECKLIST — see Fable review 🟡 doc/process item) |
-| `PROD_BUG_HUNT.md` | 2026-07-04 systematic prod v1.0.0 bug hunt notes | 📚 Historical / reference for what shipped broken in v1.0.0 |
-| `BACKLOG.md` | Single deferred-work backlog (replaces three prior V1.*.md files, per Fable review 🟡 "one backlog") | ⏭️ Deferred work — read + update when picking next work |
+- **`archive/`** — frozen snapshots: old launch/compliance history, the 2026-07 Fable reviews + status tracker, the prod bug hunt, the folded `RELEASE_PROCESS`/`BEST_PRACTICES`/`SETUP_GUIDE`, the SPEC handoff, etc. See `archive/README.md` for what's in there and why. **`archive/` is history, not truth — if a snapshot contradicts current code, the code wins.**
+- **`spec-09/`** — SPEC-09 (data-driven lesson engine) working artifacts: the block survey and content errata. Snapshots of that migration.
 
 ## What lives at the repo root (not here)
 
+- `CLAUDE.md` — the AI-session entry point (evergreen; orients every session on the core + invariants + env safety)
 - `README.md` — project readme
-- `LESSON_EXTRACTION_SUMMARY.md` — historical snapshot of the lesson-extraction work
-- `scripts/` — ops scripts (`bump-version.sh`, `backup-prod.sh`, `db-push-prod.sh`, `convert_svg.js`, `extract_lessons.py`, `generate_apple_jwt.js`)
+- `scripts/` — ops scripts (`bump-version.sh`, `backup-prod.sh`, `db-push-prod.sh`, etc.)
 
-_(Note: `lessons_content.md` was moved to `docs/archive/`, and `CODING_COMPLETE.md` + `posthog-setup-report.md` were deleted during the SPEC-07 hygiene sweep — they're no longer at the repo root.)_
+## Adding / pruning docs
 
-## Adding new docs
-
-- Process/workflow doc → put here
-- Point-in-time status snapshot ("what we shipped this week") → keep at root
-- App content or config → keep at root
-- Historical snapshot no longer actively used → `archive/` folder + update `archive/README.md`
-- Update this index when you add or move a doc
+- Evergreen process doc you'll maintain → add here **and** add it to the core table above.
+- A "what we shipped/found this week" snapshot → `archive/` with a `SNAPSHOT` banner + an `archive/README.md` entry (don't leave it "live").
+- **Post-release retro (standing 15-min step, per invariant 18):** archive what's dated, strip per-release blocks from `RELEASE_CHECKLIST.md`, and spot-check the evergreen core against the code. Pruning is part of shipping, not a someday task.

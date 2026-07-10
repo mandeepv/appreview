@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # Kinderwell Re-Review — Beta & Release Readiness
 
 **Date:** 2026-07-05
