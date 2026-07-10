@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # App Store Review Blockers — Kinderwell
 **Comprehensive Apple Guidelines Review** | **Date:** February 19, 2026 | **Build:** 7 → 8 needed
 

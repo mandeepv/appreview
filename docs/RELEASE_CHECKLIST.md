@@ -615,6 +615,11 @@ Days 1-3 (heaviest monitoring):
 - [ ] Watch Supabase → Reports for query latency or error spikes
 - [ ] Check ratings & reviews on App Store for early user reports
 
+**Numeric pause thresholds (pause the phased release if ANY trips):**
+- [ ] **Crash-free sessions < 99%** (App Store Connect / Sentry) → pause. Below 99% on a fresh build means a real regression is hitting a meaningful slice of users.
+- [ ] **`paywall_skipped_by_superwall` > 1% of `paywall_presented`** → pause + check the Superwall dashboard. This event is the ONLY tripwire for a paywall/audience misconfig (INVARIANTS #2); a spike means the gate is letting unsubscribed users through.
+- [ ] **Day-over-day purchase drop > 50%** → pause. A halving of purchases against the prior day's baseline signals a broken money path (restore, entitlement, or paywall render).
+
 **If something bad shows up during phased release:**
 - [ ] App Store Connect → your version → **"Pause Phased Release"** — freezes the rollout at current % until you unpause
 - [ ] Diagnose the issue
