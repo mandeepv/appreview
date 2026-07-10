@@ -12,16 +12,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { usePostHog } from 'posthog-react-native';
 import { useAuthStore } from '../store/authStore';
 import { restorePurchases } from '../services/purchaseService';
 import { deleteAccount } from '../services/authService';
 import { resetPostHog } from '../config/posthog';
+import { safeCapture } from '../lib/analytics';
 import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 
 export const SettingsScreen: React.FC = () => {
   const { user, signOut, isDemoUser, isSubscribed } = useAuthStore();
-  const posthog = usePostHog();
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -32,7 +31,7 @@ export const SettingsScreen: React.FC = () => {
     if (isRestoring) return;
 
     // Analytics: honest name — fires on tap, before we know outcome.
-    posthog.capture('restore_purchases_tapped');
+    safeCapture('restore_purchases_tapped');
 
     setIsRestoring(true);
     try {
@@ -45,25 +44,25 @@ export const SettingsScreen: React.FC = () => {
 
       switch (result.outcome) {
         case 'restored':
-          posthog.capture('restore_purchases_completed', { outcome: 'restored' });
+          safeCapture('restore_purchases_completed', { outcome: 'restored' });
           Alert.alert('Restored', 'Your subscription has been restored.');
           break;
         case 'unknown':
-          posthog.capture('restore_purchases_completed', { outcome: 'unknown' });
+          safeCapture('restore_purchases_completed', { outcome: 'unknown' });
           Alert.alert(
             'Still Syncing',
             "We're still checking with the App Store. Please try again in a moment."
           );
           break;
         case 'no_purchases':
-          posthog.capture('restore_purchases_completed', { outcome: 'no_purchases' });
+          safeCapture('restore_purchases_completed', { outcome: 'no_purchases' });
           Alert.alert(
             'No Purchases Found',
             "No previous purchase was found for this Apple ID. Make sure you're signed in with the Apple ID you used to subscribe."
           );
           break;
         case 'failed':
-          posthog.capture('restore_purchases_completed', {
+          safeCapture('restore_purchases_completed', {
             outcome: 'failed',
             error: result.errorMessage,
           });
@@ -74,7 +73,7 @@ export const SettingsScreen: React.FC = () => {
           );
           break;
         case 'threw':
-          posthog.capture('restore_purchases_completed', { outcome: 'threw' });
+          safeCapture('restore_purchases_completed', { outcome: 'threw' });
           Alert.alert(
             'Restore Failed',
             'Something went wrong. Please check your connection and try again.'
@@ -87,7 +86,7 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleManageSubscription = async () => {
-    posthog.capture('subscription_managed');
+    safeCapture('subscription_managed');
     try {
       // Open iOS subscription management
       const url = 'https://apps.apple.com/account/subscriptions';
@@ -148,7 +147,7 @@ export const SettingsScreen: React.FC = () => {
           text: 'Log Out',
           onPress: async () => {
             try {
-              posthog.capture('user_logged_out');
+              safeCapture('user_logged_out');
               resetPostHog();
               await signOut();
             } catch (error) {
@@ -188,7 +187,7 @@ export const SettingsScreen: React.FC = () => {
             // review #8: prior code fired 'account_deleted' before
             // deleteAccount() ran, so a network / server failure got
             // logged as a successful deletion in PostHog.
-            posthog.capture('account_delete_attempted', {
+            safeCapture('account_delete_attempted', {
               is_demo_user: isDemoUser,
               was_subscribed: isSubscribed,
             });
@@ -198,7 +197,7 @@ export const SettingsScreen: React.FC = () => {
 
               if (isDemoUser) {
                 // Demo users have no Supabase session — just sign out.
-                posthog.capture('account_deleted', {
+                safeCapture('account_deleted', {
                   is_demo_user: true,
                   was_subscribed: isSubscribed,
                 });
@@ -208,7 +207,7 @@ export const SettingsScreen: React.FC = () => {
                 await deleteAccount();
                 // Only after the API round-trip succeeds. If deleteAccount
                 // throws, we skip this and hit the catch below.
-                posthog.capture('account_deleted', {
+                safeCapture('account_deleted', {
                   is_demo_user: false,
                   was_subscribed: isSubscribed,
                 });
@@ -224,7 +223,7 @@ export const SettingsScreen: React.FC = () => {
               // Track the failure separately so we can measure the
               // failure rate. Attributed to the still-alive user (posthog
               // hasn't been reset yet).
-              posthog.capture('account_delete_failed', {
+              safeCapture('account_delete_failed', {
                 is_demo_user: isDemoUser,
                 was_subscribed: isSubscribed,
                 error: error instanceof Error ? error.message : String(error),

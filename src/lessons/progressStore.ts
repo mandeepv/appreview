@@ -9,8 +9,21 @@
 // same idempotent append. Existing users' progress survives untouched — the
 // key and value shape are identical to what the old utils wrote (round-trip
 // verified in progressStore.test.ts).
+//
+// SPEC-13 R2 — account-scoped sync is layered in BEHIND this factory. The local
+// AsyncStorage write stays the source of truth for the UI (local-first); after
+// each successful local write we fire a BACKGROUND, fire-and-forget DB upsert
+// (syncSectionsToRemote). It never blocks the caller, never throws, and never
+// surfaces a user-facing error. Sign-in reconciliation is mergeRemoteIntoLocal
+// (a set union — non-destructive in either direction).
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// NOTE: the sync layer's dependencies (registry → content, the Supabase-backed
+// service, Sentry) are imported LAZILY inside the sync functions below, NOT at
+// module scope. This keeps the local AsyncStorage path — and progressStore.test
+// — free of the Supabase client (which throws at import when env vars are
+// absent, e.g. in the test env). The local-first write never touches these.
 
 export interface ProgressStore {
   /** Append a section id to the completed array (idempotent). */
@@ -19,6 +32,53 @@ export interface ProgressStore {
   getCompletedSections: () => Promise<string[]>;
   /** Clear all progress for this lesson. */
   reset: () => Promise<void>;
+}
+
+// Consecutive background-sync failures per storageKey. We only reportError on a
+// REPEATED failure (a transient offline blip is expected and silent).
+const syncFailureStreak: Record<string, number> = {};
+const SYNC_FAILURE_ALERT_THRESHOLD = 3;
+
+/**
+ * Background, fire-and-forget push of a lesson's completed-section array to the
+ * DB. Local-first: this runs AFTER the local write and is never awaited by the
+ * UI path. Signed-out users and lessons with no registry entry are no-ops.
+ * A single failure is silent (offline is normal); reportError only fires once
+ * the streak crosses the threshold, so a genuinely broken sync is still visible.
+ */
+async function syncSectionsToRemote(storageKey: string, sections: string[]): Promise<void> {
+  try {
+    // Lazy require() — keeps the Supabase client out of the local-write path
+    // and the AsyncStorage-only test (see the module-header note). require() is
+    // used over dynamic import() because it's synchronous, Metro-friendly, and
+    // mockable in jest (jest's default env can't execute import()).
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getLessonByStorageKey } = require('./registry') as typeof import('./registry');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { upsertSections } = require('../services/lessonProgressService') as typeof import('../services/lessonProgressService');
+
+    const lesson = getLessonByStorageKey(storageKey);
+    if (!lesson) return; // not a synced lesson (e.g. flow lessons) — local only
+
+    const ok = await upsertSections(lesson.slug, sections, lesson.sections.length);
+    if (ok) {
+      syncFailureStreak[storageKey] = 0;
+    } else {
+      syncFailureStreak[storageKey] = (syncFailureStreak[storageKey] ?? 0) + 1;
+      if (syncFailureStreak[storageKey] >= SYNC_FAILURE_ALERT_THRESHOLD) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { reportError } = require('../config/sentry') as typeof import('../config/sentry');
+        reportError(new Error('lesson progress sync repeatedly failing'), {
+          lesson: lesson.slug,
+          streak: syncFailureStreak[storageKey],
+        });
+      }
+    }
+  } catch (error) {
+    // Defensive: upsertSections already swallows its own errors, but never let a
+    // background sync reject bubble anywhere.
+    if (__DEV__) console.warn('[progressStore] background sync threw:', error);
+  }
 }
 
 export function createProgressStore(storageKey: string): ProgressStore {
@@ -30,6 +90,9 @@ export function createProgressStore(storageKey: string): ProgressStore {
         if (!completed.includes(sectionId)) {
           completed.push(sectionId);
           await AsyncStorage.setItem(storageKey, JSON.stringify(completed));
+          // Local write succeeded and drove the UI. Sync in the background —
+          // NOT awaited (local-first; offline still saves locally).
+          void syncSectionsToRemote(storageKey, completed);
         }
       } catch (error) {
         if (__DEV__) console.error('Error marking section complete:', error);
@@ -54,4 +117,48 @@ export function createProgressStore(storageKey: string): ProgressStore {
       }
     },
   };
+}
+
+/**
+ * SPEC-13 R2 — sign-in / session-start reconciliation. Fetches ALL remote
+ * completions for the now-signed-in user and unions them into local
+ * AsyncStorage per lesson (non-destructive: local ∪ remote). Because every hub
+ * reads the same AsyncStorage keys via the factory, merging into AsyncStorage
+ * propagates to the UI for free. Then writes the merged union back to the DB so
+ * both sides converge (covers the case where local had completions the remote
+ * didn't — e.g. progress made while signed out).
+ *
+ * Best-effort and silent: any failure leaves local progress intact (the user
+ * keeps what they had); progress sync is never user-facing.
+ */
+export async function mergeRemoteIntoLocal(): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { LESSON_REGISTRY } = require('./registry') as typeof import('./registry');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getAllRemoteProgress } = require('../services/lessonProgressService') as typeof import('../services/lessonProgressService');
+
+    const remote = await getAllRemoteProgress(); // slug -> sections
+    for (const lesson of Object.values(LESSON_REGISTRY)) {
+      if (!lesson.storageKey) continue; // flow lessons don't sync
+      const key = lesson.storageKey;
+
+      const localStored = await AsyncStorage.getItem(key);
+      const local: string[] = localStored ? JSON.parse(localStored) : [];
+      const remoteSections = remote[lesson.slug] ?? [];
+
+      if (local.length === 0 && remoteSections.length === 0) continue;
+
+      const union = Array.from(new Set([...local, ...remoteSections]));
+      // Only write if the merge actually changed local (avoid churn).
+      if (union.length !== local.length) {
+        await AsyncStorage.setItem(key, JSON.stringify(union));
+      }
+      // Push the union back to the DB so remote converges too (covers
+      // signed-out-then-signed-in local progress). Background, non-blocking.
+      void syncSectionsToRemote(key, union);
+    }
+  } catch (error) {
+    if (__DEV__) console.warn('[progressStore] mergeRemoteIntoLocal failed:', error);
+  }
 }

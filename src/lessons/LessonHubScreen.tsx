@@ -16,12 +16,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { createProgressStore } from './progressStore';
+import { safeCapture } from '../lib/analytics';
 import type { Lesson } from './schema';
 
 export interface LessonHubMeta {
   emoji: string;
   label: string;
   description: string;
+  // Per-section display, indexed to lesson.sections. Each section card shows a
+  // tinted icon (green when that section is complete) + a subtitle under the
+  // title — matching the hand-built hubs (SPEC-13 R3 parity).
+  sections: { icon: keyof typeof Ionicons.glyphMap; description: string }[];
+  // The tinted callout card at the bottom of every hub.
+  bottomInfo: { icon: keyof typeof Ionicons.glyphMap; text: string };
 }
 
 interface LessonHubScreenProps {
@@ -46,6 +53,20 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
     () => (lesson.storageKey ? createProgressStore(lesson.storageKey) : null),
     [lesson.storageKey],
   );
+
+  // SPEC-13 R4/R5 — for hub lessons, landing on the hub IS the "opened" moment,
+  // so the hub owns the single lesson_started fire (the controller skips hub
+  // lessons to avoid double-counting). Same event name + same-or-richer props
+  // (id + title + label) that LearnScreen used to send — PostHog continuity.
+  // Fires once per hub mount.
+  React.useEffect(() => {
+    safeCapture('lesson_started', {
+      lesson_id: lesson.slug,
+      lesson_title: lesson.title,
+      lesson_label: meta.label,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -103,19 +124,41 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
                 <View style={styles.lessonContent}>
                   <View style={[styles.numberCircle, isDone && styles.numberCircleDone]}>
                     {isDone ? (
-                      <Ionicons name="checkmark" size={24} color={Colors.surface} />
+                      <Ionicons name="checkmark" size={24} color="#4CAF50" />
                     ) : (
                       <Text style={styles.numberText}>{index + 1}</Text>
                     )}
                   </View>
                   <View style={styles.lessonInfo}>
-                    <Text style={styles.lessonTitle}>{section.title}</Text>
+                    <View style={styles.lessonHeader}>
+                      {meta.sections[index]?.icon && (
+                        <Ionicons
+                          name={meta.sections[index].icon}
+                          size={20}
+                          color={isDone ? Colors.success : Colors.textTertiary}
+                          style={styles.lessonIcon}
+                        />
+                      )}
+                      <Text style={[styles.lessonTitle, isDone && { color: Colors.success }]}>
+                        {section.title}
+                      </Text>
+                    </View>
+                    {meta.sections[index]?.description ? (
+                      <Text style={styles.lessonDescription}>{meta.sections[index].description}</Text>
+                    ) : null}
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
                 </View>
               </TouchableOpacity>
             );
           })}
+        </View>
+
+        <View style={styles.bottomInfo}>
+          <View style={styles.infoCard}>
+            <Ionicons name={meta.bottomInfo.icon} size={20} color={Colors.primary} />
+            <Text style={styles.infoText}>{meta.bottomInfo.text}</Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -196,7 +239,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     ...Shadows.sm,
   },
   numberCircle: {
@@ -208,8 +251,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  numberCircleDone: { backgroundColor: Colors.success },
+  numberCircleDone: { backgroundColor: '#E8F5E9' },
   numberText: { fontSize: 20, fontWeight: Typography.weights.bold, color: '#C2185B' },
-  lessonInfo: { flex: 1 },
-  lessonTitle: { fontSize: 16, fontWeight: Typography.weights.semibold, color: Colors.textPrimary },
+  lessonInfo: { flex: 1, paddingRight: 8 },
+  lessonHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  lessonIcon: { marginRight: 6 },
+  lessonTitle: {
+    fontSize: 16,
+    fontWeight: Typography.weights.bold,
+    color: Colors.textPrimary,
+    flex: 1,
+  },
+  lessonDescription: {
+    fontSize: 13,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textTertiary,
+    lineHeight: 18,
+  },
+  bottomInfo: { paddingHorizontal: 24, marginTop: 24 },
+  infoCard: {
+    backgroundColor: Colors.primaryBg,
+    borderRadius: BorderRadius.lg,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: Typography.weights.medium,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
 });

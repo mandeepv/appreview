@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { parseLesson } from '../schema';
 import { LESSON_REGISTRY } from '../registry';
 import { sprinklers } from '../content/sprinklers';
@@ -13,6 +15,36 @@ import { lesson1 } from '../content/lesson1';
 import { lesson2 } from '../content/lesson2';
 import { lesson3 } from '../content/lesson3';
 import { lesson4 } from '../content/lesson4';
+
+// SPEC-13 R6 — registry-completeness. Every content file in
+// src/lessons/content/ MUST be registered in LESSON_REGISTRY (keyed by its
+// slug = filename). Without this, dropping a new content/*.ts file that nobody
+// registered would silently skip validation + never render — a real footgun.
+// The content files are named exactly by slug (sprinklers.ts → 'sprinklers').
+describe('registry completeness', () => {
+  const contentDir = path.join(__dirname, '..', 'content');
+  const contentSlugs = fs
+    .readdirSync(contentDir)
+    .filter((f) => f.endsWith('.ts'))
+    .map((f) => f.replace(/\.ts$/, ''));
+  const registrySlugs = Object.keys(LESSON_REGISTRY);
+
+  it('every content/*.ts file is registered in LESSON_REGISTRY', () => {
+    const unregistered = contentSlugs.filter((s) => !registrySlugs.includes(s));
+    expect(unregistered).toEqual([]);
+  });
+
+  it('every registry entry has a matching content file (no phantom slugs)', () => {
+    const missingFile = registrySlugs.filter((s) => !contentSlugs.includes(s));
+    expect(missingFile).toEqual([]);
+  });
+
+  it("each registry entry's slug field matches its key", () => {
+    for (const [key, lesson] of Object.entries(LESSON_REGISTRY)) {
+      expect(lesson.slug).toBe(key);
+    }
+  });
+});
 
 // Previews the Phase-4 content-validation CI test: every registered lesson
 // must zod-parse. Broken content fails this test (and, in Phase 4, CI).

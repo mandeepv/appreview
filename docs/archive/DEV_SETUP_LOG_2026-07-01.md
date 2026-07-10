@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # Dev Environment Setup Log — 2026-07-01
 
 **Purpose:** point-in-time record of every change made setting up the `kinderwell-dev` Supabase environment. Use this to retrace and debug if something in dev doesn't work as expected.

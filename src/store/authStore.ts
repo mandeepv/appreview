@@ -6,6 +6,7 @@ import { posthog } from '../config/posthog';
 import { setSentryUser, reportError } from '../config/sentry';
 import { SuperwallExpoModule } from 'expo-superwall';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import { mergeRemoteIntoLocal } from '../lessons/progressStore';
 
 // isSubscribed persists to disk so we don't paywall a paying user on every
 // cold launch while waiting for Superwall's onSubscriptionStatusChange to
@@ -199,6 +200,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               user: session.user,
               session: session
             });
+            // SPEC-13 R2 — on a real sign-in, reconcile lesson progress:
+            // union the now-signed-in user's remote completions into local
+            // AsyncStorage (non-destructive) so cross-device progress appears,
+            // and push the union back so remote converges. Only on SIGNED_IN
+            // (not TOKEN_REFRESHED / INITIAL_SESSION, which fire routinely).
+            // Fire-and-forget: never blocks auth, never user-facing.
+            if (event === 'SIGNED_IN') {
+              void mergeRemoteIntoLocal();
+            }
           } else {
             // Session went to null — sign-out, delete-account, or session
             // expired. Clear the persisted subscription flag too so the

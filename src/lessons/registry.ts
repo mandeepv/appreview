@@ -39,3 +39,17 @@ export const LESSON_REGISTRY: Record<string, Lesson> = {
 export function getLesson(slug: string): Lesson | undefined {
   return LESSON_REGISTRY[slug];
 }
+
+// SPEC-13 R2 — the progress factory is keyed by storageKey, but the DB syncs by
+// lesson slug + needs the section count (to derive the `completed` flag). This
+// maps a storageKey back to its lesson so the sync layer behind the factory can
+// resolve both. Flow lessons (no storageKey) never sync, so they're absent.
+const LESSONS_BY_STORAGE_KEY: Record<string, Lesson> = Object.fromEntries(
+  Object.values(LESSON_REGISTRY)
+    .filter((l) => l.storageKey)
+    .map((l) => [l.storageKey as string, l]),
+);
+
+export function getLessonByStorageKey(storageKey: string): Lesson | undefined {
+  return LESSONS_BY_STORAGE_KEY[storageKey];
+}

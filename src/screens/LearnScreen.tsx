@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { usePostHog } from 'posthog-react-native';
+import { safeCapture } from '../lib/analytics';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { LESSON_NAV } from '../navigation/lessonRoutes';
@@ -130,7 +130,6 @@ const learningModules: LearningModule[] = [
 
 export default function LearnScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const posthog = usePostHog();
   const { gateToLesson } = useLessonGate();
 
   const handleModulePress = (moduleId: string) => {
@@ -149,12 +148,16 @@ export default function LearnScreen() {
     // Prior code fired lesson_started on tap, so paywall bounces
     // counted as lesson starts. Funnel analysis was misleading.
     // Fable review #8.
-    posthog.capture('lesson_tapped', props);
+    // SPEC-13 R5: lesson_tapped stays here (the intent event); lesson_started
+    // is now fired by the ENGINE at the true "opened" moment (LessonHubScreen
+    // for hub lessons, LessonController for flow lessons) — see R4. Firing it
+    // here too would double-count, so it's removed. Funnel: tapped → gate →
+    // started. Migrated to safeCapture.
+    safeCapture('lesson_tapped', props);
 
     gateToLesson(`learn_module_${moduleId}`, () => {
       const target = LESSON_NAV[moduleId];
       if (!target) return;
-      posthog.capture('lesson_started', props);
       if (target.kind === 'data') {
         // Flow lessons (1-4): launch the generic data-driven lesson directly.
         // Single section, first screen; return to MainTabs on completion.
@@ -191,18 +194,15 @@ export default function LearnScreen() {
 
       <View style={styles.modulesContainer}>
         {learningModules.map((module) => {
-          const isClickable = module.id === '1' || module.id === '2' || module.id === '3' || module.id === '4' || module.id === '5' || module.id === '6' || module.id === '7' || module.id === '8' || module.id === '9' || module.id === '10' || module.id === '11' || module.id === '12' || module.id === '13'; // All lessons are clickable
-          const CardWrapper = isClickable ? TouchableOpacity : View;
-
+          // SPEC-13 R3: every lesson is launchable — the old always-true
+          // 13-clause `isClickable` chain (and its dead disabled / "Coming Soon"
+          // branches) is removed. Every card is a tappable TouchableOpacity.
           return (
-            <CardWrapper
+            <TouchableOpacity
               key={module.id}
-              style={[
-                styles.moduleCard,
-                !isClickable && styles.moduleCardDisabled
-              ]}
-              onPress={isClickable ? () => handleModulePress(module.id) : undefined}
-              activeOpacity={isClickable ? 0.7 : 1}
+              style={styles.moduleCard}
+              onPress={() => handleModulePress(module.id)}
+              activeOpacity={0.7}
             >
               <View style={[styles.iconCircle, { backgroundColor: module.color }]}>
                 <Text style={styles.moduleIcon}>{module.icon}</Text>
@@ -212,12 +212,7 @@ export default function LearnScreen() {
                 <Text style={styles.moduleTitle}>{module.title}</Text>
                 <Text style={styles.moduleDescription}>{module.description}</Text>
               </View>
-              {!isClickable && (
-                <View style={styles.comingSoonBadge}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
-                </View>
-              )}
-            </CardWrapper>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -294,9 +289,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     ...Shadows.md,
   },
-  moduleCardDisabled: {
-    opacity: 0.6,
-  },
   iconCircle: {
     width: 48,
     height: 48,
@@ -329,21 +321,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.textTertiary,
     lineHeight: 20,
-  },
-  comingSoonBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: Colors.accent, // Muted Sky Blue
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.sm,
-  },
-  comingSoonText: {
-    fontSize: 11,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.textPrimary,
-    letterSpacing: 0.5,
   },
   disclaimerContainer: {
     paddingHorizontal: 24,

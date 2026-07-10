@@ -18,7 +18,6 @@ import { ParentingStylesScreen } from '../screens/onboarding/ParentingStylesScre
 import { EmotionalChallengesScreen } from '../screens/onboarding/EmotionalChallengesScreen';
 import { AuthScreen } from '../screens/onboarding/AuthScreen';
 import { LoadingScreen } from '../screens/onboarding/LoadingScreen';
-import PremiumUnlockedScreen from '../screens/PremiumUnlockedScreen';
 import { RootNavigator } from './RootNavigator';
 import { LessonPreviewRoute } from '../lessons/LessonPreviewRoute';
 import type { OnboardingStackParamList } from './types';
@@ -69,7 +68,6 @@ export const OnboardingNavigator: React.FC = () => {
         })}
       />
       <Stack.Screen name="Loading" component={LoadingScreen} />
-      <Stack.Screen name="PremiumUnlocked" component={PremiumUnlockedScreen} />
       <Stack.Screen name="Root" component={RootNavigator} />
     </Stack.Navigator>
   );

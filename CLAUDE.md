@@ -1,6 +1,6 @@
 # CLAUDE.md — Kinderwell
 
-Copy this file to the REPO ROOT (not docs/). It's the entry point for every AI coding session. Keep it under ~100 lines; it's loaded as context every session — link to detail, don't inline it.
+The entry point for every AI coding session. Kept under ~100 lines; it's loaded as context every session — link to detail, don't inline it.
 
 Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-education lessons behind a hard subscription paywall. Supabase (auth + Postgres + edge functions), Superwall (paywall/IAP), PostHog (analytics), Sentry (errors). Solo-maintained; AI-assisted development is the norm here.
 
@@ -44,5 +44,6 @@ Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-educat
 
 ## Current state pointers
 
-- Master plan: `docs/SHIP_READY_PLAN.md` (tiers of hardening work) · Intern specs: `docs/specs/`
+- Live docs index: `docs/README.md` (the evergreen core + living trackers). Open work queue: `docs/BACKLOG.md`.
+- The master hardening plan + intern specs live OUTSIDE this repo (owner's planning workspace) — they are not committed here.
 - Live App Store version and release history: git tags (`v*-build-*`, `appstore-live-*`).
