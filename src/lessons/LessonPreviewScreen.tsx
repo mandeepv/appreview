@@ -9,24 +9,9 @@
 
 import React, { useState } from 'react';
 import { getLesson } from './registry';
-import { LessonHubScreen, type LessonHubMeta } from './LessonHubScreen';
+import { LessonHubScreen } from './LessonHubScreen';
+import { HUB_META } from './hubMeta';
 import { LessonController } from './LessonController';
-
-// Display metadata per lesson (the hub emoji/label/description that the
-// hand-built hubs hard-coded). Only the previewed lessons need an entry.
-const HUB_META: Record<string, LessonHubMeta> = {
-  sprinklers: {
-    emoji: '💧',
-    label: 'FOUNDATION',
-    description:
-      'This lesson will teach you how to build deep bonds with loved ones by recognizing "sprinklers".',
-  },
-  recordingDeepBondMoments: {
-    emoji: '📸',
-    label: 'WELLNESS',
-    description: 'Rethinking how we capture meaningful moments',
-  },
-};
 
 type View =
   | { kind: 'hub' }
@@ -47,7 +32,15 @@ export const LessonPreviewScreen: React.FC<LessonPreviewScreenProps> = ({
   const [view, setView] = useState<View>({ kind: 'hub' });
 
   if (!lesson) return null;
-  const meta = HUB_META[slug] ?? { emoji: '📘', label: 'LESSON', description: lesson.title };
+  // Every hub lesson has a HUB_META entry; flow lessons (previewed by slug in
+  // dev) fall back to a minimal meta with no section extras / bottom card.
+  const meta = HUB_META[slug] ?? {
+    emoji: '📘',
+    label: 'LESSON',
+    description: lesson.title,
+    sections: lesson.sections.map(() => ({ icon: 'ellipse-outline' as const, description: '' })),
+    bottomInfo: { icon: 'book-outline' as const, text: lesson.title },
+  };
 
   if (view.kind === 'hub') {
     return (
