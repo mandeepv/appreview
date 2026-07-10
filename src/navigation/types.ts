@@ -75,7 +75,6 @@ export type OnboardingStackParamList = {
   EmotionalChallenges: undefined;
   Auth: { mode?: 'signin' | 'signup' } | undefined;
   Loading: undefined;
-  PremiumUnlocked: undefined;
   Root: NavigatorScreenParams<RootStackParamList> | undefined;
   // Dev-only preview of a data-driven lesson (SPEC-09). Registered under
   // __DEV__ in OnboardingNavigator; stripped from production builds.

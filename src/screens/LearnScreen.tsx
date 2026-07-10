@@ -191,18 +191,15 @@ export default function LearnScreen() {
 
       <View style={styles.modulesContainer}>
         {learningModules.map((module) => {
-          const isClickable = module.id === '1' || module.id === '2' || module.id === '3' || module.id === '4' || module.id === '5' || module.id === '6' || module.id === '7' || module.id === '8' || module.id === '9' || module.id === '10' || module.id === '11' || module.id === '12' || module.id === '13'; // All lessons are clickable
-          const CardWrapper = isClickable ? TouchableOpacity : View;
-
+          // SPEC-13 R3: every lesson is launchable — the old always-true
+          // 13-clause `isClickable` chain (and its dead disabled / "Coming Soon"
+          // branches) is removed. Every card is a tappable TouchableOpacity.
           return (
-            <CardWrapper
+            <TouchableOpacity
               key={module.id}
-              style={[
-                styles.moduleCard,
-                !isClickable && styles.moduleCardDisabled
-              ]}
-              onPress={isClickable ? () => handleModulePress(module.id) : undefined}
-              activeOpacity={isClickable ? 0.7 : 1}
+              style={styles.moduleCard}
+              onPress={() => handleModulePress(module.id)}
+              activeOpacity={0.7}
             >
               <View style={[styles.iconCircle, { backgroundColor: module.color }]}>
                 <Text style={styles.moduleIcon}>{module.icon}</Text>
@@ -212,12 +209,7 @@ export default function LearnScreen() {
                 <Text style={styles.moduleTitle}>{module.title}</Text>
                 <Text style={styles.moduleDescription}>{module.description}</Text>
               </View>
-              {!isClickable && (
-                <View style={styles.comingSoonBadge}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
-                </View>
-              )}
-            </CardWrapper>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -294,9 +286,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     ...Shadows.md,
   },
-  moduleCardDisabled: {
-    opacity: 0.6,
-  },
   iconCircle: {
     width: 48,
     height: 48,
@@ -329,21 +318,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.textTertiary,
     lineHeight: 20,
-  },
-  comingSoonBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: Colors.accent, // Muted Sky Blue
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.sm,
-  },
-  comingSoonText: {
-    fontSize: 11,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.textPrimary,
-    letterSpacing: 0.5,
   },
   disclaimerContainer: {
     paddingHorizontal: 24,
