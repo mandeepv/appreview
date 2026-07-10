@@ -1,3 +1,5 @@
+> **SNAPSHOT — frozen as of 2026-07-10. Do not follow as current process; see docs/README.md for the live docs.**
+
 # App Store Compliance Issues — Kinderwell
 **Last Updated:** February 18, 2026 | **Build:** 7 (Build 8 needed) | **Bundle:** com.kinderwell.app
 
