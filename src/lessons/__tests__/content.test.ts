@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { parseLesson } from '../schema';
 import { LESSON_REGISTRY } from '../registry';
+import { HUB_META } from '../hubMeta';
 import { sprinklers } from '../content/sprinklers';
 import { recordingDeepBondMoments } from '../content/recordingDeepBondMoments';
 import { emotionalSandbags } from '../content/emotionalSandbags';
@@ -42,6 +43,35 @@ describe('registry completeness', () => {
   it("each registry entry's slug field matches its key", () => {
     for (const [key, lesson] of Object.entries(LESSON_REGISTRY)) {
       expect(lesson.slug).toBe(key);
+    }
+  });
+});
+
+// SPEC-FIX-03 R6 — hubMeta completeness. Every HUB (section-based) lesson must
+// have a HUB_META entry, and HUB_META must not carry phantom slugs. A missing
+// key would previously have crashed the hub at render (meta.label); now the hub
+// falls back gracefully, but a missing entry is still a bug this catches at
+// test time. Flow lessons (no storageKey) intentionally have no hub meta.
+describe('hubMeta completeness', () => {
+  const hubSlugs = Object.values(LESSON_REGISTRY)
+    .filter((l) => l.storageKey)
+    .map((l) => l.slug);
+  const metaSlugs = Object.keys(HUB_META);
+
+  it('every hub-style lesson has a HUB_META entry', () => {
+    const missing = hubSlugs.filter((s) => !metaSlugs.includes(s));
+    expect(missing).toEqual([]);
+  });
+
+  it('HUB_META has no phantom slugs (each key is a real hub lesson)', () => {
+    const phantom = metaSlugs.filter((s) => !hubSlugs.includes(s));
+    expect(phantom).toEqual([]);
+  });
+
+  it('every HUB_META entry has one section-meta per lesson section', () => {
+    for (const slug of hubSlugs) {
+      const lesson = LESSON_REGISTRY[slug];
+      expect(HUB_META[slug].sections).toHaveLength(lesson.sections.length);
     }
   });
 });

@@ -20,14 +20,24 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 // Mock the DB service (the lazy `import('../../services/lessonProgressService')`
 // resolves to this — no Supabase client is loaded).
+type UpsertOutcome = 'ok' | 'skipped' | 'failed';
 const mockUpsert = jest.fn(
-  (_slug: string, _sections: string[], _count: number): Promise<boolean> => Promise.resolve(true),
+  (_slug: string, _sections: string[], _count: number): Promise<UpsertOutcome> => Promise.resolve('ok'),
 );
-const mockGetAll = jest.fn((): Promise<Record<string, string[]>> => Promise.resolve({}));
+const mockGetAll = jest.fn(
+  (): Promise<Record<string, string[]> | null> => Promise.resolve({}),
+);
 jest.mock('../../services/lessonProgressService', () => ({
   upsertSections: (slug: string, sections: string[], count: number) => mockUpsert(slug, sections, count),
   getAllRemoteProgress: () => mockGetAll(),
   getRemoteSections: jest.fn(() => Promise.resolve([])),
+}));
+
+// Mock Sentry so the repeated-failure reportError path is observable without
+// pulling in the real Sentry client.
+const mockReportError = jest.fn();
+jest.mock('../../config/sentry', () => ({
+  reportError: (...args: unknown[]) => mockReportError(...args),
 }));
 
 // Mock the registry so we don't pull in the content files. One synced lesson
@@ -59,7 +69,8 @@ beforeEach(() => {
   for (const k of Object.keys(mockStore)) delete mockStore[k];
   mockUpsert.mockClear();
   mockGetAll.mockClear();
-  mockUpsert.mockResolvedValue(true);
+  mockReportError.mockClear();
+  mockUpsert.mockResolvedValue('ok');
   mockGetAll.mockResolvedValue({});
 });
 
@@ -116,5 +127,52 @@ describe('mergeRemoteIntoLocal — sign-in union (non-destructive)', () => {
     await mergeRemoteIntoLocal();
 
     expect(JSON.parse(mockStore[KEY])).toEqual(['1', '2', '3']); // unchanged
+  });
+});
+
+describe('SPEC-FIX-03 R1 — fetch error aborts the merge (no destructive write-back)', () => {
+  it('a null fetch leaves local untouched and never writes back', async () => {
+    mockStore[KEY] = JSON.stringify(['1', '2']); // local progress exists
+    mockGetAll.mockResolvedValue(null); // the fetch FAILED (null, not {})
+
+    await mergeRemoteIntoLocal();
+    await flush();
+
+    // Local is untouched...
+    expect(JSON.parse(mockStore[KEY])).toEqual(['1', '2']);
+    // ...and crucially NO upsert fired — an errored fetch must not overwrite
+    // the user's remote progress with a local-only view.
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('SPEC-FIX-03 R2 — signed-out is a skip, not a failure', () => {
+  it("a 'skipped' upsert never counts toward the repeated-failure reportError", async () => {
+    mockUpsert.mockResolvedValue('skipped'); // no session (demo / signed-out)
+    const store = createProgressStore(KEY);
+
+    // Complete 5 sections — well past the 3-failure threshold.
+    for (const id of ['1', '2', '3', '4', '5']) {
+      await store.markSectionComplete(id);
+      await flush();
+    }
+
+    // Every completion still saved locally...
+    expect(JSON.parse(mockStore[KEY])).toEqual(['1', '2', '3', '4', '5']);
+    // ...and NOT ONE reportError fired (a signed-out user completing sections
+    // during Apple review must not trip the alarm).
+    expect(mockReportError).not.toHaveBeenCalled();
+  });
+
+  it("a real 'failed' streak DOES reportError after the threshold", async () => {
+    mockUpsert.mockResolvedValue('failed');
+    const store = createProgressStore(KEY);
+
+    for (const id of ['1', '2', '3']) {
+      await store.markSectionComplete(id);
+      await flush();
+    }
+
+    expect(mockReportError).toHaveBeenCalled();
   });
 });
