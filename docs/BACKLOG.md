@@ -342,22 +342,14 @@ today would compile clean and crash at runtime.
 **Origin**: Fable review 🟡 (last subitem of the "small dedupe
 batch"; sign-in dedupe + AsyncStorage keys already done).
 
-### 9d. Finish branch protection on GitHub 🟡
+### 9d. Finish branch protection on GitHub — CLOSED (risk-accepted)
 
-**Problem**: `.github/workflows/ci.yml` runs on every PR (typecheck,
-lint, version-drift), but the main branch protection rule doesn't
-require the jobs to pass before merge. A failing CI can be merged.
-
-**Fix**: GitHub → Settings → Branches → main → edit rule → check
-"Require status checks to pass before merging" and select
-`typecheck`, `lint`, `version-drift`. No code change.
-
-**Effort**: ~2 min in the GitHub UI.
-
-**Blocks**: nothing. But leaving it unlocked means CI signal is
-advisory rather than enforced.
-
-**Origin**: Fable review 🟡 docs/process bucket.
+Moved out of the work queue: mechanical branch protection is a paid
+GitHub feature on private repos and the owner decided (2026-07-10) to
+skip it. See `OPS_STATE.md` → "Accepted risks" ("No mechanical
+merge-blocking on main") for the decision, the compensating controls
+(PR-triggered CI + never-merge-on-red), and the revisit trigger (a
+GitHub Team upgrade). Each risk lives in exactly one place.
 
 ### 9e. Fold adversarial tests into RELEASE_CHECKLIST permanently 🟡
 
@@ -464,25 +456,12 @@ migration currently has no undo.
 
 **Origin**: Fable review 🟡 environment/infra bucket.
 
-### 9i. Rotate prod DB password 🟡
+### 9i. Rotate prod DB password — CLOSED (risk-accepted)
 
-**Problem**: The prod Supabase DB password has never been rotated
-since prod was provisioned. Baseline security hygiene — even
-without a specific exposure event, long-lived credentials increase
-blast radius if something leaks later.
-
-**Fix**: Supabase dashboard → Kinderwell prod → Database →
-Settings → Reset database password. Update `.env.prod` and any
-local scripts that reference the old password. Nothing in the app
-runtime uses the DB password directly (client uses anon key), so
-no code change.
-
-**Effort**: ~15 min.
-
-**Blocks**: nothing. Pure hygiene.
-
-**Origin**: Fable review 🟡 security bucket. Deferred earlier in
-the review pass — Mandeep chose to focus on ship-blockers first.
+Moved out of the work queue: this is now a standing **accepted risk**,
+not open work. See `OPS_STATE.md` → "Accepted risks" ("Prod DB
+password never rotated") for the decision + revisit trigger. Each
+risk lives in exactly one place; this is the pointer.
 
 ### 9j. PostHog person-delete on account deletion 🟡
 
@@ -960,6 +939,57 @@ not the SDK toggle).
 "we didn't add session recording?" Deliberate omission rather
 than an oversight; documented here so future-us doesn't reflexively
 enable it without doing the work first.
+
+---
+
+### 23. Progress sync — union-before-push 🟡
+
+**Problem**: (from the 2026-07-10 SPEC-FIX-03 review.) The
+per-completion background sync pushes the raw LOCAL completed-set.
+In a narrow window — a fetch-error at sign-in + cross-device
+divergence + activity before the next successful merge — it can
+shrink a remote row and flip `completed` true→false. The SPEC-FIX-03
+R1 fix made the SIGN-IN merge abort on a fetch error, but the
+per-completion push still writes the local view directly.
+
+**Fix**: fetch-and-union (or a full merge) before EVERY push, not
+only at sign-in — so a background push can never overwrite a remote
+row with a stale local subset.
+
+**Effort**: ~half a day (read-modify-write in the sync, or a DB-side
+array-union; add a concurrency test).
+
+**Blocks**: nothing shipping — the exposure is a narrow multi-device
+window. Do before heavy multi-device usage.
+
+### 24. Missing test — `lesson_completed` derivation 🟢
+
+**Problem**: (from the 2026-07-10 SPEC-FIX-03 review.) No test
+asserts the `lesson_completed` event's fire conditions: fires once,
+only when the completed-set reaches the registry's section count,
+never on re-completion. The logic (SPEC-FIX-03 R3) was verified by
+review inspection; an automated test is still owed. The controller
+isn't cheaply unit-testable today, so this needs either a small
+extraction of the derivation or a render-test harness.
+
+**Effort**: ~1-2h.
+
+**Blocks**: nothing.
+
+---
+
+## Parked work (registry — persisted here because the planning folder is NOT backed up; this repo is the only durable store)
+
+Each track is parked, not dropped. It starts on its stated trigger.
+
+- **Notifications (local reminders)** — parked by owner 2026-07-10; starts on explicit owner go, after the owner decides the reminder shape. Full spec arrives with the go (SPEC-11).
+- **Android launch track** — starts on product demand (SPEC-12).
+- **Reusable app-template track** — parked until a second app is on the horizon.
+- **Ratings prompt at section completion** — parked; ~1h at the engine's completion point whenever activated; never near paywall/escape hatch; 3 prompts/yr Apple cap.
+- **Content OTA via EAS Update (feasibility spike)** — revisit after v1.2.0 ships.
+- **Secret escrow + break-glass doc** — deferred by owner 2026-07-09.
+- **PostHog dashboards** — after v1.2.0; blueprint arrives as `docs/ANALYTICS_DASHBOARDS.md`.
+- **Dependency cadence / PostHog person-deletion / feature flags / env separation / rejection playbook / session replay** — trigger-gated: next dep scare or SDK bump · first DSAR · first risky feature · first dashboard near-miss · first mid-rollout rejection · (after the prior two).
 
 ---
 
