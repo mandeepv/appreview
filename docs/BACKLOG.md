@@ -960,6 +960,24 @@ extraction of the derivation or a render-test harness.
 
 **Blocks**: nothing.
 
+### 25. Post-release dependency refresh 🟡
+
+**Trigger: AFTER v1.2.0 settles — explicitly NOT before v1.2.0.** (From the
+2026-07-10 audit's decision items; a concrete instance of the parked
+"Dependency cadence" track below.)
+
+- `@sentry/react-native` 7 → 8 — touches the crash path; read the changelog +
+  do a full device smoke test before/after.
+- Expo SDK 54 → 57 — plan the upgrade (multi-step; regenerate native config,
+  re-verify build + gate + lessons on device).
+- `npm audit` transitive criticals — build-tooling only, advisory; review and
+  bump where low-risk.
+
+**Effort**: ~1 day across the three (Expo SDK is the bulk).
+
+**Blocks**: nothing shipping. Do NOT bundle with v1.2.0 — a runtime-dep bump
+just before a release is exactly the kind of change that adds review risk.
+
 ---
 
 ## Parked work (registry — persisted here because the planning folder is NOT backed up; this repo is the only durable store)
