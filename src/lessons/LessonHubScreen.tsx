@@ -33,7 +33,11 @@ export interface LessonHubMeta {
 
 interface LessonHubScreenProps {
   lesson: Lesson;
-  meta: LessonHubMeta;
+  // Optional (SPEC-FIX-03 R6): a missing/partial meta must NOT crash the hub.
+  // When absent, the hub renders with sensible defaults (title from the lesson,
+  // no per-section subtitle/icon, no bottom info card) instead of throwing on
+  // meta.label / meta.bottomInfo.
+  meta?: Partial<LessonHubMeta>;
   onBack: () => void;
   // Start a section (open the generic lesson at section index, screen 0).
   onOpenSection: (sectionIndex: number) => void;
@@ -45,6 +49,13 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
   onBack,
   onOpenSection,
 }) => {
+  // Normalize meta so every access below is safe (R6 graceful fallback).
+  const emoji = meta?.emoji ?? '📘';
+  const label = meta?.label ?? '';
+  const description = meta?.description ?? '';
+  const metaSections = meta?.sections ?? [];
+  const bottomInfo = meta?.bottomInfo ?? null;
+
   const [completed, setCompleted] = useState<string[]>([]);
   // Flow lessons have no storageKey (no persisted progress) — the hub then
   // just shows 0/… complete and never reads/writes. Only section-based lessons
@@ -63,7 +74,7 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
     safeCapture('lesson_started', {
       lesson_id: lesson.slug,
       lesson_title: lesson.title,
-      lesson_label: meta.label,
+      lesson_label: label || null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -92,11 +103,11 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
 
         <View style={styles.titleSection}>
           <View style={styles.iconContainer}>
-            <Text style={styles.mainIcon}>{meta.emoji}</Text>
+            <Text style={styles.mainIcon}>{emoji}</Text>
           </View>
-          <Text style={styles.label}>{meta.label}</Text>
+          <Text style={styles.label}>{label}</Text>
           <Text style={styles.title}>{lesson.title}</Text>
-          <Text style={styles.description}>{meta.description}</Text>
+          <Text style={styles.description}>{description}</Text>
         </View>
 
         <View style={styles.progressSection}>
@@ -131,9 +142,9 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
                   </View>
                   <View style={styles.lessonInfo}>
                     <View style={styles.lessonHeader}>
-                      {meta.sections[index]?.icon && (
+                      {metaSections[index]?.icon && (
                         <Ionicons
-                          name={meta.sections[index].icon}
+                          name={metaSections[index].icon}
                           size={20}
                           color={isDone ? Colors.success : Colors.textTertiary}
                           style={styles.lessonIcon}
@@ -143,8 +154,8 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
                         {section.title}
                       </Text>
                     </View>
-                    {meta.sections[index]?.description ? (
-                      <Text style={styles.lessonDescription}>{meta.sections[index].description}</Text>
+                    {metaSections[index]?.description ? (
+                      <Text style={styles.lessonDescription}>{metaSections[index].description}</Text>
                     ) : null}
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
@@ -154,12 +165,14 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
           })}
         </View>
 
-        <View style={styles.bottomInfo}>
-          <View style={styles.infoCard}>
-            <Ionicons name={meta.bottomInfo.icon} size={20} color={Colors.primary} />
-            <Text style={styles.infoText}>{meta.bottomInfo.text}</Text>
+        {bottomInfo ? (
+          <View style={styles.bottomInfo}>
+            <View style={styles.infoCard}>
+              <Ionicons name={bottomInfo.icon} size={20} color={Colors.primary} />
+              <Text style={styles.infoText}>{bottomInfo.text}</Text>
+            </View>
           </View>
-        </View>
+        ) : null}
       </ScrollView>
     </View>
   );

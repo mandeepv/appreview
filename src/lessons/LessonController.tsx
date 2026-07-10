@@ -82,7 +82,11 @@ export const LessonController: React.FC<LessonControllerProps> = ({
   React.useEffect(() => {
     const isFlowLesson = !lesson.storageKey;
     if (isFlowLesson && sectionIndex === 0 && screenIndex === 0) {
-      safeCapture('lesson_started', { lesson_id: lesson.slug, lesson_title: lesson.title });
+      safeCapture('lesson_started', {
+        lesson_id: lesson.slug,
+        lesson_title: lesson.title,
+        lesson_label: FLOW_LESSON_LABELS[lesson.slug] ?? null,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -108,26 +112,44 @@ export const LessonController: React.FC<LessonControllerProps> = ({
   // `sectionComplete` visual (only §1 uses that; §2–5 end on rich `content`
   // screens). Byte-compatible key/format; existing progress survives.
   const completeSection = useCallback(async () => {
-    // Flow lessons (numbered 1–4) have no storageKey and don't persist
-    // section progress — they just return to MainTabs on completion. Only
-    // write progress when the lesson actually has a key (section-based
-    // lessons 5–13).
-    if (section && lesson.storageKey) {
-      await createProgressStore(lesson.storageKey).markSectionComplete(section.id);
+    if (!section) {
+      onSectionComplete();
+      return;
     }
-    if (section) {
-      // SPEC-13 R4 — a section finished. Static IDs only.
-      safeCapture('lesson_section_completed', {
-        lesson_id: lesson.slug,
-        section_id: section.id,
-      });
-      // The whole lesson completes when its LAST section finishes (derive from
-      // the registry's section count — the lesson object here IS the registry
-      // entry).
-      if (sectionIndex >= lesson.sections.length - 1) {
-        safeCapture('lesson_completed', { lesson_id: lesson.slug });
-      }
+
+    // SPEC-FIX-03 R3 — lesson_completed must derive from the completed SET, not
+    // the section's POSITION. Firing on `sectionIndex >= length-1` is wrong:
+    // completing the last-indexed section first (order-independent) fires a
+    // false completion, and re-completing it double-fires. Instead: after the
+    // write, fire lesson_completed IFF every section is now done AND this write
+    // is the one that made it so (it wasn't already complete).
+    //
+    // Flow lessons (no storageKey) don't persist a set — they're single-section
+    // and linear, so finishing their (only/last) section IS completing the
+    // lesson; treat the transition as always-just-happened for them.
+    let justCompletedLesson = false;
+    if (lesson.storageKey) {
+      const store = createProgressStore(lesson.storageKey);
+      const before = await store.getCompletedSections();
+      const wasComplete = before.length >= lesson.sections.length;
+      await store.markSectionComplete(section.id);
+      const after = await store.getCompletedSections();
+      const nowComplete = after.length >= lesson.sections.length;
+      justCompletedLesson = nowComplete && !wasComplete;
+    } else {
+      // Flow lesson: completing the last section is completing the lesson.
+      justCompletedLesson = sectionIndex >= lesson.sections.length - 1;
     }
+
+    // SPEC-13 R4 — a section finished. Static IDs only.
+    safeCapture('lesson_section_completed', {
+      lesson_id: lesson.slug,
+      section_id: section.id,
+    });
+    if (justCompletedLesson) {
+      safeCapture('lesson_completed', { lesson_id: lesson.slug });
+    }
+
     onSectionComplete();
   }, [lesson, section, sectionIndex, onSectionComplete]);
 
@@ -241,6 +263,17 @@ export const LessonController: React.FC<LessonControllerProps> = ({
 // (Next stays visible but disabled until satisfied — mirrors the hand-built
 // journaling screens' `disabled={value.trim().length === 0}`).
 const INPUT_BLOCK_TYPES = ['textInput', 'emotionPicker'] as const;
+
+// SPEC-FIX-03 R4 — flow lessons (1–4) have no hub, so their `lesson_label`
+// isn't carried by hub meta. Kept here (matching LearnScreen's learningModules)
+// so the controller's flow-lesson lesson_started has the same-or-richer props
+// LearnScreen used to send.
+const FLOW_LESSON_LABELS: Record<string, string> = {
+  lesson1: 'FOUNDATION',
+  lesson2: 'WELLNESS',
+  lesson3: 'HEALTH',
+  lesson4: 'WELLNESS',
+};
 
 // Content screen view — separated so it can hold the "interactive answered"
 // state that gates the Next button.

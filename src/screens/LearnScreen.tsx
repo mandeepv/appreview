@@ -134,8 +134,14 @@ export default function LearnScreen() {
 
   const handleModulePress = (moduleId: string) => {
     const module = learningModules.find((m) => m.id === moduleId);
+    const target = LESSON_NAV[moduleId];
+
+    // SPEC-FIX-03 R4: send the registry SLUG as `lesson_id` so the tapped →
+    // started funnel joins (engine events also key on the slug). The numeric
+    // module id is kept as a secondary `lesson_number` so nothing is lost.
     const props = {
-      lesson_id: moduleId,
+      lesson_id: target?.slug ?? moduleId,
+      lesson_number: moduleId,
       lesson_title: module?.title ?? null,
       lesson_label: module?.label ?? null,
     };
@@ -156,7 +162,6 @@ export default function LearnScreen() {
     safeCapture('lesson_tapped', props);
 
     gateToLesson(`learn_module_${moduleId}`, () => {
-      const target = LESSON_NAV[moduleId];
       if (!target) return;
       if (target.kind === 'data') {
         // Flow lessons (1-4): launch the generic data-driven lesson directly.

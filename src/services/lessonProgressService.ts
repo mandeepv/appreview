@@ -18,7 +18,6 @@
 //     (INVARIANTS #8 posture).
 
 import { supabase } from '../lib/supabase';
-import { reportError } from '../config/sentry';
 
 /** Read the completed-section array for one lesson from the DB (empty if none
  *  / signed-out / error). */
@@ -45,12 +44,23 @@ export async function getRemoteSections(lessonSlug: string): Promise<string[]> {
   }
 }
 
-/** Read ALL of the current user's lesson progress as a slug → sections map.
- *  Used by the sign-in merge. Empty map if signed-out / error. */
-export async function getAllRemoteProgress(): Promise<Record<string, string[]>> {
+/**
+ * Read ALL of the current user's lesson progress as a slug → sections map.
+ * Used by the sign-in merge.
+ *
+ * Return-value contract (SPEC-FIX-03 R1 — data-loss fix): a successful fetch
+ * returns a map (empty `{}` legitimately means "signed in, no rows yet"). A
+ * FETCH ERROR returns `null` — distinct from `{}`. The caller MUST treat null
+ * as "unknown, do not merge": merging a `{}` from an errored fetch would union
+ * local with nothing and then WRITE THAT BACK, silently wiping the user's
+ * remote progress (and flipping `completed` true→false). On null the merge is
+ * skipped entirely, local is left untouched, and it retries on the next
+ * sign-in.
+ */
+export async function getAllRemoteProgress(): Promise<Record<string, string[]> | null> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return {};
+    if (!user) return {}; // signed-out is a legitimate "no rows", not an error
 
     const { data, error } = await supabase
       .from('lesson_progress')
@@ -66,24 +76,38 @@ export async function getAllRemoteProgress(): Promise<Record<string, string[]>> 
     return out;
   } catch (error) {
     if (__DEV__) console.warn('[lessonProgress] getAllRemoteProgress failed:', error);
-    return {};
+    return null; // fetch failed — caller skips the merge (no destructive write-back)
   }
 }
 
 /**
+ * Outcome of an upsert attempt (SPEC-FIX-03 R2). THREE outcomes, not two:
+ *   'ok'      — the DB write succeeded.
+ *   'skipped' — no session (signed-out / demo mode). A legitimate no-op, NOT a
+ *               failure. The caller must NOT count this toward its
+ *               repeated-failure threshold (otherwise a signed-out user
+ *               completing sections would spuriously reportError — e.g. a demo
+ *               user during Apple review).
+ *   'failed'  — an actual DB/network error. Only this counts as a failure.
+ */
+export type UpsertOutcome = 'ok' | 'skipped' | 'failed';
+
+/**
  * Upsert the completed-section array for one lesson. `completed` is derived:
  * true iff every section is done (sectionCount = the lesson's section count in
- * the registry). Returns true on success, false on failure — the caller
- * (the factory's background sync) decides whether to reportError. Never throws.
+ * the registry). Never throws.
  */
 export async function upsertSections(
   lessonSlug: string,
   sections: string[],
   sectionCount: number,
-): Promise<boolean> {
+): Promise<UpsertOutcome> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false; // signed-out: local-only, nothing to sync
+    // No session → signed-out / demo mode. This is a deliberate skip, not a
+    // failure (the sync is local-only for these users). Detected BEFORE the
+    // upsert so it never touches the failure counter.
+    if (!user) return 'skipped';
 
     const completed = sectionCount > 0 && sections.length >= sectionCount;
     const now = new Date().toISOString();
@@ -103,9 +127,9 @@ export async function upsertSections(
       );
 
     if (error) throw error;
-    return true;
+    return 'ok';
   } catch (error) {
     if (__DEV__) console.warn('[lessonProgress] upsertSections failed:', error);
-    return false;
+    return 'failed';
   }
 }
