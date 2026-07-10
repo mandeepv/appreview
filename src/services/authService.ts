@@ -285,16 +285,15 @@ export const deleteAccount = async () => {
     // if AsyncStorage.multiRemove throws we haven't already dropped
     // the auth session (recoverable state).
     //
-    // Not cleared here: per-lesson progress in AsyncStorage
-    // (`src/utils/*Progress.ts` — namingEmotions, helpingProcessEmotions,
-    // serveReturn, lesson5, deepBondMoments, recordingDeepBondMoments).
-    // These are keyed per device, not per user, so they persist across
-    // account deletions on the same device. Intended behavior — the
-    // rationale is that lesson content is educational and progress is
-    // an anonymous device-local convenience, not user data. If we ever
-    // move progress server-side (e.g. cross-device sync), add
-    // `AsyncStorage.multiRemove([...LESSON_PROGRESS_KEYS])` here and
-    // the constants file becomes the source of truth for that list.
+    // Lesson progress: since SPEC-13 it is ACCOUNT-SCOPED (DB-backed) — the
+    // `lesson_progress` rows are deleted server-side by the delete-account edge
+    // function (it deletes the user's rows before deleting the auth user). The
+    // device-local AsyncStorage mirror is NOT cleared here, so on the same
+    // device that local progress survives (and the sign-in union-merge would
+    // even push it back for the next account). Wiping it on delete is a possible
+    // future refinement (BACKLOG #23 territory). NOTE: the old per-device
+    // `src/utils/*Progress.ts` files this comment used to list were removed in
+    // SPEC-13 R3 — progress now flows through the createProgressStore factory.
     try {
       await useOnboardingStore.getState().clearState();
     } catch (e) {
