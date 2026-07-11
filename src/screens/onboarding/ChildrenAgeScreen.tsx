@@ -1,15 +1,26 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingContainer } from '../../components/OnboardingContainer';
-import { SelectableCard } from '../../components/SelectableCard';
-import { Button } from '../../components/Button';
+import { QuestionScreen, OptionCard, ContinueButton } from '../../components/onboarding';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildAgeRange } from '../../types/onboarding';
-import { Colors } from '../../constants/theme';
+import { Colors, Spacing, Typography } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ChildrenAge'>;
+
+// SPEC-17: per-child screen (a single-select age per child). Not a plain
+// single/multi question, so it keeps an explicit Continue; it adopts the shell +
+// OptionCard visual family for consistency. Off the active path today (kept
+// registered). Unchanged navigation/behavior.
+const AGE_RANGES: { value: ChildAgeRange; label: string }[] = [
+  { value: '0-1', label: '0-1 years' },
+  { value: '2-4', label: '2-4 years' },
+  { value: '5-7', label: '5-7 years' },
+  { value: '8-12', label: '8-12 years' },
+  { value: '13-17', label: '13-17 years' },
+  { value: '18+', label: '18+' },
+];
 
 export const ChildrenAgeScreen: React.FC<Props> = ({ navigation }) => {
   const { children, updateChildAgeRange } = useOnboardingStore();
@@ -18,61 +29,44 @@ export const ChildrenAgeScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('ImprovementGoals');
   };
 
-  const ageRanges: { value: ChildAgeRange; label: string }[] = [
-    { value: '0-1', label: '0-1 years' },
-    { value: '2-4', label: '2-4 years' },
-    { value: '5-7', label: '5-7 years' },
-    { value: '8-12', label: '8-12 years' },
-    { value: '13-17', label: '13-17 years' },
-    { value: '18+', label: '18+' },
-  ];
-
   return (
-    <OnboardingContainer
+    <QuestionScreen
       screenName="ChildrenAge"
       title="How old are your children?"
       subtitle="Select the age ranges that apply"
-      currentStep={5}
       onBack={() => navigation.goBack()}
+      footer={<ContinueButton onPress={handleContinue} />}
     >
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        {children.map((child, index) => (
-          <View key={index} style={styles.childSection}>
-            <Text style={styles.childLabel}>Child {index + 1}</Text>
-            {ageRanges.map((range) => (
-              <SelectableCard
-                key={range.value}
+      {children.map((child, index) => (
+        <View key={index} style={styles.childSection}>
+          <Text style={styles.childLabel}>Child {index + 1}</Text>
+          {AGE_RANGES.map((range) => (
+            <View key={range.value} style={styles.cardGap}>
+              <OptionCard
                 title={range.label}
+                variant="compact"
                 selected={child.ageRange === range.value}
                 onPress={() => updateChildAgeRange(index, range.value)}
-                variant="small"
               />
-            ))}
-          </View>
-        ))}
-      </ScrollView>
-
-      <View style={styles.buttonContainer}>
-        <Button title="Continue" onPress={handleContinue} />
-      </View>
-    </OnboardingContainer>
+            </View>
+          ))}
+        </View>
+      ))}
+    </QuestionScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
   childSection: {
-    marginBottom: 24,
+    marginBottom: Spacing['2xl'],
   },
   childLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
-  buttonContainer: {
-    paddingVertical: 16,
+  cardGap: {
+    marginBottom: Spacing.md,
   },
 });

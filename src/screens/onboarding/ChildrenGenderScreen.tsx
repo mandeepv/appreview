@@ -1,14 +1,23 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingContainer } from '../../components/OnboardingContainer';
-import { Button } from '../../components/Button';
+import { QuestionScreen, ContinueButton } from '../../components/onboarding';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildGender } from '../../types/onboarding';
-import { Colors } from '../../constants/theme';
+import { Colors, Spacing, BorderRadius, Typography } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ChildrenGender'>;
+
+// SPEC-17: per-child screen (gender per child, laid out as icon rows). Adopts
+// the shell + footer grammar and tokenizes the colors; keeps its bespoke row
+// layout (icon segmented buttons don't map onto OptionCard). Off the active path
+// today (kept registered). Explicit Continue; unchanged navigation/behavior.
+const GENDER_OPTIONS: { value: ChildGender; label: string; icon: string }[] = [
+  { value: 'boy', label: 'Boy', icon: '👦' },
+  { value: 'girl', label: 'Girl', icon: '👧' },
+  { value: 'expecting', label: "I'm expecting", icon: '🤰' },
+];
 
 export const ChildrenGenderScreen: React.FC<Props> = ({ navigation }) => {
   const { children, updateChildGender } = useOnboardingStore();
@@ -17,90 +26,76 @@ export const ChildrenGenderScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('ChildrenAge');
   };
 
-  const genderOptions: { value: ChildGender; label: string; icon: string }[] = [
-    { value: 'boy', label: 'Boy', icon: '👦' },
-    { value: 'girl', label: 'Girl', icon: '👧' },
-    { value: 'expecting', label: "I'm expecting", icon: '🤰' },
-  ];
-
   return (
-    <OnboardingContainer
+    <QuestionScreen
       screenName="ChildrenGender"
       title="What are the genders of your children?"
       subtitle="Select for each child"
-      currentStep={4}
       onBack={() => navigation.goBack()}
+      footer={<ContinueButton onPress={handleContinue} />}
     >
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        {children.map((child, index) => (
-          <View key={index} style={styles.childSection}>
-            <Text style={styles.childLabel}>Child {index + 1}</Text>
-            <View style={styles.optionsRow}>
-              {genderOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  onPress={() => updateChildGender(index, option.value)}
+      {children.map((child, index) => (
+        <View key={index} style={styles.childSection}>
+          <Text style={styles.childLabel}>Child {index + 1}</Text>
+          <View style={styles.optionsRow}>
+            {GENDER_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => updateChildGender(index, option.value)}
+                style={[
+                  styles.genderButton,
+                  child.gender === option.value ? styles.genderButtonSelected : styles.genderButtonUnselected,
+                ]}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.genderIcon}>{option.icon}</Text>
+                <Text
                   style={[
-                    styles.genderButton,
-                    child.gender === option.value ? styles.genderButtonSelected : styles.genderButtonUnselected,
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.genderIcon}>{option.icon}</Text>
-                  <Text style={[
                     styles.genderLabel,
                     child.gender === option.value ? styles.genderLabelSelected : styles.genderLabelUnselected,
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity
-              onPress={() => updateChildGender(index, 'prefer-not-to-say')}
-              style={styles.preferNotToSay}
-            >
-              <Text style={[
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => updateChildGender(index, 'prefer-not-to-say')} style={styles.preferNotToSay}>
+            <Text
+              style={[
                 styles.preferNotToSayText,
                 child.gender === 'prefer-not-to-say' && styles.preferNotToSayTextSelected,
-              ]}>
-                Prefer not to say
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-      </ScrollView>
-
-      <View style={styles.buttonContainer}>
-        <Button title="Continue" onPress={handleContinue} />
-      </View>
-    </OnboardingContainer>
+              ]}
+            >
+              Prefer not to say
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+    </QuestionScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
   childSection: {
-    marginBottom: 24,
+    marginBottom: Spacing['2xl'],
   },
   childLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
     color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   optionsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 8,
+    gap: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   genderButton: {
     flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 16,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
     borderWidth: 2,
   },
@@ -113,12 +108,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   genderIcon: {
-    fontSize: 24,
+    fontSize: Typography.sizes['2xl'],
     marginBottom: 4,
   },
   genderLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
   },
   genderLabelSelected: {
     color: Colors.surface,
@@ -127,17 +122,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   preferNotToSay: {
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm,
   },
   preferNotToSayText: {
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
     textAlign: 'center',
     color: Colors.textTertiary,
   },
   preferNotToSayTextSelected: {
     color: Colors.primary,
-  },
-  buttonContainer: {
-    paddingVertical: 16,
   },
 });
