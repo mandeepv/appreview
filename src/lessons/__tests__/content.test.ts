@@ -198,7 +198,7 @@ describe('flow lessons 1-4', () => {
   // (sequential locking needs the signal). The controller's completeSection
   // runs its storageKey branch for them now — verified here by asserting the
   // exact key each lesson maps to.
-  const cases: Array<[string, ReturnType<typeof parseLesson> extends never ? never : any, number, string]> = [
+  const cases: [string, ReturnType<typeof parseLesson> extends never ? never : any, number, string][] = [
     ['lesson1', lesson1, 16, STORAGE_KEYS.LESSON1_COMPLETED_SECTIONS],
     ['lesson2', lesson2, 17, STORAGE_KEYS.LESSON2_COMPLETED_SECTIONS],
     ['lesson3', lesson3, 20, STORAGE_KEYS.LESSON3_COMPLETED_SECTIONS],

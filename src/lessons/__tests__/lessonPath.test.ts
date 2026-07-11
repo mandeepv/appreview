@@ -41,7 +41,7 @@ describe('LESSON_PATH integrity', () => {
 });
 
 describe('flow lessons 1-4 — completion keys (SPEC-18 R1)', () => {
-  const cases: Array<[string, string]> = [
+  const cases: [string, string][] = [
     ['lesson1', STORAGE_KEYS.LESSON1_COMPLETED_SECTIONS],
     ['lesson2', STORAGE_KEYS.LESSON2_COMPLETED_SECTIONS],
     ['lesson3', STORAGE_KEYS.LESSON3_COMPLETED_SECTIONS],
