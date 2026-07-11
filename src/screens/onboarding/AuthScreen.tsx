@@ -13,6 +13,7 @@ import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { resolvePostAuthDestination } from '../../navigation/routingPolicy';
 import { Colors } from '../../constants/theme';
 import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned, trackAuthSucceeded, safeCapture } from '../../lib/analytics';
+import { resolveOnboardingVariant } from '../../lib/experiments';
 import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
@@ -184,7 +185,12 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       if (session) {
         setUser(session.user);
         setSession(session);
-        identifyUserWithOnboarding(session.user.id, onboardingStore, mode);
+        // SPEC-15: resolve the sticky variant (already persisted from Welcome;
+        // returns instantly, defaults control, never throws) so it can be $set
+        // on the person at signup. Only meaningful in signup mode — signin
+        // mode skips $set entirely inside identifyUserWithOnboarding.
+        const onboardingVariant = await resolveOnboardingVariant();
+        identifyUserWithOnboarding(session.user.id, onboardingStore, mode, onboardingVariant);
         // R5 (SPEC-06): auth_succeeded at the point a provider sign-in
         // returns a valid session — mirrors trackAuthAttempted's
         // provider + context so attempted → succeeded | abandoned forms a

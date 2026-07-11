@@ -96,6 +96,11 @@ export const identifyUserWithOnboarding = (
     emotionalChallenges: string[];
   },
   mode: 'signup' | 'signin' = 'signup',
+  // SPEC-15: the sticky onboarding A/B variant, resolved by the caller. Set as
+  // a durable, low-sensitivity person property in signup mode (allowed by the
+  // person-property rule — it's an experiment-arm label, not PII). Omitted in
+  // signin mode along with the rest of $set (the store is empty then).
+  onboardingVariant?: 'control' | 'variant_b',
 ) => {
   if (mode === 'signin') {
     // Link session to user ID without touching person properties.
@@ -137,6 +142,11 @@ export const identifyUserWithOnboarding = (
       partner_involvement: onboarding.partnerInvolvement,
       notifications_enabled: onboarding.notificationsEnabled,
       familiar_parenting_styles: onboarding.familiarParentingStyles,
+      // SPEC-15: experiment-arm label on the person so cohorts can be built in
+      // PostHog even outside the event super-property. Only included when the
+      // caller resolved a variant (always, in practice) — omit rather than
+      // write null (person-property hygiene).
+      ...(onboardingVariant ? { onboarding_variant: onboardingVariant } : {}),
     },
     $set_once: {
       first_sign_in_date: new Date().toISOString(),

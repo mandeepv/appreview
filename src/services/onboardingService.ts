@@ -15,7 +15,17 @@ type UserProfileInsert = Database['public']['Tables']['user_profiles']['Insert']
  * but we also filter here so no future caller can accidentally reintroduce
  * the bug through a different code path. Extra belt for the suspenders.
  */
-export const saveUserOnboardingData = async (userId: string, onboardingData: Partial<OnboardingData>) => {
+// SPEC-15: the save payload additionally carries the A/B experiment fields.
+// `onboardingVariant` is the sticky per-device assignment; `variantBAnswers`
+// is populated only in variant B. Kept as an extension of the onboarding data
+// shape rather than baked into OnboardingData so the domain type stays about
+// the user's answers, not experiment plumbing.
+type OnboardingSavePayload = Partial<OnboardingData> & {
+  onboardingVariant?: 'control' | 'variant_b';
+  variantBAnswers?: Record<string, string | string[]>;
+};
+
+export const saveUserOnboardingData = async (userId: string, onboardingData: OnboardingSavePayload) => {
   try {
     // Build the payload conditionally. Only include `name` if it's a real
     // user-provided value — not the 'Parent' fallback, not empty/null.
@@ -45,11 +55,22 @@ export const saveUserOnboardingData = async (userId: string, onboardingData: Par
       experience_level: onboardingData.experienceLevel,
       familiar_parenting_styles: onboardingData.familiarParentingStyles,
       emotional_challenges: onboardingData.emotionalChallenges,
+      // SPEC-15: always stamp the experiment variant so conversion can be
+      // segmented in Supabase (nullable column; older rows stay null).
+      onboarding_variant: onboardingData.onboardingVariant,
       updated_at: new Date().toISOString(),
     };
 
     if (shouldSaveName) {
       payload.name = trimmedName;
+    }
+
+    // SPEC-15: variant-B answers are written ONLY when present (INVARIANT:
+    // omit fields rather than writing empty/placeholder values — same rule as
+    // `name` above). Control users leave the column null. Answers are option
+    // KEYS only, never free text (PII rule).
+    if (onboardingData.variantBAnswers && Object.keys(onboardingData.variantBAnswers).length > 0) {
+      payload.variant_b_answers = onboardingData.variantBAnswers as Json;
     }
 
     const { data, error } = await supabase
