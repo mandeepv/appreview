@@ -87,13 +87,22 @@ describe('resolveGateOutcome — every gate outcome × isSubscribed', () => {
     }
   });
 
-  describe('skip outcomes → always enter_root', () => {
-    for (const skip of skipReasons) {
-      for (const isSubscribed of [true, false]) {
-        it(`skip ${skip.reason} → enter_root (isSubscribed=${isSubscribed})`, () => {
-          expect(resolveGateOutcome(skip, isSubscribed)).toBe('enter_root');
-        });
-      }
+  // SPEC-FIX-08 R2: skip reason now matters. Holdout / NoAudienceMatch are
+  // legitimate "entitled / excluded" skips → enter_root. PlacementNotFound is a
+  // dashboard misconfig (broken/deleted placement) → 'retry' (fail SAFE to the
+  // gate), NOT enter_root — otherwise a single dashboard slip grants every
+  // unpaid user free access.
+  describe('skip outcomes (SPEC-FIX-08 R2)', () => {
+    for (const isSubscribed of [true, false]) {
+      it(`skip Holdout → enter_root (isSubscribed=${isSubscribed})`, () => {
+        expect(resolveGateOutcome({ kind: 'skip', reason: 'Holdout' }, isSubscribed)).toBe('enter_root');
+      });
+      it(`skip NoAudienceMatch → enter_root (isSubscribed=${isSubscribed})`, () => {
+        expect(resolveGateOutcome({ kind: 'skip', reason: 'NoAudienceMatch' }, isSubscribed)).toBe('enter_root');
+      });
+      it(`skip PlacementNotFound → retry, NEVER enter_root (isSubscribed=${isSubscribed})`, () => {
+        expect(resolveGateOutcome({ kind: 'skip', reason: 'PlacementNotFound' }, isSubscribed)).toBe('retry');
+      });
     }
   });
 

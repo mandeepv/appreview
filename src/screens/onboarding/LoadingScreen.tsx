@@ -241,11 +241,25 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       applyGateOutcome(resolveGateOutcome({ kind: 'dismiss', type: result.type }, isSubscribed));
     },
     onSkip: (reason) => {
-      // "Skip" fires when Superwall bypasses paywall presentation itself —
-      // e.g. the user is already entitled and Superwall's own check catches it
-      // before showing the UI. Every skip reason means "let them through."
-      if (__DEV__) console.log('⏭️ Paywall skipped by Superwall (user is entitled):', reason.type);
+      // "Skip" fires when Superwall bypasses paywall presentation itself.
+      // SPEC-FIX-08 R2: NOT every skip means "entitled." Holdout/NoAudienceMatch
+      // are legitimate (entitled or experiment-excluded → enter_root).
+      // PlacementNotFound means the dashboard placement is broken/deleted —
+      // resolveGateOutcome maps it to 'retry' (fail safe to the gate), and we
+      // fire a DISTINCT event so a real dashboard break is immediately visible
+      // in analytics rather than hiding inside the generic skip counter.
+      if (__DEV__) console.log('⏭️ Paywall skipped by Superwall:', reason.type);
       safeCapture('paywall_skipped_by_superwall', { skip_reason: reason.type });
+      if (reason.type === 'PlacementNotFound') {
+        // Distinct, alert-worthy signal: the subscription_gate placement is
+        // missing/renamed. A spike here = a dashboard misconfig locking users
+        // to (or, pre-fix, past) the paywall. See docs/PAYWALL_MODEL.md.
+        safeCapture('paywall_placement_not_found', { skip_reason: reason.type });
+        reportError(new Error('Superwall PlacementNotFound for subscription_gate'), {
+          screen: 'LoadingScreen',
+          context: 'paywall_placement_not_found',
+        });
+      }
       applyGateOutcome(resolveGateOutcome({ kind: 'skip', reason: reason.type }, isSubscribed));
     },
     onError: (error) => {
