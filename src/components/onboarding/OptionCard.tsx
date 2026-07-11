@@ -14,8 +14,8 @@ import { Colors, Spacing, BorderRadius, Typography, Animation } from '../../cons
 /**
  * SPEC-17 — the ONE option-card visual family for onboarding.
  *
- * Consolidates the old `SelectableCard` and `UserTypeScreen`'s bespoke square /
- * horizontal cards into a single component with three layout variants. The
+ * Consolidates the former `SelectableCard` and `UserTypeScreen`'s bespoke
+ * square / horizontal cards into a single component with layout variants. The
  * selected state is ONE rule everywhere — primary border + primary-tint fill +
  * a check badge — so no screen re-invents "what selected looks like".
  *
