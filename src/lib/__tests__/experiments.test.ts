@@ -1,0 +1,193 @@
+/* eslint-disable import/first -- jest.mock() must be hoisted above imports;
+   the mocks below intentionally precede the module-under-test imports. */
+// SPEC-15 R6 — experiments accessor tests.
+//
+// Mock boundary: we stub the two collaborators experiments.ts imports —
+// `src/config/posthog` (getFeatureFlag / register) and
+// `@react-native-async-storage/async-storage` (the sticky store). analytics.ts
+// is real but harmless here (its posthog is the same mocked instance). The
+// module under test (experiments.ts) is NOT mocked.
+
+// In-memory AsyncStorage — a plain Map so each test controls the persisted
+// assignment precisely and we can assert what got written.
+const mockAsyncStore = new Map<string, string>();
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn((k: string) => Promise.resolve(mockAsyncStore.has(k) ? mockAsyncStore.get(k)! : null)),
+    setItem: jest.fn((k: string, v: string) => {
+      mockAsyncStore.set(k, v);
+      return Promise.resolve();
+    }),
+    removeItem: jest.fn((k: string) => {
+      mockAsyncStore.delete(k);
+      return Promise.resolve();
+    }),
+  },
+}));
+
+// getFeatureFlag return value is set per test via mockFlag.value.
+const mockFlag: { value: unknown; throws: boolean; hangs: boolean } = {
+  value: undefined,
+  throws: false,
+  hangs: false,
+};
+jest.mock('../../config/posthog', () => ({
+  posthog: {
+    getFeatureFlag: jest.fn(() => {
+      if (mockFlag.throws) throw new Error('flag boom');
+      if (mockFlag.hangs) return new Promise(() => {}); // never resolves
+      return mockFlag.value;
+    }),
+    capture: jest.fn(),
+    register: jest.fn(),
+    identify: jest.fn(),
+    reset: jest.fn(),
+    screen: jest.fn(),
+  },
+  resetPostHog: jest.fn(),
+  isPostHogEnabled: false,
+  posthogEnvironment: 'dev',
+}));
+
+import {
+  resolveOnboardingVariant,
+  hydrateOnboardingVariant,
+  clearOnboardingVariant,
+} from '../experiments';
+import { posthog } from '../../config/posthog';
+import { STORAGE_KEYS } from '../../constants/storageKeys';
+
+const KEY = STORAGE_KEYS.ONBOARDING_VARIANT;
+const mockCapture = posthog.capture as jest.Mock;
+const mockRegister = posthog.register as jest.Mock;
+
+beforeEach(() => {
+  mockAsyncStore.clear();
+  mockFlag.value = undefined;
+  mockFlag.throws = false;
+  mockFlag.hangs = false;
+  jest.clearAllMocks();
+});
+
+describe('resolveOnboardingVariant — flag mapping', () => {
+  it("flag 'variant_b' → variant_b (and persists it)", async () => {
+    mockFlag.value = 'variant_b';
+    await expect(resolveOnboardingVariant()).resolves.toBe('variant_b');
+    expect(mockAsyncStore.get(KEY)).toBe('variant_b');
+  });
+
+  it("flag 'control' → control", async () => {
+    mockFlag.value = 'control';
+    await expect(resolveOnboardingVariant()).resolves.toBe('control');
+    expect(mockAsyncStore.get(KEY)).toBe('control');
+  });
+
+  it('flag undefined → control', async () => {
+    mockFlag.value = undefined;
+    await expect(resolveOnboardingVariant()).resolves.toBe('control');
+  });
+
+  it('flag false → control', async () => {
+    mockFlag.value = false;
+    await expect(resolveOnboardingVariant()).resolves.toBe('control');
+  });
+
+  it('flag unknown/garbage string → control', async () => {
+    mockFlag.value = 'variant_z_typo';
+    await expect(resolveOnboardingVariant()).resolves.toBe('control');
+  });
+
+  it('getFeatureFlag throws → control (never propagates)', async () => {
+    mockFlag.throws = true;
+    await expect(resolveOnboardingVariant()).resolves.toBe('control');
+  });
+
+  it('getFeatureFlag hangs → control via timeout (does not block forever)', async () => {
+    jest.useFakeTimers();
+    mockFlag.hangs = true;
+    const p = resolveOnboardingVariant();
+    // Advance past the 2s internal timeout.
+    await jest.advanceTimersByTimeAsync(2100);
+    await expect(p).resolves.toBe('control');
+    jest.useRealTimers();
+  });
+});
+
+describe('resolveOnboardingVariant — stickiness', () => {
+  it('persisted value wins over a changed flag', async () => {
+    mockAsyncStore.set(KEY, 'variant_b');
+    mockFlag.value = 'control'; // server flipped, but persisted should win
+    await expect(resolveOnboardingVariant()).resolves.toBe('variant_b');
+    // getFeatureFlag must not even be consulted when a value is persisted.
+    expect(posthog.getFeatureFlag).not.toHaveBeenCalled();
+  });
+
+  it('a persisted control also wins over a variant_b flag', async () => {
+    mockAsyncStore.set(KEY, 'control');
+    mockFlag.value = 'variant_b';
+    await expect(resolveOnboardingVariant()).resolves.toBe('control');
+    expect(posthog.getFeatureFlag).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveOnboardingVariant — assignment event fires once', () => {
+  it('fires onboarding_variant_assigned exactly once, then not again', async () => {
+    mockFlag.value = 'variant_b';
+    await resolveOnboardingVariant();
+    const assignEvents = mockCapture.mock.calls.filter(
+      (c) => c[0] === 'onboarding_variant_assigned',
+    );
+    expect(assignEvents).toHaveLength(1);
+    expect(assignEvents[0][1]).toEqual({ variant: 'variant_b', source: 'flag' });
+
+    // Second resolve reads the persisted value — no new assignment event.
+    mockCapture.mockClear();
+    await resolveOnboardingVariant();
+    expect(
+      mockCapture.mock.calls.filter((c) => c[0] === 'onboarding_variant_assigned'),
+    ).toHaveLength(0);
+  });
+
+  it("source is 'fallback' when the flag did not resolve", async () => {
+    mockFlag.value = undefined;
+    await resolveOnboardingVariant();
+    const assign = mockCapture.mock.calls.find((c) => c[0] === 'onboarding_variant_assigned');
+    expect(assign?.[1]).toEqual({ variant: 'control', source: 'fallback' });
+  });
+
+  it('registers the variant super-property on fresh assignment', async () => {
+    mockFlag.value = 'variant_b';
+    await resolveOnboardingVariant();
+    expect(mockRegister).toHaveBeenCalledWith({ onboarding_variant: 'variant_b' });
+  });
+});
+
+describe('clear + fresh resolve', () => {
+  it('clears the storage key only, then re-resolves fresh from the flag', async () => {
+    mockFlag.value = 'variant_b';
+    await resolveOnboardingVariant();
+    expect(mockAsyncStore.get(KEY)).toBe('variant_b');
+
+    await clearOnboardingVariant();
+    expect(mockAsyncStore.has(KEY)).toBe(false);
+
+    // A fresh resolve now consults the flag again (server flipped to control).
+    mockFlag.value = 'control';
+    await expect(resolveOnboardingVariant()).resolves.toBe('control');
+    expect(mockAsyncStore.get(KEY)).toBe('control');
+  });
+});
+
+describe('hydrateOnboardingVariant', () => {
+  it('re-registers the super-property when an assignment is persisted', async () => {
+    mockAsyncStore.set(KEY, 'variant_b');
+    await hydrateOnboardingVariant();
+    expect(mockRegister).toHaveBeenCalledWith({ onboarding_variant: 'variant_b' });
+  });
+
+  it('does nothing when no assignment is persisted', async () => {
+    await hydrateOnboardingVariant();
+    expect(mockRegister).not.toHaveBeenCalled();
+  });
+});
