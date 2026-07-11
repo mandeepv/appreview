@@ -60,6 +60,24 @@ describe('computeStreak — atRisk (today not yet active)', () => {
     expect(r.current).toBe(0);
     expect(r.atRisk).toBe(false);
   });
+
+  it('SPEC-FIX-11 R5.8 — ACCEPTED edge: at-risk can exceed what completing today yields (pinned)', () => {
+    // today 07-12 inactive; 07-11 missing (gap A, adjacent to today), 07-10
+    // active, 07-09 missing (gap B), 07-08 + 07-07 active. Walking at-risk as if
+    // today WILL be bridged lets BOTH gaps bridge → current 3.
+    const atRisk = computeStreak(['2026-07-10', '2026-07-08', '2026-07-07'], '2026-07-12');
+    expect(atRisk.atRisk).toBe(true);
+    expect(atRisk.current).toBe(3);
+
+    // But once the user actually completes today, today is a REAL active day, so
+    // it no longer counts as a bridge — and the two gaps can't both bridge inside
+    // the rolling-7 window → current drops to 2. This DROP-after-completing is the
+    // accepted display artifact; pinned so a future change is deliberate.
+    const afterToday = computeStreak(['2026-07-12', '2026-07-10', '2026-07-08', '2026-07-07'], '2026-07-12');
+    expect(afterToday.atRisk).toBe(false);
+    expect(afterToday.current).toBe(2);
+    expect(afterToday.current).toBeLessThan(atRisk.current);
+  });
 });
 
 describe('computeStreak — freeze / grace (one bridge per rolling 7 days)', () => {

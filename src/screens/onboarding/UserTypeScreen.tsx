@@ -36,7 +36,8 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
     <QuestionScreen
       screenName="UserType"
       title="Welcome to Kinderwell"
-      subtitle="Who are you parenting as? This helps us personalize lessons for your family."
+      subtitle="Who are you parenting as? The next few questions help us personalize lessons for your family."
+      caption="All responses are stored securely and used only to customize your experience."
     >
       <OptionList
         mode="single"
