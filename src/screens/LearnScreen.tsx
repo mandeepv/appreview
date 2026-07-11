@@ -17,6 +17,10 @@ import {
   resolveLessonTap,
   type LessonUnlockState,
 } from '../lessons/unlockPolicy';
+import { getStreak } from '../lessons/streakStore';
+import type { StreakResult } from '../lessons/computeStreak';
+import { StreakChip } from '../components/StreakChip';
+import { useReduceMotion } from '../components/onboarding/useReduceMotion';
 
 interface LearningModule {
   id: string;
@@ -197,15 +201,35 @@ export default function LearnScreen() {
     hasProgressBySlug: {},
     partialBySlug: {},
   });
+  const [streak, setStreak] = useState<StreakResult | null>(null);
+  // The "🔥 Day N" celebration: shown when returning to the path after a section
+  // completion made today active for the first time (the streak count went up).
+  // Lightweight inline banner, never a blocking modal; auto-hides.
+  const [celebrateDay, setCelebrateDay] = useState<number | null>(null);
+  const prevStreakRef = React.useRef<number | null>(null);
 
   // Recompute on every focus: AsyncStorage reads are local-first, so returning
   // to the path after finishing a lesson unlocks the next one with no restart
-  // (the SPEC-18 device-test contract). Guard setState against an unmount.
+  // (the SPEC-18 device-test contract) and the streak chip reflects today's
+  // activity. Guard setState against an unmount. `new Date()` here is the real
+  // "what day is it now" edge; computeStreak itself stays pure.
   useFocusEffect(
     useCallback(() => {
       let active = true;
       readLessonProgress().then((p) => {
         if (active) setProgress(p);
+      });
+      getStreak(new Date()).then((s) => {
+        if (!active) return;
+        setStreak(s);
+        // If the streak grew since the last time this screen saw it AND today is
+        // active (not at risk), celebrate the fresh Day N. First-ever load
+        // (prev null) does not celebrate a returning user's existing streak.
+        const prev = prevStreakRef.current;
+        if (prev !== null && s.current > prev && !s.atRisk) {
+          setCelebrateDay(s.current);
+        }
+        prevStreakRef.current = s.current;
       });
       return () => {
         active = false;
@@ -285,7 +309,12 @@ export default function LearnScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>What You'll Learn</Text>
+        {streak && <StreakChip streak={streak} />}
       </View>
+
+      {celebrateDay !== null && (
+        <DayCelebration day={celebrateDay} onDone={() => setCelebrateDay(null)} />
+      )}
 
       <View style={styles.titleSection}>
         <Text style={styles.title}>Your Growth Path</Text>
@@ -422,6 +451,43 @@ const LessonCard: React.FC<LessonCardProps> = ({
   return card;
 };
 
+// SPEC-19 — the lightweight "🔥 Day N" celebration. Inline banner (NOT a
+// blocking modal): fades in, holds, fades out, then calls onDone. Under Reduce
+// Motion it appears/holds/clears with no fade. Never gates the UI.
+const DayCelebration: React.FC<{ day: number; onDone: () => void }> = ({ day, onDone }) => {
+  const reduceMotion = useReduceMotion();
+  // useState (created once) rather than a ref so it can be read during render
+  // and passed to the style without tripping react-hooks/refs.
+  const [anim] = useState(() => new Animated.Value(0));
+  // Keep the latest onDone in a ref so the effect can call it without listing it
+  // as a dependency (the parent recreates the callback each render). Assigned in
+  // an effect (not during render) to satisfy react-hooks/refs.
+  const onDoneRef = React.useRef(onDone);
+  React.useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
+
+  React.useEffect(() => {
+    if (reduceMotion) {
+      anim.setValue(1);
+      const t = setTimeout(() => onDoneRef.current(), 1800);
+      return () => clearTimeout(t);
+    }
+    const seq = Animated.sequence([
+      Animated.timing(anim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.delay(1400),
+      Animated.timing(anim, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]);
+    seq.start(({ finished }) => { if (finished) onDoneRef.current(); });
+    return () => seq.stop();
+  }, [reduceMotion, anim]);
+
+  return (
+    <Animated.View style={[styles.celebration, { opacity: anim }]} accessibilityRole="text">
+      <Ionicons name="flame" size={18} color={Colors.error} />
+      <Text style={styles.celebrationText}>Day {day} — streak kept!</Text>
+    </Animated.View>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -434,11 +500,31 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: Spacing['2xl'],
     paddingBottom: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: Typography.sizes['2xl'],
     fontWeight: Typography.weights.bold,
     color: Colors.textPrimary,
+  },
+  celebration: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    marginHorizontal: Spacing['2xl'],
+    marginBottom: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.errorBg,
+  },
+  celebrationText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    color: Colors.errorDark,
   },
   titleSection: {
     paddingHorizontal: Spacing['2xl'],
