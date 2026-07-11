@@ -136,13 +136,28 @@ export async function getStreak(now: Date): Promise<StreakResult> {
   const result = { ...s, longest: Math.max(blob.longestEver, s.longest) };
 
   const previous = blob.lastKnownStreak ?? 0;
-  if (previous > 1 && s.current <= 1) {
-    trackStreakLost(previous);
-  }
-  // Persist the observed current so the transition fires exactly once and future
-  // reads compare against the up-to-date value.
+  const brokeRun = previous > 1 && s.current <= 1;
+
+  // SPEC-FIX-11 R5.7 — PERSIST THE GUARD FIRST, then fire streak_lost only if the
+  // guard write actually succeeded. The old order (fire, then write) meant a
+  // failed write would re-fire the event on the next read. writeBlob throws on a
+  // storage failure (readBlob swallows, writeBlob does not), so a failed persist
+  // skips the capture and it retries — at-most-once, never zero-lost-when-persisted.
+  let guardPersisted = false;
   if (s.current !== previous) {
-    await writeBlob({ days: blob.days, longestEver: result.longest, lastKnownStreak: s.current });
+    try {
+      await writeBlob({ days: blob.days, longestEver: result.longest, lastKnownStreak: s.current });
+      guardPersisted = true;
+    } catch (err) {
+      if (__DEV__) console.warn('[streak] getStreak guard persist failed:', err);
+    }
+  } else {
+    // No transition to persist — the guard is already at the right value.
+    guardPersisted = true;
+  }
+
+  if (brokeRun && guardPersisted) {
+    trackStreakLost(previous);
   }
 
   return result;
@@ -188,8 +203,12 @@ async function syncActivityToRemote(date: string): Promise<void> {
  * of dates is order-free and idempotent — same non-destructive posture as
  * lesson progress. Best-effort and silent; a null fetch (unknown) skips the
  * merge entirely (never wipe on a fetch error).
+ *
+ * `now` is injected (the SIGNED_IN call site passes `new Date()`) so the merge
+ * can HONESTLY recompute longest over the restored union — a re-installed device
+ * then shows the right `longest` immediately, not after a second getStreak read.
  */
-export async function mergeRemoteActivityIntoLocal(): Promise<void> {
+export async function mergeRemoteActivityIntoLocal(now: Date): Promise<void> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getActivityDays } = require('../services/streakService') as typeof import('../services/streakService');
@@ -199,13 +218,17 @@ export async function mergeRemoteActivityIntoLocal(): Promise<void> {
     const blob = await readBlob();
     const union = trimDays([...blob.days, ...remote]);
 
-    // Recompute longestEver over the union (before trimming loses old days, the
-    // union is already the freshest 400; longestEver is monotonic so max with it).
-    const longest = union.length > 0 ? Math.max(blob.longestEver, 0) : blob.longestEver;
+    // SPEC-FIX-11 R5.3 — recompute longest over the union for real (the old
+    // `Math.max(blob.longestEver, 0)` was a no-op under a comment that claimed to
+    // recompute). computeStreak over the freshest-400 union, maxed with the
+    // cached longestEver (monotonic) so an older run trimmed out of `days` can't
+    // shrink the record.
+    const unionLongest = computeStreak(union, localToday(now)).longest;
+    const longest = Math.max(blob.longestEver, unionLongest);
 
     // Only write if the merge changed local (avoid churn). Preserve
     // lastKnownStreak — the merge changes history, not the observed transition.
-    if (union.length !== blob.days.length || union.some((d, i) => d !== blob.days[i])) {
+    if (longest !== blob.longestEver || union.length !== blob.days.length || union.some((d, i) => d !== blob.days[i])) {
       await writeBlob({ days: union, longestEver: longest, lastKnownStreak: blob.lastKnownStreak ?? 0 });
     }
 

@@ -133,6 +133,29 @@ describe('getStreak — streak_lost transition (fire once)', () => {
     await getStreak(at('2026-07-12'));
     expect(mockLost).not.toHaveBeenCalled();
   });
+
+  it('SPEC-FIX-11 R5.7 — a FAILED guard persist does not fire, and the next read still can', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const AsyncStorage = require('@react-native-async-storage/async-storage');
+    mockStore[KEY] = JSON.stringify({
+      days: ['2026-06-01', '2026-06-02', '2026-06-03'],
+      longestEver: 3,
+      lastKnownStreak: 3,
+    });
+    // First read: the guard write throws → streak_lost must NOT fire (else a
+    // failed persist would re-fire it forever).
+    AsyncStorage.setItem.mockImplementationOnce(() => Promise.reject(new Error('disk full')));
+    const s1 = await getStreak(at('2026-07-12'));
+    expect(s1.current).toBe(0);
+    expect(mockLost).not.toHaveBeenCalled();
+
+    // Second read: the write succeeds now → fires exactly once (at-most-once,
+    // never lost-forever).
+    const s2 = await getStreak(at('2026-07-12'));
+    expect(s2.current).toBe(0);
+    expect(mockLost).toHaveBeenCalledTimes(1);
+    expect(mockLost).toHaveBeenCalledWith(3);
+  });
 });
 
 describe('recordActivityToday — service outcomes never throw', () => {
@@ -153,7 +176,7 @@ describe('mergeRemoteActivityIntoLocal — sign-in union (non-destructive)', () 
   it('unions remote dates into local', async () => {
     mockStore[KEY] = JSON.stringify({ days: ['2026-07-12'], longestEver: 1, lastKnownStreak: 1 });
     mockGetDays.mockResolvedValueOnce(['2026-07-10', '2026-07-11']);
-    await mergeRemoteActivityIntoLocal();
+    await mergeRemoteActivityIntoLocal(at('2026-07-12'));
     const days = JSON.parse(mockStore[KEY]).days.sort();
     expect(days).toEqual(['2026-07-10', '2026-07-11', '2026-07-12']);
   });
@@ -161,14 +184,14 @@ describe('mergeRemoteActivityIntoLocal — sign-in union (non-destructive)', () 
   it('a null fetch (error) skips the merge entirely (never wipes local)', async () => {
     mockStore[KEY] = JSON.stringify({ days: ['2026-07-12'], longestEver: 1, lastKnownStreak: 1 });
     mockGetDays.mockResolvedValueOnce(null);
-    await mergeRemoteActivityIntoLocal();
+    await mergeRemoteActivityIntoLocal(at('2026-07-12'));
     expect(JSON.parse(mockStore[KEY]).days).toEqual(['2026-07-12']);
   });
 
   it('pushes local-only dates up to the service', async () => {
     mockStore[KEY] = JSON.stringify({ days: ['2026-07-12'], longestEver: 1, lastKnownStreak: 1 });
     mockGetDays.mockResolvedValueOnce([]); // remote has nothing
-    await mergeRemoteActivityIntoLocal();
+    await mergeRemoteActivityIntoLocal(at('2026-07-12'));
     expect(mockRecord).toHaveBeenCalledWith('2026-07-12');
   });
 });
