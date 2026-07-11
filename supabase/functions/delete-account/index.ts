@@ -128,43 +128,92 @@ serve(async (req) => {
     // we now cryptographically verify the token's signature and expiry before
     // reading `sub` at all.
     //
-    // Verification is HS256 against the JWT_SECRET env var (the project's JWT
-    // secret — Dashboard → Settings → API → JWT secret — set once per project
-    // via `supabase secrets set`; see EDGE_FUNCTION_DEPLOYMENT.md). Supabase
-    // signs project access tokens with this secret today.
+    // Verification supports BOTH Supabase signing systems, chosen per-token by
+    // the token's own `alg` header (SPEC-FIX-06, 2026-07-11):
     //
-    // NAME NOTE (SPEC-FIX-01 R2): the env var is `JWT_SECRET`, NOT
-    // `SUPABASE_JWT_SECRET`. The `SUPABASE_` prefix is RESERVED by the
-    // Supabase CLI — `supabase secrets set SUPABASE_JWT_SECRET=...` is
-    // rejected, so a secret by that name could never be set and this function
-    // would take the fail-closed 500 path on every call. Do not rename it back.
+    //   - ASYMMETRIC (ES256 / RS256) — the new "JWT Signing Keys" system.
+    //     Supabase publishes the PUBLIC keys at
+    //     `${supabaseUrl}/auth/v1/.well-known/jwks.json`; we verify the
+    //     signature against that key set. No shared secret needed. This is what
+    //     dev (and any project migrated to signing keys) issues today — the dev
+    //     JWKS advertises a single ES256 key.
+    //   - HS256 (legacy) — the old symmetric secret. Verified against the
+    //     JWT_SECRET env var (Dashboard → Settings → JWT Keys → Legacy JWT
+    //     Secret — set once per project via `supabase secrets set`; see
+    //     EDGE_FUNCTION_DEPLOYMENT.md). Retained so this same function keeps
+    //     working on any project still on the legacy secret.
     //
-    // Migration path: if this project ever moves to ASYMMETRIC JWT signing
-    // keys (the new sb_* signing-key system), replace the HS256 secret verify
-    // below with `jose.createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`))`
-    // and pass that key set to jwtVerify — the public keys are published
-    // there, so no shared secret is needed. Until then, HS256 is correct.
+    // Why per-token dispatch (not "try one then the other"): the token's `alg`
+    // header tells us unambiguously which system signed it. We pin the verify
+    // to that single algorithm so an attacker can't downgrade/confuse the alg
+    // (e.g. present an HS256-forged token to a project that should be ES256).
+    //
+    // History: before SPEC-FIX-06 this function ONLY verified HS256 against
+    // JWT_SECRET, with a code comment noting "if this project ever moves to
+    // asymmetric signing keys, switch to JWKS." That move had silently already
+    // happened on dev — every real Delete Account returned 401 ("alg Header
+    // Parameter value not allowed") because the ES256 token was rejected by the
+    // HS256-only verify. Caught on dev during v1.2.0 release testing before it
+    // could ship. This dual-path fix handles both worlds.
+    //
+    // NAME NOTE (SPEC-FIX-01 R2): the HS256 env var is `JWT_SECRET`, NOT
+    // `SUPABASE_JWT_SECRET`. The `SUPABASE_` prefix is RESERVED by the Supabase
+    // CLI — a secret by that name can never be set. Do not rename it back.
     const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
 
+    // Read the token's algorithm from its (unverified) header to choose the
+    // verification path. Reading the header is not trusting the token — the
+    // signature is still cryptographically verified below with an algorithm
+    // list pinned to exactly this alg, so a lie in the header only routes the
+    // token to a verifier that will then reject its signature.
+    let tokenAlg: string;
+    try {
+      tokenAlg = jose.decodeProtectedHeader(bearerToken).alg ?? '';
+    } catch (_e) {
+      // Malformed token — can't even read the header. Treat as unauthorized.
+      console.error('JWT verification failed: unreadable protected header');
+      return new Response(null, { status: 401, headers: corsHeaders });
+    }
+
     const jwtSecret = Deno.env.get('JWT_SECRET');
-    if (!jwtSecret) {
-      // Fail CLOSED. Missing the secret means we cannot verify the token, so
-      // we must not proceed to delete anything. This is a server
-      // misconfiguration (the secret wasn't set via `supabase secrets set`),
-      // not a client error — surface it as 500 with a generic body, and
-      // never reach the delete steps.
-      console.error('JWT_SECRET is not set — cannot verify JWT, refusing to proceed.');
+    const isHs256 = tokenAlg === 'HS256';
+
+    // Fail CLOSED only when we have NO way to verify THIS token: an HS256 token
+    // but no JWT_SECRET set. (Asymmetric tokens verify against the public JWKS,
+    // which needs no local secret — so a missing JWT_SECRET is NOT a 500 for
+    // them.) A verification we cannot perform must never fall through to a
+    // delete. Server misconfig → 500 with a generic body.
+    if (isHs256 && !jwtSecret) {
+      console.error('JWT_SECRET is not set but token is HS256 — cannot verify, refusing to proceed.');
       return new Response(null, { status: 500, headers: corsHeaders });
     }
 
     let userId: string;
     try {
-      const secretKey = new TextEncoder().encode(jwtSecret);
-      // jwtVerify checks the HS256 signature AND the exp claim (throws on an
-      // expired token). Pinning algorithms prevents an alg-confusion attack.
-      const { payload } = await jose.jwtVerify(bearerToken, secretKey, {
-        algorithms: ['HS256'],
-      });
+      let payload: jose.JWTPayload;
+      if (isHs256) {
+        // Legacy symmetric path. jwtVerify checks the HS256 signature AND the
+        // exp claim. Algorithm pinned to HS256 to prevent alg-confusion.
+        const secretKey = new TextEncoder().encode(jwtSecret);
+        ({ payload } = await jose.jwtVerify(bearerToken, secretKey, {
+          algorithms: ['HS256'],
+        }));
+      } else {
+        // Asymmetric path (the new signing-keys system). Verify against the
+        // project's published PUBLIC keys. createRemoteJWKSet caches the fetch
+        // and picks the key by the token's `kid`. Algorithm pinned to exactly
+        // the token's asymmetric alg (ES256/RS256) — never HS256 here, so a
+        // symmetric-forged token can't be verified against a public key.
+        if (tokenAlg !== 'ES256' && tokenAlg !== 'RS256') {
+          throw new Error(`unsupported token alg: ${tokenAlg || '(none)'}`);
+        }
+        const JWKS = jose.createRemoteJWKSet(
+          new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`),
+        );
+        ({ payload } = await jose.jwtVerify(bearerToken, JWKS, {
+          algorithms: [tokenAlg],
+        }));
+      }
       const sub = payload.sub;
       if (!sub || typeof sub !== 'string') {
         throw new Error('verified JWT missing sub claim');
