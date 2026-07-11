@@ -699,6 +699,7 @@ The exact data types to declare (matching what our app actually does — see `le
 - [ ] Install the approved build via TestFlight one more time and run the full smoke test on real device. Any last-minute issue? DO NOT release; go back and fix.
 - [ ] If clean → click **"Release This Version"** in App Store Connect at a low-traffic window (early morning your timezone is fine).
 - [ ] **Tag the release** (dual-tag scheme — one build tag per build, one live marker per platform):
+  - _Branch/train mechanics (which branch this commit came from, `rc/*` code checkpoints, the global build-number rule, and how/when `main` is reconciled by ff-only merge): see [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) → "Branching & release train"._
   - [ ] Build-specific tag on the exact shipped commit: `v{MAJOR}.{MINOR}.{PATCH}-build-{BUILD}` (e.g. `v1.1.0-build-9`). Marks specific builds, including rejected ones.
   - [ ] Move the production marker tag `appstore-live-v{MAJOR}.{MINOR}.{PATCH}` (e.g. `appstore-live-v1.1.0`) — quickly identifies what's live. Only one production marker per platform at a time (delete the previous one).
   - [ ] Push tags to GitHub (`git push origin --tags`).
