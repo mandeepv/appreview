@@ -1,33 +1,65 @@
-import React, { useRef, useEffect } from 'react';
-import { TouchableOpacity, Text, View, StyleSheet, ViewStyle, Animated, Image, ImageSourcePropType } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { Colors, Spacing, BorderRadius, Shadows, Typography, Animation } from '../constants/theme';
+import React, { useEffect, useRef } from 'react';
+import {
+  TouchableOpacity,
+  Text,
+  View,
+  StyleSheet,
+  ViewStyle,
+  Animated,
+  Image,
+  ImageSourcePropType,
+} from 'react-native';
+import { Colors, Spacing, BorderRadius, Typography, Animation } from '../../constants/theme';
 
-interface SelectableCardProps {
+/**
+ * SPEC-17 — the ONE option-card visual family for onboarding.
+ *
+ * Consolidates the former `SelectableCard` and `UserTypeScreen`'s bespoke
+ * square / horizontal cards into a single component with layout variants. The
+ * selected state is ONE rule everywhere — primary border + primary-tint fill +
+ * a check badge — so no screen re-invents "what selected looks like".
+ *
+ * Variants:
+ *  - `illustration` (default): image/icon on the left, title + optional subtitle,
+ *    check badge on the right. The image-card look used by UserType /
+ *    ImprovementGoals / ExperienceLevel / EmotionalChallenges.
+ *  - `compact`: text-only row (no media), tighter padding. For plain option
+ *    lists like PartnerInvolvement / ParentingStyles / GoalSelection.
+ *
+ * All spacing/colors/type come from theme tokens — zero hardcoded hex (the
+ * hardcoded values in the old cards were an INVARIANT-adjacent smell the spec
+ * calls out explicitly).
+ */
+
+export type OptionCardVariant = 'illustration' | 'compact';
+
+interface OptionCardProps {
   title: string;
   subtitle?: string;
   selected: boolean;
   onPress: () => void;
-  variant?: 'default' | 'small' | 'text-only';
+  variant?: OptionCardVariant;
+  /** Emoji/text glyph shown in the media slot (illustration variant). */
   icon?: string;
+  /** Image shown in the media slot (illustration variant). Wins over `icon`. */
   imageSource?: ImageSourcePropType;
   style?: ViewStyle;
-  hapticFeedback?: boolean;
+  disabled?: boolean;
 }
 
-export const SelectableCard: React.FC<SelectableCardProps> = ({
+export const OptionCard: React.FC<OptionCardProps> = ({
   title,
   subtitle,
   selected,
   onPress,
-  variant = 'default',
+  variant = 'illustration',
   icon,
   imageSource,
   style,
-  hapticFeedback = true,
+  disabled = false,
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const checkmarkScale = useRef(new Animated.Value(0)).current;
+  const checkmarkScale = useRef(new Animated.Value(selected ? 1 : 0)).current;
 
   useEffect(() => {
     if (selected) {
@@ -64,64 +96,51 @@ export const SelectableCard: React.FC<SelectableCardProps> = ({
     }).start();
   };
 
-  const handlePress = () => {
-    if (hapticFeedback) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    onPress();
-  };
-
-  if (variant === 'text-only') {
-    return (
-      <TouchableOpacity onPress={handlePress} style={[styles.textOnly, style]}>
-        <Text style={[styles.textOnlyLabel, selected && styles.textOnlyLabelSelected]}>
-          {title}
-        </Text>
-      </TouchableOpacity>
-    );
-  }
+  const hasMedia = variant === 'illustration' && (imageSource || icon);
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <TouchableOpacity
-        onPress={handlePress}
+        onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityState={{ selected, disabled }}
         style={[
           styles.card,
-          variant === 'small' ? styles.cardSmall : styles.cardDefault,
+          variant === 'compact' ? styles.cardCompact : styles.cardDefault,
           selected ? styles.cardSelected : styles.cardUnselected,
           style,
         ]}
         activeOpacity={0.9}
       >
         <View style={styles.content}>
-          {imageSource ? (
-            <View style={[styles.imageContainer, selected && styles.imageContainerSelected]}>
-              <Image source={imageSource} style={styles.cardImage} resizeMode="contain" />
-            </View>
-          ) : icon ? (
-            <View style={[styles.iconContainer, selected && styles.iconContainerSelected]}>
-              <Text style={styles.icon}>{icon}</Text>
-            </View>
+          {hasMedia ? (
+            imageSource ? (
+              <View style={[styles.imageContainer, selected && styles.imageContainerSelected]}>
+                <Image source={imageSource} style={styles.cardImage} resizeMode="contain" />
+              </View>
+            ) : (
+              <View style={[styles.iconContainer, selected && styles.iconContainerSelected]}>
+                <Text style={styles.icon}>{icon}</Text>
+              </View>
+            )
           ) : null}
           <View style={styles.textContainer}>
-            <Text style={[
-              styles.title,
-              variant === 'small' && styles.titleSmall,
-              selected ? styles.titleSelected : styles.titleUnselected,
-            ]}>
+            <Text
+              style={[
+                styles.title,
+                variant === 'compact' && styles.titleCompact,
+                selected ? styles.titleSelected : styles.titleUnselected,
+              ]}
+            >
               {title}
             </Text>
-            {subtitle && (
-              <Text style={styles.subtitle}>{subtitle}</Text>
-            )}
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           </View>
           {selected && (
-            <Animated.View style={[
-              styles.checkmark,
-              { transform: [{ scale: checkmarkScale }] }
-            ]}>
+            <Animated.View style={[styles.checkmark, { transform: [{ scale: checkmarkScale }] }]}>
               <Text style={styles.checkmarkText}>✓</Text>
             </Animated.View>
           )}
@@ -132,29 +151,17 @@ export const SelectableCard: React.FC<SelectableCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  textOnly: {
-    paddingVertical: Spacing.sm,
-  },
-  textOnlyLabel: {
-    fontSize: Typography.sizes.md,
-    color: Colors.textMuted,
-  },
-  textOnlyLabelSelected: {
-    color: Colors.primary,
-    fontWeight: Typography.weights.bold,
-  },
   card: {
-    borderRadius: 20,
-    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.xl,
     borderWidth: 2.5,
   },
   cardDefault: {
-    paddingVertical: 22,
-    paddingHorizontal: 24,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing['2xl'],
   },
-  cardSmall: {
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+  cardCompact: {
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
   },
   cardSelected: {
     borderColor: Colors.primary,
@@ -176,7 +183,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 56,
     height: 56,
-    borderRadius: 16,
+    borderRadius: BorderRadius.lg,
     backgroundColor: Colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
@@ -190,8 +197,8 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: 60,
     height: 60,
-    borderRadius: 30, // Circle
-    backgroundColor: Colors.backgroundGray, // Or transparent if the image has bg
+    borderRadius: 30,
+    backgroundColor: Colors.backgroundGray,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.lg,
@@ -209,11 +216,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: Typography.weights.bold,
-    fontSize: 18,
+    fontSize: Typography.sizes.lg,
     lineHeight: 26,
     letterSpacing: -0.2,
   },
-  titleSmall: {
+  titleCompact: {
     fontSize: Typography.sizes.base,
     lineHeight: 24,
   },
@@ -241,7 +248,7 @@ const styles = StyleSheet.create({
   },
   checkmarkText: {
     color: Colors.surface,
-    fontSize: 16,
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.bold,
   },
 });
