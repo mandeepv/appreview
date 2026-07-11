@@ -120,14 +120,17 @@ export function createProgressStore(storageKey: string): ProgressStore {
           // Local write succeeded and drove the UI. Sync in the background —
           // NOT awaited (local-first; offline still saves locally).
           void syncSectionsToRemote(storageKey, completed);
-          // SPEC-19 — this section completion IS today's activity. Record it for
-          // the daily streak (local-first + background DB sync, idempotent per
-          // day). Lazily required so the streak store's Supabase-backed sync
-          // stays out of this module's local path and the local-only tests.
-          // Non-awaited and self-contained: a streak failure never affects the
-          // lesson-progress write above.
-          void recordStreakActivity();
         }
+        // SPEC-19 + SPEC-FIX-11 R3 — a day counts when the user completes ≥1
+        // section, INCLUDING replays. So record streak activity on EVERY
+        // completion event, not only on the first-time write above: a user who
+        // has finished all 13 lessons must still be able to extend a streak by
+        // replaying. recordActivityToday is idempotent per day, so a repeat is
+        // just one AsyncStorage read. Lazily required (keeps the Supabase-backed
+        // sync out of this module's local path and the local-only tests),
+        // non-awaited, and self-contained: a streak failure never affects the
+        // lesson-progress write above.
+        void recordStreakActivity();
       } catch (error) {
         if (__DEV__) console.error('Error marking section complete:', error);
       }
