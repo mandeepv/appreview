@@ -483,11 +483,19 @@ WHERE key = 'min_supported_ios_build';
 
 ```sql
 UPDATE public.app_config
-SET value = '9999'::jsonb, updated_at = now()
+SET value = '39'::jsonb, updated_at = now()
 WHERE key = 'min_supported_ios_build';
 ```
 
 Launch dev app → should see force-update modal. Reset back to `'0'::jsonb` when done.
+
+> ⚠️ **Use `39`, NOT `9999`.** `isBelowMinimumBuild` in `src/lib/appConfig.ts`
+> ignores any minimum above `MIN_SUPPORTED_BUILD_CAP` (`40`) — a sanity cap so a
+> typo'd DB value can't brick the whole fleet with an undismissable modal. A
+> value >40 is silently ignored, so `9999` would NOT trigger the modal and you'd
+> "verify" a no-op. Use a value in `1..40` that exceeds the current dev build
+> number (`39` is safely above today's build and under the cap). Matches the
+> `RELEASE_CHECKLIST.md` Phase-2 note. (SPEC-FIX-10 F6.)
 
 ### Applying to prod on next release
 

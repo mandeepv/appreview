@@ -30,7 +30,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
-| Superwall | `subscription_gate` | gated, 100%, audience = unsubscribed | pre-v1.1.0-release | Superwall dashboard → Placements |
+| Superwall | `subscription_gate` | Gated, 100%, audience = "unsubscribed users / no active entitlements", no match-limit — **re-verified in dashboard 2026-07-11** (SPEC-FIX-10 F8) | 2026-07-11 | Superwall dashboard → Placements |
 | Superwall | `show_paywall` | kept for the v1.0.0 cohort | unverified | Superwall dashboard → Placements |
 | Superwall | dashboard-change habit | screenshot on every change (F5 pointer) | — | `docs/dashboard-snapshots/` |
 
@@ -88,3 +88,4 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | No support playbook (tickets handled ad hoc) | 2026-07-09 | Revive if ticket volume appears |
 | No mechanical merge-blocking on `main` (GitHub paywalls branch protection on private repos) | 2026-07-10 | The 4 blocking checks (+1 advisory `audit` job) run on every PR to main + "never merge on red" working rule. Revisit on a GitHub Team upgrade |
 | CI runs on PRs + manual release gate only (not every push) | 2026-07-09 | Metered Actions minutes; local tsc/lint/test before merges; manual CI run is a release-checklist step |
+| Offline first-v1.2.0-launch for a paying v1.1.0 user (SPEC-FIX-08) | 2026-07-11 | A paying v1.1.0 user whose FIRST v1.2.0 launch is offline has the legacy-unowned flag cleared (SPEC-FIX-08 migration) and sits at the retry/escape-hatch screen until connectivity returns. One launch wide, payers-only — inherent cost of the user-binding security fix. Revisit trigger: support tickets about it |

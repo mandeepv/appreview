@@ -117,8 +117,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     //
     // SPEC-FIX-08 R1: the flag is USER-BOUND. We persist { userId, subscribed }
     // for the current user. If there's no current user, persistSubscription
-    // clears the key instead of writing an unowned value (an unowned `true`
-    // could be read by the next, different user — the leak we're closing).
+    // does NOTHING — it neither writes an unowned value nor clears the existing
+    // owned record (SPEC-FIX-08 startup-race fix / SPEC-FIX-10 F4): a too-early
+    // ACTIVE event before `user` is set must not wipe a valid owned record, and
+    // it needn't — hydrate (resolveCachedEntitlement) refuses to honor any
+    // record that doesn't match the live session, so a leftover record is never
+    // read by a different-or-absent user.
     const currentUserId = get().user?.id;
     void persistSubscription(currentUserId, subscribed);
   },
