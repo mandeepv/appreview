@@ -437,7 +437,51 @@ opens the app is broken. This test simulates the exact user journey
 of "already had the current live build, updates to this new build" —
 the scenario a fresh-install smoke test WILL NOT catch.
 
-**Setup the pre-upgrade state:**
+> ## 🚨 Hard-paywall constraint — read before attempting (added 2026-07-11)
+>
+> Kinderwell is a **hard-paywall** app (no free content) AND the "before"
+> state below wants the **App Store** live build. These two facts collide,
+> and it bit v1.2.0 testing head-on:
+>
+> - **App Store production builds do NOT use StoreKit sandbox — they charge
+>   REAL money.** (Confirmed: sandbox only applies to TestFlight / dev builds.)
+>   So "sandbox-subscribe on the App Store build" (old step below) is
+>   impossible — that purchase is a real charge.
+> - **No subscription ⇒ no lessons** (hard paywall). So you can't build ANY
+>   lesson progress on the App Store build without first paying real money.
+> - **TestFlight generally only serves the LATEST build** — you usually cannot
+>   install the previous version (1.1.0) via TestFlight to use it as the
+>   "before" state.
+>
+> **Net:** the literal "App Store old build → TestFlight new build" upgrade
+> test is **not runnable for free** for a hard-paywall app. Options, in order
+> of preference:
+>
+> 1. **Split the test (recommended, free):** the update carries over local
+>    data (Keychain session + AsyncStorage) because the bundle ID is
+>    unchanged — that part IS a valid upgrade check and needs no purchase.
+>    But with a hard paywall there's no free pre-upgrade content to create,
+>    so instead: **(a)** rely on the account-scoped progress-sync evidence
+>    from Phase-2 dev testing (complete sections → sign out → sign in →
+>    progress persists via cloud — the SAME path a real upgrader hits), and
+>    **(b)** run a full **sandbox** flow on the NEW TestFlight build directly
+>    (subscribe, complete sections, kill/relaunch, Restore, delete-account vs
+>    prod). Document that the strict paid old→new path was consciously skipped
+>    with this reasoning.
+> 2. **Pay + refund:** real-money subscribe on App Store live build, do the
+>    true upgrade, then request an Apple refund. Faithful but costs money and
+>    is slow.
+> 3. **Re-expose the prior build in TestFlight** to a tester group (fiddly,
+>    not always possible).
+>
+> Pick per release and record the choice. For a subscription-receipt survival
+> check specifically, note that the App-Store(production-receipt) →
+> TestFlight(sandbox) boundary is itself an imperfect proxy — the receipt
+> environments differ — so option 1(b)'s clean sandbox test on the new build
+> is often MORE informative than forcing the crossing.
+
+**Setup the pre-upgrade state** (only fully possible via option 2 above; for a
+hard-paywall app on a free test, use option 1 and skip the paid steps):
 
 - [ ] Uninstall the TestFlight build first (we're testing the OLD →
       NEW transition).
@@ -446,10 +490,12 @@ the scenario a fresh-install smoke test WILL NOT catch.
       and search / update).
 - [ ] Sign in on the current App Store build with a test account.
 - [ ] Complete onboarding.
-- [ ] Sandbox-subscribe via the paywall (monthly is fine — 5-minute
-      renewal cycle in sandbox lets us verify renewal too).
+- [ ] ⚠️ **Sandbox-subscribe is NOT possible on an App Store build** (real
+      money only — see the constraint box above). Only do this step if you've
+      chosen option 2 (pay + refund); otherwise skip to option 1(b).
 - [ ] Complete at least 2 lesson sections so AsyncStorage progress
-      exists (`getCompletedSections` under `sprinklersProgress` etc.)
+      exists — **requires an active subscription first** (hard paywall), so
+      only reachable under option 2.
 - [ ] Force-quit the app.
 
 **Now do the upgrade:**
