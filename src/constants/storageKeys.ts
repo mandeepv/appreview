@@ -47,6 +47,18 @@ export const STORAGE_KEYS = {
   // Per-lesson section-completion progress. Keyed per device, not per
   // user — so they survive account deletion. See the comment in
   // authService.deleteAccount for rationale.
+  //
+  // SPEC-18 R1: flow lessons 1–4 gain a completion key so sequential
+  // locking has a signal (they had NONE before — flow lessons were
+  // keyless and their completion was never recorded). These are NEW keys,
+  // never shipped, so they use the current `@kinderwell_` namespace rather
+  // than the legacy plain `@<lesson>_` prefix — no migration, nothing to
+  // orphan (pre-v1.5.0 flow-lesson completions simply weren't stored, and
+  // those users are legacy-cohort / never locked anyway — see unlockPolicy).
+  LESSON1_COMPLETED_SECTIONS: '@kinderwell_lesson1_completed_sections',
+  LESSON2_COMPLETED_SECTIONS: '@kinderwell_lesson2_completed_sections',
+  LESSON3_COMPLETED_SECTIONS: '@kinderwell_lesson3_completed_sections',
+  LESSON4_COMPLETED_SECTIONS: '@kinderwell_lesson4_completed_sections',
   LESSON5_COMPLETED_SECTIONS: '@lesson5_completed_sections',
   NAMING_EMOTIONS_COMPLETED_SUBLESSONS: '@naming_emotions_completed_sublessons',
   HELPING_PROCESS_EMOTIONS_COMPLETED_SECTIONS: '@helping_process_emotions_completed_sections',
@@ -63,6 +75,10 @@ export const STORAGE_KEYS = {
 // authService — if we ever start clearing lesson progress on delete,
 // this is the list to pass to AsyncStorage.multiRemove.
 export const LESSON_PROGRESS_KEYS: readonly string[] = [
+  STORAGE_KEYS.LESSON1_COMPLETED_SECTIONS,
+  STORAGE_KEYS.LESSON2_COMPLETED_SECTIONS,
+  STORAGE_KEYS.LESSON3_COMPLETED_SECTIONS,
+  STORAGE_KEYS.LESSON4_COMPLETED_SECTIONS,
   STORAGE_KEYS.LESSON5_COMPLETED_SECTIONS,
   STORAGE_KEYS.NAMING_EMOTIONS_COMPLETED_SUBLESSONS,
   STORAGE_KEYS.HELPING_PROCESS_EMOTIONS_COMPLETED_SECTIONS,

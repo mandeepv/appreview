@@ -7,17 +7,21 @@
 // redesign, no typo fixes — observed issues are logged in
 // docs/spec-09/CONTENT_ERRATA.md instead.
 //
-// Flow lessons are SINGLE-SECTION and linear — they do NOT persist section
-// progress (they just return to MainTabs on completion). So `storageKey` is
-// OMITTED (the controller then skips the progress write), and the whole lesson
-// is modelled as ONE section (id '1'). Title uses the lesson-hub wording from
-// LearnScreen.tsx (learningModules id '1').
+// Flow lessons are SINGLE-SECTION and linear. They previously OMITTED
+// `storageKey` and so their completion was never recorded (the controller
+// skipped the progress write). SPEC-18 R1 gives them a key: sequential locking
+// needs a completion signal, and with the key set the existing progress factory
+// + background sync + sign-in merge record and sync them with zero new code.
+// The whole lesson is modelled as ONE section (id '1'); finishing it marks the
+// lesson complete. Title uses the lesson-hub wording from LearnScreen.tsx.
 
 import type { Lesson } from '../schema';
+import { STORAGE_KEYS } from '../../constants/storageKeys';
 
 export const lesson1: Lesson = {
   slug: 'lesson1',
   title: 'What changed parenting Science?',
+  storageKey: STORAGE_KEYS.LESSON1_COMPLETED_SECTIONS,
   sections: [
     {
       id: '1',

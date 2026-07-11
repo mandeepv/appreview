@@ -7,9 +7,10 @@
 // redesign, no typo fixes — observed issues are logged in
 // docs/spec-09/CONTENT_ERRATA.md instead.
 //
-// Flow lesson: SINGLE-SECTION, linear, no persisted progress — `storageKey` is
-// OMITTED (controller skips the progress write). Modelled as ONE section (id
-// '1'). Title uses the lesson-hub wording from LearnScreen.tsx (id '3').
+// Flow lesson: SINGLE-SECTION, linear. SPEC-18 R1 adds `storageKey` so its
+// completion is recorded + synced (sequential locking needs the signal); the
+// existing factory picks the key up with no new sync code. Modelled as ONE
+// section (id '1'). Title uses the lesson-hub wording from LearnScreen.tsx (id '3').
 //
 // NOTE: QuizQ2 uses the `QuizQuestionMultiSelect` component (multiple correct
 // answers). The schema `quiz` block maps 1:1 to the single-answer
@@ -18,10 +19,12 @@
 // See CONTENT_ERRATA.md.
 
 import type { Lesson } from '../schema';
+import { STORAGE_KEYS } from '../../constants/storageKeys';
 
 export const lesson3: Lesson = {
   slug: 'lesson3',
   title: 'The Long-Term Unhappiness Chemical',
+  storageKey: STORAGE_KEYS.LESSON3_COMPLETED_SECTIONS,
   sections: [
     {
       id: '1',
