@@ -88,6 +88,23 @@ async function syncSectionsToRemote(storageKey: string, sections: string[]): Pro
   }
 }
 
+/**
+ * SPEC-19 — record today's streak activity, background and defensive. Lazily
+ * requires streakStore so the Supabase-backed sync it triggers never enters the
+ * local lesson-progress path or the progressStore local-only tests. `new Date()`
+ * lives here (not inside computeStreak, which stays pure) — this is the real
+ * "what day is it now" edge, at the write moment. Never throws into the caller.
+ */
+async function recordStreakActivity(): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { recordActivityToday } = require('./streakStore') as typeof import('./streakStore');
+    await recordActivityToday(new Date());
+  } catch (error) {
+    if (__DEV__) console.warn('[progressStore] streak activity record threw:', error);
+  }
+}
+
 export function createProgressStore(storageKey: string): ProgressStore {
   return {
     markSectionComplete: async (sectionId: string): Promise<void> => {
@@ -100,6 +117,13 @@ export function createProgressStore(storageKey: string): ProgressStore {
           // Local write succeeded and drove the UI. Sync in the background —
           // NOT awaited (local-first; offline still saves locally).
           void syncSectionsToRemote(storageKey, completed);
+          // SPEC-19 — this section completion IS today's activity. Record it for
+          // the daily streak (local-first + background DB sync, idempotent per
+          // day). Lazily required so the streak store's Supabase-backed sync
+          // stays out of this module's local path and the local-only tests.
+          // Non-awaited and self-contained: a streak failure never affects the
+          // lesson-progress write above.
+          void recordStreakActivity();
         }
       } catch (error) {
         if (__DEV__) console.error('Error marking section complete:', error);
