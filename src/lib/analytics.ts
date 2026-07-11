@@ -43,8 +43,12 @@ export const trackAuthAttempted = (method: 'google' | 'apple', context: 'new_use
   captureWithProps('auth_attempted', { auth_method: method, context });
 };
 
+// SPEC-FIX-10 F5: uses safeCapture (NOT captureWithProps). trackAuthAbandoned
+// runs inside AuthScreen's catch block; if a raw posthog.capture threw here, it
+// would swallow the REAL auth error and strand the user on a spinner. safeCapture
+// swallows analytics failures so analytics can never mask an auth failure.
 export const trackAuthAbandoned = (method: 'google' | 'apple', context: 'new_user' | 'returning_user', reason?: string) => {
-  captureWithProps('auth_abandoned', { auth_method: method, context, reason: reason ?? null });
+  safeCapture('auth_abandoned', { auth_method: method, context, reason: reason ?? null });
 };
 
 // auth_succeeded — fired when a provider sign-in returns a valid session
