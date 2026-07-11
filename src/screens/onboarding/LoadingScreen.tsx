@@ -16,6 +16,7 @@ import { restorePurchases } from '../../services/purchaseService';
 import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { safeCapture } from '../../lib/analytics';
+import { resolveOnboardingVariant, clearOnboardingVariant } from '../../lib/experiments';
 import { reportError, addGateBreadcrumb } from '../../config/sentry';
 
 // Support address for the escape-hatch "Contact support" action. Matches
@@ -34,6 +35,21 @@ const ESCAPE_HATCH_AFTER_ATTEMPTS = 3;
 const PRESENT_WATCHDOG_MS = 5000;
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
+
+// SPEC-15: "did the user just finish onboarding (so we have data to save +
+// should run the progress theater)?" — as opposed to a cold launch of an
+// already-onboarded, signed-in user (store already cleared).
+//
+// Variant A signals this with a non-null userType. Variant B never sets
+// userType (it doesn't collect the variant-A profile fields), so it signals
+// with a non-empty variantBAnswers instead. Either arm having data means
+// "pending onboarding to save." This is the ONE predicate both the save effect
+// and the theater effect key off; keep them in lockstep.
+const hasOnboardingPayload = (store: {
+  userType: unknown;
+  variantBAnswers: Record<string, string | string[]>;
+}): boolean =>
+  store.userType !== null || Object.keys(store.variantBAnswers).length > 0;
 
 /**
  * LoadingScreen is the subscription gate. Every route to Root passes through
@@ -70,7 +86,12 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // initializer avoids a setState-in-effect cascading render (caught by
   // react-hooks/set-state-in-effect).
   const [progress, setProgress] = useState(() =>
-    onboardingStore.userType !== null ? 0 : 100,
+    // SPEC-15: variant B never sets userType (it collects variantBAnswers
+    // instead of the variant-A profile fields), so the "did we just finish
+    // onboarding?" signal must also look at variantBAnswers — otherwise a
+    // variant-B completer would start at 100 and skip the progress theater
+    // that variant A gets. See hasOnboardingPayload() below.
+    hasOnboardingPayload(onboardingStore) ? 0 : 100,
   );
   const [scaleAnim] = useState(new Animated.Value(1));
   const [gateStatus, setGateStatus] = useState<'idle' | 'presenting' | 'retry' | 'blocked'>('idle');
@@ -291,8 +312,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // a null userType is the signal that "we've been through this before,
   // don't re-upsert an empty payload."
   useEffect(() => {
-    const hasOnboardingPayload = onboardingStore.userType !== null;
-    if (!hasOnboardingPayload) {
+    // SPEC-15: variant B has no userType but does have variantBAnswers, so the
+    // "is there pending onboarding to save?" check now covers both arms.
+    if (!hasOnboardingPayload(onboardingStore)) {
       if (__DEV__) console.log('📝 No onboarding data pending — skipping save (cold-launch path)');
       return;
     }
@@ -317,6 +339,13 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
               ? typedName
               : undefined;
 
+            // SPEC-15: the sticky variant assignment lives in AsyncStorage
+            // (not the store), so read it back here. resolveOnboardingVariant
+            // returns the already-persisted value (never re-resolves mid-flow)
+            // and never throws — defaults control. It's stamped on the profile
+            // row so we can segment conversion in Supabase as well as PostHog.
+            const onboardingVariant = await resolveOnboardingVariant();
+
             const onboardingData = {
               userType: onboardingStore.userType,
               name: nameToSave,
@@ -333,6 +362,8 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
               emotionalChallenges: onboardingStore.emotionalChallenges,
               authMethod: onboardingStore.authMethod,
               selectedPlan: onboardingStore.selectedPlan,
+              onboardingVariant,
+              variantBAnswers: onboardingStore.variantBAnswers,
             };
 
             await saveUserOnboardingData(user.id, onboardingData);
@@ -340,8 +371,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             if (__DEV__) console.log('📝 Demo user - skipping Supabase save');
           }
 
-          // Clear local onboarding state after saving
+          // Clear local onboarding state after saving. SPEC-15: also clear the
+          // sticky variant assignment so a future re-onboard (account deletion
+          // → fresh signup) gets a fresh split. clearOnboardingVariant clears
+          // the storage key ONLY — the PostHog super-property stays registered
+          // so the variant keeps flowing on the post-onboarding paywall/purchase
+          // events (the primary metric, which fire AFTER this clear).
           await onboardingStore.clearState();
+          await clearOnboardingVariant();
         } catch (error) {
           if (__DEV__) console.error('Error saving onboarding data:', error);
           // Continue anyway - don't block user from entering app
@@ -514,9 +551,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       ])
     ).start();
 
-    const hasOnboardingPayload = onboardingStore.userType !== null;
-
-    if (hasOnboardingPayload) {
+    if (hasOnboardingPayload(onboardingStore)) {
       // Post-onboarding: run the 4-second progress theater (the
       // "analyzing your family profile" messaging) so the user sees the
       // app doing something with their answers. Then run the gate.
