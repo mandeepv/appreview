@@ -16,6 +16,7 @@ import { lesson1 } from '../content/lesson1';
 import { lesson2 } from '../content/lesson2';
 import { lesson3 } from '../content/lesson3';
 import { lesson4 } from '../content/lesson4';
+import { STORAGE_KEYS } from '../../constants/storageKeys';
 
 // SPEC-13 R6 — registry-completeness. Every content file in
 // src/lessons/content/ MUST be registered in LESSON_REGISTRY (keyed by its
@@ -51,10 +52,16 @@ describe('registry completeness', () => {
 // have a HUB_META entry, and HUB_META must not carry phantom slugs. A missing
 // key would previously have crashed the hub at render (meta.label); now the hub
 // falls back gracefully, but a missing entry is still a bug this catches at
-// test time. Flow lessons (no storageKey) intentionally have no hub meta.
+// test time. Flow lessons intentionally have no hub meta.
+//
+// SPEC-18 R1 note: "hub lesson" was previously equivalent to "has a storageKey",
+// but flow lessons 1–4 now carry a storageKey too (for locking). They are still
+// NOT hub lessons — they launch directly into LessonScreen, not a hub — so the
+// discriminator is now "has a storageKey AND is not a flow lesson".
+const FLOW_LESSON_SLUGS = new Set(['lesson1', 'lesson2', 'lesson3', 'lesson4']);
 describe('hubMeta completeness', () => {
   const hubSlugs = Object.values(LESSON_REGISTRY)
-    .filter((l) => l.storageKey)
+    .filter((l) => l.storageKey && !FLOW_LESSON_SLUGS.has(l.slug))
     .map((l) => l.slug);
   const metaSlugs = Object.keys(HUB_META);
 
@@ -186,18 +193,21 @@ describe('communicationMistakes content', () => {
 });
 
 describe('flow lessons 1-4', () => {
-  // Flow lessons are single-section, linear, and DO NOT persist progress —
-  // storageKey must be absent so the controller skips the progress write.
-  const cases: Array<[string, ReturnType<typeof parseLesson> extends never ? never : any, number]> = [
-    ['lesson1', lesson1, 16],
-    ['lesson2', lesson2, 17],
-    ['lesson3', lesson3, 20],
-    ['lesson4', lesson4, 19],
+  // SPEC-18 R1: flow lessons are still single-section + linear, but they now
+  // carry a namespaced storageKey so their completion is recorded + synced
+  // (sequential locking needs the signal). The controller's completeSection
+  // runs its storageKey branch for them now — verified here by asserting the
+  // exact key each lesson maps to.
+  const cases: [string, ReturnType<typeof parseLesson> extends never ? never : any, number, string][] = [
+    ['lesson1', lesson1, 16, STORAGE_KEYS.LESSON1_COMPLETED_SECTIONS],
+    ['lesson2', lesson2, 17, STORAGE_KEYS.LESSON2_COMPLETED_SECTIONS],
+    ['lesson3', lesson3, 20, STORAGE_KEYS.LESSON3_COMPLETED_SECTIONS],
+    ['lesson4', lesson4, 19, STORAGE_KEYS.LESSON4_COMPLETED_SECTIONS],
   ];
-  for (const [slug, raw, screens] of cases) {
-    it(`${slug}: single section, no storageKey, ${screens} screens`, () => {
+  for (const [slug, raw, screens, key] of cases) {
+    it(`${slug}: single section, namespaced storageKey, ${screens} screens`, () => {
       const p = parseLesson(raw);
-      expect(p.storageKey).toBeUndefined();
+      expect(p.storageKey).toBe(key);
       expect(p.sections).toHaveLength(1);
       expect(p.sections[0].id).toBe('1');
       expect(p.sections[0].screens.length).toBe(screens);
