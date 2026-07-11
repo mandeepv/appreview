@@ -94,3 +94,41 @@ describe('createProgressStore — flow-lesson single-section completion (SPEC-18
     expect(done.length >= totalSections).toBe(true);
   });
 });
+
+// SPEC-FIX-11 R3 — replays must count as streak activity. recordStreakActivity
+// runs on EVERY markSectionComplete, not only the first-time write, so a user
+// who finished everything can still extend a streak by replaying. Here we assert
+// that re-completing an already-completed section still writes to ACTIVITY_DAYS
+// (the streak signal) — previously it was gated behind the dedup guard and did
+// nothing on a replay.
+describe('createProgressStore — replays record streak activity (SPEC-FIX-11 R3)', () => {
+  const ACTIVITY_KEY = '@kinderwell_activity_days';
+  const KEY = '@kinderwell_lesson1_completed_sections';
+
+  beforeEach(() => {
+    for (const k of Object.keys(mockStore)) delete mockStore[k];
+  });
+
+  it('first completion records streak activity', async () => {
+    const store = createProgressStore(KEY);
+    await store.markSectionComplete('1');
+    // Let the fire-and-forget streak write settle.
+    await new Promise((r) => setImmediate(r));
+    expect(mockStore[ACTIVITY_KEY]).toBeDefined();
+    expect(JSON.parse(mockStore[ACTIVITY_KEY]).days.length).toBe(1);
+  });
+
+  it('re-completing an already-done section STILL records streak activity (the replay fix)', async () => {
+    const store = createProgressStore(KEY);
+    await store.markSectionComplete('1'); // first time
+    await new Promise((r) => setImmediate(r));
+    // Wipe the streak log to prove the SECOND (replay) call writes on its own.
+    delete mockStore[ACTIVITY_KEY];
+    await store.markSectionComplete('1'); // replay — section already completed
+    await new Promise((r) => setImmediate(r));
+    expect(mockStore[ACTIVITY_KEY]).toBeDefined();
+    expect(JSON.parse(mockStore[ACTIVITY_KEY]).days.length).toBe(1);
+    // And the completed-sections set is unchanged (still just '1', idempotent).
+    expect(JSON.parse(mockStore[KEY])).toEqual(['1']);
+  });
+});
