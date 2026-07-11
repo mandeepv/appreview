@@ -323,7 +323,33 @@ the CLI telling you anything is wrong.
   ```bash
   eas build --profile production --platform ios
   ```
-- [ ] Wait for build to complete. Do NOT submit yet.
+- [ ] Wait for build to complete (`✔ Build finished` + an `.ipa` URL).
+
+### Upload the build to TestFlight (`eas submit`) — REQUIRED before Phase 8
+
+`eas build` only produces the `.ipa` in EAS — it does **NOT** put the build in
+TestFlight. Phase 8 ("test the production build on TestFlight") can't happen
+until you upload it. That upload is `eas submit`. (Unless you've configured
+build auto-submit, which this project has not — verify with `eas submit:list`;
+an empty list means nothing was sent to Apple yet.)
+
+- [ ] `eas submit --profile production --platform ios`
+  - Confirm it picks the build you just made (matching version + build number).
+  - Needs the `eas.json` `submit.production` block (see Phase 9's pre-submit
+    note) — same block Phase 9 uses.
+  - You may get an **export-compliance** prompt — Kinderwell uses only standard
+    HTTPS (exempt); answer accordingly (or it's pre-answered via
+    `ITSAppUsesNonExemptEncryption`).
+- [ ] Confirm the build appears in **App Store Connect → TestFlight**, waits
+      out **"Processing"** (~5–15 min), then shows **"Ready to Test"**.
+
+> ⚠️ **"Do NOT submit yet" means the FINAL App Store submission (Phase 9 —
+> "release to the App Store"), NOT this TestFlight upload.** You MUST
+> `eas submit` here to get the build onto TestFlight for Phase-8 testing; you
+> just don't do the Phase-9 "Submit for Review" / release step until after
+> the upgrade test passes. (This ordering wasn't explicit before 2026-07-11 —
+> `eas submit` only appeared in Phase 9, so the build never reached TestFlight
+> for Phase-8 testing. Fixed.)
 
 ---
 
