@@ -5,14 +5,16 @@ on:
   # a fresh environment on the exact code about to ship (Actions tab → Run
   # workflow, or `gh workflow run CI`). This is the primary intended use.
   workflow_dispatch:
-  # PR-to-main gate (SPEC-FIX-01 R3c, pre-approved). Runs the 5 jobs on a PR
-  # targeting main — gates the ONE branch that matters, at ~5 job-minutes per
-  # PR. We deliberately do NOT add a `push:` trigger (that would double-spend on
-  # every branch push AND every merge). This is a private repo with metered
-  # Actions minutes; tsc/lint/jest are also run locally during development, so a
-  # per-PR run is the cheapest useful automatic gate.
+  # PR gate (SPEC-FIX-01 R3c, pre-approved). Runs the 5 jobs on a PR targeting
+  # main OR develop — gates the branches that matter, at ~5 job-minutes per PR.
+  # `develop` is the v1.3.0→v1.6.0 release-train integration branch (SPEC-15 §2):
+  # feature PRs land there, then `develop` merges to `main` at release. We
+  # deliberately do NOT add a `push:` trigger (that would double-spend on every
+  # branch push AND every merge). This is a private repo with metered Actions
+  # minutes; tsc/lint/jest are also run locally during development, so a per-PR
+  # run is the cheapest useful automatic gate.
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   typecheck:
