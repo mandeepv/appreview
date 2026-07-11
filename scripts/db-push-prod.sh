@@ -27,6 +27,21 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKUP_SCRIPT="$REPO_ROOT/scripts/backup-prod.sh"
 LINKED_FILE="$REPO_ROOT/supabase/.temp/linked-project.json"
 
+# --- Auto-load prod release secrets from the gitignored .env.prod (2026-07-11).
+# backup-prod.sh needs PROD_DB_URL (the prod connection string, for the pg_dump
+# backup). Rather than make the operator `export` it every release, we source
+# .env.prod here if present — it's the existing gitignored home for prod
+# credentials and is NOT loaded by the app during normal `expo start` (the app
+# reads .env), so the prod DB password never enters the dev-app runtime.
+# `set -a` exports every var defined while sourcing so child scripts inherit it.
+if [[ -f "$REPO_ROOT/.env.prod" ]]; then
+  echo "→ Loading prod secrets from .env.prod ..."
+  set -a
+  # shellcheck disable=SC1091
+  . "$REPO_ROOT/.env.prod"
+  set +a
+fi
+
 # Read the currently-linked ref from the CLI's own state file (offline,
 # unambiguous, same state `--linked` targets). Prints nothing on failure —
 # callers check for emptiness. No jq dependency (coreutils only).
