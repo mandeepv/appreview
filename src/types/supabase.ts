@@ -79,10 +79,12 @@ export type Database = {
           learning_goal: string | null
           name: string | null
           notifications_enabled: boolean | null
+          onboarding_variant: string | null
           partner_invited: boolean | null
           partner_involvement: string | null
           updated_at: string | null
           user_type: string | null
+          variant_b_answers: Json | null
         }
         Insert: {
           age?: number | null
@@ -97,10 +99,12 @@ export type Database = {
           learning_goal?: string | null
           name?: string | null
           notifications_enabled?: boolean | null
+          onboarding_variant?: string | null
           partner_invited?: boolean | null
           partner_involvement?: string | null
           updated_at?: string | null
           user_type?: string | null
+          variant_b_answers?: Json | null
         }
         Update: {
           age?: number | null
@@ -115,10 +119,12 @@ export type Database = {
           learning_goal?: string | null
           name?: string | null
           notifications_enabled?: boolean | null
+          onboarding_variant?: string | null
           partner_invited?: boolean | null
           partner_involvement?: string | null
           updated_at?: string | null
           user_type?: string | null
+          variant_b_answers?: Json | null
         }
         Relationships: []
       }

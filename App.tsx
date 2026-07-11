@@ -14,6 +14,7 @@ import { useAuthStore } from './src/store/authStore';
 import { SuperwallProvider, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { posthog } from './src/config/posthog';
+import { hydrateOnboardingVariant } from './src/lib/experiments';
 import { useConfigStore } from './src/store/configStore';
 import { ForceUpdateModal } from './src/components/ForceUpdateModal';
 
@@ -32,6 +33,12 @@ function AppContent() {
   useEffect(() => {
     if (__DEV__) console.log('🚀 Initializing app...');
     initialize();
+    // SPEC-15: re-register the onboarding-variant super-property on app start
+    // if this device already has a persisted assignment. resetPostHog() (on
+    // logout/delete) wipes super-properties, so without this a relaunch
+    // mid-experiment would emit untagged events. Mirrors the environment
+    // re-registration in src/config/posthog.ts. Fire-and-forget; never blocks.
+    hydrateOnboardingVariant();
   }, []);
 
   // App-level Superwall subscription-status listener. Keeps `isSubscribed` in
