@@ -142,3 +142,29 @@ export function resolveUnlockState(input: UnlockPolicyInput): Record<string, Les
 
   return result;
 }
+
+/**
+ * What a tap on a lesson card should DO, given its resolved state. Pure, so the
+ * "locked cards don't navigate; they fire the demand signal + shake" contract is
+ * unit-testable without rendering the screen (the repo has no render-test infra;
+ * decision logic is tested pure — same shape as routingPolicy). LearnScreen
+ * calls this and performs the side effects.
+ */
+export type LessonTapAction =
+  | { kind: 'navigate' }
+  | { kind: 'blocked'; blockingSlug: string | null };
+
+export function resolveLessonTap(
+  slug: string,
+  state: LessonUnlockState,
+): LessonTapAction {
+  if (state === 'locked') {
+    // The predecessor on the path is the lesson gating this one (null for the
+    // first lesson, which is never locked anyway).
+    const index = (LESSON_PATH as readonly string[]).indexOf(slug);
+    const blockingSlug = index > 0 ? LESSON_PATH[index - 1] : null;
+    return { kind: 'blocked', blockingSlug };
+  }
+  // completed and unlocked both navigate (completed → replay).
+  return { kind: 'navigate' };
+}

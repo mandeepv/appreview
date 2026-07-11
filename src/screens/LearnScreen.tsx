@@ -14,6 +14,7 @@ import { getLesson } from '../lessons/registry';
 import {
   LESSON_PATH,
   resolveUnlockState,
+  resolveLessonTap,
   type LessonUnlockState,
 } from '../lessons/unlockPolicy';
 
@@ -219,17 +220,17 @@ export default function LearnScreen() {
     hasProgressBySlug: progress.hasProgressBySlug,
   });
 
-  const handleModulePress = (moduleId: string, state: LessonUnlockState, blockingTitle: string | null) => {
+  const handleModulePress = (moduleId: string, state: LessonUnlockState) => {
     const module = learningModules.find((m) => m.id === moduleId);
     const target = LESSON_NAV[moduleId];
     const slug = target?.slug ?? moduleId;
 
-    if (state === 'locked') {
+    const action = resolveLessonTap(slug, state);
+    if (action.kind === 'blocked') {
       // Locked cards do NOT navigate. Fire the demand signal (how hard users
       // push on the lock) and give gentle in-place feedback — never a paywall,
       // never a dead tap. blocking_lesson_id names the predecessor gating it.
-      const blockingSlug = blockingTitle ? SLUG_BY_MODULE_ID[String(Number(moduleId) - 1)] ?? null : null;
-      safeCapture('lesson_locked_tapped', { lesson_id: slug, blocking_lesson_id: blockingSlug });
+      safeCapture('lesson_locked_tapped', { lesson_id: slug, blocking_lesson_id: action.blockingSlug });
       shake();
       return;
     }
@@ -313,7 +314,7 @@ export default function LearnScreen() {
               blockingTitle={blockingTitle}
               partial={partial}
               shakeAnim={shakeAnim}
-              onPress={() => handleModulePress(module.id, state, blockingTitle)}
+              onPress={() => handleModulePress(module.id, state)}
             />
           );
         })}
