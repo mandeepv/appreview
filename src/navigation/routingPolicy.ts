@@ -114,9 +114,25 @@ export function resolveGateOutcome(result: GateResult, isSubscribed: boolean): G
       return 're_present';
 
     case 'skip':
-      // Superwall skipped presenting the paywall itself — e.g. the user is
-      // already entitled and its own check caught it before showing UI. Every
-      // skip reason means "don't show the paywall," so let them through.
+      // Superwall skipped presenting the paywall itself. SPEC-FIX-08 R2: the
+      // skip reason matters — not every skip means "entitled."
+      //   - Holdout / NoAudienceMatch → legitimate Superwall semantics (the
+      //     user is entitled, or intentionally excluded by an experiment) →
+      //     enter_root. These are the normal "already a subscriber" skips.
+      //   - PlacementNotFound → the `subscription_gate` placement is
+      //     broken/deleted/renamed in the dashboard. This is NOT "entitled" —
+      //     it's a misconfiguration, and treating it as enter_root would grant
+      //     EVERY unpaid user free access on a single dashboard slip. Fail SAFE
+      //     to the gate: return 'retry' (not a dead-end — the escape hatch still
+      //     appears after N attempts, so a user is never trapped even if the
+      //     placement is genuinely gone). LoadingScreen fires a DISTINCT
+      //     `paywall_placement_not_found` event so a real break is alertable.
+      //   Load-bearing consequence (INVARIANTS #2 / PAYWALL_MODEL): a MISSING
+      //   placement now means "locked to paywall." A future intentional paywall
+      //   teardown MUST reconfigure the placement/audience — never DELETE it.
+      if (result.reason === 'PlacementNotFound') {
+        return 'retry';
+      }
       return 'enter_root';
 
     case 'error':

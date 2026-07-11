@@ -7,12 +7,51 @@ import { setSentryUser, reportError } from '../config/sentry';
 import { SuperwallExpoModule } from 'expo-superwall';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { mergeRemoteIntoLocal } from '../lessons/progressStore';
+import {
+  resolveCachedEntitlement,
+  type PersistedSubRecord as EntitlementRecord,
+} from './entitlementCache';
 
 // isSubscribed persists to disk so we don't paywall a paying user on every
 // cold launch while waiting for Superwall's onSubscriptionStatusChange to
 // fire. Superwall's event is authoritative — this cached value gets
 // overwritten as soon as Superwall reports ACTIVE or INACTIVE.
 const IS_SUBSCRIBED_STORAGE_KEY = STORAGE_KEYS.IS_SUBSCRIBED;
+
+// SPEC-FIX-08 R1 — the cached flag is USER-BOUND. It is persisted as a JSON
+// record { userId, subscribed }, NOT a bare 'true'/'false'. On hydrate we honor
+// the cached `subscribed` ONLY when a session exists for that SAME userId;
+// otherwise the flag is treated as false. This makes "a stale true can never
+// grant a different-or-absent user free access" a STRUCTURAL property, not
+// something that depends on a sign-out event firing and winning a race against
+// the gate read (the old, fragile defense — three verified never-paid-user leak
+// instances: delete-account, session-expiry, account-switch/sign-out-throw).
+//
+// Legacy migration: installs from before this change have a bare 'true'/'false'
+// string on disk with NO userId. A bare value is "unowned" → NOT honored as a
+// terminal grant. A current subscriber updating gets ONE paywall-check on their
+// first post-update launch; Superwall's onSubscriptionStatusChange re-sets the
+// flag (in the new owned format) within seconds. Acceptable + expected.
+//
+// The pure parse + ownership decision lives in ./entitlementCache so it's
+// unit-testable at the kernel boundary without this store's import graph.
+type PersistedSubRecord = EntitlementRecord;
+
+// Persist the flag bound to the current user. Called by setIsSubscribed.
+// If there is no current user we can't own the flag — clear it rather than
+// write an unowned value (an unowned true would be exactly the leak we're
+// closing).
+function persistSubscription(userId: string | undefined, subscribed: boolean): Promise<void> {
+  if (!userId) {
+    return AsyncStorage.removeItem(IS_SUBSCRIBED_STORAGE_KEY).catch((err) => {
+      if (__DEV__) console.warn('[authStore] failed to clear unowned isSubscribed:', err);
+    });
+  }
+  const record: PersistedSubRecord = { userId, subscribed };
+  return AsyncStorage.setItem(IS_SUBSCRIBED_STORAGE_KEY, JSON.stringify(record)).catch((err) => {
+    if (__DEV__) console.warn('[authStore] failed to persist isSubscribed:', err);
+  });
+}
 
 interface AuthState {
   user: User | null;
@@ -66,9 +105,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // waiting for Superwall's onSubscriptionStatusChange to fire.
     // Fire-and-forget; a write failure just means the next launch may
     // briefly hit the paywall before Superwall confirms — recoverable.
-    AsyncStorage.setItem(IS_SUBSCRIBED_STORAGE_KEY, subscribed ? 'true' : 'false').catch((err) => {
-      if (__DEV__) console.warn('[authStore] failed to persist isSubscribed:', err);
-    });
+    //
+    // SPEC-FIX-08 R1: the flag is USER-BOUND. We persist { userId, subscribed }
+    // for the current user. If there's no current user, persistSubscription
+    // clears the key instead of writing an unowned value (an unowned `true`
+    // could be read by the next, different user — the leak we're closing).
+    const currentUserId = get().user?.id;
+    void persistSubscription(currentUserId, subscribed);
   },
 
   setDemoUser: () => {
@@ -137,32 +180,46 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true });
 
-      // Hydrate persisted isSubscribed from disk. Superwall's
-      // onSubscriptionStatusChange listener in App.tsx will overwrite
-      // this as soon as it fires (typically within a few seconds of
-      // launch), but the hydrated value is what LoadingScreen sees on
-      // the initial render — critical for skipping the paywall for
-      // paying users during Superwall's warm-up window.
-      try {
-        const cached = await AsyncStorage.getItem(IS_SUBSCRIBED_STORAGE_KEY);
-        if (cached === 'true') {
-          set({ isSubscribed: true });
-          if (__DEV__) console.log('[authStore] hydrated isSubscribed=true from disk');
-        }
-      } catch (err) {
-        // Non-fatal — falls through with isSubscribed: false (default).
-        // Worst case: a paying user briefly sees the paywall on this
-        // one launch before Superwall confirms.
-        if (__DEV__) console.warn('[authStore] failed to hydrate isSubscribed:', err);
-      }
-
-      // Get initial session
+      // Get initial session FIRST — SPEC-FIX-08 R1 requires knowing WHO is
+      // signed in before we're allowed to honor the cached entitlement flag.
+      // The cached flag is user-bound; it may only be honored when a session
+      // exists for the SAME user id it was written under.
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
         if (__DEV__) console.error('Error getting session:', error);
         set({ isLoading: false });
         return;
+      }
+
+      // Hydrate persisted isSubscribed from disk — but ONLY honor it when a
+      // session exists for the same user the flag was written under. Superwall's
+      // onSubscriptionStatusChange listener in App.tsx overwrites this within
+      // seconds of launch; the hydrated value is what LoadingScreen sees on the
+      // initial render, so it must not leak a previous user's `true` to a
+      // different-or-absent user (SPEC-FIX-08 R1 — structural fix for the
+      // delete-account / session-expiry / account-switch never-paid leaks).
+      try {
+        const raw = await AsyncStorage.getItem(IS_SUBSCRIBED_STORAGE_KEY);
+        const { honor, clearStale } = resolveCachedEntitlement(raw, session?.user?.id);
+        if (honor) {
+          set({ isSubscribed: true });
+          if (__DEV__) console.log('[authStore] hydrated isSubscribed=true (owned) from disk');
+        } else {
+          // No session, a different user, or a legacy/unowned/malformed value →
+          // treat as false AND clear any stale record so it can't be read again.
+          // A current subscriber who hit the legacy-unowned branch gets ONE
+          // paywall-check now; Superwall re-sets the owned flag within seconds.
+          if (clearStale) {
+            AsyncStorage.removeItem(IS_SUBSCRIBED_STORAGE_KEY).catch(() => {});
+          }
+          if (__DEV__) console.log('[authStore] cached isSubscribed not honored (no owner match)');
+        }
+      } catch (err) {
+        // Non-fatal — falls through with isSubscribed: false (default).
+        // Worst case: a paying user briefly sees the paywall on this
+        // one launch before Superwall confirms.
+        if (__DEV__) console.warn('[authStore] failed to hydrate isSubscribed:', err);
       }
 
       if (session) {
