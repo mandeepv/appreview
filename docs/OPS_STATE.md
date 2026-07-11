@@ -28,6 +28,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Supabase | gateway `verify_jwt` | on (per `config.toml`); live-state unverified | unverified | `supabase/config.toml` + dashboard |
 | Supabase | `JWT_SECRET` set | **dev: yes** (set 2026-07-11; now optional there — dev is ES256/JWKS) / prod: no | 2026-07-11 | `supabase secrets list` |
 | Supabase | SPEC-16 launch/gate work | **no change required** — no migrations, no edge-function changes, no type regeneration (recorded so external state stays tracked) | 2026-07-11 | — |
+| Supabase | SPEC-18 lesson locking [SPEC-18 §4.2] | **no change required** — no schema change; flow lessons 1–4 sync rides the existing `lesson_progress` table + RLS (new AsyncStorage keys only, picked up by the existing factory). No type regeneration, no edge-function changes | 2026-07-12 | — |
 
 ## Superwall
 
@@ -37,6 +38,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Superwall | `show_paywall` | kept for the v1.0.0 cohort | unverified | Superwall dashboard → Placements |
 | Superwall | dashboard-change habit | screenshot on every change (F5 pointer) | — | `docs/dashboard-snapshots/` |
 | Superwall | SPEC-16 launch/gate work | **no change required** — gate logic untouched; do NOT modify `subscription_gate` placement/audience | 2026-07-11 | Superwall dashboard → Placements |
+| Superwall | SPEC-18 lesson locking [SPEC-18 §4.4] | **no change required** — locking is inside Root, behind the existing gate; do NOT touch the `subscription_gate` placement or audience | 2026-07-12 | Superwall dashboard → Placements |
 
 ## Sentry
 
@@ -48,6 +50,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Sentry | client-key rate limit | 100 events per 1 hour — SET | 2026-07-10 | Sentry → Settings → Client Keys |
 | Sentry | sourcemaps for live build | 3 uploads present for release 1.1.0 (dist 9) — VERIFIED | 2026-07-10 | Sentry → Releases → artifacts |
 | Sentry | SPEC-16 `expo-splash-screen` calls | **pending post-release check** — no config change; after v1.4.0 ships confirm no new error class from `preventAutoHideAsync`/`hideAsync` (they're try/caught — a spike means the guard is being hit) | unverified | Sentry → Issues (env=prod, release 1.4.0) |
+| Sentry | SPEC-18 lessons-1–4 sync [SPEC-18 §4.3] | **no config change; post-release watch** — after v1.5.0 ships confirm the lessons-1–4 sync path adds no `lesson progress sync repeatedly failing` reports (it reuses the existing threshold logic) | unverified | Sentry → Issues (env=prod, release 1.5.0) |
 
 ## PostHog
 
@@ -60,6 +63,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | PostHog | `onboarding-flow` ramp to 50/50 [SPEC-15 §4.2] | **pending** — flip only after placeholder copy is replaced AND v1.3.0 is dominant. variant_b→0% is the kill switch (no build). Annotate at ramp start/stop | unverified | PostHog → Feature Flags |
 | PostHog | onboarding A/B experiment dashboard [SPEC-15 §4.3] | **pending** — funnel `welcome_cta_tapped`→`onboarding_step_completed`→`auth_succeeded`→`paywall_presented`→`subscription_purchased` broken down by `onboarding_variant`, env=production; + `onboarding_variant_assigned` by `source` trend | unverified | PostHog → Dashboards |
 | PostHog | launch-health events [SPEC-16 §4.1] | **optional/pending** — no flag needed for SPEC-16 to work. At release, optionally add `plan_theater_shown` (per-user; a repeat = returning-launch regression) + `gate_wait_exceeded` to a launch-health dashboard so the "theater exactly once per user" signal is watched | unverified | PostHog → Dashboards |
+| PostHog | lesson-lock demand insight [SPEC-18 §4.1] | **optional/pending** — not required for locking to work; makes it observable. Add a trend on `lesson_locked_tapped` broken down by `lesson_id`, filtered `environment = production`. A high count on one lesson = a pacing wall worth revisiting. No flag work | unverified | PostHog → Insights |
 
 ## App Store Connect
 
@@ -71,6 +75,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | App Store Connect | ToS link in metadata | unverified (1.5.3) | unverified | ASC → App Information |
 | App Store Connect | DSA trader status | unverified (1.5.3) | unverified | ASC → App Information |
 | App Store Connect | offer codes | not set up (F2 skipped) | unverified | ASC → Subscriptions |
+| App Store Connect | SPEC-18 lesson locking [SPEC-18 §4.5] | **no change required** — nothing spec-specific; standard v1.5.0 release actions live in the runbook | 2026-07-12 | — |
 
 ## GitHub
 
