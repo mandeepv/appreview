@@ -38,14 +38,23 @@ const IS_SUBSCRIBED_STORAGE_KEY = STORAGE_KEYS.IS_SUBSCRIBED;
 type PersistedSubRecord = EntitlementRecord;
 
 // Persist the flag bound to the current user. Called by setIsSubscribed.
-// If there is no current user we can't own the flag — clear it rather than
-// write an unowned value (an unowned true would be exactly the leak we're
-// closing).
+//
+// If there is no current user we can't own the flag — so we do NOTHING: we
+// neither write an unowned value NOR clear the existing owned record.
+//
+// Why not clear (SPEC-FIX-08 startup-race fix): Superwall can report ACTIVE
+// before the store's `user` is populated on a cold launch. Clearing here would
+// let that too-early event wipe a VALID owned record, causing a paywall flash
+// on that launch. And the clear buys no security: hydrate
+// (resolveCachedEntitlement) already refuses to honor ANY record that doesn't
+// match the live session, structurally, on every launch. So a leftover record
+// is harmless — it's only honored for its owner. Skip the write, keep the
+// prior owned record; setIsSubscribed will re-persist correctly once `user` is
+// set.
 function persistSubscription(userId: string | undefined, subscribed: boolean): Promise<void> {
   if (!userId) {
-    return AsyncStorage.removeItem(IS_SUBSCRIBED_STORAGE_KEY).catch((err) => {
-      if (__DEV__) console.warn('[authStore] failed to clear unowned isSubscribed:', err);
-    });
+    // No owner to bind to — don't write, don't clear. Hydrate is the guard.
+    return Promise.resolve();
   }
   const record: PersistedSubRecord = { userId, subscribed };
   return AsyncStorage.setItem(IS_SUBSCRIBED_STORAGE_KEY, JSON.stringify(record)).catch((err) => {
