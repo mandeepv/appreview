@@ -30,6 +30,10 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Supabase | SPEC-16 launch/gate work | **no change required** — no migrations, no edge-function changes, no type regeneration (recorded so external state stays tracked) | 2026-07-11 | — |
 | Supabase | SPEC-17 onboarding UX system [SPEC-17 §4.3] | **no change required** — presentation/interaction only; onboarding answer values, saved payload, and `user_profiles` shape are all unchanged. No migrations, no type regeneration, no edge-function changes | 2026-07-11 | — |
 | Supabase | SPEC-18 lesson locking [SPEC-18 §4.2] | **no change required** — no schema change; flow lessons 1–4 sync rides the existing `lesson_progress` table + RLS (new AsyncStorage keys only, picked up by the existing factory). No type regeneration, no edge-function changes | 2026-07-12 | — |
+| Supabase | dev migration `add_daily_activity` [SPEC-19 §5.1] | **pending** — `20260712000000_add_daily_activity.sql` (facts table `daily_activity (user_id, activity_date PK)`, RLS mirroring `lesson_progress`, insert-only, ON DELETE CASCADE). Apply to dev (`supabase db push`) + regenerate `src/types/supabase.ts` (the PR hand-added the type to keep it compiling — the regen must confirm the identical shape), then tick. MUST land before the service code is exercised | unverified | `supabase migration list --linked` (dev) |
+| Supabase | prod migration `add_daily_activity` [SPEC-19 §5.2] | **pending** — MUST be applied via `scripts/db-push-prod.sh` (enforces a same-day backup) BEFORE the v1.6.0 binary goes live, or every `recordActivity` upsert returns `'failed'`, streaks silently stay local-only, and the repeated-failure threshold spams Sentry. Verify RLS afterwards with the standard anon/other-user probe | unverified | `supabase migration list --linked` (prod) |
+| Supabase | delete-account covers `daily_activity` [SPEC-19 §5.3] | **pending verify (no redeploy expected)** — the FK is `ON DELETE CASCADE` via `auth.users`, so deleting the auth user removes activity rows automatically. Confirm during the release checklist (don't assume); update the delete-account function docs if it enumerates tables | unverified | dev: delete account → query `daily_activity` |
+| Supabase | SPEC-19 streak work | **schema change (above); no edge-function change** — recording rides the existing sync posture; only the new table + regenerated types | 2026-07-12 | — |
 
 ## Superwall
 
@@ -41,6 +45,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Superwall | SPEC-16 launch/gate work | **no change required** — gate logic untouched; do NOT modify `subscription_gate` placement/audience | 2026-07-11 | Superwall dashboard → Placements |
 | Superwall | SPEC-17 onboarding UX system [SPEC-17 §4.5] | **no change required** — onboarding presentation only; the paywall/gate path is untouched | 2026-07-11 | Superwall dashboard → Placements |
 | Superwall | SPEC-18 lesson locking [SPEC-18 §4.4] | **no change required** — locking is inside Root, behind the existing gate; do NOT touch the `subscription_gate` placement or audience | 2026-07-12 | Superwall dashboard → Placements |
+| Superwall | SPEC-19 streak system [SPEC-19 §5.6] | **no change required** — streak is inside Root, behind the existing gate | 2026-07-12 | Superwall dashboard → Placements |
 
 ## Sentry
 
@@ -54,6 +59,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Sentry | SPEC-16 `expo-splash-screen` calls | **pending post-release check** — no config change; after v1.4.0 ships confirm no new error class from `preventAutoHideAsync`/`hideAsync` (they're try/caught — a spike means the guard is being hit) | unverified | Sentry → Issues (env=prod, release 1.4.0) |
 | Sentry | SPEC-17 onboarding UX system [SPEC-17 §4.4] | **no change required** — no error-path or config change | 2026-07-11 | — |
 | Sentry | SPEC-18 lessons-1–4 sync [SPEC-18 §4.3] | **no config change; post-release watch** — after v1.5.0 ships confirm the lessons-1–4 sync path adds no `lesson progress sync repeatedly failing` reports (it reuses the existing threshold logic) | unverified | Sentry → Issues (env=prod, release 1.5.0) |
+| Sentry | SPEC-19 streak sync [SPEC-19 §5.5] | **no config change; post-release watch** — after v1.6.0 ships watch for `streak activity sync repeatedly failing` reports. Any such report is the signal that the prod `daily_activity` migration (OPS §5.2) was missed or RLS is wrong | unverified | Sentry → Issues (env=prod, release 1.6.0) |
 
 ## PostHog
 
@@ -69,6 +75,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | PostHog | SPEC-17 flag-state check before merge [SPEC-17 §4.2] | **pending (gates the merge)** — before merging SPEC-17 to `develop`, verify the `onboarding-flow` flag's ramp. If `variant_b > 0%` and a test run is in progress, HOLD the merge or explicitly accept restarting the experiment clock (DECISION 1). Both arms share the migrated components so the lift applies equally, but a mid-run visual discontinuity still poisons the read | unverified | PostHog → Feature Flags → `onboarding-flow` |
 | PostHog | SPEC-17 ship annotation [SPEC-17 §4.1] | **pending** — on the day v1.4.0 rolls out, add a prod project annotation: "Onboarding UX system shipped (SPEC-17); both arms affected". Funnel step names/semantics are unchanged, but drop-off *levels* will move — the annotation lets any A/B readout spanning the release segment before/after. Tick with the date when added | unverified | PostHog → Annotations (prod) |
 | PostHog | lesson-lock demand insight [SPEC-18 §4.1] | **optional/pending** — not required for locking to work; makes it observable. Add a trend on `lesson_locked_tapped` broken down by `lesson_id`, filtered `environment = production`. A high count on one lesson = a pacing wall worth revisiting. No flag work | unverified | PostHog → Insights |
+| PostHog | streak retention dashboard [SPEC-19 §5.4] | **optional/pending** — not required for the feature to work; required for it to be measured. Add a streak card: `streak_day_recorded` trend + `streak_lost` counts, filtered `environment = production`. No flags | unverified | PostHog → Dashboards |
 
 ## App Store Connect
 
@@ -82,6 +89,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | App Store Connect | offer codes | not set up (F2 skipped) | unverified | ASC → Subscriptions |
 | App Store Connect | SPEC-17 onboarding UX system [SPEC-17 §4.6] | **no change required** — nothing spec-specific; v1.4.0 release actions live in the runbook | 2026-07-11 | — |
 | App Store Connect | SPEC-18 lesson locking [SPEC-18 §4.5] | **no change required** — nothing spec-specific; standard v1.5.0 release actions live in the runbook | 2026-07-12 | — |
+| App Store Connect | SPEC-19 streak system [SPEC-19 §5.7] | **no change required** — activity data is product-interaction data already declared in the privacy manifest; no App Privacy answer changes | 2026-07-12 | — |
 
 ## GitHub
 
