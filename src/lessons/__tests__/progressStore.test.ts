@@ -67,3 +67,30 @@ describe('createProgressStore — byte-compatible with the old utils', () => {
     expect(await store.getCompletedSections()).toEqual([]);
   });
 });
+
+// SPEC-18 R1 — flow lessons 1–4 gained a completion key. They are single-section
+// (id '1'), so completing that one section IS completing the lesson. Verify the
+// factory round-trips on the real flow-lesson key and that the store treats the
+// single section as complete (this is the signal locking reads).
+describe('createProgressStore — flow-lesson single-section completion (SPEC-18)', () => {
+  const FLOW_KEY = '@kinderwell_lesson1_completed_sections';
+
+  beforeEach(() => {
+    for (const k of Object.keys(mockStore)) delete mockStore[k];
+  });
+
+  it('completing section 1 records it under the namespaced key', async () => {
+    const store = createProgressStore(FLOW_KEY);
+    await store.markSectionComplete('1');
+    expect(mockStore[FLOW_KEY]).toBe(JSON.stringify(['1']));
+    expect(await store.getCompletedSections()).toEqual(['1']);
+  });
+
+  it('a flow lesson with 1 section is complete once that section is done', async () => {
+    const store = createProgressStore(FLOW_KEY);
+    await store.markSectionComplete('1');
+    const done = await store.getCompletedSections();
+    const totalSections = 1; // flow lessons are single-section
+    expect(done.length >= totalSections).toBe(true);
+  });
+});
