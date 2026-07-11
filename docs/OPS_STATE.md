@@ -16,9 +16,10 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 |---|---|---|---|---|
 | Supabase | prod/dev project refs | see `DEV_PROD_ENVIRONMENTS.md` | unverified | `DEV_PROD_ENVIRONMENTS.md` |
 | Supabase | prod password last rotated | **never** — risk accepted by owner | 2026-07-09 | Supabase dashboard → Settings → Database |
-| Supabase | last manual backup run | unverified | unverified | Supabase dashboard → Database → Backups |
+| Supabase | last manual backup run | 2026-07-11 (pre-v1.2.0-migration; `backups/prod_20260711T073402Z_*.sql`, schema+data via pg_dump) | 2026-07-11 | Supabase dashboard → Database → Backups |
 | Supabase | last restore drill | **never** | unverified | — |
-| Supabase | prod migrations applied through | unverified (**pending**: `completed_sections` [SPEC-13] + `rls_update_with_check` [SPEC-FIX-04 R4] — one prod push covers both) | unverified | `supabase migration list --linked` |
+| Supabase | prod migrations applied through | **`20260710010000`** — `completed_sections` [SPEC-13] + `rls_update_with_check` [SPEC-FIX-04 R4] applied to prod 2026-07-11; `completed_sections` column verified present via prod REST (HTTP 200) | 2026-07-11 | `supabase migration list --linked` |
+| Supabase | prod backup mechanism | pg_dump 17 direct (no Docker) via `scripts/backup-prod.sh`; needs `PROD_DB_URL` in gitignored `.env.prod` | 2026-07-11 | `scripts/backup-prod.sh` |
 | Supabase | delete-account deployed version | **DEV: SPEC-FIX-06** (ES256/JWKS + HS256 dual-path) deployed + verified on device 2026-07-11. **PROD: still pre-hardening** (owner deploys at Phase 5) | 2026-07-11 (dev) | Supabase → Edge Functions |
 | Supabase | dev auth signing system | **asymmetric ES256** (new JWT Signing Keys) — JWKS advertises one ES256 key | 2026-07-11 | `/auth/v1/.well-known/jwks.json` |
 | Supabase | prod auth signing system | unverified (check before prod delete-account deploy — determines if JWT_SECRET is needed) | unverified | prod `/auth/v1/.well-known/jwks.json` |
