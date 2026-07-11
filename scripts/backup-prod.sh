@@ -25,6 +25,33 @@ set -euo pipefail
 # committed docs and app.config.js. Do NOT invent them.
 PROD_REF="zqwzdyjfxytvedghujsd"
 
+# --- Backup mechanism: pg_dump directly, NOT `supabase db dump` (2026-07-11).
+# Why the change: `supabase db dump` runs pg_dump inside a Docker container, so
+# it needs Docker Desktop (~1GB, a daemon) just to take a logical backup — a
+# heavy dependency for a plain pg_dump over the network. We call pg_dump
+# directly instead: no Docker, same dump.
+#
+# Two requirements this introduces (both checked below, fail-closed):
+#   1. PROD_DB_URL — the prod Postgres connection string WITH password. Source
+#      it from the environment (export it, or put it in the gitignored .env and
+#      `set -a; . .env; set +a` before running). It is a SECRET: never commit
+#      it, never echo it. Get it from Supabase dashboard → Settings → Database →
+#      Connection string (URI). Use the direct/session connection.
+#   2. A pg_dump whose version is >= the prod server's Postgres major version.
+#      pg_dump REFUSES to dump a newer server than itself. macOS default is
+#      often an older Homebrew pg_dump (e.g. 14) which fails against Supabase's
+#      PG15+/17. We therefore prefer an explicit newer binary if present and
+#      let PG_DUMP override it.
+#
+# PG_DUMP resolution order: explicit $PG_DUMP env → postgresql@17 keg → PATH.
+if [[ -n "${PG_DUMP:-}" ]]; then
+  PG_DUMP_BIN="$PG_DUMP"
+elif [[ -x "/opt/homebrew/opt/postgresql@17/bin/pg_dump" ]]; then
+  PG_DUMP_BIN="/opt/homebrew/opt/postgresql@17/bin/pg_dump"
+else
+  PG_DUMP_BIN="pg_dump"
+fi
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKUPS_DIR="$REPO_ROOT/backups"
 # The CLI records the currently-linked project here. It's offline,
@@ -62,6 +89,35 @@ if [[ "$LINKED_REF" != "$PROD_REF" ]]; then
   exit 1
 fi
 
+# --- pg_dump prerequisites. Fail CLOSED if either is missing — a backup we
+# can't actually take must stop the release, not silently proceed.
+if [[ -z "${PROD_DB_URL:-}" ]]; then
+  echo "ERROR: PROD_DB_URL is not set — pg_dump needs the prod connection string." >&2
+  echo "Set it (keep it OUT of git; the value is a secret with the DB password):" >&2
+  echo "  export PROD_DB_URL='postgresql://postgres:<pwd>@db.${PROD_REF}.supabase.co:5432/postgres'" >&2
+  echo "or put it in the gitignored .env and: set -a; . .env; set +a" >&2
+  echo "Get it from Supabase dashboard → Settings → Database → Connection string." >&2
+  exit 1
+fi
+
+if ! command -v "$PG_DUMP_BIN" >/dev/null 2>&1 && [[ ! -x "$PG_DUMP_BIN" ]]; then
+  echo "ERROR: pg_dump not found at '$PG_DUMP_BIN'." >&2
+  echo "Install a recent Postgres client (brew install postgresql@17) or set PG_DUMP." >&2
+  exit 1
+fi
+
+# Cross-check: PROD_DB_URL must actually target the PROD ref. This closes the
+# gap between the two guards — being linked to prod (checked above) AND dumping
+# via a URL are otherwise independent; if PROD_DB_URL pointed at dev we'd dump
+# dev while linked to prod and mislabel it. Both must name the prod ref.
+if [[ "$PROD_DB_URL" != *"$PROD_REF"* ]]; then
+  echo "ERROR: PROD_DB_URL does not contain the prod ref '$PROD_REF'." >&2
+  echo "Refusing to run — the connection string must target PROD, not another" >&2
+  echo "database. (Supabase direct/pooler hosts include the project ref.)" >&2
+  exit 1
+fi
+echo "Using pg_dump: $("$PG_DUMP_BIN" --version)"
+
 # --- Timestamped output paths. UTC so backups sort correctly regardless of
 # the operator's timezone.
 mkdir -p "$BACKUPS_DIR"
@@ -74,13 +130,15 @@ echo "  schema → $SCHEMA_FILE"
 echo "  data   → $DATA_FILE"
 echo ""
 
-# Schema dump (default = schema only).
+# Schema dump (--schema-only mirrors the CLI's default schema dump). Restrict
+# to the public schema — that's what our migrations touch and what we'd restore
+# from; Supabase-managed schemas (auth, storage, etc.) are not ours to dump.
 echo "Dumping schema..."
-supabase db dump --linked -f "$SCHEMA_FILE"
+"$PG_DUMP_BIN" "$PROD_DB_URL" --schema-only --schema=public -f "$SCHEMA_FILE"
 
-# Data dump.
+# Data dump (public schema data only).
 echo "Dumping data..."
-supabase db dump --linked --data-only -f "$DATA_FILE"
+"$PG_DUMP_BIN" "$PROD_DB_URL" --data-only --schema=public -f "$DATA_FILE"
 
 # --- Sanity: both files must exist and be non-empty. A zero-byte "backup" is
 # worse than no backup because it looks like protection that isn't there.
