@@ -24,6 +24,11 @@ import { reportError, addGateBreadcrumb } from '../../config/sentry';
 // (SPEC-01 R3, DECISION(owner)).
 const SUPPORT_EMAIL = 'kinderwellteam@gmail.com';
 
+// SPEC-FIX-11 R5.2 — the single honest retry line, shared by both LoadingScreen
+// modes (gate waiting-UI and the post-theater stall). Tells the user the likely
+// cause (connectivity) instead of a static "Checking…" / "Almost ready!".
+const GATE_RETRY_COPY = "Checking your subscription — please make sure you're online…";
+
 // Number of failed gate attempts before we surface the escape hatch. At 3
 // retries (the retry interval is 3s) the user has been stuck ~9s+ — long
 // enough that "Superwall is unreachable" is a real possibility, not a blip.
@@ -847,8 +852,12 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // Theater stage messages (onboarding mode only). Reuses the four beloved
-  // lines; the retry line lives in gate mode now, not here.
+  // lines. SPEC-FIX-11 R5.2: if the post-theater gate is stuck retrying, the old
+  // code left "Almost ready!" on screen indefinitely (theater done, but the
+  // paywall never presents). When gateStatus is 'retry', swap to the same honest
+  // retry copy the gate mode uses, so the user knows to check their connection.
   const getMessage = () => {
+    if (gateStatus === 'retry') return GATE_RETRY_COPY;
     if (progress < 25) return 'Analyzing your family profile...';
     if (progress < 50) return 'Tailoring lessons for your needs...';
     if (progress < 75) return 'Balancing science with real-life...';
@@ -917,7 +926,12 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           {showWaitingUI && (
             <Animated.View style={[styles.gateWaiting, { opacity: gateWaitOpacity }]}>
               <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.gateStatus}>Checking your subscription…</Text>
+              {/* SPEC-FIX-11 R5.2 — once we're retrying, use the honest line that
+                  tells the user connectivity may be the issue (the static
+                  "Checking your subscription…" hid that during a stall). */}
+              <Text style={styles.gateStatus}>
+                {gateStatus === 'retry' ? GATE_RETRY_COPY : 'Checking your subscription…'}
+              </Text>
             </Animated.View>
           )}
 

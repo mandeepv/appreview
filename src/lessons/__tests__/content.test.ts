@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseLesson } from '../schema';
-import { LESSON_REGISTRY } from '../registry';
+import { LESSON_REGISTRY, FLOW_LESSON_SLUGS } from '../registry';
 import { HUB_META } from '../hubMeta';
 import { sprinklers } from '../content/sprinklers';
 import { recordingDeepBondMoments } from '../content/recordingDeepBondMoments';
@@ -57,8 +57,9 @@ describe('registry completeness', () => {
 // SPEC-18 R1 note: "hub lesson" was previously equivalent to "has a storageKey",
 // but flow lessons 1–4 now carry a storageKey too (for locking). They are still
 // NOT hub lessons — they launch directly into LessonScreen, not a hub — so the
-// discriminator is now "has a storageKey AND is not a flow lesson".
-const FLOW_LESSON_SLUGS = new Set(['lesson1', 'lesson2', 'lesson3', 'lesson4']);
+// discriminator is "has a storageKey AND is not a flow lesson". SPEC-FIX-11 R2:
+// the flow set is now single-sourced in the registry (FLOW_LESSON_SLUGS) rather
+// than a local copy here.
 describe('hubMeta completeness', () => {
   const hubSlugs = Object.values(LESSON_REGISTRY)
     .filter((l) => l.storageKey && !FLOW_LESSON_SLUGS.has(l.slug))
