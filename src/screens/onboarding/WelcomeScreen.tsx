@@ -7,8 +7,17 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { Colors, Spacing, Typography, Animation, BorderRadius } from '../../constants/theme';
 import { trackWelcomeCtaTapped, trackOnboardingRestarted } from '../../lib/analytics';
 import { useOnboardingStore } from '../../store/onboardingStore';
+import { resolveOnboardingVariant, type OnboardingVariant } from '../../lib/experiments';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
+
+// SPEC-15: pure Welcome→first-onboarding-screen mapping, extracted so the
+// branch is unit-testable without rendering the screen (R6). Control enters the
+// existing variant-A flow at UserType; variant_b enters the variant-B scaffold
+// at VariantBQ1. Both arms converge again at Auth → Loading → paywall.
+export const resolveWelcomeDestination = (
+  variant: OnboardingVariant,
+): 'UserType' | 'VariantBQ1' => (variant === 'variant_b' ? 'VariantBQ1' : 'UserType');
 
 export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -30,6 +39,12 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // SPEC-15: warm the variant cache on mount, fire-and-forget. resolve...()
+    // persists the assignment on first call, so by the time the user taps Get
+    // Started the value is already in AsyncStorage and the tap resolves
+    // instantly. Never throws (the accessor is fully wrapped, defaults control).
+    resolveOnboardingVariant();
   }, []);
 
   const handleGetStarted = async () => {
@@ -39,7 +54,13 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
     if (priorLastScreen && priorLastScreen !== 'Welcome') {
       trackOnboardingRestarted(priorLastScreen);
     }
-    navigation.navigate('UserType');
+    // SPEC-15: resolve the onboarding variant and branch. Already warm from the
+    // mount effect ⇒ instant; a cold/slow first launch is capped at the 2s
+    // timeout inside the accessor, then falls back to control. Only fresh
+    // onboarding is split — the "already have an account" path below is
+    // untouched.
+    const variant = await resolveOnboardingVariant();
+    navigation.navigate(resolveWelcomeDestination(variant));
   };
 
   const handleSignIn = () => {
