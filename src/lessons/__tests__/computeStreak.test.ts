@@ -6,9 +6,6 @@
 
 import { computeStreak } from '../computeStreak';
 
-// Helper: build a descending/ascending run of dates around an anchor.
-const d = (iso: string) => iso;
-
 describe('computeStreak — basic runs', () => {
   it('empty history → zeros, not at risk', () => {
     expect(computeStreak([], '2026-07-12')).toEqual({
