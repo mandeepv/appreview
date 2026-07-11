@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Image, Linking } from 'react-native';
+import { View, Text, StyleSheet, Animated, Image, Linking, AccessibilityInfo, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
@@ -51,6 +51,30 @@ const hasOnboardingPayload = (store: {
 }): boolean =>
   store.userType !== null || Object.keys(store.variantBAnswers).length > 0;
 
+// SPEC-16 R2: the two VISUAL modes of this one screen (the screen itself is
+// never split — INVARIANT #1: every path into Root goes through THIS Loading
+// gate, so the gate logic must stay in one file).
+//
+//   'onboarding' — first-time flow: render the redesigned plan-creation theater
+//                  (the "creating your lesson plan" animation), exactly once per
+//                  user, right before the paywall.
+//   'gate'       — every returning launch + post-sign-in: render a QUIET
+//                  continuation of the splash (cream + glyph, no theater), so a
+//                  normal launch reads as "splash → app" with nothing between.
+//
+// Derived once at mount from the SAME hasOnboardingPayload predicate the save
+// effect uses — a single source of truth so the theater and the save can never
+// disagree about "did the user just onboard?"
+export type LoadingMode = 'onboarding' | 'gate';
+export const deriveLoadingMode = (hasPayload: boolean): LoadingMode =>
+  hasPayload ? 'onboarding' : 'gate';
+
+// SPEC-16 R2: how long gate mode shows the glyph ALONE before revealing any
+// spinner/copy. A subscriber's gate resolves within this on the happy path, so
+// a normal launch never flashes a loading UI. See §8 decision 2 (tune on
+// device).
+const GATE_REVEAL_DELAY_MS = 400;
+
 /**
  * LoadingScreen is the subscription gate. Every route to Root passes through
  * this screen. It has two responsibilities:
@@ -80,6 +104,13 @@ const hasOnboardingPayload = (store: {
 export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const { user, isDemoUser, isSubscribed, setIsSubscribed } = useAuthStore();
   const onboardingStore = useOnboardingStore();
+  // SPEC-16 R2: pick the visual mode ONCE at mount from the same predicate the
+  // save effect uses. useState initializer (not a re-derived value) so a store
+  // change mid-gate — e.g. the onboarding-save effect calling clearState —
+  // can't flip us from theater to quiet gate halfway through.
+  const [mode] = useState<LoadingMode>(() =>
+    deriveLoadingMode(hasOnboardingPayload(onboardingStore)),
+  );
   // Lazy init — read once at mount to decide the initial progress value.
   // Post-onboarding paths start at 0 (progress theater runs); cold-launch
   // paths start at 100 (no theater, straight to gate). Using a lazy
@@ -155,6 +186,25 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // screen is already a degraded state, a modal on top would be worse).
   const [escapeError, setEscapeError] = useState<string | null>(null);
   const [isRestoringHatch, setIsRestoringHatch] = useState(false);
+
+  // SPEC-16 R2: gate-mode reveal. In 'gate' mode we show the glyph ALONE for
+  // GATE_REVEAL_DELAY_MS, then fade in a subtle spinner + "Checking your
+  // subscription…" ONLY if the gate is still unresolved (a subscriber resolves
+  // within the delay on the happy path). `gateRevealed` drives the fade-in;
+  // gate_wait_exceeded fires once at the reveal to measure how often users see
+  // any loading UI at all. Unused in 'onboarding' mode.
+  const [gateRevealed, setGateRevealed] = useState(false);
+
+  // SPEC-16 R3/R2: respect the OS "Reduce Motion" setting — animated beats
+  // (breathing glyph, eased progress, staged message transitions, the gate-
+  // reveal fade) collapse to simple opacity/no motion when enabled.
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  // SPEC-16 R2: opacity for the gate-mode waiting UI (spinner + copy). Fades in
+  // from 0 when the reveal fires; Reduce Motion snaps it to 1 (no fade).
+  // useState(new Animated.Value) matches scaleAnim above — a stable instance
+  // that isn't re-read as a ref during render.
+  const [gateWaitOpacity] = useState(new Animated.Value(0));
 
   const clearPresentWatchdog = () => {
     if (presentWatchdogRef.current) {
@@ -535,26 +585,40 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   latestRunGateRef.current = runGate;
 
   useEffect(() => {
-    // Gentle continuous breathing animation runs on every path.
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 1.05,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    // SPEC-16 R3: gentle breathing glyph animates in the theater only, and only
+    // when Reduce Motion is off (it collapses to a still glyph otherwise). Gate
+    // mode doesn't run it — the glyph there is a still continuation of the
+    // splash.
+    if (mode === 'onboarding' && !reduceMotion) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 1.05,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
 
     if (hasOnboardingPayload(onboardingStore)) {
-      // Post-onboarding: run the 4-second progress theater (the
-      // "analyzing your family profile" messaging) so the user sees the
-      // app doing something with their answers. Then run the gate.
+      // Post-onboarding: run the ~4s progress theater (the redesigned
+      // "creating your lesson plan" messaging) so the user sees the app doing
+      // something with their answers. Then run the gate.
+      //
+      // SPEC-16 R3: eased (non-linear) progress rather than a flat 1.25%/50ms
+      // tick — it decelerates as it approaches 100 so the bar feels like real
+      // work finishing, not a metronome. Same ~4s total and the SAME runGate()
+      // trigger at completion (the gate scheduler is untouched — only the
+      // visual curve changed). Reduce Motion: step straight in larger chunks;
+      // it still lands on runGate() identically.
+      const startedAt = Date.now();
+      const THEATER_MS = 4000;
       const interval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 100) {
@@ -562,20 +626,88 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             setTimeout(() => runGate(), 600);
             return 100;
           }
-          return prev + 1.25;
+          if (reduceMotion) {
+            // No easing under Reduce Motion — advance in plain, larger steps.
+            return Math.min(100, prev + 5);
+          }
+          // easeOutCubic on elapsed-time fraction → smooth deceleration.
+          const t = Math.min(1, (Date.now() - startedAt) / THEATER_MS);
+          const eased = (1 - Math.pow(1 - t, 3)) * 100;
+          // Never go backwards; nudge forward at least a hair so we always reach 100.
+          return Math.max(prev + 0.5, eased);
         });
       }, 50);
       return () => clearInterval(interval);
     }
 
-    // Cold-launch through the gate: progress is already 100 (lazy init).
-    // Just a brief spinner state then run the gate. Under the
-    // hard-paywall model this screen is hit on every launch of a
-    // signed-in user; a 4-second progress bar every time would be
-    // needlessly annoying.
+    // Cold-launch / returning-user through the gate: progress is already 100
+    // (lazy init) and gate mode renders no progress bar at all. Just a brief
+    // beat then run the gate. Under the hard-paywall model this screen is hit
+    // on every launch of a signed-in user; a 4-second progress bar every time
+    // would be needlessly annoying — that's exactly what SPEC-16 silences.
     const timer = setTimeout(() => runGate(), 200);
     return () => clearTimeout(timer);
+    // Mount-only theater/gate scheduler: mode/scaleAnim/onboardingStore/runGate
+    // are read once at mount by design (the gate must be scheduled exactly once
+    // — SPEC-FIX-01). Intentionally not re-run on their changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
+
+  // SPEC-16 R3/R2: detect Reduce Motion once at mount and subscribe to changes.
+  // Drives whether animated beats play or collapse to still/opacity steps.
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => { if (mounted) setReduceMotion(enabled); })
+      .catch(() => { /* default false — animate normally */ });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { mounted = false; sub.remove(); };
+  }, []);
+
+  // SPEC-16 R4: plan_theater_shown fires ONCE when onboarding mode mounts. It's
+  // the regression tripwire for "the theater must run exactly once per user" —
+  // a returning-launch regression (theater showing on every open) surfaces as
+  // repeat events per user in PostHog.
+  useEffect(() => {
+    if (mode === 'onboarding') {
+      safeCapture('plan_theater_shown');
+    }
+    // `mode` is set once at mount (useState initializer) and never changes, so
+    // this is deliberately a mount-only, fire-once effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // SPEC-16 R2: gate-mode reveal timer. Show the glyph alone for
+  // GATE_REVEAL_DELAY_MS; if the gate still hasn't navigated away by then, fade
+  // in the spinner + copy and fire gate_wait_exceeded once (R4: measures how
+  // often users see any loading UI at all). Onboarding mode never runs this.
+  useEffect(() => {
+    if (mode !== 'gate') return;
+    const revealTimer = setTimeout(() => {
+      setGateRevealed(true);
+      safeCapture('gate_wait_exceeded', { delay_ms: GATE_REVEAL_DELAY_MS });
+    }, GATE_REVEAL_DELAY_MS);
+    return () => clearTimeout(revealTimer);
+  }, [mode]);
+
+  // SPEC-16 R2: fade the gate waiting-UI in once it should show (reveal delay
+  // elapsed, or we've dropped to the retry state). Reduce Motion snaps to 1.
+  useEffect(() => {
+    if (mode !== 'gate') return;
+    if (gateRevealed || gateStatus === 'retry') {
+      if (reduceMotion) {
+        gateWaitOpacity.setValue(1);
+      } else {
+        Animated.timing(gateWaitOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+    // gateWaitOpacity is a stable Animated.Value ref — intentionally omitted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, gateRevealed, gateStatus, reduceMotion]);
 
   // R5: re-run the gate when app_config resolves to 'ok' — but ONLY if we
   // actually deferred (wasDeferredRef, set by runGate's 'loading' return).
@@ -714,8 +846,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  // Theater stage messages (onboarding mode only). Reuses the four beloved
+  // lines; the retry line lives in gate mode now, not here.
   const getMessage = () => {
-    if (gateStatus === 'retry') return "Checking your subscription — please make sure you're online...";
     if (progress < 25) return 'Analyzing your family profile...';
     if (progress < 50) return 'Tailoring lessons for your needs...';
     if (progress < 75) return 'Balancing science with real-life...';
@@ -723,6 +856,79 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     return 'Almost ready!';
   };
 
+  // Shared escape hatch (SPEC-01 R3b) — same behavior + copy in both modes;
+  // only the surrounding layout differs. Rendered only once the gate has failed
+  // to reach Superwall enough times (showEscapeHatch, derived from live state).
+  const escapeHatch = showEscapeHatch ? (
+    <View style={styles.escapeContainer}>
+      <Caption center style={styles.escapeIntro}>
+        Still having trouble? You can:
+      </Caption>
+      <Button
+        title="Restore Purchases"
+        variant="secondary"
+        onPress={handleEscapeRestore}
+        loading={isRestoringHatch}
+        style={styles.escapeButton}
+      />
+      <Button
+        title="Sign out"
+        variant="outline"
+        onPress={handleEscapeSignOut}
+        disabled={isRestoringHatch}
+        style={styles.escapeButton}
+      />
+      <Button
+        title="Contact support"
+        variant="outline"
+        onPress={handleEscapeContactSupport}
+        disabled={isRestoringHatch}
+        style={styles.escapeButton}
+      />
+      {escapeError && (
+        <Caption center color={Colors.error} style={styles.escapeError}>
+          {escapeError}
+        </Caption>
+      )}
+    </View>
+  ) : null;
+
+  // SPEC-16 R2: GATE mode — a quiet continuation of the splash. Same cream
+  // field + centered glyph as SplashScreen, NO title, NO progress bar, NO
+  // "Analyzing…" copy. The glyph shows alone until GATE_REVEAL_DELAY_MS
+  // (gateRevealed); only if still waiting do a subtle spinner + copy fade in.
+  // The retry state and escape hatch keep their exact behavior, restyled quiet.
+  if (mode === 'gate') {
+    const showWaitingUI = gateRevealed || gateStatus === 'retry';
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.gateLogoContainer}>
+            <Image
+              source={require('../../../assets/splash.png')}
+              style={styles.gateGlyph}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* No-UI grace: nothing but the glyph until the reveal delay. A
+              subscriber's gate resolves within it, so a normal launch reads as
+              "splash → app". */}
+          {showWaitingUI && (
+            <Animated.View style={[styles.gateWaiting, { opacity: gateWaitOpacity }]}>
+              <ActivityIndicator color={Colors.primary} />
+              <Text style={styles.gateStatus}>Checking your subscription…</Text>
+            </Animated.View>
+          )}
+
+          {escapeHatch}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // SPEC-16 R3: ONBOARDING mode — the redesigned plan-creation theater. The
+  // only place the "creating your lesson plan" animation ever appears.
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -730,9 +936,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           <Animated.View
             style={[
               styles.logoWrapper,
-              {
-                transform: [{ scale: scaleAnim }],
-              },
+              reduceMotion ? null : { transform: [{ scale: scaleAnim }] },
             ]}
           >
             <Image
@@ -744,11 +948,11 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <Text style={styles.title}>
-          Designing your parenting journey
+          Creating your lesson plan
         </Text>
 
         <Text style={styles.description}>
-          Creating a personalized program tailored to your family
+          Building a personalized program tailored to your family
         </Text>
 
         <View style={styles.progressContainer}>
@@ -757,46 +961,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
 
         <Text style={styles.status}>{getMessage()}</Text>
 
-        {/* R3b: escape hatch. Only after the gate has failed to reach
-            Superwall enough times (>= ESCAPE_HATCH_AFTER_ATTEMPTS) do we
-            offer a way out. Rendered visually subordinate to the spinner
-            above — the retry loop keeps running underneath; these are the
-            fallback, not the main event. */}
-        {showEscapeHatch && (
-          <View style={styles.escapeContainer}>
-            <Caption center style={styles.escapeIntro}>
-              Still having trouble? You can:
-            </Caption>
-
-            <Button
-              title="Restore Purchases"
-              variant="secondary"
-              onPress={handleEscapeRestore}
-              loading={isRestoringHatch}
-              style={styles.escapeButton}
-            />
-            <Button
-              title="Sign out"
-              variant="outline"
-              onPress={handleEscapeSignOut}
-              disabled={isRestoringHatch}
-              style={styles.escapeButton}
-            />
-            <Button
-              title="Contact support"
-              variant="outline"
-              onPress={handleEscapeContactSupport}
-              disabled={isRestoringHatch}
-              style={styles.escapeButton}
-            />
-
-            {escapeError && (
-              <Caption center color={Colors.error} style={styles.escapeError}>
-                {escapeError}
-              </Caption>
-            )}
-          </View>
-        )}
+        {escapeHatch}
       </View>
     </SafeAreaView>
   );
@@ -834,6 +999,30 @@ const styles = StyleSheet.create({
   logo: {
     width: 120,
     height: 120,
+  },
+  // SPEC-16 R2: gate-mode glyph — matches SplashScreen's glyph (same asset,
+  // same 220px optical size, no shadow card) so a returning launch reads as a
+  // seamless continuation of the splash.
+  gateLogoContainer: {
+    width: 220,
+    height: 220,
+    borderRadius: 40,
+    overflow: 'hidden',
+  },
+  gateGlyph: {
+    width: '100%',
+    height: '100%',
+  },
+  gateWaiting: {
+    marginTop: Spacing['3xl'],
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  gateStatus: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    fontWeight: Typography.weights.medium,
   },
   title: {
     fontSize: Typography.sizes['3xl'],
