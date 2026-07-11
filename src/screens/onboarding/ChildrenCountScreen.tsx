@@ -2,11 +2,11 @@ import React from 'react';
 import { LayoutAnimation, Platform, UIManager, TouchableOpacity, StyleSheet, View, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingContainer } from '../../components/OnboardingContainer';
+import { QuestionScreen } from '../../components/onboarding';
 import { Button } from '../../components/Button';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildAgeRange, ChildGender } from '../../types/onboarding';
-import { Colors } from '../../constants/theme';
+import { Colors, Spacing, BorderRadius, Typography } from '../../constants/theme';
 import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 if (Platform.OS === 'android') {
@@ -16,6 +16,11 @@ if (Platform.OS === 'android') {
 }
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ChildrenCount'>;
+
+// SPEC-17: compound-input screen (counter + multi-age grid). Adopts the shell +
+// footer grammar but KEEPS an explicit, gated Continue — this is not a plain
+// single/multi question, so auto-advance/reveal don't apply. All internal
+// interaction logic, values, analytics step, and screenName are unchanged.
 
 const AGE_RANGES: { label: string; value: ChildAgeRange }[] = [
   { label: '0–1', value: '0-1' },
@@ -38,22 +43,21 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
     updateChildrenCount,
     children,
     updateChildAgeRange,
-    updateChildGender
+    updateChildGender,
   } = useOnboardingStore();
 
-  // Lazy initializer so we hydrate from the store on the first render
-  // instead of doing it in an effect (which caused a cascading render —
-  // caught by react-hooks/set-state-in-effect).
+  // Lazy initializer so we hydrate from the store on the first render instead of
+  // an effect (which caused a cascading render — react-hooks/set-state-in-effect).
   const [selectedAges, setSelectedAges] = React.useState<Set<ChildAgeRange>>(() => {
     const initial = new Set<ChildAgeRange>();
     if (childrenCount) {
-      children.forEach(child => {
+      children.forEach((child) => {
         if (child.ageRange) initial.add(child.ageRange);
       });
     }
     return initial;
   });
-  const [showPersonalization, setShowPersonalization] = React.useState(false);
+  const [showPersonalization] = React.useState(false);
 
   const animate = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -75,32 +79,22 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
   const toggleAge = (age: ChildAgeRange) => {
     const newAges = new Set(selectedAges);
     const currentCount = childrenCount || 0;
-
     if (newAges.has(age)) {
       newAges.delete(age);
-    } else {
-      // Only allow selection if we haven't reached the limit
-      if (newAges.size < currentCount) {
-        newAges.add(age);
-      }
+    } else if (newAges.size < currentCount) {
+      // Only allow selection up to the child count.
+      newAges.add(age);
     }
     setSelectedAges(newAges);
-  };
-
-  const togglePersonalization = () => {
-    animate();
-    setShowPersonalization(!showPersonalization);
   };
 
   const handleContinue = () => {
     const count = childrenCount || 1;
     const ages = Array.from(selectedAges);
-
     for (let i = 0; i < count; i++) {
-      // Assign ages cyclically if count > ages selected
       if (ages.length > 0) {
-        const ageToAssign = ages[i % ages.length];
-        updateChildAgeRange(i, ageToAssign);
+        // Assign ages cyclically if count > ages selected.
+        updateChildAgeRange(i, ages[i % ages.length]);
       }
     }
     trackOnboardingStepCompleted('ChildrenCount', { count, age_ranges: ages });
@@ -112,245 +106,176 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
   const canContinue = hasChildren && hasAges;
 
   return (
-    <OnboardingContainer
+    <QuestionScreen
       screenName="ChildrenCount"
       title="Let's personalize this for your child(ren)"
-      currentStep={3}
       onBack={() => navigation.goBack()}
-      centerTitle={true}
+      footer={<Button title="Continue" onPress={handleContinue} disabled={!canContinue} />}
     >
-      <View style={styles.container}>
-        <View style={styles.scrollContainer}>
-          {/* Count Section - Always Visible */}
-          <View style={styles.section}>
-            <Text style={styles.label}>How many children do you have?</Text>
-            <View style={styles.selectorContainer}>
-              <View style={styles.selector}>
-                <TouchableOpacity
-                  style={[styles.button, styles.buttonMinus]}
-                  onPress={decrementCount}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.buttonTextMinus}>-</Text>
-                </TouchableOpacity>
-                <View style={styles.display}>
-                  <Text style={styles.displayText}>{childrenCount || 0}</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.button, styles.buttonPlus]}
-                  onPress={incrementCount}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.buttonTextPlus}>+</Text>
-                </TouchableOpacity>
-              </View>
+      {/* Count section — always visible */}
+      <View style={styles.section}>
+        <Text style={styles.label}>How many children do you have?</Text>
+        <View style={styles.selectorContainer}>
+          <View style={styles.selector}>
+            <TouchableOpacity style={[styles.button, styles.buttonMinus]} onPress={decrementCount} activeOpacity={0.7}>
+              <Text style={styles.buttonTextMinus}>-</Text>
+            </TouchableOpacity>
+            <View style={styles.display}>
+              <Text style={styles.displayText}>{childrenCount || 0}</Text>
             </View>
+            <TouchableOpacity style={[styles.button, styles.buttonPlus]} onPress={incrementCount} activeOpacity={0.7}>
+              <Text style={styles.buttonTextPlus}>+</Text>
+            </TouchableOpacity>
           </View>
+        </View>
+      </View>
 
-          {/* Age Section - Revealed if children > 0 */}
-          {hasChildren && (
-            <View style={styles.section}>
-              <Text style={styles.label}>How old are they? (Select all that apply)</Text>
-              <View style={styles.ageGrid}>
-                {AGE_RANGES.map((range) => (
-                  <TouchableOpacity
-                    key={range.value}
-                    style={[
-                      styles.ageOption,
-                      selectedAges.has(range.value) && styles.ageOptionSelected
-                    ]}
-                    onPress={() => toggleAge(range.value)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.ageOptionText,
-                      selectedAges.has(range.value) && styles.ageOptionTextSelected
-                    ]}>
-                      {range.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Personalization Trigger */}
-              {/* <View style={styles.divider} />
+      {/* Age section — revealed once children > 0 */}
+      {hasChildren && (
+        <View style={styles.section}>
+          <Text style={styles.label}>How old are they? (Select all that apply)</Text>
+          <View style={styles.ageGrid}>
+            {AGE_RANGES.map((range) => (
               <TouchableOpacity
-                style={styles.expandButton}
-                onPress={togglePersonalization}
+                key={range.value}
+                style={[styles.ageOption, selectedAges.has(range.value) && styles.ageOptionSelected]}
+                onPress={() => toggleAge(range.value)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.expandText}>Additional info (Optional)</Text>
-                <Text style={styles.expandIcon}>{showPersonalization ? '▲' : '▼'}</Text>
-              </TouchableOpacity> */}
+                <Text style={[styles.ageOptionText, selectedAges.has(range.value) && styles.ageOptionTextSelected]}>
+                  {range.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-              {/* Gender Section - Optional Expand */}
-              {showPersonalization && (
-                <View style={styles.personalizationSection}>
-                  <Text style={styles.subLabel}>Gender selection</Text>
-                  {Array.from({ length: childrenCount || 1 }).map((_, index) => (
-                    <View key={index} style={styles.childRow}>
-                      <Text style={styles.childLabel}>Child {index + 1}</Text>
-                      <View style={styles.genderRow}>
-                        {GENDER_OPTIONS.map((option) => (
-                          <TouchableOpacity
-                            key={option.value}
-                            style={[
-                              styles.genderButton,
-                              children[index]?.gender === option.value && styles.genderButtonSelected,
-                              option.value === 'prefer-not-to-say' && styles.genderButtonWide
-                            ]}
-                            onPress={() => updateChildGender(index, option.value)}
-                          >
-                            <Text style={[
-                              styles.genderText,
-                              children[index]?.gender === option.value && styles.genderTextSelected
-                            ]}>
-                              {option.label === 'Prefer not to say' ? 'N/A' : option.label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
+          {/* Optional gender expand — kept behind the flag it shipped behind
+              (currently off; the trigger is commented out upstream). */}
+          {showPersonalization && (
+            <View style={styles.personalizationSection}>
+              <Text style={styles.subLabel}>Gender selection</Text>
+              {Array.from({ length: childrenCount || 1 }).map((_, index) => (
+                <View key={index} style={styles.childRow}>
+                  <Text style={styles.childLabel}>Child {index + 1}</Text>
+                  <View style={styles.genderRow}>
+                    {GENDER_OPTIONS.map((option) => (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.genderButton,
+                          children[index]?.gender === option.value && styles.genderButtonSelected,
+                          option.value === 'prefer-not-to-say' && styles.genderButtonWide,
+                        ]}
+                        onPress={() => updateChildGender(index, option.value)}
+                      >
+                        <Text
+                          style={[
+                            styles.genderText,
+                            children[index]?.gender === option.value && styles.genderTextSelected,
+                          ]}
+                        >
+                          {option.label === 'Prefer not to say' ? 'N/A' : option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
-              )}
+              ))}
             </View>
           )}
         </View>
-
-        <Button
-          title="Continue"
-          onPress={handleContinue}
-          disabled={!canContinue}
-        />
-      </View>
-    </OnboardingContainer>
+      )}
+    </QuestionScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingVertical: 24,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
   section: {
-    marginBottom: 24,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.backgroundGray,
-    marginVertical: 16,
+    marginBottom: Spacing['2xl'],
   },
   ageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: Spacing.md,
     justifyContent: 'center',
   },
   ageOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 100,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing['2xl'],
+    borderRadius: BorderRadius.full,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   ageOptionSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryBg,
   },
   ageOptionText: {
-    fontSize: 16,
+    fontSize: Typography.sizes.base,
     color: Colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
   },
   ageOptionTextSelected: {
     color: Colors.primary,
-    fontWeight: '600',
-  },
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  expandText: {
-    fontSize: 14,
-    color: Colors.textTertiary,
-    fontWeight: '500',
-    marginRight: 6,
-  },
-  expandIcon: {
-    fontSize: 12,
-    color: Colors.textTertiary,
+    fontWeight: Typography.weights.semibold,
   },
   personalizationSection: {
-    marginTop: 16,
+    marginTop: Spacing.lg,
     backgroundColor: Colors.backgroundGray,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
   },
   subLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semibold,
     color: Colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   childRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   childLabel: {
-    fontSize: 14,
+    fontSize: Typography.sizes.md,
     color: Colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
   },
   genderRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: Spacing.sm,
   },
   genderButton: {
     paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.sm,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   genderButtonWide: {
-    paddingHorizontal: 8,
+    paddingHorizontal: Spacing.sm,
   },
   genderButtonSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryBg,
   },
   genderText: {
-    fontSize: 13,
+    fontSize: Typography.sizes.sm,
     color: Colors.textSecondary,
   },
   genderTextSelected: {
     color: Colors.primary,
-    fontWeight: '600',
-  },
-  microcopy: {
-    textAlign: 'center',
-    color: Colors.textMuted,
-    fontSize: 13,
-    marginTop: 'auto',
-    marginBottom: 8,
+    fontWeight: Typography.weights.semibold,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
     color: Colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
     textAlign: 'center',
   },
   selectorContainer: {
@@ -361,15 +286,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.surface,
-    borderRadius: 100,
-    padding: 8,
+    borderRadius: BorderRadius.full,
+    padding: Spacing.sm,
     width: '100%',
     maxWidth: 300,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    ...({
+      shadowColor: Colors.glassDark,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    }),
     alignSelf: 'center',
   },
   button: {
@@ -386,22 +313,17 @@ const styles = StyleSheet.create({
   },
   buttonPlus: {
     backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   buttonTextMinus: {
-    fontSize: 24,
+    fontSize: Typography.sizes['2xl'],
     color: Colors.textMuted,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     lineHeight: 28,
   },
   buttonTextPlus: {
-    fontSize: 24,
+    fontSize: Typography.sizes['2xl'],
     color: Colors.surface,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     lineHeight: 28,
   },
   display: {
@@ -410,8 +332,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   displayText: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: Typography.sizes['3xl'],
+    fontWeight: Typography.weights.bold,
     color: Colors.textPrimary,
   },
 });
