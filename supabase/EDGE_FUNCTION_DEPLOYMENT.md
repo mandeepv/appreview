@@ -21,10 +21,36 @@
 > in depth), but that second layer needs the `JWT_SECRET` secret to be set —
 > see "One-time secret setup" below. Do not rely on either layer alone.
 
-## One-time secret setup — `JWT_SECRET`
+## JWT verification — two signing systems (SPEC-FIX-06, 2026-07-11)
 
-The in-function JWT verification (HS256) needs the project's JWT secret.
-Set it **once per project** (it persists across deploys):
+`delete-account` verifies the caller's token in-code (defense in depth,
+on top of the gateway's `verify_jwt`). It supports **both** Supabase
+signing systems, chosen per-token by the token's `alg` header:
+
+- **Asymmetric (ES256/RS256) — the new "JWT Signing Keys" system.** Verified
+  against the project's **published public keys** at
+  `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`. **No secret needed.** This
+  is what our projects issue after migrating to signing keys — dev's JWKS
+  advertises a single ES256 key (confirmed 2026-07-11).
+- **HS256 (legacy) — the old symmetric secret.** Verified against the
+  `JWT_SECRET` env var (see below). Retained so the function still works on
+  any project still on the legacy secret.
+
+> **History:** before SPEC-FIX-06 the function verified HS256 ONLY. When dev
+> silently migrated to asymmetric signing keys, every real Delete Account
+> returned 401 (`"alg" Header Parameter value not allowed`). Caught on dev
+> during v1.2.0 release testing. The dual-path code now handles both.
+
+### `JWT_SECRET` — only needed for the LEGACY (HS256) path
+
+If a project is on the new asymmetric signing keys (verify via JWKS), the
+`JWT_SECRET` secret is **not required** — the function verifies against the
+public JWKS with no local secret. You still MUST set it on any project that
+is still on the legacy HS256 secret. When in doubt, set it (harmless if
+unused) OR check the project's JWKS: an ES256/RS256 key there means
+asymmetric.
+
+Set it **once per project** (persists across deploys):
 
 ```bash
 supabase secrets set JWT_SECRET=<the project JWT secret>
@@ -33,20 +59,19 @@ supabase secrets set JWT_SECRET=<the project JWT secret>
 > ⚠️ **The name must be `JWT_SECRET`, NOT `SUPABASE_JWT_SECRET`.** The
 > `SUPABASE_` prefix is **reserved** by the Supabase CLI —
 > `supabase secrets set SUPABASE_JWT_SECRET=...` is rejected, so a secret by
-> that name can never be set, and `delete-account` would then take its
-> fail-closed 500 path on every call. `index.ts` reads `Deno.env.get('JWT_SECRET')`
+> that name can never be set. `index.ts` reads `Deno.env.get('JWT_SECRET')`
 > to match. Do not rename it back. (SPEC-FIX-01 R2.)
 
-Get the value from the Supabase dashboard: **Settings → API → JWT secret**
-(use the secret for the project you're targeting — dev secret for the dev
-project, prod secret for prod).
+Get the value from the Supabase dashboard: **Settings → JWT Keys → Legacy
+JWT Secret** (use the secret for the project you're targeting).
 
 - **Dev:** you (the implementer/intern) may set the dev project's secret
   yourself while developing against the dev project.
 - **Prod:** ⚠️ **owner-only.** Setting the prod secret is part of the
-  owner's prod deploy, not routine dev work. If the secret is missing on a
-  project, `delete-account` fails closed (returns 500, never deletes) — so a
-  forgotten secret is a safe failure, not a silent bypass.
+  owner's prod deploy, not routine dev work.
+- **Fail-closed:** if a token is HS256 but `JWT_SECRET` is unset, the
+  function returns 500 (never deletes) — a safe failure, not a bypass.
+  Asymmetric tokens are unaffected (they verify via JWKS).
 
 ---
 

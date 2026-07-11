@@ -19,9 +19,11 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Supabase | last manual backup run | unverified | unverified | Supabase dashboard → Database → Backups |
 | Supabase | last restore drill | **never** | unverified | — |
 | Supabase | prod migrations applied through | unverified (**pending**: `completed_sections` [SPEC-13] + `rls_update_with_check` [SPEC-FIX-04 R4] — one prod push covers both) | unverified | `supabase migration list --linked` |
-| Supabase | delete-account deployed version | pre-hardening (**SPEC-03 version NOT deployed**) | unverified | Supabase → Edge Functions |
+| Supabase | delete-account deployed version | **DEV: SPEC-FIX-06** (ES256/JWKS + HS256 dual-path) deployed + verified on device 2026-07-11. **PROD: still pre-hardening** (owner deploys at Phase 5) | 2026-07-11 (dev) | Supabase → Edge Functions |
+| Supabase | dev auth signing system | **asymmetric ES256** (new JWT Signing Keys) — JWKS advertises one ES256 key | 2026-07-11 | `/auth/v1/.well-known/jwks.json` |
+| Supabase | prod auth signing system | unverified (check before prod delete-account deploy — determines if JWT_SECRET is needed) | unverified | prod `/auth/v1/.well-known/jwks.json` |
 | Supabase | gateway `verify_jwt` | on (per `config.toml`); live-state unverified | unverified | `supabase/config.toml` + dashboard |
-| Supabase | `JWT_SECRET` set | dev: no / prod: no | unverified | `supabase secrets list` |
+| Supabase | `JWT_SECRET` set | **dev: yes** (set 2026-07-11; now optional there — dev is ES256/JWKS) / prod: no | 2026-07-11 | `supabase secrets list` |
 
 ## Superwall
 
