@@ -58,7 +58,10 @@ async function syncSectionsToRemote(storageKey: string, sections: string[]): Pro
     const { upsertSections } = require('../services/lessonProgressService') as typeof import('../services/lessonProgressService');
 
     const lesson = getLessonByStorageKey(storageKey);
-    if (!lesson) return; // not a synced lesson (e.g. flow lessons) — local only
+    // No registry lesson for this key → nothing to sync (local only). Note: flow
+    // lessons 1–4 DO sync now (SPEC-18 R1 gave them keys), so they are NOT an
+    // example of this branch anymore (SPEC-FIX-11 R6).
+    if (!lesson) return;
 
     const outcome = await upsertSections(lesson.slug, sections, lesson.sections.length);
     // SPEC-FIX-03 R2: 'skipped' (no session) is a deliberate no-op — it neither
@@ -176,7 +179,7 @@ export async function mergeRemoteIntoLocal(): Promise<void> {
     if (remote === null) return;
 
     for (const lesson of Object.values(LESSON_REGISTRY)) {
-      if (!lesson.storageKey) continue; // flow lessons don't sync
+      if (!lesson.storageKey) continue; // no key → nothing to sync (flow lessons 1–4 DO have keys now — SPEC-FIX-11 R6)
       const key = lesson.storageKey;
 
       const localStored = await AsyncStorage.getItem(key);
