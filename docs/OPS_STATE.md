@@ -20,9 +20,9 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Supabase | last restore drill | **never** | unverified | — |
 | Supabase | prod migrations applied through | **`20260710010000`** — `completed_sections` [SPEC-13] + `rls_update_with_check` [SPEC-FIX-04 R4] applied to prod 2026-07-11; `completed_sections` column verified present via prod REST (HTTP 200) | 2026-07-11 | `supabase migration list --linked` |
 | Supabase | prod backup mechanism | pg_dump 17 direct (no Docker) via `scripts/backup-prod.sh`; needs `PROD_DB_URL` in gitignored `.env.prod` | 2026-07-11 | `scripts/backup-prod.sh` |
-| Supabase | delete-account deployed version | **DEV: SPEC-FIX-06** (ES256/JWKS + HS256 dual-path) deployed + verified on device 2026-07-11. **PROD: still pre-hardening** (owner deploys at Phase 5) | 2026-07-11 (dev) | Supabase → Edge Functions |
+| Supabase | delete-account deployed version | **SPEC-FIX-06** (ES256/JWKS + HS256 dual-path) deployed to **BOTH dev + prod 2026-07-11**. Dev verified on-device (200, account deleted); prod verified reachable (401 on no-auth/tampered) | 2026-07-11 | Supabase → Edge Functions |
 | Supabase | dev auth signing system | **asymmetric ES256** (new JWT Signing Keys) — JWKS advertises one ES256 key | 2026-07-11 | `/auth/v1/.well-known/jwks.json` |
-| Supabase | prod auth signing system | unverified (check before prod delete-account deploy — determines if JWT_SECRET is needed) | unverified | prod `/auth/v1/.well-known/jwks.json` |
+| Supabase | prod auth signing system | **asymmetric ES256** (same as dev) — so prod delete-account needs NO JWT_SECRET (verifies via JWKS) | 2026-07-11 | prod `/auth/v1/.well-known/jwks.json` |
 | Supabase | gateway `verify_jwt` | on (per `config.toml`); live-state unverified | unverified | `supabase/config.toml` + dashboard |
 | Supabase | `JWT_SECRET` set | **dev: yes** (set 2026-07-11; now optional there — dev is ES256/JWKS) / prod: no | 2026-07-11 | `supabase secrets list` |
 
