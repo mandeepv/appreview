@@ -99,7 +99,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | GitHub | branch protection / required checks | **SKIPPED** — paid feature on private repos (owner decision; compensating controls: PR-triggered CI + never-merge-on-red) | 2026-07-10 | GitHub → Settings → Branches |
 | GitHub | public `appreview` copy | pending deletion | unverified | GitHub → appreview repo |
 | GitHub | build-number policy | **finalized at release time** (SPEC-FIX-11 R1/R7): `rc/x.y.z` tags mark CODE checkpoints; the final bare-integer build is assigned when cutting `release/x.y.z` via `bump-version.sh`, globally monotonic in upload order (INVARIANT #12). Train so far: 1.2.0=11, 1.3.0=15, develop HEAD re-bumped to 16; 1.4.0/1.5.0/1.6.0 finals TBD at release. See `VERSION_MANAGEMENT.md` → "Branching & release train" | 2026-07-12 | `git ls-remote --tags origin` |
-| GitHub | `rc/*` release checkpoints | **pending push** (SPEC-FIX-11 R1): `rc/1.3.0` (on `release/1.3.0`), `rc/1.4.0`, `rc/1.5.0`, `rc/1.6.0` created + pushed to origin (and appreview). Tick with date when pushed | unverified | `git ls-remote --tags origin` |
+| GitHub | `rc/*` release checkpoints | **DONE 2026-07-12** (SPEC-FIX-11 R1): `rc/1.3.0` (on `release/1.3.0`, build 15 + R4 cherry-pick), `rc/1.4.0`, `rc/1.5.0`, `rc/1.6.0` pushed to **origin AND appreview**; `develop` HEAD re-bumped to 1.6.0/build 16 | 2026-07-12 | `git ls-remote --tags origin` |
 
 ## Apple
 
