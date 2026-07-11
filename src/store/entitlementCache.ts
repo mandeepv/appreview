@@ -65,10 +65,12 @@ export function resolveCachedEntitlement(
     return { honor: record.subscribed, clearStale: false };
   }
 
-  // Not honored. Clear disk if there's anything stale to clear: a parsed record
-  // that doesn't match the session (wrong/absent owner), OR any raw value when
-  // there's no session at all (covers legacy bare values and mismatches).
+  // Not honored. Clear disk if there's anything stale to clear. SPEC-FIX-10 F7:
+  // the earlier `record != null || (somethingOnDisk && sessionUserId === undefined)
+  // || somethingOnDisk` degenerated to just `somethingOnDisk` (the third term
+  // subsumes the first two — a parsed record and a legacy value both imply
+  // something is on disk). Simplified to the equivalent readable form; the honor
+  // logic above is unchanged.
   const somethingOnDisk = raw != null && raw !== '';
-  const clearStale = record != null || (somethingOnDisk && sessionUserId === undefined) || somethingOnDisk;
-  return { honor: false, clearStale };
+  return { honor: false, clearStale: somethingOnDisk };
 }

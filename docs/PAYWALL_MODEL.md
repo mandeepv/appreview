@@ -58,11 +58,19 @@ before, don't show it again" state.
    cause paying-user tickets. See `authStore.ts` `setIsSubscribed` and
    `initialize`.
 
-3. **isSubscribed is cleared on sign-out AND on Supabase auth-change
-   session-null.** Two paths to signed-out: Zustand `signOut()` and
-   Supabase `onAuthStateChange(SIGNED_OUT)`. Both must clear the
-   persisted flag. Missing either would let a signed-out user reload
-   the app and skip the paywall (stale flag from prior session).
+3. **isSubscribed is USER-BOUND, not merely "cleared on sign-out"
+   (SPEC-FIX-08).** The persisted flag is `{ userId, subscribed }`
+   (`src/store/entitlementCache.ts`), honored on hydrate ONLY when a
+   session exists for the SAME user id (`session.user.id === record.userId`).
+   ANY launch with no session, or a session for a different user, treats
+   the flag as false — structurally, on every launch, without depending
+   on a sign-out event firing. The old model ("both signOut() and
+   onAuthStateChange session-null must clear the flag") was an event race:
+   if neither fired, a stale `true` leaked to a different-or-absent user
+   (the never-paid-user bug — three verified instances: delete-account,
+   session expiry, account switch). Sign-out paths still clear the flag as
+   belt-and-suspenders, but the user-binding is what makes the safety
+   structural. (Lapsed-user grace window = SPEC-FIX-09, future.)
 
 4. **Superwall's `subscription_gate` placement is Gated with an
    unsubscribed-users audience.** Defense in depth: our code-side
@@ -232,14 +240,22 @@ When Superwall reports:
   once it resolves)
 
 ### `authStore.ts`
-- `isSubscribed` field with `setIsSubscribed` that writes to
-  AsyncStorage.
-- `initialize` hydrates from AsyncStorage on cold launch (critical
-  for skipping the paywall for paying users during Superwall's
-  async warm-up).
-- `signOut` clears the persisted flag.
-- `onAuthStateChange` clears the persisted flag when session goes
-  to null.
+- `isSubscribed` field with `setIsSubscribed`, which persists a
+  USER-BOUND record `{ userId, subscribed }` to AsyncStorage
+  (SPEC-FIX-08). If there's no current user it does NOTHING (doesn't
+  write an unowned value, doesn't clear the existing owned record —
+  the startup-race fix; hydrate is the guard).
+- `initialize` hydrates from AsyncStorage on cold launch but honors the
+  cached flag ONLY when a session exists for the SAME user id
+  (`resolveCachedEntitlement` in `src/store/entitlementCache.ts`).
+  No session / different user / legacy-unowned / malformed → false +
+  clear stale. This is what makes "a stale `true` can never grant a
+  different-or-absent user free access" structural. Critical for
+  skipping the paywall for paying users during Superwall's async
+  warm-up, without leaking a prior user's entitlement.
+- `signOut` and `onAuthStateChange` (session→null) still clear the
+  persisted flag as belt-and-suspenders, but the user-binding above is
+  the actual guarantee — not these events firing.
 
 ### `useLessonGate.ts`
 Now a no-op. Kept as an API-compatible pass-through so the ~16 lesson
