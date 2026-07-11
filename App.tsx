@@ -2,6 +2,22 @@
 import { initSentry } from './src/config/sentry';
 initSentry();
 
+import * as SplashScreenNative from 'expo-splash-screen';
+
+// SPEC-16 R1: take manual control of the NATIVE splash so the native→JS handoff
+// is a controlled instant instead of "auto-hide at the first JS frame." Without
+// this, the OS hides its splash the moment React commits a frame — an
+// uncontrolled cut from the native asset (cream field + teal glyph) to a JS
+// SplashScreen that used to render a totally different full-screen teal
+// gradient. That mismatch was the "green flash." preventAutoHideAsync keeps the
+// native splash up until SplashScreen.tsx has painted its first (now identical)
+// frame and calls hideAsync. Module scope + try/catch: a splash-screen API
+// failure must NEVER crash launch — worst case the native splash auto-hides as
+// before.
+SplashScreenNative.preventAutoHideAsync().catch(() => {
+  /* non-fatal: fall back to the OS default auto-hide behavior */
+});
+
 import React, { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
