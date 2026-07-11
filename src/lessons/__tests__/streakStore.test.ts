@@ -38,7 +38,12 @@ jest.mock('../../lib/analytics', () => ({
   trackStreakLost: (n: number) => mockLost(n),
 }));
 
+// Imports MUST follow the jest.mock() calls above (the module under test pulls
+// the mocked service at require time) — the standard jest-mock ordering, same as
+// progressSync.test.ts. Disable import/first for these two required imports.
+// eslint-disable-next-line import/first
 import { STORAGE_KEYS } from '../../constants/storageKeys';
+// eslint-disable-next-line import/first
 import {
   recordActivityToday,
   getStreak,
