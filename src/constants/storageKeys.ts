@@ -27,6 +27,15 @@ export const STORAGE_KEYS = {
   // skip re-showing intro screens on subsequent launches.
   ONBOARDING_HAS_REACHED_AUTH: '@kinderwell_has_reached_auth',
 
+  // Sticky per-device onboarding A/B experiment assignment (SPEC-15).
+  // Written once when the variant is first resolved and read on every
+  // subsequent onboarding entry, so a server-side split change mid-flow
+  // can never flip a user between variant A and variant B. The PostHog
+  // flag ('onboarding-flow') is consulted ONLY when this key is absent.
+  // Cleared alongside the rest of onboarding state (clearState) so a
+  // fresh re-onboard after account deletion gets a fresh assignment.
+  ONBOARDING_VARIANT: '@kinderwell_onboarding_variant',
+
   // Cached mirror of Superwall's last-reported subscription status.
   // Persisted across cold launches so LoadingScreen can skip the
   // paywall immediately for paying users instead of waiting for

@@ -16,6 +16,9 @@ import { GoalSelectionScreen } from '../screens/onboarding/GoalSelectionScreen';
 import { ExperienceLevelScreen } from '../screens/onboarding/ExperienceLevelScreen';
 import { ParentingStylesScreen } from '../screens/onboarding/ParentingStylesScreen';
 import { EmotionalChallengesScreen } from '../screens/onboarding/EmotionalChallengesScreen';
+import { VariantBQ1Screen } from '../screens/onboarding/variantB/VariantBQ1Screen';
+import { VariantBQ2Screen } from '../screens/onboarding/variantB/VariantBQ2Screen';
+import { VariantBQ3Screen } from '../screens/onboarding/variantB/VariantBQ3Screen';
 import { AuthScreen } from '../screens/onboarding/AuthScreen';
 import { LoadingScreen } from '../screens/onboarding/LoadingScreen';
 import { RootNavigator } from './RootNavigator';
@@ -55,6 +58,11 @@ export const OnboardingNavigator: React.FC = () => {
       <Stack.Screen name="ExperienceLevel" component={ExperienceLevelScreen} />
       <Stack.Screen name="ParentingStyles" component={ParentingStylesScreen} />
       <Stack.Screen name="EmotionalChallenges" component={EmotionalChallengesScreen} />
+      {/* SPEC-15 — variant-B onboarding scaffold. Registered alongside the
+          variant-A screens; only reached when Welcome resolves variant_b. */}
+      <Stack.Screen name="VariantBQ1" component={VariantBQ1Screen} />
+      <Stack.Screen name="VariantBQ2" component={VariantBQ2Screen} />
+      <Stack.Screen name="VariantBQ3" component={VariantBQ3Screen} />
       <Stack.Screen
         name="Auth"
         component={AuthScreen}

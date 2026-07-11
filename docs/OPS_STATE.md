@@ -20,6 +20,8 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Supabase | last restore drill | **never** | unverified | — |
 | Supabase | prod migrations applied through | **`20260710010000`** — `completed_sections` [SPEC-13] + `rls_update_with_check` [SPEC-FIX-04 R4] applied to prod 2026-07-11; `completed_sections` column verified present via prod REST (HTTP 200) | 2026-07-11 | `supabase migration list --linked` |
 | Supabase | prod backup mechanism | pg_dump 17 direct (no Docker) via `scripts/backup-prod.sh`; needs `PROD_DB_URL` in gitignored `.env.prod` | 2026-07-11 | `scripts/backup-prod.sh` |
+| Supabase | dev migration `add_onboarding_variant_columns` [SPEC-15 §4.4] | **pending** — `20260711000000_add_onboarding_variant_columns.sql` (adds `onboarding_variant text`, `variant_b_answers jsonb` to `user_profiles`, nullable, RLS untouched). Apply to dev (`supabase db push`) + regenerate `src/types/supabase.ts`, then tick with a date | unverified | `supabase migration list --linked` (dev) |
+| Supabase | prod migration `add_onboarding_variant_columns` [SPEC-15 §4.5] | **pending** — MUST be applied via `scripts/db-push-prod.sh` BEFORE the v1.3.0 binary goes live, or every variant-B onboarding save writes to missing columns and fails. Never `supabase link` to prod manually | unverified | `supabase migration list --linked` (prod) |
 | Supabase | delete-account deployed version | **SPEC-FIX-06** (ES256/JWKS + HS256 dual-path) deployed to **BOTH dev + prod 2026-07-11**. Dev verified on-device (200, account deleted); prod verified reachable (401 on no-auth/tampered) | 2026-07-11 | Supabase → Edge Functions |
 | Supabase | dev auth signing system | **asymmetric ES256** (new JWT Signing Keys) — JWKS advertises one ES256 key | 2026-07-11 | `/auth/v1/.well-known/jwks.json` |
 | Supabase | prod auth signing system | **asymmetric ES256** (same as dev) — so prod delete-account needs NO JWT_SECRET (verifies via JWKS) | 2026-07-11 | prod `/auth/v1/.well-known/jwks.json` |
@@ -51,6 +53,9 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | PostHog | internal-user filter | not done | unverified | PostHog → Settings → Project |
 | PostHog | dashboards | none yet (Appendix C, after v1.2.0) | unverified | PostHog → Dashboards |
 | PostHog | person-deletion on account delete | not built (7.2 parked) | unverified | — |
+| PostHog | `onboarding-flow` feature flag [SPEC-15 §4.1] | **pending** — multivariate `control`/`variant_b`, 100% release condition, **variant_b at 0%** (all control). MUST exist before v1.3.0 ships or every user silently gets control. Mirror in dev for testing | unverified | PostHog → Feature Flags → `onboarding-flow` |
+| PostHog | `onboarding-flow` ramp to 50/50 [SPEC-15 §4.2] | **pending** — flip only after placeholder copy is replaced AND v1.3.0 is dominant. variant_b→0% is the kill switch (no build). Annotate at ramp start/stop | unverified | PostHog → Feature Flags |
+| PostHog | onboarding A/B experiment dashboard [SPEC-15 §4.3] | **pending** — funnel `welcome_cta_tapped`→`onboarding_step_completed`→`auth_succeeded`→`paywall_presented`→`subscription_purchased` broken down by `onboarding_variant`, env=production; + `onboarding_variant_assigned` by `source` trend | unverified | PostHog → Dashboards |
 
 ## App Store Connect
 

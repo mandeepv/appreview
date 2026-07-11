@@ -93,6 +93,13 @@ export interface OnboardingData {
 
   // Screen 20
   selectedPlan: 'free-trial' | 'monthly' | null;
+
+  // SPEC-15 (variant B): answers collected by the variant-B onboarding
+  // scaffold, keyed by screen (e.g. 'VariantBQ1'). Single-select screens store
+  // a string (option key), multi-select screens store a string[]. Additive and
+  // variant-B-only — control users never populate this. Option KEYS only, never
+  // free text (PII rule). Included in the persisted ONBOARDING_STATE JSON.
+  variantBAnswers: Record<string, string | string[]>;
 }
 
 export interface OnboardingStore extends OnboardingData {
@@ -111,6 +118,8 @@ export interface OnboardingStore extends OnboardingData {
   toggleEmotionalChallenge: (challenge: EmotionalChallenge) => void;
   setAuthMethod: (method: 'google' | 'apple' | 'demo') => void;
   setSelectedPlan: (plan: 'free-trial' | 'monthly') => void;
+  // SPEC-15: record a variant-B screen's answer under its screen key.
+  setVariantBAnswer: (screen: string, answer: string | string[]) => void;
   reset: () => void;
   // Persistence methods
   saveState: () => Promise<void>;
