@@ -10,6 +10,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { computeStreak, type StreakResult } from './computeStreak';
+import {
+  trackStreakDayRecorded,
+  trackStreakFreezeUsed,
+  trackStreakLost,
+} from '../lib/analytics';
 
 const KEY = STORAGE_KEYS.ACTIVITY_DAYS;
 
@@ -20,9 +25,13 @@ const MAX_DAYS = 400;
 interface ActivityBlob {
   days: string[];        // 'YYYY-MM-DD', device-local, unsorted-tolerant
   longestEver: number;   // cached all-time longest, survives trimming
+  // Last current-streak length the app OBSERVED, persisted so we can fire
+  // streak_lost exactly once when a run breaks (transition detection, not a
+  // per-read event). Absent on old blobs → treated as 0.
+  lastKnownStreak?: number;
 }
 
-const EMPTY: ActivityBlob = { days: [], longestEver: 0 };
+const EMPTY: ActivityBlob = { days: [], longestEver: 0, lastKnownStreak: 0 };
 
 /** Today's device-LOCAL calendar date as 'YYYY-MM-DD' (not UTC — see spec). */
 export function localToday(now: Date): string {
@@ -41,6 +50,7 @@ async function readBlob(): Promise<ActivityBlob> {
     return {
       days: Array.isArray(parsed?.days) ? parsed.days : [],
       longestEver: typeof parsed?.longestEver === 'number' ? parsed.longestEver : 0,
+      lastKnownStreak: typeof parsed?.lastKnownStreak === 'number' ? parsed.lastKnownStreak : 0,
     };
   } catch (error) {
     if (__DEV__) console.error('[streak] readBlob failed:', error);
@@ -84,11 +94,16 @@ export async function recordActivityToday(now: Date): Promise<{
     const days = trimDays([today, ...blob.days]);
     const after = computeStreak(days, today);
     const longestEver = Math.max(blob.longestEver, after.longest, after.current);
-    await writeBlob({ days, longestEver });
+    await writeBlob({ days, longestEver, lastKnownStreak: after.current });
 
     // Background, non-awaited DB sync. Lazily required so the Supabase client
     // stays out of the local path and the local-only tests (like progressStore).
     void syncActivityToRemote(today);
+
+    // Analytics (counts only). streak_day_recorded on the first section of the
+    // day; streak_freeze_used when this record's walk bridged a gap ending today.
+    trackStreakDayRecorded(after.current);
+    if (after.freezeUsedOn) trackStreakFreezeUsed(after.current);
 
     return {
       streak: { ...after, longest: longestEver },
@@ -105,12 +120,32 @@ export async function recordActivityToday(now: Date): Promise<{
   };
 }
 
-/** Read the current streak without recording (for the chip on screen focus). */
+/**
+ * Read the current streak without recording (for the chip on screen focus).
+ *
+ * Also detects a BROKEN run: if the persisted last-known streak was > 1 and the
+ * current run has collapsed to 0/1, fire streak_lost ONCE and persist the new
+ * (lower) last-known so it can't re-fire. This is the honest "the app observed a
+ * break" moment — it happens on a read, since a break is the passage of time,
+ * not an action. Writing lastKnownStreak here is the fire-once guard.
+ */
 export async function getStreak(now: Date): Promise<StreakResult> {
   const today = localToday(now);
   const blob = await readBlob();
   const s = computeStreak(blob.days, today);
-  return { ...s, longest: Math.max(blob.longestEver, s.longest) };
+  const result = { ...s, longest: Math.max(blob.longestEver, s.longest) };
+
+  const previous = blob.lastKnownStreak ?? 0;
+  if (previous > 1 && s.current <= 1) {
+    trackStreakLost(previous);
+  }
+  // Persist the observed current so the transition fires exactly once and future
+  // reads compare against the up-to-date value.
+  if (s.current !== previous) {
+    await writeBlob({ days: blob.days, longestEver: result.longest, lastKnownStreak: s.current });
+  }
+
+  return result;
 }
 
 // Consecutive background-sync failures. reportError only on a REPEATED failure
@@ -168,9 +203,10 @@ export async function mergeRemoteActivityIntoLocal(): Promise<void> {
     // union is already the freshest 400; longestEver is monotonic so max with it).
     const longest = union.length > 0 ? Math.max(blob.longestEver, 0) : blob.longestEver;
 
-    // Only write if the merge changed local (avoid churn).
+    // Only write if the merge changed local (avoid churn). Preserve
+    // lastKnownStreak — the merge changes history, not the observed transition.
     if (union.length !== blob.days.length || union.some((d, i) => d !== blob.days[i])) {
-      await writeBlob({ days: union, longestEver: longest });
+      await writeBlob({ days: union, longestEver: longest, lastKnownStreak: blob.lastKnownStreak ?? 0 });
     }
 
     // Push any local-only dates up so remote converges too. Background,
