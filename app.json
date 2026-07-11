@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kinderwell",
     "slug": "kinderwell",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
@@ -16,7 +16,7 @@
       "backgroundColor": "#4F8F8B"
     },
     "ios": {
-      "buildNumber": "13"
+      "buildNumber": "14"
     },
     "android": {
       "versionCode": 1,

@@ -64,6 +64,21 @@ export const trackPaywallOptionSelected = (planId: string, source: string) => {
   captureWithProps('paywall_option_selected', { plan_id: planId, source });
 };
 
+// SPEC-19 — daily streak. COUNTS ONLY: never send dates-of-activity lists in
+// props (that would be a behavioral timeline = PII-adjacent). safeCapture so a
+// telemetry hiccup never disturbs the lesson-completion flow these fire from.
+export const trackStreakDayRecorded = (streakLength: number) => {
+  safeCapture('streak_day_recorded', { streak_length: streakLength });
+};
+
+export const trackStreakFreezeUsed = (streakLength: number) => {
+  safeCapture('streak_freeze_used', { streak_length: streakLength });
+};
+
+export const trackStreakLost = (previousLength: number) => {
+  safeCapture('streak_lost', { previous_length: previousLength });
+};
+
 /**
  * Identify the current PostHog session with a stable user ID.
  *

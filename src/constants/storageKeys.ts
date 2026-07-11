@@ -36,6 +36,14 @@ export const STORAGE_KEYS = {
   // fresh re-onboard after account deletion gets a fresh assignment.
   ONBOARDING_VARIANT: '@kinderwell_onboarding_variant',
 
+  // SPEC-19 — daily-streak activity log. JSON of { days: string[] (YYYY-MM-DD,
+  // device-local, most recent ~400), longestEver: number }. The streak is
+  // DERIVED from `days` by the pure computeStreak; `longestEver` is cached so a
+  // trim of old days can't shrink the all-time record. New key → `@kinderwell_`
+  // namespace. Written local-first via createProgressStore.markSectionComplete
+  // (the single section-completion choke point), synced in the background.
+  ACTIVITY_DAYS: '@kinderwell_activity_days',
+
   // Cached mirror of Superwall's last-reported subscription status.
   // Persisted across cold launches so LoadingScreen can skip the
   // paywall immediately for paying users instead of waiting for
