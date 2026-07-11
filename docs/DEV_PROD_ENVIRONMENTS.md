@@ -384,6 +384,15 @@ guarded sequence — typed confirmation, a same-day prod backup
 that **always re-links the CLI back to dev on exit** (including error and
 abort paths, so a Ctrl-C mid-push can't leave you pointed at prod).
 
+**One-time prerequisite (per machine): `PROD_DB_URL` in `.env.prod`.** The
+backup step uses **`pg_dump` directly — no Docker** (changed 2026-07-11; the
+old `supabase db dump` needed Docker Desktop and blocked a Docker-less machine
+mid-push). `db-push-prod.sh` auto-sources the gitignored `.env.prod`, which
+must contain `PROD_DB_URL='postgresql://…@…zqwzdyjfxytvedghujsd…:5432/postgres'`
+(Supabase dashboard → Connect → Session pooler / Direct URI). `pg_dump` must be
+≥ the prod Postgres major version — the script prefers the `postgresql@17` keg;
+override with `PG_DUMP=/path/to/pg_dump` if needed.
+
 The manual four-command list that used to live here was deleted on purpose:
 duplicating the steps as prose is exactly how the release-workflow section
 above drifted from its canonical source. If you need to know or change what

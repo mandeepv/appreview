@@ -408,7 +408,14 @@ with a test harness in place.
 
 **Origin**: Fable review 🟡 quality/testing bucket.
 
-### 9g. Script prod DB pushes 🟡
+### 9g. Script prod DB pushes ✅ DONE (2026-07-11)
+
+**Status: shipped.** `scripts/db-push-prod.sh` exists and was used to apply the
+v1.2.0 migrations to prod on 2026-07-11: typed confirmations, mandatory
+same-day backup first, dry-run + second confirmation, and an unconditional
+re-link-to-dev trap on every exit path (verified it fires on abort/error).
+Original description retained below for context.
+
 
 **Problem**: `supabase db push --linked` hits whichever project the
 CLI was last linked to. The prod procedure is "the same command
@@ -431,7 +438,19 @@ safe.
 
 **Origin**: Fable review 🟡 environment/infra bucket.
 
-### 9h. Pre-migration prod dump 🟡
+### 9h. Pre-migration prod dump ✅ DONE (2026-07-11)
+
+**Status: shipped** — `scripts/backup-prod.sh` writes timestamped
+`backups/prod_<ts>_{schema,data}.sql` and is wired into `db-push-prod.sh`
+(no prod push without a fresh dump). **Correction to the original "Fix"
+below:** it does NOT use `supabase db dump` — that runs pg_dump inside
+Docker (~1GB daemon dependency), which blocked a Docker-less machine mid
+prod-push on 2026-07-11. It now calls **`pg_dump` directly** (postgresql@17
+keg; no Docker), using `PROD_DB_URL` from the gitignored `.env.prod`.
+First real prod backup taken 2026-07-11. Pro-tier automated backups remain
+the better long-term fix (see below). Original description retained for
+context.
+
 
 **Problem**: Prod has no automated backups (Supabase Free tier).
 No down-migrations either. A migration that breaks something has

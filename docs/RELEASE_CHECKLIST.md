@@ -496,11 +496,15 @@ Homies briefing (send this to the 3 testers **before** they install):
 Do these *before* strangers' data arrives. From the Fable re-review 2026-07-05:
 
 - [ ] **Rotate prod DB password** (see `BACKLOG.md` 9i, ~15 min in Supabase dashboard). Coordinate leaked in git history; never rotated since prod was provisioned.
-- [ ] **Manual `supabase db dump` of prod** as insurance:
-  ```bash
-  supabase db dump --project-ref <redacted-prod-ref> --data-only > backups/prod-$(date +%Y%m%d).sql
-  ```
-  Prod has no automated backups (Free tier); this is the cheapest possible safety net if a bad migration or Edge Function change corrupts data. Store outside the repo (do NOT commit).
+- [ ] **Manual prod backup** as insurance — run `scripts/backup-prod.sh`
+  (or just run `scripts/db-push-prod.sh`, which takes a fresh backup
+  automatically before every prod push). Since 2026-07-11 the backup uses
+  **`pg_dump` directly — no Docker** (needs `PROD_DB_URL` in the gitignored
+  `.env.prod`; see `supabase/EDGE_FUNCTION_DEPLOYMENT.md` / the `backup-prod.sh`
+  header). It writes timestamped `backups/prod_<ts>_{schema,data}.sql`.
+  Prod has no automated backups (Free tier); this is the cheapest safety net
+  if a bad migration or Edge Function change corrupts data. `backups/` is
+  gitignored — never commit it.
 - [ ] **PostHog person-deletion** (see `BACKLOG.md` 9j, ~2-3h). Privacy policy was amended (kinderwell-legal `6d85d95`) to describe the current gap honestly ("we plan to add automatic PostHog deletion in a subsequent release"). Amendment is defensible for internal beta; for external beta, either ship the code fix OR keep the amended policy as the permanent answer.
 
 ### 8.4e — External beta exit criteria (must all be true to proceed to Phase 9 App Store submission)
