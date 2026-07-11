@@ -32,6 +32,24 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_activity: {
+        Row: {
+          activity_date: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lesson_progress: {
         Row: {
           completed: boolean | null

@@ -7,6 +7,7 @@ import { setSentryUser, reportError } from '../config/sentry';
 import { SuperwallExpoModule } from 'expo-superwall';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { mergeRemoteIntoLocal } from '../lessons/progressStore';
+import { mergeRemoteActivityIntoLocal } from '../lessons/streakStore';
 import {
   resolveCachedEntitlement,
   type PersistedSubRecord as EntitlementRecord,
@@ -278,6 +279,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             // Fire-and-forget: never blocks auth, never user-facing.
             if (event === 'SIGNED_IN') {
               void mergeRemoteIntoLocal();
+              // SPEC-19 — same reconciliation for the daily streak: union remote
+              // activity dates into local so a re-installed device restores its
+              // streak. Set-union of dates is order-free, idempotent, and
+              // non-destructive (null fetch → skip). Fire-and-forget.
+              void mergeRemoteActivityIntoLocal();
             }
           } else {
             // Session went to null — sign-out, delete-account, or session
