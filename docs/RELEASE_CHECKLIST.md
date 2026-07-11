@@ -251,6 +251,30 @@ v1.1.0 CORS work has shipped; its one-time steps were removed here.)_
 
 ## Phase 7: Build for App Store
 
+### Re-run CI on the exact commit you're about to build (release gate — do this FIRST)
+
+The Phase 2 CI run gates `main` at that moment — but code often changes
+AFTER it (a bug fix found in device testing, the version bump, an
+Edge Function fix). A green CI from earlier is **stale** the instant another
+commit lands on `main`. The production binary must be built from a commit
+that CI validated, so re-run the gate here on the current tip.
+
+- [ ] `git fetch && git log <last-CI-commit>..main --oneline -- src/ supabase/functions/ app.json package.json`
+      — if that lists ANY commit, the shipping code differs from what CI last
+      checked. (Docs-only changes since don't require a re-run.)
+- [ ] Re-run CI on the current `main` and confirm the 4 gating jobs are green:
+  ```bash
+  gh workflow run CI --ref main && sleep 5 && gh run watch
+  ```
+  Gating: **TypeScript**, **ESLint**, **Version drift**, **Jest**. (Dependency
+  audit is advisory — red allowed.) The **Version drift** job is especially
+  load-bearing right after a Phase-3 version bump.
+- [ ] Do NOT `eas build` until this run is green on the commit you're shipping.
+
+_Added 2026-07-11 after a real near-miss: the v1.2.0 delete-account fix +
+version bump landed on `main` after the Phase-2 CI run, so the first green
+result no longer described the shipping code._
+
 ### Pre-build sanity checks (Fable re-review 2026-07-05)
 
 Before running `eas build`, run these three checks. Each is <30 seconds
