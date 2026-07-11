@@ -8,7 +8,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4F8F8B"
+      "backgroundColor": "#FAF7F2"
     },
     "icon": "./assets/icon.png",
     "adaptiveIcon": {
@@ -29,7 +29,15 @@
       "expo-apple-authentication",
       "expo-asset",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FAF7F2"
+        }
+      ]
     ],
     "privacy": "public",
     "extra": {
