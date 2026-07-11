@@ -169,12 +169,27 @@ reason (`SuperwallExpoModule` `PaywallSkippedReason`) can be any of:
 - `PlacementNotFound` — the `subscription_gate` placement doesn't exist
   in the dashboard (or was renamed / deleted).
 
-The first is legitimate. The last two are **misconfiguration** — and they
-look identical to "user is entitled" from the app's perspective: in every
-case `onSkip` fires and the user reaches Root **without paying**. A
-fat-fingered dashboard edit (renaming the placement, breaking the
-audience rule, accidentally flipping Gated → Non-Gated) would silently
-turn the paywall off for everyone, and the app would happily let them in.
+`Holdout` and `NoAudienceMatch` are legitimate (the user is entitled or
+intentionally experiment-excluded) → enter Root. **`PlacementNotFound` is
+handled differently since SPEC-FIX-08 R2:** it almost always means the
+`subscription_gate` placement is broken/deleted/renamed — NOT "entitled" — so
+`resolveGateOutcome` now returns **`retry` (fail SAFE to the gate), never
+`enter_root`**. LoadingScreen fires a distinct `paywall_placement_not_found`
+event (+ Sentry) so a real dashboard break is immediately visible instead of
+hiding inside the generic skip counter.
+
+> ⚠️ **Load-bearing consequence: NEVER DELETE the `subscription_gate`
+> placement.** Post-SPEC-FIX-08, a MISSING placement means "locked to the
+> paywall" (retry), not "open." That's the safe direction for a revenue gate.
+> But it means any FUTURE intentional paywall teardown (offering free content,
+> sunsetting the paywall) MUST reconfigure the placement/audience — deleting
+> the placement would lock users OUT, not let them in.
+
+Historically (pre-SPEC-FIX-08) all three skip reasons returned `enter_root`,
+so a fat-fingered dashboard edit (renaming the placement, breaking the audience
+rule, flipping Gated → Non-Gated) would silently turn the paywall off for
+everyone. `NoAudienceMatch` on a broken audience rule can still do this — the
+`paywall_skipped_by_superwall` count remains the tripwire for that case.
 
 **The only tripwire is the `paywall_skipped_by_superwall` event** (fired in
 `LoadingScreen.onSkip` with the skip reason). Its count — and especially a
