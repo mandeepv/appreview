@@ -34,6 +34,8 @@ const initialState = {
   emotionalChallenges: [],
   authMethod: null,
   selectedPlan: null,
+  // SPEC-15 (variant B): additive, variant-B-only. Empty for control users.
+  variantBAnswers: {},
 };
 
 export const useOnboardingStore = create<OnboardingStore>((set) => ({
@@ -103,6 +105,14 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
 
   setSelectedPlan: (plan: 'free-trial' | 'monthly') => set({ selectedPlan: plan }),
 
+  // SPEC-15: variant-B screens record their answer here keyed by screen name.
+  // Merge (not replace) so each screen's answer is independent and a back-nav
+  // re-answer overwrites just that screen's key.
+  setVariantBAnswer: (screen: string, answer: string | string[]) =>
+    set((state) => ({
+      variantBAnswers: { ...state.variantBAnswers, [screen]: answer },
+    })),
+
   reset: () => set(initialState),
 
   // Persistence methods
@@ -125,6 +135,11 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
         emotionalChallenges: state.emotionalChallenges,
         authMethod: state.authMethod,
         selectedPlan: state.selectedPlan,
+        // SPEC-15: persist variant-B answers so a kill-and-relaunch mid-flow
+        // resumes with them intact. Additive — loadState's set(parsedState)
+        // safely restores it; old persisted blobs without the key just leave
+        // the initialState {} in place.
+        variantBAnswers: state.variantBAnswers,
       };
       await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (error) {
