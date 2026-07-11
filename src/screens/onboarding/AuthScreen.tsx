@@ -13,7 +13,7 @@ import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { resolvePostAuthDestination } from '../../navigation/routingPolicy';
 import { Colors } from '../../constants/theme';
 import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned, trackAuthSucceeded, safeCapture } from '../../lib/analytics';
-import { resolveOnboardingVariant } from '../../lib/experiments';
+import { resolveOnboardingVariant, peekOnboardingVariant } from '../../lib/experiments';
 import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
@@ -185,11 +185,19 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       if (session) {
         setUser(session.user);
         setSession(session);
-        // SPEC-15: resolve the sticky variant (already persisted from Welcome;
-        // returns instantly, defaults control, never throws) so it can be $set
-        // on the person at signup. Only meaningful in signup mode — signin
-        // mode skips $set entirely inside identifyUserWithOnboarding.
-        const onboardingVariant = await resolveOnboardingVariant();
+        // SPEC-15 + SPEC-FIX-11 R4: attach the variant for the person $set in
+        // SIGNUP mode only. resolveOnboardingVariant() MINTS an assignment
+        // (persist + event + super-property) if none exists — calling it in
+        // signin mode would fabricate an assignment for a returning user on a
+        // fresh device who never entered onboarding, contaminating every later
+        // event's variant breakdown (incl. subscription_purchased). Signup users
+        // already have a persisted value from Welcome, so resolve() is instant
+        // there; signin mode reads with peek (no persist, no event) and, since
+        // identifyUserWithOnboarding skips $set in signin mode anyway, the value
+        // is effectively unused there — we pass it only for symmetry/logging.
+        const onboardingVariant = mode === 'signup'
+          ? await resolveOnboardingVariant()
+          : (await peekOnboardingVariant()) ?? undefined;
         identifyUserWithOnboarding(session.user.id, onboardingStore, mode, onboardingVariant);
         // R5 (SPEC-06): auth_succeeded at the point a provider sign-in
         // returns a valid session — mirrors trackAuthAttempted's
