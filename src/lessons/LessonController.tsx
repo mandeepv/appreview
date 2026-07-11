@@ -23,6 +23,7 @@ import { QuizQuestion } from '../components/QuizQuestion';
 import { QuizQuestionMultiSelect } from '../components/QuizQuestionMultiSelect';
 import { BlockRenderer } from './components/BlockRenderer';
 import { createProgressStore } from './progressStore';
+import { isFlowLesson } from './registry';
 import { safeCapture } from '../lib/analytics';
 import { Colors, Typography, Shadows } from '../constants/theme';
 import type { Lesson, LessonScreen } from './schema';
@@ -73,15 +74,17 @@ export const LessonController: React.FC<LessonControllerProps> = ({
 
   // SPEC-13 R4/R5 — lesson analytics. `lesson_started` fires at the true
   // "opened" moment, ONCE per lesson visit. That moment differs by lesson kind:
-  //   - Flow lessons (no storageKey): the controller mount IS the opening, so
-  //     the controller fires it (below).
-  //   - Hub lessons (have a storageKey): the user lands on the hub first, so
-  //     LessonHubScreen owns the fire (see there). Firing here too would
-  //     double-count, so the controller SKIPS hub lessons.
-  // Static registry IDs only (slug + title), no content text (INVARIANTS #8).
+  //   - Flow lessons (1–4): the controller mount IS the opening, so the
+  //     controller fires it (below).
+  //   - Hub lessons (5–13): the user lands on the hub first, so LessonHubScreen
+  //     owns the fire (see there). Firing here too would double-count, so the
+  //     controller SKIPS hub lessons.
+  // SPEC-FIX-11 R2: the flow/hub split is now the registry's FLOW_LESSON_SLUGS
+  // (via isFlowLesson), NOT `!lesson.storageKey` — SPEC-18 R1 gave flow lessons
+  // storage keys, which silently broke the old check and stopped lesson_started
+  // firing for lessons 1–4. Static registry IDs only, no content text (INV #8).
   React.useEffect(() => {
-    const isFlowLesson = !lesson.storageKey;
-    if (isFlowLesson && sectionIndex === 0 && screenIndex === 0) {
+    if (isFlowLesson(lesson.slug) && sectionIndex === 0 && screenIndex === 0) {
       safeCapture('lesson_started', {
         lesson_id: lesson.slug,
         lesson_title: lesson.title,
@@ -124,9 +127,11 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     // write, fire lesson_completed IFF every section is now done AND this write
     // is the one that made it so (it wasn't already complete).
     //
-    // Flow lessons (no storageKey) don't persist a set — they're single-section
-    // and linear, so finishing their (only/last) section IS completing the
-    // lesson; treat the transition as always-just-happened for them.
+    // SPEC-FIX-11 R2/R6: every registered lesson now has a storageKey (SPEC-18
+    // R1 added them to flow lessons 1–4), so the storageKey branch runs for ALL
+    // lessons — and flow lessons being single-section means finishing their one
+    // section trips nowComplete correctly. The keyless `else` is now unreachable
+    // for registered lessons; it's kept only as a defensive fallback.
     let justCompletedLesson = false;
     if (lesson.storageKey) {
       const store = createProgressStore(lesson.storageKey);
@@ -137,7 +142,8 @@ export const LessonController: React.FC<LessonControllerProps> = ({
       const nowComplete = after.length >= lesson.sections.length;
       justCompletedLesson = nowComplete && !wasComplete;
     } else {
-      // Flow lesson: completing the last section is completing the lesson.
+      // Defensive fallback (no registered lesson hits this today): treat
+      // finishing the last section as completing the lesson.
       justCompletedLesson = sectionIndex >= lesson.sections.length - 1;
     }
 
