@@ -125,6 +125,17 @@ export function computeStreak(activityDates: string[], today: string): StreakRes
     // if today itself is bridgeable (yesterday missing but the day before is
     // active and a bridge is available). Either way it's atRisk until today is
     // done.
+    //
+    // SPEC-FIX-11 R5.8 — ACCEPTED EDGE (do not "fix"; pinned by a test): when a
+    // run needs two bridges within a rolling 7-day window and one of them is
+    // today's still-missing slot, the at-risk display (which walks as if today
+    // will be bridged) can show a longer current than the user actually gets
+    // after completing a lesson today (completing today consumes a real day, so
+    // the earlier gap can no longer also be bridged inside the 7-day window).
+    // Result: the shown streak can DROP by one after doing a lesson. Rare by
+    // construction (needs two gaps + the today boundary aligned just so) and
+    // never inflates a stored value — it's a transient display artifact. Left
+    // as-is so any future change to this branch is a deliberate decision.
     const yesterday = todayNum - 1;
     if (daySet.has(yesterday)) {
       const run = walkRun(yesterday);

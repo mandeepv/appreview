@@ -38,6 +38,12 @@ interface QuestionScreenProps {
   screenName: string;
   title?: string;
   subtitle?: string;
+  /**
+   * SPEC-FIX-11 R5.5 — optional small muted caption under the subtitle. Used for
+   * the first question screen's privacy/trust line ("All responses are stored
+   * securely…"), which the SPEC-17 migration dropped. Presentation-only.
+   */
+  caption?: string;
   onBack?: () => void;
   /**
    * Footer content — the revealed Continue button (+ optional count pill) for
@@ -57,6 +63,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
   screenName,
   title,
   subtitle,
+  caption,
   onBack,
   footer,
   children,
@@ -107,6 +114,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
       >
         {title ? <Text style={styles.title}>{title}</Text> : null}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {caption ? <Text style={styles.caption}>{caption}</Text> : null}
         {children}
       </ScrollView>
 
@@ -257,6 +265,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing['2xl'],
     lineHeight: 24,
     letterSpacing: 0.2,
+    textAlign: 'left',
+  },
+  // SPEC-FIX-11 R5.5 — small muted trust/privacy caption under the subtitle.
+  caption: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textMuted,
+    marginTop: -Spacing.lg,
+    marginBottom: Spacing['2xl'],
+    lineHeight: 18,
     textAlign: 'left',
   },
   footer: {

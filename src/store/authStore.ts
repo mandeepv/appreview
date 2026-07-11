@@ -283,7 +283,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               // activity dates into local so a re-installed device restores its
               // streak. Set-union of dates is order-free, idempotent, and
               // non-destructive (null fetch → skip). Fire-and-forget.
-              void mergeRemoteActivityIntoLocal();
+              void mergeRemoteActivityIntoLocal(new Date());
             }
           } else {
             // Session went to null — sign-out, delete-account, or session

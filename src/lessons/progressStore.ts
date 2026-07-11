@@ -58,7 +58,10 @@ async function syncSectionsToRemote(storageKey: string, sections: string[]): Pro
     const { upsertSections } = require('../services/lessonProgressService') as typeof import('../services/lessonProgressService');
 
     const lesson = getLessonByStorageKey(storageKey);
-    if (!lesson) return; // not a synced lesson (e.g. flow lessons) — local only
+    // No registry lesson for this key → nothing to sync (local only). Note: flow
+    // lessons 1–4 DO sync now (SPEC-18 R1 gave them keys), so they are NOT an
+    // example of this branch anymore (SPEC-FIX-11 R6).
+    if (!lesson) return;
 
     const outcome = await upsertSections(lesson.slug, sections, lesson.sections.length);
     // SPEC-FIX-03 R2: 'skipped' (no session) is a deliberate no-op — it neither
@@ -117,14 +120,17 @@ export function createProgressStore(storageKey: string): ProgressStore {
           // Local write succeeded and drove the UI. Sync in the background —
           // NOT awaited (local-first; offline still saves locally).
           void syncSectionsToRemote(storageKey, completed);
-          // SPEC-19 — this section completion IS today's activity. Record it for
-          // the daily streak (local-first + background DB sync, idempotent per
-          // day). Lazily required so the streak store's Supabase-backed sync
-          // stays out of this module's local path and the local-only tests.
-          // Non-awaited and self-contained: a streak failure never affects the
-          // lesson-progress write above.
-          void recordStreakActivity();
         }
+        // SPEC-19 + SPEC-FIX-11 R3 — a day counts when the user completes ≥1
+        // section, INCLUDING replays. So record streak activity on EVERY
+        // completion event, not only on the first-time write above: a user who
+        // has finished all 13 lessons must still be able to extend a streak by
+        // replaying. recordActivityToday is idempotent per day, so a repeat is
+        // just one AsyncStorage read. Lazily required (keeps the Supabase-backed
+        // sync out of this module's local path and the local-only tests),
+        // non-awaited, and self-contained: a streak failure never affects the
+        // lesson-progress write above.
+        void recordStreakActivity();
       } catch (error) {
         if (__DEV__) console.error('Error marking section complete:', error);
       }
@@ -176,7 +182,7 @@ export async function mergeRemoteIntoLocal(): Promise<void> {
     if (remote === null) return;
 
     for (const lesson of Object.values(LESSON_REGISTRY)) {
-      if (!lesson.storageKey) continue; // flow lessons don't sync
+      if (!lesson.storageKey) continue; // no key → nothing to sync (flow lessons 1–4 DO have keys now — SPEC-FIX-11 R6)
       const key = lesson.storageKey;
 
       const localStored = await AsyncStorage.getItem(key);

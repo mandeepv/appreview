@@ -255,7 +255,9 @@ export default function LearnScreen() {
       // push on the lock) and give gentle in-place feedback — never a paywall,
       // never a dead tap. blocking_lesson_id names the predecessor gating it.
       safeCapture('lesson_locked_tapped', { lesson_id: slug, blocking_lesson_id: action.blockingSlug });
-      shake();
+      // Re-trigger even if the same card is tapped twice: clear then set.
+      setShakingSlug(null);
+      requestAnimationFrame(() => setShakingSlug(slug));
       return;
     }
 
@@ -290,20 +292,12 @@ export default function LearnScreen() {
     });
   };
 
-  // A single shared shake animation reused for whichever locked card was tapped
-  // — a subtle "nope" nudge rather than navigating. Transform only. Held in
-  // useState (created once) rather than a ref so it can be read during render
-  // and passed to a child without tripping react-hooks/refs.
-  const [shakeAnim] = useState(() => new Animated.Value(0));
-  const shake = useCallback(() => {
-    shakeAnim.setValue(0);
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -1, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
-    ]).start();
-  }, [shakeAnim]);
+  // SPEC-FIX-11 R5.1 — which locked card is currently shaking, by slug. Only
+  // that card animates its own value (below), instead of every locked card
+  // subscribing to one shared Animated.Value (the old bug: tapping one wiggled
+  // the whole locked column). A short-lived token; cleared when the card's
+  // shake finishes so a re-tap of the same card re-triggers.
+  const [shakingSlug, setShakingSlug] = useState<string | null>(null);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -342,7 +336,8 @@ export default function LearnScreen() {
               completed={completed}
               blockingTitle={blockingTitle}
               partial={partial}
-              shakeAnim={shakeAnim}
+              isShaking={shakingSlug === slug}
+              onShakeEnd={() => setShakingSlug((s) => (s === slug ? null : s))}
               onPress={() => handleModulePress(module.id, state)}
             />
           );
@@ -380,7 +375,8 @@ interface LessonCardProps {
   completed: boolean;
   blockingTitle: string | null;
   partial?: { done: number; total: number };
-  shakeAnim: Animated.Value;
+  isShaking: boolean;
+  onShakeEnd: () => void;
   onPress: () => void;
 }
 
@@ -390,9 +386,30 @@ const LessonCard: React.FC<LessonCardProps> = ({
   completed,
   blockingTitle,
   partial,
-  shakeAnim,
+  isShaking,
+  onShakeEnd,
   onPress,
 }) => {
+  // SPEC-FIX-11 R5.1 — each card owns its OWN shake value, so only the tapped
+  // locked card wiggles (not the whole locked column). Runs the sequence when
+  // this card becomes the shaking one, then reports back so the parent clears
+  // the token.
+  const [shakeAnim] = useState(() => new Animated.Value(0));
+  const onShakeEndRef = React.useRef(onShakeEnd);
+  React.useEffect(() => { onShakeEndRef.current = onShakeEnd; }, [onShakeEnd]);
+  React.useEffect(() => {
+    if (!isShaking) return;
+    shakeAnim.setValue(0);
+    const seq = Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -1, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]);
+    seq.start(({ finished }) => { if (finished) onShakeEndRef.current(); });
+    return () => seq.stop();
+  }, [isShaking, shakeAnim]);
+
   const translateX = shakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-6, 6] });
 
   const card = (
@@ -401,7 +418,9 @@ const LessonCard: React.FC<LessonCardProps> = ({
       onPress={onPress}
       activeOpacity={locked ? 1 : 0.7}
       accessibilityRole="button"
-      accessibilityState={{ disabled: false }}
+      // SPEC-FIX-11 R5.4 — report the locked state to assistive tech (the card
+      // still responds to taps to give the feedback; the label already says so).
+      accessibilityState={{ disabled: locked }}
       accessibilityLabel={
         locked
           ? `${module.title}, locked. ${blockingTitle ? `Finish ${blockingTitle} to unlock.` : ''}`
@@ -444,7 +463,7 @@ const LessonCard: React.FC<LessonCardProps> = ({
     </TouchableOpacity>
   );
 
-  // Only the (shared) shake wrapper animates; unlocked cards render statically.
+  // Only locked cards carry the shake wrapper; unlocked cards render statically.
   if (locked) {
     return <Animated.View style={{ transform: [{ translateX }] }}>{card}</Animated.View>;
   }
