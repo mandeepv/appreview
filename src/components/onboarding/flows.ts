@@ -21,11 +21,12 @@
 // PartnerInvolvement → ExperienceLevel → EmotionalChallenges → Auth). The
 // `Auth` handoff is not counted; the bar fills at EmotionalChallenges.
 //
-// ChildrenGender / ChildrenAge / GoalSelection / ParentingStyles remain
-// registered in the navigator but sit off the active path today; they are
-// intentionally NOT in this array so they don't inflate the visible step
-// count. If a future content change threads one back into the flow, add it
-// here and the bar re-derives itself.
+// ChildrenGender / ChildrenAge / GoalSelection / ParentingStyles were removed
+// (screens + navigator + route types deleted) — they had been off the active
+// path since before v1.1.0 and never appeared in the funnel. Their store/DB/
+// analytics fields are intentionally kept (dropping columns is a separate
+// migration). If a future content change adds a new step, add it to this array
+// and the bar re-derives itself.
 export const VARIANT_A_FLOW = [
   'UserType',
   'NameAge',

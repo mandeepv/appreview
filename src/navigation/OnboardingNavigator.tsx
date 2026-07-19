@@ -7,14 +7,10 @@ import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { UserTypeScreen } from '../screens/onboarding/UserTypeScreen';
 import { NameAgeScreen } from '../screens/onboarding/NameAgeScreen';
 import { ChildrenCountScreen } from '../screens/onboarding/ChildrenCountScreen';
-import { ChildrenGenderScreen } from '../screens/onboarding/ChildrenGenderScreen';
-import { ChildrenAgeScreen } from '../screens/onboarding/ChildrenAgeScreen';
 import { ImprovementGoalsScreen } from '../screens/onboarding/ImprovementGoalsScreen';
 import { EducationalScreen } from '../screens/onboarding/EducationalScreen';
 import { PartnerInvolvementScreen } from '../screens/onboarding/PartnerInvolvementScreen';
-import { GoalSelectionScreen } from '../screens/onboarding/GoalSelectionScreen';
 import { ExperienceLevelScreen } from '../screens/onboarding/ExperienceLevelScreen';
-import { ParentingStylesScreen } from '../screens/onboarding/ParentingStylesScreen';
 import { EmotionalChallengesScreen } from '../screens/onboarding/EmotionalChallengesScreen';
 import { VariantBQ1Screen } from '../screens/onboarding/variantB/VariantBQ1Screen';
 import { VariantBQ2Screen } from '../screens/onboarding/variantB/VariantBQ2Screen';
@@ -49,14 +45,10 @@ export const OnboardingNavigator: React.FC = () => {
       <Stack.Screen name="UserType" component={UserTypeScreen} />
       <Stack.Screen name="NameAge" component={NameAgeScreen} />
       <Stack.Screen name="ChildrenCount" component={ChildrenCountScreen} />
-      <Stack.Screen name="ChildrenGender" component={ChildrenGenderScreen} />
-      <Stack.Screen name="ChildrenAge" component={ChildrenAgeScreen} />
       <Stack.Screen name="ImprovementGoals" component={ImprovementGoalsScreen} />
       <Stack.Screen name="Educational" component={EducationalScreen} />
       <Stack.Screen name="PartnerInvolvement" component={PartnerInvolvementScreen} />
-      <Stack.Screen name="GoalSelection" component={GoalSelectionScreen} />
       <Stack.Screen name="ExperienceLevel" component={ExperienceLevelScreen} />
-      <Stack.Screen name="ParentingStyles" component={ParentingStylesScreen} />
       <Stack.Screen name="EmotionalChallenges" component={EmotionalChallengesScreen} />
       {/* SPEC-15 — variant-B onboarding scaffold. Registered alongside the
           variant-A screens; only reached when Welcome resolves variant_b. */}
