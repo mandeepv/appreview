@@ -69,13 +69,30 @@ export type OnboardingStackParamList = {
   PartnerInvolvement: undefined;
   ExperienceLevel: undefined;
   EmotionalChallenges: undefined;
-  // SPEC-15 — variant-B onboarding scaffold (placeholder screens). Fresh users
-  // assigned variant_b branch here from Welcome instead of UserType, then
+  // Variant B — the full long-form onboarding (see
+  // docs/specs/variant-b-onboarding-copy.md). Fresh users assigned variant_b
+  // branch here from Welcome (entering at VBWelcome) instead of UserType, then
   // rejoin the shared flow at Auth. Route names round-trip through
   // ONBOARDING_LAST_SCREEN so a kill-and-resume mid-variant-B lands correctly.
-  VariantBQ1: undefined;
-  VariantBQ2: undefined;
-  VariantBQ3: undefined;
+  VBWelcome: undefined;
+  VBIntro: undefined;
+  VBName: undefined;
+  VBRole: undefined;
+  VBKids: undefined;
+  VBMood: undefined;
+  VBChallenges: undefined;
+  VBWhenHardest: undefined;
+  VBMirror: undefined;
+  VBGoals: undefined;
+  VBReady: undefined;
+  VBCalculating: undefined;
+  VBSnapshot: undefined;
+  VBHowItWorks: undefined;
+  VBBenefit: undefined;
+  VBCommit: undefined;
+  VBAllIn: undefined;
+  VBRating: undefined;
+  VBReminders: undefined;
   Auth: { mode?: 'signin' | 'signup' } | undefined;
   Loading: undefined;
   Root: NavigatorScreenParams<RootStackParamList> | undefined;

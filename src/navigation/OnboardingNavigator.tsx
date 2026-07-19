@@ -12,9 +12,26 @@ import { EducationalScreen } from '../screens/onboarding/EducationalScreen';
 import { PartnerInvolvementScreen } from '../screens/onboarding/PartnerInvolvementScreen';
 import { ExperienceLevelScreen } from '../screens/onboarding/ExperienceLevelScreen';
 import { EmotionalChallengesScreen } from '../screens/onboarding/EmotionalChallengesScreen';
-import { VariantBQ1Screen } from '../screens/onboarding/variantB/VariantBQ1Screen';
-import { VariantBQ2Screen } from '../screens/onboarding/variantB/VariantBQ2Screen';
-import { VariantBQ3Screen } from '../screens/onboarding/variantB/VariantBQ3Screen';
+// Variant B — the full long-form onboarding (docs/specs/variant-b-onboarding-copy.md).
+import { VBWelcomeScreen } from '../screens/onboarding/variantB/VBWelcomeScreen';
+import { VBIntroScreen } from '../screens/onboarding/variantB/VBIntroScreen';
+import { VBNameScreen } from '../screens/onboarding/variantB/VBNameScreen';
+import { VBRoleScreen } from '../screens/onboarding/variantB/VBRoleScreen';
+import { VBKidsScreen } from '../screens/onboarding/variantB/VBKidsScreen';
+import { VBMoodScreen } from '../screens/onboarding/variantB/VBMoodScreen';
+import { VBChallengesScreen } from '../screens/onboarding/variantB/VBChallengesScreen';
+import { VBWhenHardestScreen } from '../screens/onboarding/variantB/VBWhenHardestScreen';
+import { VBMirrorScreen } from '../screens/onboarding/variantB/VBMirrorScreen';
+import { VBGoalsScreen } from '../screens/onboarding/variantB/VBGoalsScreen';
+import { VBReadyScreen } from '../screens/onboarding/variantB/VBReadyScreen';
+import { VBCalculatingScreen } from '../screens/onboarding/variantB/VBCalculatingScreen';
+import { VBSnapshotScreen } from '../screens/onboarding/variantB/VBSnapshotScreen';
+import { VBHowItWorksScreen } from '../screens/onboarding/variantB/VBHowItWorksScreen';
+import { VBBenefitScreen } from '../screens/onboarding/variantB/VBBenefitScreen';
+import { VBCommitScreen } from '../screens/onboarding/variantB/VBCommitScreen';
+import { VBAllInScreen } from '../screens/onboarding/variantB/VBAllInScreen';
+import { VBRatingScreen } from '../screens/onboarding/variantB/VBRatingScreen';
+import { VBRemindersScreen } from '../screens/onboarding/variantB/VBRemindersScreen';
 import { AuthScreen } from '../screens/onboarding/AuthScreen';
 import { LoadingScreen } from '../screens/onboarding/LoadingScreen';
 import { RootNavigator } from './RootNavigator';
@@ -50,11 +67,28 @@ export const OnboardingNavigator: React.FC = () => {
       <Stack.Screen name="PartnerInvolvement" component={PartnerInvolvementScreen} />
       <Stack.Screen name="ExperienceLevel" component={ExperienceLevelScreen} />
       <Stack.Screen name="EmotionalChallenges" component={EmotionalChallengesScreen} />
-      {/* SPEC-15 — variant-B onboarding scaffold. Registered alongside the
-          variant-A screens; only reached when Welcome resolves variant_b. */}
-      <Stack.Screen name="VariantBQ1" component={VariantBQ1Screen} />
-      <Stack.Screen name="VariantBQ2" component={VariantBQ2Screen} />
-      <Stack.Screen name="VariantBQ3" component={VariantBQ3Screen} />
+      {/* Variant B — full long-form onboarding. Registered alongside the
+          variant-A screens; only reached when Welcome resolves variant_b
+          (enters at VBWelcome). Rejoins the shared flow at Auth. */}
+      <Stack.Screen name="VBWelcome" component={VBWelcomeScreen} />
+      <Stack.Screen name="VBIntro" component={VBIntroScreen} />
+      <Stack.Screen name="VBName" component={VBNameScreen} />
+      <Stack.Screen name="VBRole" component={VBRoleScreen} />
+      <Stack.Screen name="VBKids" component={VBKidsScreen} />
+      <Stack.Screen name="VBMood" component={VBMoodScreen} />
+      <Stack.Screen name="VBChallenges" component={VBChallengesScreen} />
+      <Stack.Screen name="VBWhenHardest" component={VBWhenHardestScreen} />
+      <Stack.Screen name="VBMirror" component={VBMirrorScreen} />
+      <Stack.Screen name="VBGoals" component={VBGoalsScreen} />
+      <Stack.Screen name="VBReady" component={VBReadyScreen} />
+      <Stack.Screen name="VBCalculating" component={VBCalculatingScreen} />
+      <Stack.Screen name="VBSnapshot" component={VBSnapshotScreen} />
+      <Stack.Screen name="VBHowItWorks" component={VBHowItWorksScreen} />
+      <Stack.Screen name="VBBenefit" component={VBBenefitScreen} />
+      <Stack.Screen name="VBCommit" component={VBCommitScreen} />
+      <Stack.Screen name="VBAllIn" component={VBAllInScreen} />
+      <Stack.Screen name="VBRating" component={VBRatingScreen} />
+      <Stack.Screen name="VBReminders" component={VBRemindersScreen} />
       <Stack.Screen
         name="Auth"
         component={AuthScreen}

@@ -3,6 +3,10 @@
  * inside. See docs/specs/SPEC-17-onboarding-ux-system.md.
  */
 export { QuestionScreen, RevealFooter, ContinueButton } from './QuestionScreen';
+export { StatementScreen } from './StatementScreen';
+export { RecapChips, SnapshotCard } from './SnapshotPieces';
+export type { SnapshotRow } from './SnapshotPieces';
+export { CalculatingView } from './CalculatingView';
 export { OptionList, SelectionCountPill, isMultiSelectValid } from './OptionList';
 export type { Option } from './OptionList';
 export { OptionCard } from './OptionCard';

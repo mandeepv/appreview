@@ -13,7 +13,9 @@
  *
  * These are the *presentation* step lists (what the progress bar counts), NOT
  * the navigation graph. `Auth`/`Loading`/`Root` are not questions and are
- * deliberately excluded — the bar completes at the last question screen.
+ * deliberately excluded — the bar completes at the last question screen. Some
+ * beats (variant B's cold-open/intro/name and its full-screen "calculating"
+ * takeover) also render no bar and are intentionally absent from the arrays.
  */
 
 // Variant A — the control flow, in the order the user actually walks it
@@ -38,11 +40,31 @@ export const VARIANT_A_FLOW = [
   'EmotionalChallenges',
 ] as const;
 
-// Variant B — the SPEC-15 scaffold: three question screens before Auth.
+// Variant B — the full long-form onboarding (docs/specs/variant-b-onboarding-copy.md).
+// This array is the SOURCE OF TRUTH for the progress bar: it lists, in walk
+// order, exactly the screens that show a bar. The pre-name intro trio
+// (VBWelcome/VBIntro/VBName) deliberately render NO bar (showProgress={false}) —
+// the "journey" bar starts at VBRole — and VBCalculating is a full-screen
+// takeover with no bar, so neither appears here. Every other B screen derives
+// currentStep/totalSteps from its position below; adding/removing a beat updates
+// the bar automatically. The Auth handoff is not counted (bar fills at
+// VBReminders), mirroring variant A.
 export const VARIANT_B_FLOW = [
-  'VariantBQ1',
-  'VariantBQ2',
-  'VariantBQ3',
+  'VBRole',
+  'VBKids',
+  'VBMood',
+  'VBChallenges',
+  'VBWhenHardest',
+  'VBMirror',
+  'VBGoals',
+  'VBReady',
+  'VBSnapshot',
+  'VBHowItWorks',
+  'VBBenefit',
+  'VBCommit',
+  'VBAllIn',
+  'VBRating',
+  'VBReminders',
 ] as const;
 
 export type VariantAScreen = (typeof VARIANT_A_FLOW)[number];

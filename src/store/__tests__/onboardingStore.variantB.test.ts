@@ -43,33 +43,33 @@ describe('variantBAnswers', () => {
 
   it('setVariantBAnswer merges per-screen (single + multi select)', () => {
     const { setVariantBAnswer } = useOnboardingStore.getState();
-    setVariantBAnswer('VariantBQ1', 'placeholder_a');
-    setVariantBAnswer('VariantBQ2', ['placeholder_a', 'placeholder_c']);
+    setVariantBAnswer('VBMood', 'stretched');
+    setVariantBAnswer('VBChallenges', ['tantrums', 'sleep']);
     expect(useOnboardingStore.getState().variantBAnswers).toEqual({
-      VariantBQ1: 'placeholder_a',
-      VariantBQ2: ['placeholder_a', 'placeholder_c'],
+      VBMood: 'stretched',
+      VBChallenges: ['tantrums', 'sleep'],
     });
   });
 
   it('re-answering a screen overwrites only that screen key', () => {
     const { setVariantBAnswer } = useOnboardingStore.getState();
-    setVariantBAnswer('VariantBQ1', 'placeholder_a');
-    setVariantBAnswer('VariantBQ1', 'placeholder_b');
+    setVariantBAnswer('VBMood', 'stretched');
+    setVariantBAnswer('VBMood', 'chaotic');
     expect(useOnboardingStore.getState().variantBAnswers).toEqual({
-      VariantBQ1: 'placeholder_b',
+      VBMood: 'chaotic',
     });
   });
 
   it('round-trips through save → (reset) → load', async () => {
     const store = useOnboardingStore.getState();
-    store.setVariantBAnswer('VariantBQ1', 'placeholder_a');
-    store.setVariantBAnswer('VariantBQ2', ['placeholder_b']);
+    store.setVariantBAnswer('VBMood', 'stretched');
+    store.setVariantBAnswer('VBChallenges', ['listening']);
     await store.saveState();
 
     // Persisted JSON carries the answers.
     expect(JSON.parse(mockStore[STATE_KEY]).variantBAnswers).toEqual({
-      VariantBQ1: 'placeholder_a',
-      VariantBQ2: ['placeholder_b'],
+      VBMood: 'stretched',
+      VBChallenges: ['listening'],
     });
 
     // Wipe in-memory, reload from storage.
@@ -77,14 +77,14 @@ describe('variantBAnswers', () => {
     expect(useOnboardingStore.getState().variantBAnswers).toEqual({});
     await useOnboardingStore.getState().loadState();
     expect(useOnboardingStore.getState().variantBAnswers).toEqual({
-      VariantBQ1: 'placeholder_a',
-      VariantBQ2: ['placeholder_b'],
+      VBMood: 'stretched',
+      VBChallenges: ['listening'],
     });
   });
 
   it('clearState empties variantBAnswers and removes the persisted blob', async () => {
     const store = useOnboardingStore.getState();
-    store.setVariantBAnswer('VariantBQ1', 'placeholder_a');
+    store.setVariantBAnswer('VBMood', 'stretched');
     await store.saveState();
     await useOnboardingStore.getState().clearState();
     expect(useOnboardingStore.getState().variantBAnswers).toEqual({});

@@ -40,7 +40,7 @@ describe('hasOnboardingPayload feeding the mode', () => {
   });
 
   it('variant-B payload (answers present, no userType) → onboarding', () => {
-    const store: Store = { userType: null, variantBAnswers: { VariantBQ1: 'placeholder_a' } };
+    const store: Store = { userType: null, variantBAnswers: { VBMood: 'stretched' } };
     expect(deriveLoadingMode(hasOnboardingPayload(store))).toBe('onboarding');
   });
 
