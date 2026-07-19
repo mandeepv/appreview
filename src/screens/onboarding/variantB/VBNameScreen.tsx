@@ -21,12 +21,23 @@ export const VBNameScreen: React.FC<Props> = ({ navigation }) => {
   const [name, setName] = useState(storedName);
 
   const handleContinue = () => {
-    const finalName = name.trim() || 'there';
+    // Store the real trimmed name, or empty when blank. Do NOT substitute a
+    // literal placeholder ('there'/'Parent') here: the name guards in
+    // onboardingService + LoadingScreen only strip 'Parent'/empty before the
+    // Supabase write, so a 'there' default would slip through and CLOBBER the
+    // real Apple name signInWithApple saved (the exact bug those guards exist to
+    // prevent). Empty is safe — the guards drop it, and the variant-B display
+    // screens already fall back to a friendly word (name || 'friend'/'Hey').
+    const finalName = name.trim();
     // Variant B doesn't ask age; preserve whatever's stored (0 if unset — the
     // downstream identify treats it the same as variant A when age is absent).
     updateNameAndAge(finalName, age ?? 0);
     trackOnboardingStepCompleted(VB.Name, { has_name: name.trim().length > 0 });
-    navigation.navigate('UserType');
+    // Stay on the variant-B rail — VBRole, NOT variant A's UserType. Routing to
+    // UserType here dumped every variant_b user into the control flow (16 of 19
+    // B screens unreachable, variantBAnswers empty) while their events were still
+    // stamped variant_b — the A/B test would have measured nothing.
+    navigation.navigate('VBRole');
   };
 
   return (
