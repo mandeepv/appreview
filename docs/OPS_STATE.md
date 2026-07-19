@@ -27,8 +27,8 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Supabase | prod auth signing system | **asymmetric ES256** (same as dev) — so prod delete-account needs NO JWT_SECRET (verifies via JWKS) | 2026-07-11 | prod `/auth/v1/.well-known/jwks.json` |
 | Supabase | gateway `verify_jwt` | on (per `config.toml`); live-state unverified | unverified | `supabase/config.toml` + dashboard |
 | Supabase | `JWT_SECRET` set | **dev: yes** (set 2026-07-11; now optional there — dev is ES256/JWKS) / prod: no | 2026-07-11 | `supabase secrets list` |
-| Supabase | SPEC-16 launch/gate work | **no change required** — no migrations, no edge-function changes, no type regeneration (recorded so external state stays tracked) | 2026-07-11 | — |
-| Supabase | SPEC-17 onboarding UX system [SPEC-17 §4.3] | **no change required** — presentation/interaction only; onboarding answer values, saved payload, and `user_profiles` shape are all unchanged. No migrations, no type regeneration, no edge-function changes | 2026-07-11 | — |
+| Supabase | SPEC-16 launch/gate work (now in v1.3.0) | **no change required** — no migrations, no edge-function changes, no type regeneration. NOTE 2026-07-19: SPEC-16 (splash/loading) folded into **v1.3.0**, not a separate 1.4.0 | 2026-07-11 | — |
+| Supabase | SPEC-17 onboarding UX system [SPEC-17 §4.3] (now in v1.3.0) | **no change required** — presentation/interaction only; onboarding answer values, saved payload, and `user_profiles` shape are all unchanged. No migrations, no type regeneration, no edge-function changes. NOTE 2026-07-19: folded into **v1.3.0** | 2026-07-11 | — |
 
 ## Superwall
 
@@ -37,8 +37,8 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Superwall | `subscription_gate` | Gated, 100%, audience = "unsubscribed users / no active entitlements", no match-limit — **re-verified in dashboard 2026-07-11** (SPEC-FIX-10 F8) | 2026-07-11 | Superwall dashboard → Placements |
 | Superwall | `show_paywall` | kept for the v1.0.0 cohort | unverified | Superwall dashboard → Placements |
 | Superwall | dashboard-change habit | screenshot on every change (F5 pointer) | — | `docs/dashboard-snapshots/` |
-| Superwall | SPEC-16 launch/gate work | **no change required** — gate logic untouched; do NOT modify `subscription_gate` placement/audience | 2026-07-11 | Superwall dashboard → Placements |
-| Superwall | SPEC-17 onboarding UX system [SPEC-17 §4.5] | **no change required** — onboarding presentation only; the paywall/gate path is untouched | 2026-07-11 | Superwall dashboard → Placements |
+| Superwall | SPEC-16 launch/gate work (now in v1.3.0) | **no change required** — gate logic untouched; do NOT modify `subscription_gate` placement/audience | 2026-07-11 | Superwall dashboard → Placements |
+| Superwall | SPEC-17 onboarding UX system [SPEC-17 §4.5] (now in v1.3.0) | **no change required** — onboarding presentation only; the paywall/gate path is untouched | 2026-07-11 | Superwall dashboard → Placements |
 
 ## Sentry
 
@@ -49,7 +49,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Sentry | spike protection | **ON** — VERIFIED | 2026-07-10 | Sentry → Settings → Quotas |
 | Sentry | client-key rate limit | 100 events per 1 hour — SET | 2026-07-10 | Sentry → Settings → Client Keys |
 | Sentry | sourcemaps for live build | 3 uploads present for release 1.1.0 (dist 9) — VERIFIED | 2026-07-10 | Sentry → Releases → artifacts |
-| Sentry | SPEC-16 `expo-splash-screen` calls | **pending post-release check** — no config change; after v1.4.0 ships confirm no new error class from `preventAutoHideAsync`/`hideAsync` (they're try/caught — a spike means the guard is being hit) | unverified | Sentry → Issues (env=prod, release 1.4.0) |
+| Sentry | SPEC-16 `expo-splash-screen` calls (now in v1.3.0) | **pending post-release check** — no config change; after **v1.3.0** ships confirm no new error class from `preventAutoHideAsync`/`hideAsync` (they're try/caught — a spike means the guard is being hit) | unverified | Sentry → Issues (env=prod, release 1.3.0) |
 | Sentry | SPEC-17 onboarding UX system [SPEC-17 §4.4] | **no change required** — no error-path or config change | 2026-07-11 | — |
 
 ## PostHog
@@ -62,9 +62,9 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | PostHog | `onboarding-flow` feature flag [SPEC-15 §4.1] | **CREATED 2026-07-19** — multivariate, key `onboarding-flow`, variants `control`/`variant_b`, 100% release condition, enabled. Currently **50/50 (TEST split)** so both A-with-fixes and B are reachable on the dev build. ⚠️ Single PostHog project (no separate dev/prod) — this same flag serves prod; **before v1.3.0 ships, set the launch split deliberately** (0% = ships dark, or the intended experiment split). variant_b→0% is the kill switch | 2026-07-19 | PostHog → Feature Flags → `onboarding-flow` |
 | PostHog | `onboarding-flow` ramp to 50/50 [SPEC-15 §4.2] | **pending** — flip only after placeholder copy is replaced AND v1.3.0 is dominant. variant_b→0% is the kill switch (no build). Annotate at ramp start/stop | unverified | PostHog → Feature Flags |
 | PostHog | onboarding A/B experiment dashboard [SPEC-15 §4.3] | **pending** — funnel `welcome_cta_tapped`→`onboarding_step_completed`→`auth_succeeded`→`paywall_presented`→`subscription_purchased` broken down by `onboarding_variant`, env=production; + `onboarding_variant_assigned` by `source` trend | unverified | PostHog → Dashboards |
-| PostHog | launch-health events [SPEC-16 §4.1] | **optional/pending** — no flag needed for SPEC-16 to work. At release, optionally add `plan_theater_shown` (per-user; a repeat = returning-launch regression) + `gate_wait_exceeded` to a launch-health dashboard so the "theater exactly once per user" signal is watched | unverified | PostHog → Dashboards |
-| PostHog | SPEC-17 flag-state check before merge [SPEC-17 §4.2] | **pending (gates the merge)** — before merging SPEC-17 to `develop`, verify the `onboarding-flow` flag's ramp. If `variant_b > 0%` and a test run is in progress, HOLD the merge or explicitly accept restarting the experiment clock (DECISION 1). Both arms share the migrated components so the lift applies equally, but a mid-run visual discontinuity still poisons the read | unverified | PostHog → Feature Flags → `onboarding-flow` |
-| PostHog | SPEC-17 ship annotation [SPEC-17 §4.1] | **pending** — on the day v1.4.0 rolls out, add a prod project annotation: "Onboarding UX system shipped (SPEC-17); both arms affected". Funnel step names/semantics are unchanged, but drop-off *levels* will move — the annotation lets any A/B readout spanning the release segment before/after. Tick with the date when added | unverified | PostHog → Annotations (prod) |
+| PostHog | launch-health events [SPEC-16 §4.1] (now in v1.3.0) | **optional/pending** — no flag needed. At **v1.3.0** release, optionally add `plan_theater_shown` (per-user; a repeat = returning-launch regression) + `gate_wait_exceeded` to a launch-health dashboard so the "theater exactly once per user" signal is watched | unverified | PostHog → Dashboards |
+| PostHog | SPEC-17 flag-state check before merge [SPEC-17 §4.2] | **OBSOLETE 2026-07-19** — this row guarded against merging the onboarding-UX redesign mid-experiment. Moot now: SPEC-16+17 are folded into v1.3.0 and ship *together with* the experiment framework, before any ramp. There is no in-flight experiment to poison — A (control) and B both get the new UX from day one. No action | 2026-07-19 | — |
+| PostHog | v1.3.0 ship annotation [SPEC-17 §4.1] | **pending** — on the day **v1.3.0** rolls out, add a prod annotation: "Onboarding UX system + A/B framework shipped (v1.3.0); both arms get the new UX". Funnel step names/semantics unchanged, but drop-off *levels* will move — the annotation lets any A/B readout span the release cleanly. Tick with the date when added | unverified | PostHog → Annotations (prod) |
 
 ## App Store Connect
 
@@ -77,7 +77,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | App Store Connect | ToS link in metadata | unverified (1.5.3) | unverified | ASC → App Information |
 | App Store Connect | DSA trader status | unverified (1.5.3) | unverified | ASC → App Information |
 | App Store Connect | offer codes | not set up (F2 skipped) | unverified | ASC → Subscriptions |
-| App Store Connect | SPEC-17 onboarding UX system [SPEC-17 §4.6] | **no change required** — nothing spec-specific; v1.4.0 release actions live in the runbook | 2026-07-11 | — |
+| App Store Connect | SPEC-17 onboarding UX system [SPEC-17 §4.6] (now in v1.3.0) | **no change required** — nothing spec-specific; **v1.3.0** release actions live in the runbook | 2026-07-11 | — |
 
 ## GitHub
 
