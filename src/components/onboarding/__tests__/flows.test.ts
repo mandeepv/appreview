@@ -87,9 +87,14 @@ describe('resumable-screen guard (SplashScreen mid-flow resume — review #5)', 
       });
   });
 
-  it('the full-screen VBCalculating beat is resumable (persists lastScreen, not in a flow array)', () => {
-    expect(isResumableScreen('VBCalculating')).toBe(true);
-    expect(RESUMABLE_ONBOARDING_SCREENS.has('VBCalculating')).toBe(true);
+  it('non-flow screens that still persist a lastScreen are resumable', () => {
+    // Intro trio (no progress bar) + the full-screen calculating beat all pass
+    // a screenName to their shell, so they persist a lastScreen and must resume
+    // rather than fall back to Welcome (review #5 follow-up).
+    ['VBWelcome', 'VBIntro', 'VBName', 'VBCalculating'].forEach((s) => {
+      expect(isResumableScreen(s)).toBe(true);
+      expect(RESUMABLE_ONBOARDING_SCREENS.has(s)).toBe(true);
+    });
   });
 
   it('DELETED screens are NOT resumable — the exact stuck-on-splash bug', () => {

@@ -93,6 +93,16 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
           // reach LearnScreen after a force-quit / cold launch — the
           // exact scenario the hard-paywall model closes.
           if (__DEV__) console.log('User already authenticated, navigating to Loading (gate)');
+          // Rehydrate the onboarding store from disk before Loading. This is the
+          // retry path for a failed onboarding save (review #9 follow-up): if a
+          // prior save threw, LoadingScreen deliberately left the answers on disk
+          // (didn't clearState) — but nothing on THIS signed-in route reloaded
+          // them, so hasOnboardingPayload() was false and LoadingScreen's save
+          // effect skipped, meaning the retry could never fire. loadState() here
+          // repopulates the store so LoadingScreen re-attempts the save. It's a
+          // no-op when there's nothing pending (successful saves already cleared
+          // the persisted blob).
+          await loadState();
           navigation.replace('Loading');
         } else {
           // User not logged in - check onboarding state

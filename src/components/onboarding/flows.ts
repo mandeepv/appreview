@@ -118,7 +118,12 @@ export function stepFor(screenName: string): FlowStep | null {
 // is a SILENT no-op (does not throw), so the old try/catch→Welcome never fired
 // and the user sat on the splash forever. Callers must check membership here and
 // fall back to Welcome for anything not on the list.
-const RESUMABLE_EXTRA = ['VBCalculating'] as const; // full-screen beat, not in a flow array
+// Variant-B screens that persist a lastScreen but are NOT in a flow array
+// (they render no progress bar, so they're intentionally absent from
+// VARIANT_B_FLOW). Without listing them here, a kill-and-relaunch parked on one
+// would fall back to Welcome instead of resuming. VBWelcome/VBIntro/VBName are
+// the pre-name intro trio; VBCalculating is the full-screen "analyzing" beat.
+const RESUMABLE_EXTRA = ['VBWelcome', 'VBIntro', 'VBName', 'VBCalculating'] as const;
 
 export const RESUMABLE_ONBOARDING_SCREENS: ReadonlySet<string> = new Set<string>([
   ...Object.values(FLOWS).flatMap((f) => [...f]),
