@@ -48,21 +48,21 @@ re-implementation. They pass but the advertised guards don't fully guard.
 **Fix**: assert against the real modules where feasible. **Effort**: ~1h.
 
 ### R5b. Variant super-property lost across a relaunch 🟢
-**Problem**: `hydrateOnboardingVariant()` (re-registers the `onboarding_variant`
-super-property from the persisted key on app start) is **never called** at
-startup — grep finds no caller outside experiments.ts. So if a user completes
-onboarding, kills the app, relaunches, then purchases, `subscription_purchased`
-fires WITHOUT the `onboarding_variant` event property (it's still `$set` on the
-person, so cohort analysis survives, but event-level breakdown of the primary
-metric is lost for relaunch-then-purchase users). Related: the sticky variant
-key is never cleared on the sign-in path (`clearState()` doesn't remove
-`ONBOARDING_VARIANT`; only `clearOnboardingVariant()` in LoadingScreen does), so
-a "re-save on next sign-in" sticks the old assignment for any future fresh
-signup on that device.
-**Fix**: call `hydrateOnboardingVariant()` once at app bootstrap (App.tsx/root);
-decide the intended clear-point for the sticky key on the sign-in path.
-**Effort**: ~1h. Neither blocks the dark ship, but both matter before the 50/50
-ramp (they affect the A/B readout). **Blocks**: accurate 50/50 experiment readout.
+**Problem**: the sticky variant key (`ONBOARDING_VARIANT`) is never cleared on
+the sign-in path — `clearState()` removes STATE/LAST_SCREEN/HAS_REACHED_AUTH but
+NOT the variant key; only `clearOnboardingVariant()` (called in LoadingScreen on
+a successful save) clears it. So after a "re-save on next sign-in", the OLD
+assignment sticks on the device and any future fresh signup on that device
+inherits it instead of getting a fresh split. (The super-property re-registration
+is NOT a bug — `hydrateOnboardingVariant()` IS called at app start, App.tsx:57,
+so relaunch-then-purchase events keep their `onboarding_variant` tag. Corrected
+2026-07-20; my earlier grep missed App.tsx because it lives at repo root, not
+under `src/`.)
+**Fix**: clear the sticky key at a deliberate later boundary (e.g. once a
+subscription is confirmed / on first Root entry), OR accept the gap and read the
+primary metric off the person property (`$set`), not the event tag.
+**Effort**: ~30m. Doesn't block the dark ship, but decide before the 50/50 ramp
+(affects who counts as a "fresh" assignment). **Blocks**: clean 50/50 readout.
 
 ### R5. Onboarding-mode LoadingScreen retry copy 🟢
 **Problem**: the offline retry path shows a 100%-complete checklist for ~9s
