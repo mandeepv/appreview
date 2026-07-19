@@ -105,3 +105,30 @@ export function stepFor(screenName: string): FlowStep | null {
   }
   return null;
 }
+
+// Onboarding screens a persisted `lastScreen` may safely resume to (SplashScreen
+// mid-flow resume). Derived from the declared flow arrays — the exact set that
+// QuestionScreen/StatementScreen persist as screenName — plus non-flow screens
+// that also persist a lastScreen. Kept here (next to the flow arrays) so it can
+// never drift from them, and so it's unit-testable without rendering Splash.
+//
+// This is the guard for review finding #5: SPEC-09 deleted several onboarding
+// screens, so a user parked on one had a persisted lastScreen pointing at a
+// now-UNREGISTERED route. React Navigation's replace() to an unregistered route
+// is a SILENT no-op (does not throw), so the old try/catch→Welcome never fired
+// and the user sat on the splash forever. Callers must check membership here and
+// fall back to Welcome for anything not on the list.
+const RESUMABLE_EXTRA = ['VBCalculating'] as const; // full-screen beat, not in a flow array
+
+export const RESUMABLE_ONBOARDING_SCREENS: ReadonlySet<string> = new Set<string>([
+  ...Object.values(FLOWS).flatMap((f) => [...f]),
+  ...RESUMABLE_EXTRA,
+]);
+
+/**
+ * True if a persisted `lastScreen` points at a live, resumable onboarding
+ * screen. A type guard so callers get `string` narrowing in the true branch.
+ */
+export function isResumableScreen(screenName: string | null | undefined): screenName is string {
+  return !!screenName && RESUMABLE_ONBOARDING_SCREENS.has(screenName);
+}

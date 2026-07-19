@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { trackOnboardingStarted } from '../../lib/analytics';
 import { SPLASH_MIN_DWELL_MS, shouldRouteFromSplash } from '../../lib/splashDwell';
+import { isResumableScreen } from '../../components/onboarding/flows';
 
 /**
  * SplashScreen is the mandatory first-launch surface. It is the JS
@@ -104,34 +105,39 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
             await loadState(); // Load their saved onboarding data
             trackOnboardingStarted('resumed', 'Auth');
             navigation.replace('Auth');
-          } else if (lastScreen) {
-            // User was in middle of onboarding, resume where they left off
+          } else if (isResumableScreen(lastScreen)) {
+            // User was in middle of onboarding, resume where they left off.
+            //
+            // `lastScreen` is a persisted string from AsyncStorage, NOT
+            // type-guaranteed to be a live route (a stale/renamed/deleted key
+            // could be anything). We ONLY resume if it's on the allowlist above.
+            // Do not rely on replace() throwing for an unknown route — it is a
+            // SILENT no-op in React Navigation, which is exactly how a deleted
+            // route left users stuck on the splash (review finding #5). The
+            // membership check is the real guard; the try/catch remains as a
+            // belt-and-suspenders for any other runtime surprise.
             if (__DEV__) console.log('Resuming onboarding at:', lastScreen);
             await loadState(); // Load their saved answers
             trackOnboardingStarted('resumed', lastScreen);
             try {
-              // SPEC-08 FLAG: `lastScreen` is a persisted string from
-              // AsyncStorage (getLastScreen(): Promise<string | null>), so it
-              // is NOT type-guaranteed to be a real onboarding route — a stale
-              // or renamed key could be anything. We narrow to the ParamList
-              // key type for the call, but keep the existing try/catch that
-              // falls back to 'Welcome' if replace() throws on an unknown
-              // route. This is a runtime string → route-name boundary; the
-              // cast is the honest type for "we can't prove this at compile
-              // time." Not a lazy `as any` — it's `keyof` + a runtime guard.
-              //
-              // `replace` is overloaded per-route; passing a runtime string
-              // (even narrowed to `keyof`) can't satisfy any single overload
-              // because some routes take required params. The runtime guard
-              // (try/catch → 'Welcome') is the real safety net; the `never` cast
-              // just tells the compiler "this string is checked at runtime, not
-              // here." Resume targets are always no-param onboarding screens.
-              // The replace signature is cast (not the argument) because the
+              // Safe: allowlisted resume targets are all no-param onboarding
+              // screens. The signature is cast (not the arg) because replace's
               // per-route overload union collapses the arg type to `never`.
               (navigation.replace as (name: string) => void)(lastScreen);
             } catch {
               navigation.replace('Welcome');
             }
+          } else if (lastScreen) {
+            // Persisted lastScreen exists but is NOT a live route (deleted /
+            // renamed / stale). Don't strand the user on the splash — start them
+            // fresh at Welcome. Their saved answers are still loaded, so a
+            // variant-A resume re-derives naturally.
+            if (__DEV__) {
+              console.log('Stale/unknown lastScreen, falling back to Welcome:', lastScreen);
+            }
+            await loadState();
+            trackOnboardingStarted('resumed', 'Welcome');
+            navigation.replace('Welcome');
           } else {
             // Brand new user, show welcome screen
             if (__DEV__) console.log('New user, showing Welcome screen');

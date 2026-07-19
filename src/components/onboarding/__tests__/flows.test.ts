@@ -5,7 +5,14 @@
 // each flow yields a monotonically increasing currentStep with the correct
 // totalSteps, and every registered question screen appears in exactly one flow.
 
-import { FLOWS, VARIANT_A_FLOW, VARIANT_B_FLOW, stepFor } from '../flows';
+import {
+  FLOWS,
+  VARIANT_A_FLOW,
+  VARIANT_B_FLOW,
+  stepFor,
+  isResumableScreen,
+  RESUMABLE_ONBOARDING_SCREENS,
+} from '../flows';
 
 describe('stepFor — progress derivation', () => {
   it('variant A: currentStep is 1-based position, totalSteps is flow length', () => {
@@ -68,5 +75,35 @@ describe('flow membership', () => {
     Object.values(FLOWS).forEach((flow) => {
       expect(new Set(flow).size).toBe(flow.length);
     });
+  });
+});
+
+describe('resumable-screen guard (SplashScreen mid-flow resume — review #5)', () => {
+  it('every flow screen is resumable', () => {
+    Object.values(FLOWS)
+      .flatMap((f) => [...f])
+      .forEach((screen) => {
+        expect(isResumableScreen(screen)).toBe(true);
+      });
+  });
+
+  it('the full-screen VBCalculating beat is resumable (persists lastScreen, not in a flow array)', () => {
+    expect(isResumableScreen('VBCalculating')).toBe(true);
+    expect(RESUMABLE_ONBOARDING_SCREENS.has('VBCalculating')).toBe(true);
+  });
+
+  it('DELETED screens are NOT resumable — the exact stuck-on-splash bug', () => {
+    // These were removed in SPEC-09; a persisted lastScreen pointing at one must
+    // NOT be resumed to (replace() would silently no-op → stuck on splash).
+    ['ChildrenAge', 'ChildrenGender', 'GoalSelection', 'ParentingStyles'].forEach((deleted) => {
+      expect(isResumableScreen(deleted)).toBe(false);
+    });
+  });
+
+  it('null / empty / garbage lastScreen is not resumable', () => {
+    expect(isResumableScreen(null)).toBe(false);
+    expect(isResumableScreen(undefined)).toBe(false);
+    expect(isResumableScreen('')).toBe(false);
+    expect(isResumableScreen('SomeRenamedRoute')).toBe(false);
   });
 });
