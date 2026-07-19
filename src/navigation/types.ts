@@ -64,14 +64,10 @@ export type OnboardingStackParamList = {
   UserType: undefined;
   NameAge: undefined;
   ChildrenCount: undefined;
-  ChildrenGender: undefined;
-  ChildrenAge: undefined;
   ImprovementGoals: undefined;
   Educational: undefined;
   PartnerInvolvement: undefined;
-  GoalSelection: undefined;
   ExperienceLevel: undefined;
-  ParentingStyles: undefined;
   EmotionalChallenges: undefined;
   // SPEC-15 — variant-B onboarding scaffold (placeholder screens). Fresh users
   // assigned variant_b branch here from Welcome instead of UserType, then
