@@ -1,5 +1,6 @@
 import React from 'react';
 import { LayoutAnimation, Platform, UIManager, TouchableOpacity, StyleSheet, View, Text } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { QuestionScreen } from '../../components/onboarding';
@@ -76,14 +77,23 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  // Hint shown when a tap is blocked by the cap, so the block isn't silent.
+  const [capHint, setCapHint] = React.useState(false);
+
   const toggleAge = (age: ChildAgeRange) => {
     const newAges = new Set(selectedAges);
     const currentCount = childrenCount || 0;
     if (newAges.has(age)) {
       newAges.delete(age);
+      setCapHint(false);
     } else if (newAges.size < currentCount) {
       // Only allow selection up to the child count.
       newAges.add(age);
+      setCapHint(false);
+    } else {
+      // At the cap — don't fail silently: buzz + show the swap hint.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setCapHint(true);
     }
     setSelectedAges(newAges);
   };
@@ -133,7 +143,8 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
       {/* Age section — revealed once children > 0 */}
       {hasChildren && (
         <View style={styles.section}>
-          <Text style={styles.label}>How old are they? (Select all that apply)</Text>
+          <Text style={styles.ageLabel}>How old are they?</Text>
+          <Text style={styles.sublabel}>Pick an age range for each of your kids.</Text>
           <View style={styles.ageGrid}>
             {AGE_RANGES.map((range) => (
               <TouchableOpacity
@@ -148,6 +159,11 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Cap feedback — appears when a tap is blocked so it isn't silent. */}
+          {capHint && (
+            <Text style={styles.capHint}>That covers all your kids — tap one to swap it.</Text>
+          )}
 
           {/* Optional gender expand — kept behind the flag it shipped behind
               (currently off; the trigger is commented out upstream). */}
@@ -277,6 +293,26 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: Spacing.lg,
     textAlign: 'center',
+  },
+  // Age-question heading: same as `label` but tighter, since a subline follows.
+  ageLabel: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  sublabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  capHint: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: Spacing.md,
   },
   selectorContainer: {
     alignItems: 'center',
