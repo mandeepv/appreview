@@ -2,9 +2,11 @@
 //
 // This is the ONLY place in the app that reads the 'onboarding-flow' feature
 // flag. Everything else keys off the resolved OnboardingVariant. The PostHog
-// client (src/config/posthog.ts) already sets `preloadFeatureFlags: true` and
-// `sendFeatureFlagEvent: true` — we build on that and never touch the client
-// config here.
+// client (src/config/posthog.ts) sets `preloadFeatureFlags: true` and
+// `sendFeatureFlagEvent: true`; we build on that and never touch the client
+// config here. NOTE: preload alone is NOT enough on a cold/fresh start — the
+// SDK serves an empty cached (bootstrap) value before the first server fetch
+// lands, so we explicitly await a fresh fetch (see readFlagWithTimeout).
 //
 // FLAG:            'onboarding-flow'          (multivariate)
 // VARIANT VALUES:  'control' | 'variant_b'
@@ -31,10 +33,14 @@ export type OnboardingVariant = 'control' | 'variant_b';
 
 const FLAG_KEY = 'onboarding-flow';
 
-// How long we'll wait on the server flag before falling back to control. The
-// Welcome screen warms the cache on mount so the Get Started tap is normally
-// instant; this cap only bites on a genuinely cold, slow-network first launch,
-// where a 2s ceiling keeps onboarding from stalling behind PostHog.
+// How long we'll wait on the FRESH server fetch before falling back to control.
+// The Welcome screen calls resolveOnboardingVariant() on mount, which kicks off
+// the reloadFeatureFlagsAsync() fetch early — so by the time the user taps Get
+// Started the value is usually already resolved/persisted and the tap is
+// instant. This cap only bites on a genuinely cold, slow-network first launch:
+// a 2s ceiling keeps onboarding from stalling behind PostHog, at the cost of
+// falling back to control on that rare slow launch (a deliberate trade — never
+// hang the user on the network).
 const FLAG_TIMEOUT_MS = 2000;
 
 // Narrow an arbitrary flag value to a known variant. PostHog's getFeatureFlag
@@ -44,12 +50,43 @@ const FLAG_TIMEOUT_MS = 2000;
 const toVariant = (raw: unknown): OnboardingVariant =>
   raw === 'variant_b' ? 'variant_b' : 'control';
 
-// Race the flag read against a timeout so a hung PostHog request can't stall
-// onboarding. On timeout we resolve `undefined`, which toVariant maps to
-// control.
+// Read the flag, FETCHING FRESH FROM THE SERVER first.
+//
+// Why not just posthog.getFeatureFlag()? On a cold start (esp. a fresh install)
+// the RN SDK caches flags in AsyncStorage and returns the CACHED/bootstrap value
+// synchronously, THEN fetches the real value from the server a moment later.
+// On a fresh install the cache is empty → getFeatureFlag returns undefined
+// (bootstrap) → we'd map that to control and lock it in before the real
+// 'variant_b' ever arrives. That produced events tagged `$used_bootstrap_value:
+// true` and made a 100% variant_b rollout still resolve to control.
+//
+// PostHog's recommended fix: await a fresh fetch via reloadFeatureFlagsAsync()
+// (docs: "manually trigger a refresh" / "wait for the feature flag request to
+// finish"). It resolves with the freshly-fetched flag map, so we read our key
+// from THAT — the true server value, not the cache. The read is still raced
+// against FLAG_TIMEOUT_MS so a slow/hung network can't stall onboarding: on
+// timeout we resolve `undefined`, which toVariant maps to control (fallback
+// preserved exactly as before).
 const readFlagWithTimeout = async (): Promise<unknown> => {
+  const freshRead = (async (): Promise<unknown> => {
+    try {
+      const flags = await posthog.reloadFeatureFlagsAsync();
+      // reloadFeatureFlagsAsync resolves with the fresh flag map (or undefined
+      // if the request failed). Prefer reading our key straight from it; fall
+      // back to getFeatureFlag (now backed by the just-refreshed cache).
+      if (flags && Object.prototype.hasOwnProperty.call(flags, FLAG_KEY)) {
+        return flags[FLAG_KEY];
+      }
+      return posthog.getFeatureFlag(FLAG_KEY);
+    } catch (err) {
+      if (__DEV__) console.warn('[experiments] reloadFeatureFlagsAsync failed:', err);
+      // Network/SDK failure → let the caller default to control.
+      return undefined;
+    }
+  })();
+
   return Promise.race([
-    Promise.resolve().then(() => posthog.getFeatureFlag(FLAG_KEY)),
+    freshRead,
     new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), FLAG_TIMEOUT_MS)),
   ]);
 };
