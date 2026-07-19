@@ -48,6 +48,42 @@ Investigation:
 
 **Effort**: 1-2 hours (native-side debugging)
 
+_(Note: the green-flash / huge-logo variant above was addressed by SPEC-16 R1.
+The re-introduction issue below is a separate, still-open item.)_
+
+### 1b. Logo "re-introduces itself" on reopen (gate-path polish) 🟡
+
+**Reported 2026-07-19 (owner, on device).** Closing the paywall and
+reopening the app shows the Kinderwell logo again for a beat before the
+paywall — feels unprofessional / like a double-launch. Deferred from the
+1.3.0 loading-screen work because the fix is on the **subscription-gate /
+auth path** (INVARIANT #1: every path into Root goes through Loading; the
+v1.1.0 sign-in bypass was a violation right here) and wasn't worth the risk
+to rush at the end of a session.
+
+**Root cause (investigated, not a visual mismatch):** the three glyph
+stages — native splash → JS `SplashScreen` → `LoadingScreen` gate glyph —
+already use the *identical* asset (`splash.png`), size (220px) and cream bg,
+deliberately (SPEC-16). The seam is **structural/timing**, not visual: on a
+returning signed-in launch the JS Splash still plays its full branded intro
+(wordmark "Kinderwell" + "Your parenting journey starts here" + the 800ms
+`SPLASH_MIN_DWELL_MS` dwell) before re-mounting into the gate glyph. That
+branded re-intro is the "logo again" feeling.
+
+**Proposed fix (the careful version):** for a *returning signed-in* user,
+skip the branded wordmark + dwell so it reads native-splash → gate → paywall
+as one continuous glyph; first-time users keep the full brand intro.
+Optionally also tighten `GATE_REVEAL_DELAY_MS` (400ms) so Splash→Loading has
+no perceptible beat.
+
+**Constraints / do NOT:** don't change *whether* signed-in users route
+through Loading (that's the gate). Only the branded-intro presentation may be
+conditionally skipped. Verify after: unsubscribed signed-in reopen still hits
+the paywall; `grep "replace('Root')"` still only in LoadingScreen.
+
+**Effort**: ~2-3 hours + on-device verification. Needs its own focused pass,
+not a tail-end change.
+
 ### 2. Splash vs "Get Started" screens look identical 🟡
 
 No sense of progress. User sees the same visual, feels like the app
