@@ -12,6 +12,10 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'UserType'>;
 // question, so it auto-advances on tap — the bespoke square-card grid and the
 // disabled "Continue →" button (the only screen with an arrow in its label) are
 // gone. Same answer values, same analytics step ('UserType'), same screenName.
+// The "stored securely / used only to personalize" reassurance (added Build 8
+// for App Store 5.1.1 profile-compilation compliance — see REVIEW_BLOCKERS.md
+// EDGE-02) is preserved in the subtitle: the auto-advance layout has no body
+// text slot, so it was folded in here rather than dropped.
 const OPTIONS: Option<UserType>[] = [
   { value: 'mother', label: 'Mother', imageSource: require('../../../assets/onboarding/mother_illustration.png') },
   { value: 'father', label: 'Father', imageSource: require('../../../assets/onboarding/father_illustration.png') },
@@ -36,7 +40,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
     <QuestionScreen
       screenName="UserType"
       title="Welcome to Kinderwell"
-      subtitle="Who are you parenting as? This helps us personalize lessons for your family."
+      subtitle="Who are you parenting as? Your answers are stored securely and used only to personalize your lessons."
     >
       <OptionList
         mode="single"

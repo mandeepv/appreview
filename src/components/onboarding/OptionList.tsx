@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Typography, BorderRadius, Animation } from '../../constants/theme';
 import { OptionCard, OptionCardVariant } from './OptionCard';
@@ -67,12 +68,29 @@ type OptionListProps<T extends string> = SingleProps<T> | MultiProps<T>;
 export function OptionList<T extends string>(props: OptionListProps<T>) {
   const reduceMotion = useReduceMotion();
 
-  // Single-select double-advance guard (mutable, per-mount).
+  // Single-select double-advance guard. Guards a rapid double-tap into firing
+  // onAdvance twice. It must reset on FOCUS, not on mount: React Navigation's
+  // native stack keeps a screen mounted when you navigate forward, so pressing
+  // Back returns to a still-mounted screen whose guard is still `advanced:true`
+  // from the first pass — leaving the user unable to re-select/advance. The
+  // useFocusEffect below clears the guard (and any stale timer) every time the
+  // screen regains focus, so re-tapping after Back works.
   const advanceGuard = useRef({ advanced: false });
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
   }, []);
+  useFocusEffect(
+    useCallback(() => {
+      // Re-arm on focus (initial mount AND return-via-Back). Cancel any timer
+      // that was mid-flight when we left, so it can't fire onAdvance late.
+      advanceGuard.current.advanced = false;
+      if (advanceTimer.current) {
+        clearTimeout(advanceTimer.current);
+        advanceTimer.current = null;
+      }
+    }, [])
+  );
 
   const handleSingleTap = (value: T, onSelect: SingleProps<T>['onSelect'], onAdvance: SingleProps<T>['onAdvance'], delay: number) => {
     if (!claimSingleAdvance(advanceGuard.current)) return; // rapid double-tap → no-op
