@@ -23,6 +23,15 @@
 //
 // Failure posture: onboarding must never block or crash on flag resolution.
 // Everything below is wrapped; the default is always control.
+//
+// ASSIGNMENT RULE (SPEC-FIX-11 R4): an assignment (persist + event +
+// super-property) is created in exactly ONE place — handleGetStarted, i.e. when
+// a device actually ENTERS onboarding. Paths that merely need to know or warm:
+//   - WelcomeScreen mount → warmOnboardingFlag() (caches the flag, no assign)
+//   - AuthScreen signin / identify → peekOnboardingVariant() (reads, no assign)
+// Calling resolveOnboardingVariant() from a non-onboarding path would mint a
+// bogus assignment for a user who never onboarded and stamp the variant on all
+// their later events — the contamination this rule prevents.
 
 import { posthog } from '../config/posthog';
 import { safeCapture } from './analytics';
@@ -34,13 +43,13 @@ export type OnboardingVariant = 'control' | 'variant_b';
 const FLAG_KEY = 'onboarding-flow';
 
 // How long we'll wait on the FRESH server fetch before falling back to control.
-// The Welcome screen calls resolveOnboardingVariant() on mount, which kicks off
-// the reloadFeatureFlagsAsync() fetch early — so by the time the user taps Get
-// Started the value is usually already resolved/persisted and the tap is
-// instant. This cap only bites on a genuinely cold, slow-network first launch:
-// a 2s ceiling keeps onboarding from stalling behind PostHog, at the cost of
-// falling back to control on that rare slow launch (a deliberate trade — never
-// hang the user on the network).
+// The Welcome screen calls warmOnboardingFlag() on mount (R4: warm, don't
+// assign), which kicks off the reloadFeatureFlagsAsync() fetch early — so by the
+// time the user taps Get Started and resolveOnboardingVariant() runs, the flag
+// is usually already fetched and the tap is instant. This cap only bites on a
+// genuinely cold, slow-network first launch: a 2s ceiling keeps onboarding from
+// stalling behind PostHog, at the cost of falling back to control on that rare
+// slow launch (a deliberate trade — never hang the user on the network).
 const FLAG_TIMEOUT_MS = 2000;
 
 // Narrow an arbitrary flag value to a known variant. PostHog's getFeatureFlag
@@ -140,6 +149,55 @@ export const resolveOnboardingVariant = async (): Promise<OnboardingVariant> => 
     // control and do not persist (so a later successful call can still assign).
     if (__DEV__) console.warn('[experiments] resolveOnboardingVariant failed, defaulting control:', err);
     return 'control';
+  }
+};
+
+/**
+ * SPEC-FIX-11 R4 — read-only peek at the persisted assignment.
+ *
+ * Returns the persisted variant, or `null` if this device has none. It NEVER
+ * consults the flag, NEVER persists, and NEVER fires `onboarding_variant_assigned`
+ * — so paths that need to KNOW the variant without CREATING one (identify in
+ * signin mode, flag-cache warming) use this instead of resolveOnboardingVariant.
+ *
+ * Why this exists: calling resolveOnboardingVariant from a non-onboarding path
+ * (e.g. a returning user signing in on a fresh device) would mint a brand-new
+ * assignment, fire the event, and stamp the super-property on every later event
+ * including subscription_purchased — contaminating any non-funnel breakdown by
+ * variant. An assignment must exist ONLY for devices that actually entered
+ * onboarding (see handleGetStarted). Never throws.
+ */
+export const peekOnboardingVariant = async (): Promise<OnboardingVariant | null> => {
+  try {
+    const persisted = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_VARIANT);
+    return persisted === 'control' || persisted === 'variant_b' ? persisted : null;
+  } catch (err) {
+    if (__DEV__) console.warn('[experiments] peekOnboardingVariant failed:', err);
+    return null;
+  }
+};
+
+/**
+ * SPEC-FIX-11 R4 — warm the flag cache WITHOUT assigning.
+ *
+ * Fire-and-forget flag read whose RESULT is discarded: it primes PostHog's local
+ * flag cache so a later resolveOnboardingVariant (in handleGetStarted) is
+ * instant, but it does NOT persist, fire the event, or register the
+ * super-property. Safe to call from WelcomeScreen mount, where a user may bounce
+ * or tap "already have an account" without ever entering onboarding.
+ */
+export const warmOnboardingFlag = (): void => {
+  try {
+    // Kick off a real SERVER fetch and discard the result. Using
+    // reloadFeatureFlagsAsync (not getFeatureFlag, which only reads the sync
+    // cache) means by the time handleGetStarted calls resolveOnboardingVariant
+    // the fresh flags are usually already in — so the Get Started tap rarely
+    // hits the 2s timeout. Persists nothing / fires nothing (warming only).
+    void Promise.resolve()
+      .then(() => posthog.reloadFeatureFlagsAsync())
+      .catch(() => { /* warming is best-effort */ });
+  } catch {
+    /* never throw into a screen mount */
   }
 };
 
