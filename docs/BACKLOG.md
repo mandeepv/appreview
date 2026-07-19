@@ -47,6 +47,23 @@ other rather than to the real exports; `loadingMode.test.ts` tests a local
 re-implementation. They pass but the advertised guards don't fully guard.
 **Fix**: assert against the real modules where feasible. **Effort**: ~1h.
 
+### R5b. Variant super-property lost across a relaunch 🟢
+**Problem**: `hydrateOnboardingVariant()` (re-registers the `onboarding_variant`
+super-property from the persisted key on app start) is **never called** at
+startup — grep finds no caller outside experiments.ts. So if a user completes
+onboarding, kills the app, relaunches, then purchases, `subscription_purchased`
+fires WITHOUT the `onboarding_variant` event property (it's still `$set` on the
+person, so cohort analysis survives, but event-level breakdown of the primary
+metric is lost for relaunch-then-purchase users). Related: the sticky variant
+key is never cleared on the sign-in path (`clearState()` doesn't remove
+`ONBOARDING_VARIANT`; only `clearOnboardingVariant()` in LoadingScreen does), so
+a "re-save on next sign-in" sticks the old assignment for any future fresh
+signup on that device.
+**Fix**: call `hydrateOnboardingVariant()` once at app bootstrap (App.tsx/root);
+decide the intended clear-point for the sticky key on the sign-in path.
+**Effort**: ~1h. Neither blocks the dark ship, but both matter before the 50/50
+ramp (they affect the A/B readout). **Blocks**: accurate 50/50 experiment readout.
+
 ### R5. Onboarding-mode LoadingScreen retry copy 🟢
 **Problem**: the offline retry path shows a 100%-complete checklist for ~9s
 before the escape hatch, with no "check your connection" message (gate mode has
@@ -55,14 +72,23 @@ its copy; onboarding mode doesn't).
 
 ### R6. Housekeeping / process 🟢
 - `ci.yml` triggers only on PRs into main/develop, so direct pushes to
-  `release/*` never run CI. Trigger manually: `gh workflow run CI --ref release/1.3.0`.
-  (Runbook Phase 2/7 wrongly said `--ref main` — main is frozen.) Consider adding
-  `release/**` to the CI trigger.
-- `rc/1.4.0` tag points at the old pre-re-cut tip (`c7aa36e`) — code that will
-  never ship. Move or delete it; "v1.4.0" is no longer a distinct checkpoint
-  (its scope shipped in v1.3.0). `v1.4.0.md` runbook now carries a superseded banner.
-- Delete the throwaway `develop` branch once confirmed nothing valuable remains
-  on it (R4 anti-contamination fix already extracted → release/1.3.0).
+  `release/*` never run CI (CI has NEVER run on release/1.3.0). Trigger manually:
+  `gh workflow run CI --ref release/1.3.0`. (Runbook Phase 2/4 corrected to the
+  release branch — main is frozen at 1.2.0.) Consider adding `release/**` to the
+  CI trigger so this isn't manual every release.
+- **`rc/1.3.0` tag points at the old pre-re-cut tip (`c7aa36e`)** — code that
+  will never ship (the narrow branch we replaced when rebuilding at bigger
+  scope). Move it to the real release commit or delete it. NOTE: `rc/1.4.0`
+  (`df6f0cc`) is FINE — it's an ancestor of the current release/1.3.0, so it's
+  not stranded; leave it. (v1.4.0 as a distinct checkpoint is gone — its scope
+  shipped in v1.3.0 — but the tag itself points at real, contained history.)
+- Delete the throwaway `develop` branch — but ONLY after confirming nothing
+  unique is stranded on it. Verified 2026-07-20: the R4 anti-contamination fix is
+  already extracted → release/1.3.0. **`spec-18-lesson-redesign-locking` (9
+  commits) and `spec-19-streak-system` (16 commits) hold real future work and
+  exist as their own branches** — those must survive develop's deletion (they
+  will, they're independent refs). Salvage anything else off develop first, then
+  delete.
 - `app.json` splash plugin lacks the RN 5.6 `imageWidth` pin; a redundant
   top-level splash block remains. Minor prebuild hygiene.
 
