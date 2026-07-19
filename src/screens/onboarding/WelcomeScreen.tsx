@@ -13,11 +13,11 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
 
 // SPEC-15: pure Welcome→first-onboarding-screen mapping, extracted so the
 // branch is unit-testable without rendering the screen (R6). Control enters the
-// existing variant-A flow at UserType; variant_b enters the variant-B scaffold
-// at VariantBQ1. Both arms converge again at Auth → Loading → paywall.
+// existing variant-A flow at UserType; variant_b enters the full variant-B
+// onboarding at VBWelcome. Both arms converge again at Auth → Loading → paywall.
 export const resolveWelcomeDestination = (
   variant: OnboardingVariant,
-): 'UserType' | 'VariantBQ1' => (variant === 'variant_b' ? 'VariantBQ1' : 'UserType');
+): 'UserType' | 'VBWelcome' => (variant === 'variant_b' ? 'VBWelcome' : 'UserType');
 
 export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;

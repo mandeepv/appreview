@@ -22,6 +22,12 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ChildrenCount'>;
 // footer grammar but KEEPS an explicit, gated Continue — this is not a plain
 // single/multi question, so auto-advance/reveal don't apply. All internal
 // interaction logic, values, analytics step, and screenName are unchanged.
+//
+// Variant B reuse: the same compound picker is used by variant B's VBKids screen
+// (same store fields, same analytics step). To avoid forking ~200 lines, the
+// screenName and the post-Continue navigation are overridable via optional
+// props. Variant A passes nothing → identical behavior (screenName
+// 'ChildrenCount', next → ImprovementGoals). Variant B passes its own.
 
 const AGE_RANGES: { label: string; value: ChildAgeRange }[] = [
   { label: '0–1', value: '0-1' },
@@ -38,7 +44,19 @@ const GENDER_OPTIONS: { label: string; value: ChildGender }[] = [
   { label: 'Prefer not to say', value: 'prefer-not-to-say' },
 ];
 
-export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
+// Optional overrides let variant B reuse this screen with its own screenName and
+// next-target while variant A keeps its defaults.
+interface ChildrenCountOverrides {
+  screenName?: string;
+  /** Called after answers are saved, instead of the default nav to ImprovementGoals. */
+  onDone?: () => void;
+}
+
+export const ChildrenCountScreen: React.FC<Props & ChildrenCountOverrides> = ({
+  navigation,
+  screenName = 'ChildrenCount',
+  onDone,
+}) => {
   const {
     childrenCount,
     updateChildrenCount,
@@ -108,7 +126,11 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
       }
     }
     trackOnboardingStepCompleted('ChildrenCount', { count, age_ranges: ages });
-    navigation.navigate('ImprovementGoals');
+    if (onDone) {
+      onDone();
+    } else {
+      navigation.navigate('ImprovementGoals');
+    }
   };
 
   const hasChildren = (childrenCount || 0) > 0;
@@ -117,7 +139,7 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <QuestionScreen
-      screenName="ChildrenCount"
+      screenName={screenName}
       title="Let's personalize this for your child(ren)"
       onBack={() => navigation.goBack()}
       footer={<Button title="Continue" onPress={handleContinue} disabled={!canContinue} />}

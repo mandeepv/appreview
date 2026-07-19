@@ -3,10 +3,10 @@
 //
 // Two pure checks, no rendering:
 //  1. resolveWelcomeDestination maps each variant to the right first screen.
-//  2. A persisted lastScreen of 'VariantBQ2' is a route the OnboardingNavigator
-//     actually registers — proving mid-flow resume (SplashScreen replaces to
-//     the persisted name) lands on a real screen rather than the try/catch
-//     Welcome fallback.
+//  2. A persisted lastScreen of a mid-flow variant-B route is one the
+//     OnboardingNavigator actually registers — proving mid-flow resume
+//     (SplashScreen replaces to the persisted name) lands on a real screen
+//     rather than the try/catch Welcome fallback.
 //
 // WelcomeScreen imports RN/analytics/experiments transitively; we only need the
 // pure resolveWelcomeDestination export, and the experiments + posthog modules
@@ -39,20 +39,40 @@ describe('resolveWelcomeDestination', () => {
     expect(resolveWelcomeDestination('control')).toBe('UserType');
   });
 
-  it('variant_b → VariantBQ1 (scaffold entry)', () => {
-    expect(resolveWelcomeDestination('variant_b')).toBe('VariantBQ1');
+  it('variant_b → VBWelcome (full onboarding entry)', () => {
+    expect(resolveWelcomeDestination('variant_b')).toBe('VBWelcome');
   });
 });
 
 describe('mid-flow resume — variant-B route names are registered', () => {
-  // The set of onboarding routes the navigator registers. This mirrors
-  // OnboardingNavigator's <Stack.Screen name=...> list for the variant-B
-  // screens; if a route is renamed in one place but not the other, a persisted
-  // lastScreen would silently fall back to Welcome — this guards that seam.
-  const REGISTERED_VARIANT_B_ROUTES = ['VariantBQ1', 'VariantBQ2', 'VariantBQ3'];
+  // The set of onboarding routes the navigator registers for variant B. This
+  // mirrors OnboardingNavigator's <Stack.Screen name=...> list; if a route is
+  // renamed in one place but not the other, a persisted lastScreen would
+  // silently fall back to Welcome — this guards that seam.
+  const REGISTERED_VARIANT_B_ROUTES = [
+    'VBWelcome',
+    'VBIntro',
+    'VBName',
+    'VBRole',
+    'VBKids',
+    'VBMood',
+    'VBChallenges',
+    'VBWhenHardest',
+    'VBMirror',
+    'VBGoals',
+    'VBReady',
+    'VBCalculating',
+    'VBSnapshot',
+    'VBHowItWorks',
+    'VBBenefit',
+    'VBCommit',
+    'VBAllIn',
+    'VBRating',
+    'VBReminders',
+  ];
 
-  it("a persisted lastScreen: 'VariantBQ2' is a registered route", () => {
-    const persistedLastScreen = 'VariantBQ2';
+  it("a persisted lastScreen: 'VBMood' is a registered route", () => {
+    const persistedLastScreen = 'VBMood';
     expect(REGISTERED_VARIANT_B_ROUTES).toContain(persistedLastScreen);
   });
 });

@@ -119,7 +119,16 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
               // route. This is a runtime string → route-name boundary; the
               // cast is the honest type for "we can't prove this at compile
               // time." Not a lazy `as any` — it's `keyof` + a runtime guard.
-              navigation.replace(lastScreen as keyof OnboardingStackParamList);
+              //
+              // `replace` is overloaded per-route; passing a runtime string
+              // (even narrowed to `keyof`) can't satisfy any single overload
+              // because some routes take required params. The runtime guard
+              // (try/catch → 'Welcome') is the real safety net; the `never` cast
+              // just tells the compiler "this string is checked at runtime, not
+              // here." Resume targets are always no-param onboarding screens.
+              // The replace signature is cast (not the argument) because the
+              // per-route overload union collapses the arg type to `never`.
+              (navigation.replace as (name: string) => void)(lastScreen);
             } catch {
               navigation.replace('Welcome');
             }
