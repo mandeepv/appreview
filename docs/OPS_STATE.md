@@ -56,8 +56,8 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
-| App Store Connect | live version / build | unverified | unverified | ASC → App → App Store |
-| App Store Connect | phased-rollout state | unverified | unverified | ASC → App → Phased Release |
+| App Store Connect | live version / build | **v1.2.0 (build 11)** — released (owner-confirmed); marker tag `appstore-live-v1.2.0` on `39badd3` | 2026-07-19 | ASC → App → App Store |
+| App Store Connect | phased-rollout state | unverified — confirm whether phased release was enabled and current % (RELEASE_CHECKLIST Phase 11 window) | unverified | ASC → App → Phased Release |
 | App Store Connect | Small Business Program | **ENROLLED** (owner) | 2026-07-09 | ASC → Agreements |
 | App Store Connect | ToS link in metadata | unverified (1.5.3) | unverified | ASC → App Information |
 | App Store Connect | DSA trader status | unverified (1.5.3) | unverified | ASC → App Information |
