@@ -285,5 +285,11 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     // paddingBottom is applied inline (safe-area inset + cushion) so the
     // Continue button clears the home indicator; see the footer View above.
+    // Hairline top separator: when the option area scrolls, this makes the
+    // pinned footer read as "floating above scrollable content" rather than
+    // the end of the screen — killing the "false bottom" that made a tall
+    // list (last item under the button) look cut off instead of scrollable.
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
   },
 });
