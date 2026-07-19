@@ -103,7 +103,12 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        // Native scroll indicator ON: on a tall option list (e.g. 7 goals) it's
+        // the standard iOS cue that there's more below. Hiding it (plus the
+        // pinned footer creating a "false bottom") made scrollability
+        // non-obvious — the old screens had a hand-rolled "↓ scroll" hint for
+        // exactly this; the native bar replaces it for free.
+        showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
       >
         {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -162,11 +167,19 @@ export const RevealFooter: React.FC<{
   );
 };
 
-/** Continue for multi-select — revealed on validity. Convenience wrapper. */
-export const ContinueButton: React.FC<{ onPress: () => void; title?: string }> = ({
-  onPress,
-  title = 'Continue',
-}) => <Button title={title} onPress={onPress} />;
+/**
+ * Continue button. Multi-select screens keep this ALWAYS VISIBLE and pass
+ * `disabled` until the selection is valid — the button's presence is the
+ * affordance that tells users how to proceed (a hidden/revealed button left
+ * users unsure what to do). Button already styles the disabled state.
+ */
+export const ContinueButton: React.FC<{
+  onPress: () => void;
+  title?: string;
+  disabled?: boolean;
+}> = ({ onPress, title = 'Continue', disabled = false }) => (
+  <Button title={title} onPress={onPress} disabled={disabled} />
+);
 
 const BackButton: React.FC<{ onPress: () => void }> = ({ onPress }) => (
   // Same chevron affordance the old OnboardingContainer drew, tokenized.
