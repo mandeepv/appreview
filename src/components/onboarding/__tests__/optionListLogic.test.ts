@@ -65,7 +65,7 @@ describe('single-select tap ordering (answer written before advance)', () => {
 });
 
 describe('auto-advance delay', () => {
-  it('defaults to the documented 250ms (DECISION 2)', () => {
-    expect(AUTO_ADVANCE_DELAY_MS).toBe(250);
+  it('is 350ms (DECISION 2, tuned on device — long enough to see the selection confirm)', () => {
+    expect(AUTO_ADVANCE_DELAY_MS).toBe(350);
   });
 });

@@ -4,7 +4,11 @@
  * component renderer (the repo has no react-testing-library; tests are pure).
  */
 
-export const AUTO_ADVANCE_DELAY_MS = 250; // DECISION 2 — tune on device.
+// DECISION 2 (tuned on device): 350ms. At 250ms the selected-state highlight +
+// checkmark spring hadn't finished animating before navigation, so the tap felt
+// like it whisked you away with no confirmation. 350ms lets the "got it" land
+// while still feeling snappy.
+export const AUTO_ADVANCE_DELAY_MS = 350;
 
 /** Multi-select is valid (Continue may show / advance may proceed) at ≥1 item. */
 export function isMultiSelectValid(selected: readonly string[]): boolean {
