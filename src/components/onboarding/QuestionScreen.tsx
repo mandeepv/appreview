@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, Animated, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ProgressBar } from '../ProgressBar';
 import { Button } from '../Button';
@@ -63,6 +63,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
   progressOverride,
 }) => {
   const { saveState, setLastScreen } = useOnboardingStore();
+  const insets = useSafeAreaInsets();
 
   // Preserve OnboardingContainer's auto-save seam exactly: save + record last
   // screen when this screen loses focus or unmounts.
@@ -110,8 +111,15 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
         {children}
       </ScrollView>
 
-      {/* Footer slot — Continue lives here (multi-select reveal / explicit). */}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+      {/* Footer slot — Continue lives here (multi-select reveal / explicit).
+          Bottom padding = safe-area inset + a fixed cushion so the button
+          clears the home indicator on Face ID iPhones (insets.bottom ~34pt)
+          without wasting space on Touch ID devices (insets.bottom 0). */}
+      {footer ? (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.md }]}>
+          {footer}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 };
@@ -262,6 +270,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: Spacing['2xl'],
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.lg,
+    // paddingBottom is applied inline (safe-area inset + cushion) so the
+    // Continue button clears the home indicator; see the footer View above.
   },
 });
