@@ -32,6 +32,8 @@ jest.mock('../../config/posthog', () => ({
   posthogEnvironment: 'dev',
 }));
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { resolveWelcomeDestination } from '../../screens/onboarding/WelcomeScreen';
 
 describe('resolveWelcomeDestination', () => {
@@ -75,4 +77,57 @@ describe('mid-flow resume — variant-B route names are registered', () => {
     const persistedLastScreen = 'VBMood';
     expect(REGISTERED_VARIANT_B_ROUTES).toContain(persistedLastScreen);
   });
+});
+
+describe('variant-B chain integrity (static source scan)', () => {
+  // The screens pull native deps and can't render under jest-node, so we can't
+  // exercise navigation at runtime. Instead we STATICALLY read each variant-B
+  // screen's source and assert its navigate/replace target is the NEXT screen on
+  // the rail. This exists because VBName once shipped navigating to 'UserType'
+  // (variant A) instead of 'VBRole' — dumping every variant_b user into the
+  // control flow (16/19 B screens unreachable) while the registration/resume
+  // tests above still passed. A broken link now fails the build.
+  const DIR = path.join(__dirname, '../../screens/onboarding/variantB');
+
+  // The intended rail, in order. The last screen exits variant B into the shared
+  // tail at 'Auth'. VBCalculating uses navigation.replace (one-way) — both
+  // navigate() and replace() are matched below.
+  const EXPECTED_NEXT: Record<string, string> = {
+    VBWelcome: 'VBIntro',
+    VBIntro: 'VBName',
+    VBName: 'VBRole',
+    VBRole: 'VBKids',
+    VBKids: 'VBMood',
+    VBMood: 'VBChallenges',
+    VBChallenges: 'VBWhenHardest',
+    VBWhenHardest: 'VBMirror',
+    VBMirror: 'VBGoals',
+    VBGoals: 'VBReady',
+    VBReady: 'VBCalculating',
+    VBCalculating: 'VBSnapshot',
+    VBSnapshot: 'VBHowItWorks',
+    VBHowItWorks: 'VBBenefit',
+    VBBenefit: 'VBCommit',
+    VBCommit: 'VBAllIn',
+    VBAllIn: 'VBRating',
+    VBRating: 'VBReminders',
+    VBReminders: 'Auth',
+  };
+
+  it.each(Object.entries(EXPECTED_NEXT))(
+    '%s forwards to %s',
+    (screen, expectedNext) => {
+      // VBKids delegates to the reused ChildrenCountScreen via an onDone override,
+      // so its "next" lives inline in VBKidsScreen; the regex below still finds
+      // navigation.navigate('VBMood') in that file.
+      const file = path.join(DIR, `${screen}Screen.tsx`);
+      const src = fs.readFileSync(file, 'utf8');
+      const targets = Array.from(
+        src.matchAll(/navigation\.(?:navigate|replace)\(\s*'([A-Za-z]+)'/g),
+      ).map((m) => m[1]);
+      expect(targets).toContain(expectedNext);
+      // And must NOT jump onto the variant-A rail's first screen.
+      expect(targets).not.toContain('UserType');
+    },
+  );
 });
