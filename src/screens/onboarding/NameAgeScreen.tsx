@@ -4,7 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { QuestionScreen, ContinueButton } from '../../components/onboarding';
 import { FormInput } from '../../components/FormInput';
-import { AgeWheelPicker } from '../../components/AgeWheelPicker';
+import { CounterSelector } from '../../components/CounterSelector';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { Spacing, Animation as AnimationConfig } from '../../constants/theme';
 import { trackOnboardingStepCompleted } from '../../lib/analytics';
@@ -14,9 +14,12 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'NameAge'>;
 // SPEC-17: free-input screen — keeps an EXPLICIT Continue (auto-advance is for
 // single-select only). Adopts the shell's spacing/footer grammar. Same values,
 // analytics step, screenName.
-// Age input: the old +/- CounterSelector (17 taps to reach 35) was replaced
-// with AgeWheelPicker (native wheel, one flick). Age is still an exact integer
-// 18-100 — no store/analytics/DB change.
+// Age input: back to the +/- CounterSelector (the wheel picker looked dated and
+// added no measured benefit — NameAge already converts at 98.65% / ~4s median,
+// the best screen in the funnel, so we keep it simple and un-flashy). Age is an
+// exact integer 18-100 — no store/analytics/DB change. Default 30 means most
+// users need only a few taps or none. `returnKeyType="done"` on the name field
+// dismisses the keyboard so the stepper + Continue are reachable.
 export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
   const { name: storedName, age: storedAge, updateNameAndAge } = useOnboardingStore();
   const [name, setName] = useState(storedName);
@@ -63,10 +66,11 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
           success={hasName}
         />
 
-        <AgeWheelPicker
+        <CounterSelector
           label="Your Age"
           value={age}
-          onChange={setAge}
+          onIncrement={() => setAge((a) => Math.min(a + 1, 100))}
+          onDecrement={() => setAge((a) => Math.max(a - 1, 18))}
           min={18}
           max={100}
         />
