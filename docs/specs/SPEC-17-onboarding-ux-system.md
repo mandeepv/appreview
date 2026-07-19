@@ -101,6 +101,13 @@ Build the grammar once; screens become thin declarations.
 
 ### R2 — Migrate every onboarding screen to the system
 
+> **NOTE 2026-07-19 (superseded, not rewritten):** `ChildrenGender`, `ChildrenAge`,
+> `GoalSelection`, and `ParentingStyles` were **deleted** during the v1.3.0 work — they had
+> been off the active flow since before v1.1.0. The list below is the historical R2 scope;
+> the current live flow is UserType → NameAge → ChildrenCount → ImprovementGoals →
+> Educational → PartnerInvolvement → ExperienceLevel → EmotionalChallenges (see
+> `src/components/onboarding/flows.ts` and BACKLOG). Snapshot kept as-is per CLAUDE.md.
+
 `UserType`, `NameAge`, `ChildrenCount`, `ChildrenGender`, `ChildrenAge`, `ImprovementGoals`,
 `Educational`, `PartnerInvolvement`, `GoalSelection`, `ExperienceLevel`, `ParentingStyles`,
 `EmotionalChallenges` + variant B's `VariantBQ1–Q3` (from SPEC-15). Per screen: same question, same

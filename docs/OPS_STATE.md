@@ -71,6 +71,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
 | App Store Connect | live version / build | **v1.2.0 (build 11)** — released (owner-confirmed); marker tag `appstore-live-v1.2.0` on `39badd3` | 2026-07-19 | ASC → App → App Store |
+| Build deps (v1.3.0) | native module added | **`@react-native-picker/picker` 2.11.1** added 2026-07-19 (Expo-pinned) for the onboarding age wheel picker — a NATIVE module, so v1.3.0 needs a fresh `eas build` (won't appear in Expo Go / JS reload). New supply-chain dep; nothing else native changed | 2026-07-19 | `grep react-native-picker package.json` |
 | App Store Connect | phased-rollout state | **7-day phased release ON** (owner-confirmed 2026-07-19) — Phase 11 monitoring window active; watch crash-free % / Sentry, numeric pause thresholds per RELEASE_CHECKLIST Phase 11 | 2026-07-19 | ASC → App → Phased Release |
 | Supabase | prod test-user cleanup (v1.2.0) | **done** — 1 test account deleted from prod Auth after release (RELEASE_CHECKLIST Phase 10) | 2026-07-19 | Supabase → Authentication → Users |
 | App Store Connect | Small Business Program | **ENROLLED** (owner) | 2026-07-09 | ASC → Agreements |
