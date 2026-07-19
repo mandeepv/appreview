@@ -7,7 +7,7 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { Colors, Spacing, Typography, Animation, BorderRadius } from '../../constants/theme';
 import { trackWelcomeCtaTapped, trackOnboardingRestarted } from '../../lib/analytics';
 import { useOnboardingStore } from '../../store/onboardingStore';
-import { resolveOnboardingVariant, type OnboardingVariant } from '../../lib/experiments';
+import { resolveOnboardingVariant, warmOnboardingFlag, type OnboardingVariant } from '../../lib/experiments';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
 
@@ -40,11 +40,15 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
       }),
     ]).start();
 
-    // SPEC-15: warm the variant cache on mount, fire-and-forget. resolve...()
-    // persists the assignment on first call, so by the time the user taps Get
-    // Started the value is already in AsyncStorage and the tap resolves
-    // instantly. Never throws (the accessor is fully wrapped, defaults control).
-    resolveOnboardingVariant();
+    // SPEC-15 + SPEC-FIX-11 R4: warm the FLAG CACHE on mount without assigning.
+    // The old mount call to resolveOnboardingVariant() persisted an assignment
+    // (+ event + super-property) the instant Welcome rendered — so a user who
+    // bounced or tapped "already have an account" without ever entering
+    // onboarding still got counted into the experiment. An assignment must exist
+    // ONLY for devices that actually enter onboarding (handleGetStarted).
+    // warmOnboardingFlag primes PostHog's flag cache (so the Get Started tap is
+    // still instant) but never persists, never fires the event. Never throws.
+    warmOnboardingFlag();
   }, []);
 
   const handleGetStarted = async () => {

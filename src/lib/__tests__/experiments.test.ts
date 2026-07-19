@@ -66,6 +66,8 @@ jest.mock('../../config/posthog', () => ({
 
 import {
   resolveOnboardingVariant,
+  peekOnboardingVariant,
+  warmOnboardingFlag,
   hydrateOnboardingVariant,
   clearOnboardingVariant,
 } from '../experiments';
@@ -219,5 +221,67 @@ describe('hydrateOnboardingVariant', () => {
   it('does nothing when no assignment is persisted', async () => {
     await hydrateOnboardingVariant();
     expect(mockRegister).not.toHaveBeenCalled();
+  });
+});
+
+// SPEC-FIX-11 R4 — assignment hygiene: peek and warm never create an assignment.
+describe('peekOnboardingVariant — read-only, never assigns', () => {
+  it('returns the persisted variant without persisting/firing/registering', async () => {
+    mockAsyncStore.set(KEY, 'variant_b');
+    await expect(peekOnboardingVariant()).resolves.toBe('variant_b');
+    expect(mockCapture).not.toHaveBeenCalled();
+    expect(mockRegister).not.toHaveBeenCalled();
+  });
+
+  it('returns null when no assignment exists — and writes nothing', async () => {
+    await expect(peekOnboardingVariant()).resolves.toBeNull();
+    expect(mockAsyncStore.has(KEY)).toBe(false);
+    expect(mockCapture).not.toHaveBeenCalled();
+  });
+
+  it('never consults the flag (a hung flag does not matter)', async () => {
+    mockFlag.hangs = true;
+    await expect(peekOnboardingVariant()).resolves.toBeNull();
+    // getFeatureFlag must not have been called at all.
+    expect((posthog.getFeatureFlag as jest.Mock)).not.toHaveBeenCalled();
+  });
+});
+
+describe('warmOnboardingFlag — warms cache, never assigns', () => {
+  it('fetches fresh flags but never persists / fires / registers', async () => {
+    mockFlag.value = 'variant_b';
+    warmOnboardingFlag();
+    // Let the fire-and-forget promise settle.
+    await new Promise((r) => setImmediate(r));
+    // Warming now kicks a real server fetch (reloadFeatureFlagsAsync) rather
+    // than reading the sync cache, so the later resolve rarely hits the timeout.
+    expect((posthog.reloadFeatureFlagsAsync as jest.Mock)).toHaveBeenCalled();
+    expect(mockAsyncStore.has(KEY)).toBe(false); // no assignment persisted
+    expect(mockCapture).not.toHaveBeenCalled();
+    expect(mockRegister).not.toHaveBeenCalled();
+  });
+
+  it('a throwing flag never propagates out of warm', async () => {
+    mockFlag.throws = true;
+    expect(() => warmOnboardingFlag()).not.toThrow();
+    await new Promise((r) => setImmediate(r));
+    expect(mockAsyncStore.has(KEY)).toBe(false);
+  });
+});
+
+describe('assignment happens ONLY on resolve (Get Started), not on peek/warm', () => {
+  it('resolve is the sole persist+event point', async () => {
+    mockFlag.value = 'variant_b';
+    // Peek + warm first — neither should assign.
+    await peekOnboardingVariant();
+    warmOnboardingFlag();
+    await new Promise((r) => setImmediate(r));
+    expect(mockAsyncStore.has(KEY)).toBe(false);
+    expect(mockCapture).not.toHaveBeenCalled();
+
+    // Now resolve (the Get Started path) — THIS assigns.
+    await resolveOnboardingVariant();
+    expect(mockAsyncStore.get(KEY)).toBe('variant_b');
+    expect(mockCapture).toHaveBeenCalledWith('onboarding_variant_assigned', expect.any(Object));
   });
 });
