@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, Animated, Image, Linking, AccessibilityInfo, Ac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { ProgressBar } from '../../components/ProgressBar';
 import { Button } from '../../components/Button';
 import { Caption } from '../../components/Typography';
+import { PlanTheater } from '../../components/onboarding/PlanTheater';
 import { Colors, Spacing, Typography } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
@@ -124,7 +124,6 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     // that variant A gets. See hasOnboardingPayload() below.
     hasOnboardingPayload(onboardingStore) ? 0 : 100,
   );
-  const [scaleAnim] = useState(new Animated.Value(1));
   const [gateStatus, setGateStatus] = useState<'idle' | 'presenting' | 'retry' | 'blocked'>('idle');
   const { identify } = useUser();
   const paywallPresentedRef = useRef(false);
@@ -585,27 +584,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   latestRunGateRef.current = runGate;
 
   useEffect(() => {
-    // SPEC-16 R3: gentle breathing glyph animates in the theater only, and only
-    // when Reduce Motion is off (it collapses to a still glyph otherwise). Gate
-    // mode doesn't run it — the glyph there is a still continuation of the
-    // splash.
-    if (mode === 'onboarding' && !reduceMotion) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(scaleAnim, {
-            toValue: 1.05,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scaleAnim, {
-            toValue: 1,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    }
-
+    // The theater's breathing glyph now lives inside PlanTheater (Reanimated),
+    // which owns its own Reduce-Motion handling. This effect keeps ONLY the
+    // gate-critical progress scheduling below.
     if (hasOnboardingPayload(onboardingStore)) {
       // Post-onboarding: run the ~4s progress theater (the redesigned
       // "creating your lesson plan" messaging) so the user sees the app doing
@@ -846,15 +827,8 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  // Theater stage messages (onboarding mode only). Reuses the four beloved
-  // lines; the retry line lives in gate mode now, not here.
-  const getMessage = () => {
-    if (progress < 25) return 'Analyzing your family profile...';
-    if (progress < 50) return 'Tailoring lessons for your needs...';
-    if (progress < 75) return 'Balancing science with real-life...';
-    if (progress < 95) return 'Finalizing your journey...';
-    return 'Almost ready!';
-  };
+  // (Theater stage messaging now lives inside PlanTheater as a progress-gated
+  // checklist — the old getMessage() single-line beat was removed with it.)
 
   // Shared escape hatch (SPEC-01 R3b) — same behavior + copy in both modes;
   // only the surrounding layout differs. Rendered only once the gate has failed
@@ -932,34 +906,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <Animated.View
-            style={[
-              styles.logoWrapper,
-              reduceMotion ? null : { transform: [{ scale: scaleAnim }] },
-            ]}
-          >
-            <Image
-              source={require('../../../assets/icon.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </Animated.View>
-        </View>
-
-        <Text style={styles.title}>
-          Creating your lesson plan
-        </Text>
-
-        <Text style={styles.description}>
-          Building a personalized program tailored to your family
-        </Text>
-
-        <View style={styles.progressContainer}>
-          <ProgressBar current={progress} total={100} style={styles.progressBar} />
-        </View>
-
-        <Text style={styles.status}>{getMessage()}</Text>
+        {/* Visual is delegated to PlanTheater (presentation only): it reads the
+            existing `progress` + `reduceMotion` and renders the ring + breathing
+            logo + staggered build-up checklist. No gate logic lives there. */}
+        <PlanTheater
+          progress={progress}
+          reduceMotion={reduceMotion}
+          logoSource={require('../../../assets/icon.png')}
+        />
 
         {escapeHatch}
       </View>
@@ -980,26 +934,6 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignItems: 'center',
   },
-  logoContainer: {
-    marginBottom: Spacing['5xl'],
-  },
-  logoWrapper: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4F8F8B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-  },
   // SPEC-16 R2: gate-mode glyph — matches SplashScreen's glyph (same asset,
   // same 220px optical size, no shadow card) so a returning launch reads as a
   // seamless continuation of the splash.
@@ -1019,35 +953,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   gateStatus: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    fontWeight: Typography.weights.medium,
-  },
-  title: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
-    lineHeight: Typography.sizes['3xl'] * Typography.lineHeights.tight,
-  },
-  description: {
-    fontSize: Typography.sizes.base,
-    color: Colors.textSecondary,
-    marginBottom: Spacing['5xl'],
-    textAlign: 'center',
-    lineHeight: Typography.sizes.base * Typography.lineHeights.normal,
-    paddingHorizontal: Spacing.md,
-  },
-  progressContainer: {
-    width: '100%',
-    marginBottom: Spacing['2xl'],
-  },
-  progressBar: {
-    height: 6,
-  },
-  status: {
     fontSize: Typography.sizes.sm,
     color: Colors.textTertiary,
     textAlign: 'center',
