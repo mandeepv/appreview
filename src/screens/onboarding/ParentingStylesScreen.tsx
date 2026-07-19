@@ -5,7 +5,6 @@ import {
   QuestionScreen,
   OptionList,
   Option,
-  RevealFooter,
   ContinueButton,
   SelectionCountPill,
   isMultiSelectValid,
@@ -54,10 +53,10 @@ export const ParentingStylesScreen: React.FC<Props> = ({ navigation }) => {
       subtitle="Totally okay if you haven't."
       onBack={() => navigation.goBack()}
       footer={
-        <RevealFooter visible={valid}>
+        <>
           <SelectionCountPill count={familiarParentingStyles.length} noun="style" />
-          <ContinueButton onPress={handleContinue} />
-        </RevealFooter>
+          <ContinueButton onPress={handleContinue} disabled={!valid} />
+        </>
       }
     >
       <OptionList

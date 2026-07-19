@@ -5,7 +5,6 @@ import {
   QuestionScreen,
   OptionList,
   Option,
-  RevealFooter,
   ContinueButton,
   SelectionCountPill,
   isMultiSelectValid,
@@ -63,10 +62,10 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
       subtitle="Stored securely to personalize your lessons."
       onBack={() => navigation.goBack()}
       footer={
-        <RevealFooter visible={valid}>
+        <>
           <SelectionCountPill count={emotionalChallenges.length} noun="feeling" />
-          <ContinueButton onPress={handleContinue} />
-        </RevealFooter>
+          <ContinueButton onPress={handleContinue} disabled={!valid} />
+        </>
       }
     >
       <OptionList

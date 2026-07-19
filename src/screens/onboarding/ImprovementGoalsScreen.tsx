@@ -5,7 +5,6 @@ import {
   QuestionScreen,
   OptionList,
   Option,
-  RevealFooter,
   ContinueButton,
   SelectionCountPill,
   isMultiSelectValid,
@@ -16,10 +15,12 @@ import { trackOnboardingStepCompleted } from '../../lib/analytics';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ImprovementGoals'>;
 
-// SPEC-17: multi-select → Continue REVEALS once ≥1 selected (never a disabled
-// button). The hand-rolled scroll-hint animation is gone (the shell scrolls
-// internally); the selection-count pill is now the standardized system element.
-// Same values, analytics step, screenName.
+// SPEC-17: multi-select. Continue is ALWAYS VISIBLE, disabled until ≥1 selected
+// — its presence is the affordance for how to proceed (a revealed-on-select
+// button left users unsure what to do). The hand-rolled scroll-hint animation
+// is gone; the shell's native scroll indicator signals "more below" instead.
+// The selection-count pill is the standardized system element. Same values,
+// analytics step, screenName.
 const OPTIONS: Option<ImprovementGoal>[] = [
   { value: 'behavior-issues', label: 'Behavior issues', imageSource: require('../../../assets/onboarding/behavior_issues_illo.jpg') },
   { value: 'closer-relationship', label: 'Closer relationship', imageSource: require('../../../assets/onboarding/relationship_illo.jpg') },
@@ -47,10 +48,10 @@ export const ImprovementGoalsScreen: React.FC<Props> = ({ navigation }) => {
       subtitle="Select all that apply"
       onBack={() => navigation.goBack()}
       footer={
-        <RevealFooter visible={valid}>
+        <>
           <SelectionCountPill count={improvementGoals.length} noun="area" />
-          <ContinueButton onPress={handleContinue} />
-        </RevealFooter>
+          <ContinueButton onPress={handleContinue} disabled={!valid} />
+        </>
       }
     >
       <OptionList

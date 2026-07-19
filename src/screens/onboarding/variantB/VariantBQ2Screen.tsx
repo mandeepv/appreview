@@ -5,7 +5,6 @@ import {
   QuestionScreen,
   OptionList,
   Option,
-  RevealFooter,
   ContinueButton,
   SelectionCountPill,
   isMultiSelectValid,
@@ -58,10 +57,10 @@ export const VariantBQ2Screen: React.FC<Props> = ({ navigation }) => {
       subtitle="[Placeholder] Multi-select scaffold — real copy comes later."
       onBack={() => navigation.goBack()}
       footer={
-        <RevealFooter visible={valid}>
+        <>
           <SelectionCountPill count={selected.length} noun="option" />
-          <ContinueButton onPress={handleContinue} />
-        </RevealFooter>
+          <ContinueButton onPress={handleContinue} disabled={!valid} />
+        </>
       }
     >
       <OptionList mode="multi" options={OPTIONS} selected={selected} onToggle={toggle} />
