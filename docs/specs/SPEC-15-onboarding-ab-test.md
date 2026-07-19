@@ -1,5 +1,14 @@
 # SPEC-15 — Onboarding A/B test framework + variant-B scaffold
 
+> **NOTE 2026-07-19 (superseded, not rewritten):** the 3-screen variant-B
+> *scaffold* described below (`VariantBQ1–Q3`, placeholder copy) was replaced
+> during v1.3.0 work with a full 22-screen long-form onboarding. The A/B
+> *framework* in this spec (flag resolution, sticky assignment, super-property,
+> per-step analytics contract, resume) is unchanged and still current — only the
+> variant-B screen set grew. Current variant-B design lives in
+> `docs/specs/variant-b-onboarding-copy.md`; current screen/route names in
+> `flows.ts` + `OnboardingNavigator`. Snapshot kept as-is per CLAUDE.md.
+
 Target version: v1.3.0 · Order: first spec in the v1.3.0→v1.6.0 train · Size: ~2 days
 Depends on: nothing on `develop` (v1.2.0 ships independently from `main`). Explicitly does NOT
 depend on SPEC-17 (onboarding redesign): a split test measures the *relative delta* between two
