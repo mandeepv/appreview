@@ -17,6 +17,57 @@ up being >1 day or blocks another item, promote it to its own doc.
 
 ---
 
+## v1.3.0 review — minors (fix opportunistically or track)
+
+From the release/1.3.0 review (2026-07-20). The blockers + real majors were
+fixed in-branch; these are the low-impact remainders. None block ship.
+
+### R1. Auto-advance swallows a corrective tap 🟡
+**Problem**: on a single-select screen, if the user taps option A then quickly
+taps option B within the ~350ms auto-advance window, the second tap is ignored
+and they advance on A — a mis-tap they must fix with Back. `OptionList.tsx` ~392.
+**Fix**: on a tap of a *different* option before the timer fires, reset the
+selection + restart the timer (or cancel-and-reselect) instead of hard-locking
+the first choice. **Effort**: ~1h. Annotate PostHog — per-step timing/rates
+shift once fixed.
+
+### R2. `gate_wait_exceeded` over-fires 🟢
+**Problem**: the event fires when the paywall presents, not only on a genuine
+long wait (`LoadingScreen.tsx` ~665) — inflates the "slow gate" signal.
+**Fix**: gate the capture on the actual watchdog threshold. **Effort**: ~30m.
+
+### R3. CalculatingView timer not cleaned on unmount 🟢
+**Problem**: the final 350ms "settle" `setTimeout` before `onDone` isn't cleared
+if the screen unmounts first — a benign late setState warning in dev.
+**Fix**: track + clear it in the effect cleanup. **Effort**: ~15m.
+
+### R4. Self-referential tests 🟢
+**Problem**: `analyticsStepNames.test.ts` compares hard-coded lists to each
+other rather than to the real exports; `loadingMode.test.ts` tests a local
+re-implementation. They pass but the advertised guards don't fully guard.
+**Fix**: assert against the real modules where feasible. **Effort**: ~1h.
+
+### R5. Onboarding-mode LoadingScreen retry copy 🟢
+**Problem**: the offline retry path shows a 100%-complete checklist for ~9s
+before the escape hatch, with no "check your connection" message (gate mode has
+its copy; onboarding mode doesn't).
+**Fix**: add a connection hint in onboarding retry state. **Effort**: ~30m.
+
+### R6. Housekeeping / process 🟢
+- `ci.yml` triggers only on PRs into main/develop, so direct pushes to
+  `release/*` never run CI. Trigger manually: `gh workflow run CI --ref release/1.3.0`.
+  (Runbook Phase 2/7 wrongly said `--ref main` — main is frozen.) Consider adding
+  `release/**` to the CI trigger.
+- `rc/1.4.0` tag points at the old pre-re-cut tip (`c7aa36e`) — code that will
+  never ship. Move or delete it; "v1.4.0" is no longer a distinct checkpoint
+  (its scope shipped in v1.3.0). `v1.4.0.md` runbook now carries a superseded banner.
+- Delete the throwaway `develop` branch once confirmed nothing valuable remains
+  on it (R4 anti-contamination fix already extracted → release/1.3.0).
+- `app.json` splash plugin lacks the RN 5.6 `imageWidth` pin; a redundant
+  top-level splash block remains. Minor prebuild hygiene.
+
+---
+
 ## v1.1.1 — onboarding polish sprint
 
 **Scope**: UX polish + one data-corruption bug from Mandeep's
