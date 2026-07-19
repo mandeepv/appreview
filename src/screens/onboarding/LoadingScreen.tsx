@@ -420,17 +420,41 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             if (__DEV__) console.log('📝 Demo user - skipping Supabase save');
           }
 
-          // Clear local onboarding state after saving. SPEC-15: also clear the
-          // sticky variant assignment so a future re-onboard (account deletion
-          // → fresh signup) gets a fresh split. clearOnboardingVariant clears
-          // the storage key ONLY — the PostHog super-property stays registered
-          // so the variant keeps flowing on the post-onboarding paywall/purchase
-          // events (the primary metric, which fire AFTER this clear).
+          // Clear local onboarding state ONLY after a successful save (or demo,
+          // which skips the save). SPEC-15: also clear the sticky variant
+          // assignment so a future re-onboard (account deletion → fresh signup)
+          // gets a fresh split. clearOnboardingVariant clears the storage key
+          // ONLY — the PostHog super-property stays registered so the variant
+          // keeps flowing on the post-onboarding paywall/purchase events (the
+          // primary metric, which fire AFTER this clear).
+          //
+          // If saveUserOnboardingData threw above, we DO NOT reach here — the
+          // local store + variant key are intentionally left intact so a later
+          // sign-in can re-attempt the save instead of losing the answers (see
+          // the catch below). This is the recoverability the review (#9) asked
+          // for: the profile isn't silently left with user_type NULL and no way
+          // back to the data.
           await onboardingStore.clearState();
           await clearOnboardingVariant();
         } catch (error) {
           if (__DEV__) console.error('Error saving onboarding data:', error);
-          // Continue anyway - don't block user from entering app
+          // Onboarding save is a data-integrity/auth-path failure — Sentry is
+          // the system of record for failures (CLAUDE.md: reportError on
+          // money/auth paths). Without this the failure was completely silent:
+          // the Supabase profile stayed user_type=NULL, the user got forced
+          // through onboarding again on next sign-in, and (variant B) their
+          // variant_b_answers were lost. Report it, PII-safe (user id only —
+          // never names/answers), so we can see + fix the drop.
+          reportError(error instanceof Error ? error : new Error(String(error)), {
+            screen: 'LoadingScreen',
+            context: 'onboarding_save_failed',
+            userId: user.id,
+          });
+          // Deliberately do NOT clearState() here: keeping the local onboarding
+          // store + sticky variant means the answers survive and a later
+          // sign-in re-runs this save. We still let the user into the app (the
+          // gate/paywall path is independent) — the save simply retries later
+          // rather than blocking or discarding data.
         }
       }
     };
