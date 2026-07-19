@@ -26,7 +26,13 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-// getFeatureFlag return value is set per test via mockFlag.value.
+// The flag value is set per test via mockFlag.value. experiments.ts now fetches
+// FRESH via reloadFeatureFlagsAsync() (returns the flag map) and reads our key
+// from it, with getFeatureFlag as the backing fallback — so the mock models
+// reloadFeatureFlagsAsync as the primary source. `throws`/`hangs` simulate a
+// failed / never-resolving network fetch.
+const FLAG_KEY = 'onboarding-flow';
+// Prefixed `mock*` so jest allows referencing it inside the hoisted factory.
 const mockFlag: { value: unknown; throws: boolean; hangs: boolean } = {
   value: undefined,
   throws: false,
@@ -34,6 +40,14 @@ const mockFlag: { value: unknown; throws: boolean; hangs: boolean } = {
 };
 jest.mock('../../config/posthog', () => ({
   posthog: {
+    reloadFeatureFlagsAsync: jest.fn(() => {
+      if (mockFlag.throws) return Promise.reject(new Error('flag boom'));
+      if (mockFlag.hangs) return new Promise(() => {}); // never resolves
+      // Undefined value = flag absent from the response (SDK returns the map
+      // without our key, or undefined). Model "present with value" vs "absent".
+      if (mockFlag.value === undefined) return Promise.resolve(undefined);
+      return Promise.resolve({ 'onboarding-flow': mockFlag.value });
+    }),
     getFeatureFlag: jest.fn(() => {
       if (mockFlag.throws) throw new Error('flag boom');
       if (mockFlag.hangs) return new Promise(() => {}); // never resolves
@@ -98,9 +112,23 @@ describe('resolveOnboardingVariant — flag mapping', () => {
     await expect(resolveOnboardingVariant()).resolves.toBe('control');
   });
 
-  it('getFeatureFlag throws → control (never propagates)', async () => {
+  it('reloadFeatureFlagsAsync throws → control (never propagates)', async () => {
     mockFlag.throws = true;
     await expect(resolveOnboardingVariant()).resolves.toBe('control');
+  });
+
+  it('reads the FRESH server value, not the stale sync cache (regression: bootstrap bug)', async () => {
+    // The bug: on a cold/fresh start getFeatureFlag() returns an empty cached
+    // (bootstrap) value BEFORE the server fetch lands, so a 100% variant_b
+    // rollout still resolved to control. Model that: the sync getFeatureFlag is
+    // empty, but the fresh reloadFeatureFlagsAsync delivers variant_b. We must
+    // resolve variant_b — proving we read the fresh fetch, not the stale cache.
+    (posthog.getFeatureFlag as jest.Mock).mockReturnValueOnce(undefined);
+    (posthog.reloadFeatureFlagsAsync as jest.Mock).mockResolvedValueOnce({
+      [FLAG_KEY]: 'variant_b',
+    });
+    await expect(resolveOnboardingVariant()).resolves.toBe('variant_b');
+    expect(mockAsyncStore.get(KEY)).toBe('variant_b');
   });
 
   it('getFeatureFlag hangs → control via timeout (does not block forever)', async () => {
@@ -119,7 +147,8 @@ describe('resolveOnboardingVariant — stickiness', () => {
     mockAsyncStore.set(KEY, 'variant_b');
     mockFlag.value = 'control'; // server flipped, but persisted should win
     await expect(resolveOnboardingVariant()).resolves.toBe('variant_b');
-    // getFeatureFlag must not even be consulted when a value is persisted.
+    // The server flag must not even be fetched when a value is persisted.
+    expect(posthog.reloadFeatureFlagsAsync).not.toHaveBeenCalled();
     expect(posthog.getFeatureFlag).not.toHaveBeenCalled();
   });
 
@@ -127,6 +156,7 @@ describe('resolveOnboardingVariant — stickiness', () => {
     mockAsyncStore.set(KEY, 'control');
     mockFlag.value = 'variant_b';
     await expect(resolveOnboardingVariant()).resolves.toBe('control');
+    expect(posthog.reloadFeatureFlagsAsync).not.toHaveBeenCalled();
     expect(posthog.getFeatureFlag).not.toHaveBeenCalled();
   });
 });
