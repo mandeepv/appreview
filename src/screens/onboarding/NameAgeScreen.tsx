@@ -4,7 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { QuestionScreen, ContinueButton } from '../../components/onboarding';
 import { FormInput } from '../../components/FormInput';
-import { CounterSelector } from '../../components/CounterSelector';
+import { AgeWheelPicker } from '../../components/AgeWheelPicker';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { Spacing, Animation as AnimationConfig } from '../../constants/theme';
 import { trackOnboardingStepCompleted } from '../../lib/analytics';
@@ -14,6 +14,9 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'NameAge'>;
 // SPEC-17: free-input screen — keeps an EXPLICIT Continue (auto-advance is for
 // single-select only). Adopts the shell's spacing/footer grammar. Same values,
 // analytics step, screenName.
+// Age input: the old +/- CounterSelector (17 taps to reach 35) was replaced
+// with AgeWheelPicker (native wheel, one flick). Age is still an exact integer
+// 18-100 — no store/analytics/DB change.
 export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
   const { name: storedName, age: storedAge, updateNameAndAge } = useOnboardingStore();
   const [name, setName] = useState(storedName);
@@ -36,9 +39,6 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
       navigation.navigate('ChildrenCount');
     }
   };
-
-  const incrementAge = () => setAge((prev) => Math.min(100, prev + 1));
-  const decrementAge = () => setAge((prev) => Math.max(18, prev - 1));
 
   const hasName = name.trim().length > 0;
 
@@ -63,11 +63,10 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
           success={hasName}
         />
 
-        <CounterSelector
+        <AgeWheelPicker
           label="Your Age"
           value={age}
-          onIncrement={incrementAge}
-          onDecrement={decrementAge}
+          onChange={setAge}
           min={18}
           max={100}
         />
