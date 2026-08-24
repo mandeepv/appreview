@@ -2,9 +2,11 @@
 
 **Purpose:** every 6 months you must regenerate the Apple Sign In JWT secret. This doc is the recipe.
 
-**Current JWT expires:** ~2026-12-28 (generated 2026-07-01, 180 days validity).
+**Current JWT expires:** ~2027-02-17 (generated 2026-08-21 under the NEW team during the app transfer, 180 days validity).
 
-**Set a calendar reminder for 2026-12-15** — 2 weeks before expiry. Repeat every 6 months.
+**Set a calendar reminder for 2027-02-03** — 2 weeks before expiry. Repeat every 6 months.
+
+> **⚠️ App transferred to the account holder's team 2026-08-21.** The Apple identity below was updated to the recipient team. If you find an older backup of this doc showing team `OLDTEAMID00` / key `8SVB695TG5`, that is PRE-TRANSFER and wrong — using it would regenerate the JWT under the dead team and silently break all Apple logins.
 
 ---
 
@@ -21,10 +23,10 @@
 
 ## Prerequisites (still true from initial setup)
 
-- Apple Team ID: `OLDTEAMID00`
-- Apple Key ID: `8SVB695TG5`
-- Services ID: `com.kinderwell.app.auth`
-- Private key file (`AuthKey_8SVB695TG5.p8`) somewhere on your machine — the exact path no longer matters; the script reads it from the `APPLE_P8_PATH` env var (Fable review 🟡 — used to be hardcoded to `~/Downloads/...` on one specific laptop, which broke for anyone else)
+- Apple Team ID: `APPLETEAMID` (The Account Holder — the recipient team after the 2026-08-21 transfer)
+- Apple Key ID: `APPLEKEYID0` (new Sign-in-with-Apple key created under the account holder's team)
+- Services ID: `com.kinderwell.app.auth` (transferred with the app — unchanged)
+- Private key file (`AuthKey_APPLEKEYID0.p8`) somewhere on your machine — the exact path no longer matters; the script reads it from the `APPLE_P8_PATH` env var. **Move it into a password manager** (it was on the Desktop right after the transfer).
 
 If the private key file is missing (you cleaned up its folder, wiped Mac, etc.), you'll need to generate a NEW key from Apple Developer. See "If you don't have the private key" below.
 
@@ -42,7 +44,7 @@ APPLE_P8_PATH=<path-to-your-.p8-file> node scripts/generate_apple_jwt.js
 
 Example:
 ```bash
-APPLE_P8_PATH=~/Downloads/AuthKey_8SVB695TG5.p8 node scripts/generate_apple_jwt.js
+APPLE_P8_PATH=/path/to/AuthKey_APPLEKEYID0.p8 node scripts/generate_apple_jwt.js
 ```
 
 Output: a fresh JWT starting `eyJhbGciOi...`. Copy it — you'll paste it into two dashboards.

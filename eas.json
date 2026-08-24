@@ -65,7 +65,7 @@
     "production": {
       "ios": {
         "ascAppId": "APPLEAPPID",
-        "appleTeamId": "OLDTEAMID00"
+        "appleTeamId": "APPLETEAMID"
       }
     }
   }

@@ -49,17 +49,22 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
 | PostHog | internal-user filter | not done | unverified | PostHog → Settings → Project |
+| PostHog | **session replay — DASHBOARD TOGGLE (owner action)** | **code wired 2026-07-21, NOT yet recording** — `enableSessionReplay: true` + `sessionReplayConfig` are set in `src/config/posthog.ts`, and the `@posthog/react-native-plugin` native dep is installed (autolinked via pod install → needs a native rebuild). BUT replay records NOTHING until the owner flips **PostHog → Settings → Project → Session Replay → enable + enable for mobile/React Native**. This is deliberately owner-only (dashboard action). Shipping the code is safe — it can't capture anything until that server-side toggle is on. ⚠️ Single PostHog project (dev+prod) — enabling records BOTH environments; filter by the `environment` super-property | **unverified (toggle OFF)** | PostHog → Settings → Project → Session Replay |
+| PostHog | session replay — PII masking posture | **built 2026-07-21** — RN replay is SCREENSHOT-based, so masking = PII compliance (docs/INVARIANTS.md: no name/child data to PostHog). Config: `maskAllTextInputs:true` (masks the VBName input), `maskAllSandboxedViews:true` (masks Superwall paywall), `maskAllImages:false`. PLUS explicit `<PostHogMaskView>` (ph-no-capture) on: the name-bearing titles (VBReady/VBMirror/VBAllIn/VBMood via `maskTitle`) and the child-count/ages values (VBSnapshot family row + VBReady family chip). Net: you see flow/taps/screens but NOT name or kids' ages. ⚠️ Before enabling in PROD: eyeball your own dev replays to confirm masking works, AND check whether the App Privacy label needs an Analytics purpose added (currently Name is declared AppFunctionality/Personalization only — see app.config.js privacyManifests) | 2026-07-21 | watch a replay in PostHog + `grep -rn PostHogMaskView src/` |
 | PostHog | dashboards | none yet (Appendix C, after v1.2.0) | unverified | PostHog → Dashboards |
 | PostHog | person-deletion on account delete | not built (7.2 parked) | unverified | — |
 
 ## App Store Connect
 
+> **⚠️ APP TRANSFERRED 2026-08-21 — Kinderwell now lives in The Account Holder's Apple account, NOT the owner's.** Recipient Apple **Team ID `APPLETEAMID`**, Account Holder `owner-account@example.com`, ASC provider ID `ASCPROVIDERID`, Vendor # `VENDORNUM`. App Store **Seller name is now "The Account Holder"**. Bundle ID `com.kinderwell.app` and numeric App ID `APPLEAPPID` unchanged. To manage the app / ASC now, sign in as the account holder. Full record: `docs/APP_TRANSFER_RUNBOOK.md`. Rows below that predate the transfer describe the OLD account unless noted.
+
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
+| App Store Connect | **owning account (post-transfer)** | **The Account Holder — Team `APPLETEAMID`, `owner-account@example.com`** (transferred 2026-08-21; sales attribute to the account holder @15% from that date). Pre-transfer sales history + final payout (~early Oct 2026) stay on the owner's old account. | 2026-08-21 | ASC (signed in as the account holder) |
 | App Store Connect | live version / build | **v1.2.0 (build 11)** — released (owner-confirmed); marker tag `appstore-live-v1.2.0` on `39badd3` | 2026-07-19 | ASC → App → App Store |
 | App Store Connect | phased-rollout state | **7-day phased release ON** (owner-confirmed 2026-07-19) — Phase 11 monitoring window active; watch crash-free % / Sentry, numeric pause thresholds per RELEASE_CHECKLIST Phase 11 | 2026-07-19 | ASC → App → Phased Release |
 | Supabase | prod test-user cleanup (v1.2.0) | **done** — 1 test account deleted from prod Auth after release (RELEASE_CHECKLIST Phase 10) | 2026-07-19 | Supabase → Authentication → Users |
-| App Store Connect | Small Business Program | **ENROLLED** (owner) | 2026-07-09 | ASC → Agreements |
+| App Store Connect | Small Business Program | **Both accounts enrolled.** the owner (old) enrolled 2026-07-09. **the account holder (new owner) enrolled — 15% EFFECTIVE 2026-08-15** (Apple welcome email; set as SBP Start Date `15/08/2026` in Superwall → Revenue Tracking). So the transfer carried NO 30% commission gap. | 2026-08-21 | ASC → Agreements (the account holder) |
 | App Store Connect | ToS link in metadata | unverified (1.5.3) | unverified | ASC → App Information |
 | App Store Connect | DSA trader status | unverified (1.5.3) | unverified | ASC → App Information |
 | App Store Connect | offer codes | not set up (F2 skipped) | unverified | ASC → Subscriptions |
@@ -76,7 +81,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
-| Apple | SIWA key expiry | per `APPLE_JWT_ROTATION.md` calendar | unverified | `APPLE_JWT_ROTATION.md` |
+| Apple | SIWA provider JWT expiry | **~2027-02-17** — regenerated 2026-08-21 under NEW team `APPLETEAMID`, key `APPLEKEYID0` (during transfer). Rotate before expiry or Apple logins break silently. | 2026-08-21 | `APPLE_JWT_ROTATION.md` |
 | Apple | Apple ID recovery hardening | declined by owner (F6) | 2026-07-10 | — |
 
 ## Accepted risks (owner decisions — revisit only on the stated trigger)
