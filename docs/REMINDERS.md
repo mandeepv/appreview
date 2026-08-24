@@ -3,7 +3,7 @@
 Kinderwell was transferred to **The Account Holder's Apple account** (Team `APPLETEAMID`) on **2026-08-21**.
 Everything is done and verified. This file is just the handful of **time-based** things that can't be "finished" now. Skim it monthly; act only when a date is near.
 
-Full story if you ever need it: `docs/APP_TRANSFER_RUNBOOK.md`.
+Full story if you ever need it: `docs/archive/app-transfer-2026-08/APP_TRANSFER_RUNBOOK.md` (archived — you should never need to open it).
 
 ---
 
