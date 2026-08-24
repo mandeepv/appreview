@@ -591,10 +591,10 @@ Non-sensitive identifiers only. Secrets live in Supabase dashboards, `.env` file
 - **Prod project ref:** `prodprojectref00000x`
 - **Dev project ref:** `devprojectref000000x`
 - **iOS bundle ID:** `com.kinderwell.app`
-- **Apple Services ID:** `com.kinderwell.app.auth`
-- **Apple Team ID:** `OLDTEAMID00`
-- **Apple Key ID:** `8SVB695TG5`
-- **Apple private key path:** `~/Downloads/AuthKey_8SVB695TG5.p8`
+- **Apple Services ID:** `com.kinderwell.app.auth` (transferred with the app — unchanged)
+- **Apple Team ID:** `APPLETEAMID` (The Account Holder — recipient team after 2026-08-21 transfer; was `OLDTEAMID00`)
+- **Apple Key ID:** `APPLEKEYID0` (new SIWA key under the account holder's team; was `8SVB695TG5`)
+- **Apple private key path:** `AuthKey_APPLEKEYID0.p8` (store in a password manager, not Downloads)
 - **Google OAuth client ID:** `737394030212-cdrh1o3lomp3oi29rsovfcoion32oh9j.apps.googleusercontent.com`
 - **Superwall API key env var:** `SUPERWALL_API_KEY` (same for dev and prod)
 

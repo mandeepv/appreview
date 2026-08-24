@@ -2,9 +2,13 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 
 // Your Apple credentials
-const TEAM_ID = 'OLDTEAMID00';
-const KEY_ID = '8SVB695TG5';
-const CLIENT_ID = 'com.kinderwell.app.auth'; // Services ID
+// UPDATED 2026-08-21 for the app transfer to the account holder's team (APPLETEAMID).
+// New Sign-in-with-Apple key APPLEKEYID0 created under the recipient team.
+// CLIENT_ID (Services ID) is unchanged — it transferred with the app.
+// Old values (pre-transfer): TEAM_ID=OLDTEAMID00, KEY_ID=8SVB695TG5.
+const TEAM_ID = 'APPLETEAMID';
+const KEY_ID = 'APPLEKEYID0';
+const CLIENT_ID = 'com.kinderwell.app.auth'; // Services ID (unchanged — transferred with the app)
 
 // Path to the Apple .p8 private key, read from APPLE_P8_PATH env var.
 // Previously hardcoded to a per-machine ~/Downloads path (Fable 🟡 —
