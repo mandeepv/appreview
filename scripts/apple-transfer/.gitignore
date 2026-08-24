@@ -1,0 +1,11 @@
+# Migration artifacts contain real user identifiers — never commit.
+migration-bridge.json
+apply-migration.sql
+*.json
+!package.json
+# 2026-08-21 post-execution hardening: the run produced MORE identifier-bearing
+# files than the two named above (apple-users.csv = 3,775 user_id+sub+email rows;
+# apply-migration-{COMMIT,TEST}.sql; find-collisions/verify-migration/inspect-*/
+# cleanup-orphan .sql). Ignore every data file; only .js/.md/.gitignore are safe.
+*.csv
+*.sql
