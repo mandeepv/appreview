@@ -2,7 +2,7 @@ import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
 import {
-  QuestionScreen,
+  VBQuestionScreen,
   OptionList,
   ContinueButton,
   SelectionCountPill,
@@ -48,10 +48,10 @@ export const VBWhenHardestScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <QuestionScreen
+    <VBQuestionScreen
       screenName={VB.WhenHardest}
-      title="When it's hardest, what usually happens?"
-      subtitle="No judgment — every parent has these moments."
+      title="In those moments, what usually happens?"
+      subtitle="No judgment here. Every parent has these."
       onBack={() => navigation.goBack()}
       footer={
         <>
@@ -61,11 +61,12 @@ export const VBWhenHardestScreen: React.FC<Props> = ({ navigation }) => {
       }
     >
       <OptionList
+        appearance="warm"
         mode="multi"
         options={WHEN_HARDEST_OPTIONS}
         selected={selected}
         onToggle={toggle}
       />
-    </QuestionScreen>
+    </VBQuestionScreen>
   );
 };

@@ -1,7 +1,7 @@
 import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { StatementScreen, SnapshotCard, SnapshotRow } from '../../../components/onboarding';
+import { StoryScreen, SnapshotCard, SnapshotRow } from '../../../components/onboarding';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import {
@@ -49,11 +49,14 @@ export const VBSnapshotScreen: React.FC<Props> = ({ navigation }) => {
   const firstLesson = firstLessonKey ? FIRST_LESSON[firstLessonKey] : 'Your First Win';
 
   const rows: SnapshotRow[] = [
-    { label: 'Your family', value: familySummary(childrenCount, ages) },
-    { label: 'Your focus', value: challengeSummary(challenges) },
-    { label: 'Your goal', value: goalSummary(goals) },
-    { label: 'Matched for you', value: `12 lessons · starting with “${firstLesson}”` },
-    { label: 'First results in', value: '~2 weeks' },
+    // mask: family value = child count + ages (PII). Masked from session replay;
+    // label stays visible so the reveal still reads. See INVARIANTS.md / OPS_STATE.
+    { label: 'Your family', value: familySummary(childrenCount, ages), icon: 'people-outline', mask: true },
+    { label: 'What we’ll focus on', value: challengeSummary(challenges), icon: 'locate-outline' },
+    { label: 'Where this is headed', value: goalSummary(goals), icon: 'leaf-outline' },
+    // accent = the hero row (the focal point of the reveal).
+    { label: 'Your plan', value: `12 lessons, starting with “${firstLesson}”`, icon: 'book-outline', accent: true },
+    { label: 'First results in', value: 'About two weeks', icon: 'time-outline' },
   ];
 
   const handleContinue = () => {
@@ -62,13 +65,17 @@ export const VBSnapshotScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <StatementScreen
+    <StoryScreen
       screenName={VB.Snapshot}
-      title="Here's your personalized plan."
-      ctaTitle="This looks right"
+      iconName="sparkles-outline"
+      title="Here's your plan."
+      body={[
+        'Built from what you told us. Not a template, not a guess.',
+      ]}
+      ctaTitle="This is me"
       onContinue={handleContinue}
     >
       <SnapshotCard rows={rows} />
-    </StatementScreen>
+    </StoryScreen>
   );
 };

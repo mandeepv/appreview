@@ -2,7 +2,7 @@ import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
 import {
-  QuestionScreen,
+  VBQuestionScreen,
   OptionList,
   ContinueButton,
   SelectionCountPill,
@@ -36,10 +36,10 @@ export const VBGoalsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <QuestionScreen
+    <VBQuestionScreen
       screenName={VB.Goals}
-      title="If this worked, what would change?"
-      subtitle="Choose what you're hoping for."
+      title="Picture six months from now. What's different?"
+      subtitle="Pick what you're really after."
       onBack={() => navigation.goBack()}
       footer={
         <>
@@ -49,11 +49,12 @@ export const VBGoalsScreen: React.FC<Props> = ({ navigation }) => {
       }
     >
       <OptionList
+        appearance="warm"
         mode="multi"
         options={GOAL_OPTIONS}
         selected={selected}
         onToggle={toggle}
       />
-    </QuestionScreen>
+    </VBQuestionScreen>
   );
 };

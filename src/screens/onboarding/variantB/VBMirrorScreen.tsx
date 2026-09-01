@@ -1,7 +1,7 @@
 import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { StatementScreen } from '../../../components/onboarding';
+import { StoryScreen } from '../../../components/onboarding';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import { VB } from './variantBContent';
@@ -21,10 +21,15 @@ export const VBMirrorScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <StatementScreen
+    <StoryScreen
       screenName={VB.Mirror}
-      title={`You're not alone, ${name || 'friend'}.`}
-      body="83% of parents told us the exact same thing you just did. The good news: it's learnable — and you're already further than most just by being here."
+      image={require('../../../../assets/onboarding/emotional_burned_out.png')}
+      title={`Take a breath, ${name || 'friend'}.`}
+      maskTitle
+      body={[
+        { text: '83% of parents', hl: true },
+        ' just told us the exact same thing.\n\nThat voice saying you should already know how to handle this? It’s wrong. You were never taught. That’s not a flaw, it’s the whole reason we’re here.',
+      ]}
       onBack={() => navigation.goBack()}
       ctaTitle="I'm ready"
       onContinue={handleContinue}

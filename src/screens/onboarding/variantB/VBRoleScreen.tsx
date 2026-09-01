@@ -1,7 +1,7 @@
 import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { QuestionScreen, OptionList, Option } from '../../../components/onboarding';
+import { VBQuestionScreen, OptionList, Option } from '../../../components/onboarding';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { UserType } from '../../../types/onboarding';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
@@ -36,19 +36,20 @@ export const VBRoleScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <QuestionScreen
+    <VBQuestionScreen
       screenName={VB.Role}
       title="Who are you parenting as?"
-      subtitle="Your answers are stored securely and used only to personalize your lessons."
+      subtitle="Just so your lessons fit your world. What you share stays private."
       onBack={() => navigation.goBack()}
     >
       <OptionList
+        appearance="warm"
         mode="single"
         options={OPTIONS}
         selected={userType}
         onSelect={updateUserType}
         onAdvance={handleAdvance}
       />
-    </QuestionScreen>
+    </VBQuestionScreen>
   );
 };

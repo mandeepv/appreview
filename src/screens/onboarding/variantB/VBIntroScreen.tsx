@@ -1,7 +1,7 @@
 import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { StatementScreen } from '../../../components/onboarding';
+import { StoryScreen } from '../../../components/onboarding';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import { VB } from './variantBContent';
 
@@ -16,10 +16,15 @@ export const VBIntroScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <StatementScreen
+    <StoryScreen
       screenName={VB.Intro}
-      title="A few quick questions."
-      body="Your answers shape every lesson we build for you. Nothing here is shared — it's just for your plan."
+      iconName="people-outline"
+      title="Let's start with your family."
+      body={[
+        'No right answers, no judgment. The more real you are, the sharper your plan gets, built for ',
+        { text: 'your child', hl: true },
+        ', not the average one.\n\nEverything you share stays on your side. It just shapes your plan.',
+      ]}
       onBack={() => navigation.goBack()}
       ctaTitle="Continue"
       onContinue={handleContinue}

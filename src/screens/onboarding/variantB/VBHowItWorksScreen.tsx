@@ -1,7 +1,7 @@
 import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { StatementScreen } from '../../../components/onboarding';
+import { StoryScreen } from '../../../components/onboarding';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import { VB } from './variantBContent';
 
@@ -15,10 +15,15 @@ export const VBHowItWorksScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <StatementScreen
+    <StoryScreen
       screenName={VB.HowItWorks}
-      title="Real techniques. 5 minutes a day."
-      body="Short, science-backed lessons you can use the same day — no fluff, no lectures. Built by child-development experts, made for real life."
+      image={require('../../../../assets/onboarding/brain-science-foundation.png')}
+      title="No 300-page books. Just five minutes."
+      body={[
+        'Every lesson gives you ',
+        { text: 'one thing to try today', hl: true },
+        '.\n\nGrounded in real child development science, written for tired parents in the middle of it, not for a classroom.',
+      ]}
       onBack={() => navigation.goBack()}
       ctaTitle="Continue"
       onContinue={handleContinue}

@@ -4,24 +4,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { CalculatingView } from '../../../components/onboarding';
+import { CalculatingView, AnalyzingStage } from '../../../components/onboarding';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import { Colors } from '../../../constants/theme';
-import { VB } from './variantBContent';
+import { VB, challengeSummary, goalSummary, familySummary } from './variantBContent';
 
-// ACT 3 — the fake "Analyzing your answers… 41%" beat. Reuses the PlanTheater
-// ring via CalculatingView (pure theater — no gate/paywall/network). When the
-// ~3.5s climb finishes it advances to the snapshot reveal. No back button: the
-// beat is a one-way transition (going back mid-calculate would be odd), and the
-// resume seam still records it as last-screen so a kill/resume lands sanely.
+// ACT 3 — the "building your plan" beat. Pure theater (no gate/paywall/network):
+// a ~6s personalized analyzing pass that reflects the user's OWN answers back
+// (focus areas, kid age, goal) so the snapshot reveal feels earned. Renders the
+// variant-B-only AnalyzingTheater via CalculatingView — the shared PlanTheater /
+// real LoadingScreen are untouched. No back button: one-way transition; the
+// resume seam still records last-screen so a kill/resume lands sanely.
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'VBCalculating'>;
 
 export const VBCalculatingScreen: React.FC<Props> = ({ navigation }) => {
-  const { saveState, setLastScreen } = useOnboardingStore();
+  const { saveState, setLastScreen, childrenCount, children, variantBAnswers } =
+    useOnboardingStore();
 
-  // Same auto-save-on-blur seam the shell screens use (kept manual here since
-  // this screen doesn't render QuestionScreen/StatementScreen).
   useFocusEffect(
     useCallback(() => {
       return () => {
@@ -30,6 +30,34 @@ export const VBCalculatingScreen: React.FC<Props> = ({ navigation }) => {
       };
     }, [saveState, setLastScreen])
   );
+
+  // Turn the user's stored answers into human-readable fragments (same helpers
+  // VBReady/VBSnapshot use). Keys → text happens here; we never send these to
+  // analytics (below we send only the fixed 'complete' action).
+  const ages = children
+    .map((c) => c.ageRange)
+    .filter((a): a is NonNullable<typeof a> => Boolean(a));
+  const challenges = Array.isArray(variantBAnswers[VB.Challenges])
+    ? (variantBAnswers[VB.Challenges] as string[])
+    : [];
+  const goals = Array.isArray(variantBAnswers[VB.Goals])
+    ? (variantBAnswers[VB.Goals] as string[])
+    : [];
+
+  const focus = challengeSummary(challenges); // e.g. "sleep, defiance"
+  const goal = goalSummary(goals); // e.g. "calmer mornings"
+  const family = familySummary(childrenCount, ages); // e.g. "1 kid · 5-7" (PII)
+
+  // Personalized stages — each references the user's real answers so it feels
+  // like the app is thinking about THEM. `mask` on the family stage (child
+  // count/age = PII) hides it from PostHog session replay. See INVARIANTS.
+  const stages: AnalyzingStage[] = [
+    { at: 22, label: 'Reading your answers' },
+    { at: 46, label: `Focusing on ${focus}` },
+    { at: 68, label: `Tuning for ${family}`, mask: true },
+    { at: 88, label: `Building toward ${goal}` },
+    { at: 100, label: 'Finalizing your plan' },
+  ];
 
   const handleDone = () => {
     trackOnboardingStepCompleted(VB.Calculating, 'complete');
@@ -40,7 +68,9 @@ export const VBCalculatingScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <CalculatingView
-        logoSource={require('../../../../assets/icon.png')}
+        stages={stages}
+        title="Building your plan"
+        subtitle="Turning your answers into a program made for your family"
         onDone={handleDone}
       />
     </SafeAreaView>
@@ -50,6 +80,7 @@ export const VBCalculatingScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    // Warm cream canvas to match the rest of variant B (was clinical white).
+    backgroundColor: Colors.background,
   },
 });

@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import * as StoreReview from 'expo-store-review';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { StatementScreen } from '../../../components/onboarding';
+import { StoryScreen } from '../../../components/onboarding';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import { Colors, Spacing, Typography, BorderRadius } from '../../../constants/theme';
 import { VB } from './variantBContent';
@@ -12,10 +13,19 @@ import { VB } from './variantBContent';
 // most users won't pay, but they'll leave a review, and reviews compound into
 // organic installs.
 //
-// STUBBED NATIVE PROMPT: expo-store-review is NOT installed, so the "Rate"
-// button currently just advances (and logs intent). Wiring the real
-// StoreReview.requestReview() is a tracked follow-up (OPS_STATE) — adding a
-// native dep for a stubbed screen would force an unnecessary rebuild now.
+// NATIVE PROMPT WIRED (2026-07-21): "Rate Kinderwell" calls the real StoreReview
+// prompt. Three hard rules baked in below:
+//   1. Navigation NEVER hard-depends on the prompt. iOS decides whether the
+//      SKStore review sheet actually appears (rate-limited ~3×/yr, silently
+//      no-ops otherwise) and gives us NO callback either way, so we can never
+//      wait on a real "did they rate?" signal — none exists by Apple's design.
+//   2. Timing fix (2026-07-24): when the prompt IS available we hold this screen
+//      for a short beat (RATING_SHEET_DWELL_MS) BEFORE navigating, so the sheet
+//      animates in over the RATING screen, not over the next one. When it's not
+//      available we navigate immediately (no pointless pause). Either way the
+//      user always advances — never stuck.
+//   3. Guarded by isAvailableAsync() and wrapped so a review-API failure can
+//      never block the flow (same trust model as safeCapture/reportError).
 //
 // ⚠︎ The "100,000+ parents" claim and the testimonials are placeholder-but-hard-
 // hitting — they MUST be real/attributable before the flag ramps (App Review
@@ -28,18 +38,61 @@ const TESTIMONIALS = [
 ];
 
 export const VBRatingScreen: React.FC<Props> = ({ navigation }) => {
-  const advance = (action: 'rate' | 'later') => {
+  // How long to keep the rating screen up after firing the native prompt, so the
+  // OS review sheet has time to animate in OVER this screen rather than over the
+  // NEXT one. This is purely a VISUAL sync: Apple gives us NO callback for the
+  // sheet appearing/being tapped/being suppressed (by design — it's rate-limited
+  // to ~3×/yr and resolves the same either way), so we can't wait on a real
+  // signal. A fixed beat is the correct pattern given that black box.
+  const RATING_SHEET_DWELL_MS = 1200;
+
+  const go = () => navigation.navigate('VBReminders');
+
+  const advance = async (action: 'rate' | 'later') => {
     trackOnboardingStepCompleted(VB.Rating, action);
-    // TODO(follow-up): if action === 'rate', call StoreReview.requestReview()
-    // once expo-store-review is added. For now both paths advance.
-    navigation.navigate('VBReminders');
+
+    if (action !== 'rate') {
+      go();
+      return;
+    }
+
+    // "Rate" path. Only delay when the prompt can actually appear — if review
+    // isn't available (old iOS / simulator), navigate immediately so there's no
+    // pointless pause. When it IS available, fire it and hold this screen briefly
+    // so the sheet lands here, then advance regardless (never stuck: Apple may
+    // still suppress it and we get no signal).
+    let available = false;
+    try {
+      available = await StoreReview.isAvailableAsync();
+      if (available) {
+        // Do NOT await requestReview relative to navigation — the timer below is
+        // what governs when we move on. The catch keeps a review-API failure
+        // from breaking the flow (same trust model as safeCapture/reportError).
+        StoreReview.requestReview().catch((e) => {
+          if (__DEV__) console.warn('[VBRating] requestReview failed:', e);
+        });
+      }
+    } catch (e) {
+      if (__DEV__) console.warn('[VBRating] isAvailableAsync failed:', e);
+    }
+
+    if (available) {
+      setTimeout(go, RATING_SHEET_DWELL_MS);
+    } else {
+      go();
+    }
   };
 
   return (
-    <StatementScreen
+    <StoryScreen
       screenName={VB.Rating}
-      title="Help another parent find this."
-      body="Kinderwell was built with 100,000+ parents. A quick rating helps the next overwhelmed parent find it too."
+      iconName="star-outline"
+      title="Help the next parent find this."
+      body={[
+        'Kinderwell was built with ',
+        { text: 'over 100,000 parents', hl: true },
+        '. A quick rating is how the next one, up at 2am and out of ideas, finds it too.',
+      ]}
       onBack={() => navigation.goBack()}
       ctaTitle="Rate Kinderwell"
       onContinue={() => advance('rate')}
@@ -55,7 +108,7 @@ export const VBRatingScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         ))}
       </View>
-    </StatementScreen>
+    </StoryScreen>
   );
 };
 

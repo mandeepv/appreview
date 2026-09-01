@@ -1,7 +1,7 @@
 import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { StatementScreen, RecapChips } from '../../../components/onboarding';
+import { StoryScreen, RecapChips } from '../../../components/onboarding';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import {
@@ -30,7 +30,8 @@ export const VBReadyScreen: React.FC<Props> = ({ navigation }) => {
     : [];
 
   const chips = [
-    familySummary(childrenCount, ages),
+    // family chip = child count + ages (PII) → masked from session replay.
+    { text: familySummary(childrenCount, ages), mask: true },
     `Focus: ${challengeSummary(challenges)}`,
     `Goal: ${goalSummary(goals)}`,
   ];
@@ -41,15 +42,19 @@ export const VBReadyScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <StatementScreen
+    <StoryScreen
       screenName={VB.Ready}
-      title={`Ready to build your plan, ${name || 'friend'}?`}
-      body="We'll match lessons to your family based on everything you just shared."
+      iconName="construct-outline"
+      title={`Got it, ${name || 'friend'}. This is your starting point.`}
+      maskTitle
+      body={[
+        'Your plan gets built around exactly this. Nothing off the shelf.',
+      ]}
       onBack={() => navigation.goBack()}
       ctaTitle="Build my plan"
       onContinue={handleContinue}
     >
       <RecapChips chips={chips} />
-    </StatementScreen>
+    </StoryScreen>
   );
 };

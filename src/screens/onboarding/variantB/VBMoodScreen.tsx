@@ -1,7 +1,7 @@
 import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { QuestionScreen, OptionList } from '../../../components/onboarding';
+import { VBQuestionScreen, OptionList } from '../../../components/onboarding';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import { VB, MOOD_OPTIONS } from './variantBContent';
@@ -23,18 +23,21 @@ export const VBMoodScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <QuestionScreen
+    <VBQuestionScreen
       screenName={VB.Mood}
-      title={`${name || 'Hey'}, how do most days feel right now?`}
+      title={`${name || 'So'}, how do most days feel lately?`}
+      subtitle="Be honest. This one's just between us."
+      maskTitle
       onBack={() => navigation.goBack()}
     >
       <OptionList
+        appearance="warm"
         mode="single"
         options={MOOD_OPTIONS}
         selected={selected}
         onSelect={(value) => setVariantBAnswer(VB.Mood, value)}
         onAdvance={handleAdvance}
       />
-    </QuestionScreen>
+    </VBQuestionScreen>
   );
 };

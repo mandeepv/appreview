@@ -1,7 +1,7 @@
 import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { QuestionScreen, OptionList } from '../../../components/onboarding';
+import { VBQuestionScreen, OptionList } from '../../../components/onboarding';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
 import { VB, COMMIT_OPTIONS } from './variantBContent';
@@ -23,18 +23,20 @@ export const VBCommitScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <QuestionScreen
+    <VBQuestionScreen
       screenName={VB.Commit}
-      title="How committed are you to making this change?"
+      title="Real talk. How ready are you to make this stick?"
+      subtitle="There's no wrong answer, but be honest with yourself."
       onBack={() => navigation.goBack()}
     >
       <OptionList
+        appearance="warm"
         mode="single"
         options={COMMIT_OPTIONS}
         selected={selected}
         onSelect={(value) => setVariantBAnswer(VB.Commit, value)}
         onAdvance={handleAdvance}
       />
-    </QuestionScreen>
+    </VBQuestionScreen>
   );
 };

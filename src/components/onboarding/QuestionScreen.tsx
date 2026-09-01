@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PostHogMaskView } from 'posthog-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { ProgressBar } from '../ProgressBar';
 import { Button } from '../Button';
@@ -38,6 +39,13 @@ interface QuestionScreenProps {
   screenName: string;
   title?: string;
   subtitle?: string;
+  /**
+   * Hide the title from PostHog session replay — set on screens whose title
+   * interpolates the user's name (PII; docs/INVARIANTS.md). The template is the
+   * same for every user, so replay loses no signal. Wraps title in
+   * PostHogMaskView (ph-no-capture). Mirrors StatementScreen.maskTitle.
+   */
+  maskTitle?: boolean;
   onBack?: () => void;
   /**
    * Footer content — the revealed Continue button (+ optional count pill) for
@@ -57,6 +65,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
   screenName,
   title,
   subtitle,
+  maskTitle = false,
   onBack,
   footer,
   children,
@@ -111,7 +120,15 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
         showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
       >
-        {title ? <Text style={styles.title}>{title}</Text> : null}
+        {title ? (
+          maskTitle ? (
+            <PostHogMaskView>
+              <Text style={styles.title}>{title}</Text>
+            </PostHogMaskView>
+          ) : (
+            <Text style={styles.title}>{title}</Text>
+          )
+        ) : null}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </ScrollView>

@@ -1,35 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { PlanTheater } from './PlanTheater';
+import { AnalyzingTheater, AnalyzingStage } from './AnalyzingTheater';
 import { useReduceMotion } from './useReduceMotion';
 
 /**
- * CalculatingView — the mid-onboarding "Analyzing your answers… 41%" beat
- * (variant B, screen VBCalculating). See docs/specs/variant-b-onboarding-copy.md.
+ * CalculatingView — the mid-onboarding "building your plan" beat (variant B,
+ * screen VBCalculating). See docs/specs/variant-b-onboarding-copy.md.
  *
- * The winning onboardings (QUITTR/Clear30/Prayer Lock) all fake a short
- * "calculating" pass before revealing a personalized result — manufactured
- * effort makes the result feel earned, which primes the paywall. We already
- * built PlanTheater (the SVG progress ring + staged checklist) for the real
- * pre-paywall LoadingScreen; this reuses it verbatim as PURE THEATER, the only
- * difference being that here WE drive the progress (a fixed ~3.5s climb) instead
- * of the gate. It owns no gate/paywall/network logic — when the climb reaches
- * 100 it calls `onDone` so the screen can advance to the snapshot.
+ * The winning onboardings (Cal AI / Noom / QUITTR) fake a short "analyzing" pass
+ * before revealing a personalized result — manufactured effort makes the result
+ * feel earned, which primes the paywall. This drives a fixed climb and renders
+ * AnalyzingTheater (the VARIANT-B-ONLY warm, personalized visual — NOT the shared
+ * PlanTheater the real pre-paywall LoadingScreen uses). The caller passes
+ * `stages` built from the user's real answers so the beat feels personal.
  *
- * Reduce Motion: jump progress instantly and fire onDone after a short, fixed
- * dwell so the beat is skipped rather than removed.
+ * WE drive the progress here (pure theater, no gate/paywall/network). When the
+ * climb reaches 100 we call `onDone`. Reduce Motion jumps to full and dwells
+ * briefly so the beat is skipped rather than removed.
  */
 
-const CLIMB_MS = 3500;
-const REDUCED_DWELL_MS = 600;
-const TICK_MS = 50;
+// ~6s hold: long enough to feel like real analysis without dragging (owner call).
+const CLIMB_MS = 6000;
+const REDUCED_DWELL_MS = 700;
+const TICK_MS = 40;
+// Small pause on a full ring before advancing, so 100% is felt.
+const HOLD_AT_FULL_MS = 500;
 
 interface CalculatingViewProps {
-  logoSource: number;
+  stages: AnalyzingStage[];
+  title: string;
+  subtitle: string;
   onDone: () => void;
 }
 
-export const CalculatingView: React.FC<CalculatingViewProps> = ({ logoSource, onDone }) => {
+export const CalculatingView: React.FC<CalculatingViewProps> = ({
+  stages,
+  title,
+  subtitle,
+  onDone,
+}) => {
   const reduceMotion = useReduceMotion();
   const [progress, setProgress] = useState(0);
   // Guard: onDone must fire exactly once even if timers overlap on unmount races.
@@ -43,9 +52,6 @@ export const CalculatingView: React.FC<CalculatingViewProps> = ({ logoSource, on
 
   useEffect(() => {
     if (reduceMotion) {
-      // No progress animation: the ring is rendered full via the derived value
-      // below (no synchronous setState in the effect). Just dwell briefly, then
-      // advance so the beat is skipped rather than removed.
       const t = setTimeout(fireDone, REDUCED_DWELL_MS);
       return () => clearTimeout(t);
     }
@@ -53,12 +59,15 @@ export const CalculatingView: React.FC<CalculatingViewProps> = ({ logoSource, on
     const start = Date.now();
     const interval = setInterval(() => {
       const elapsed = Date.now() - start;
-      const pct = Math.min((elapsed / CLIMB_MS) * 100, 100);
+      // Ease the climb (fast-in, slow-out) so it decelerates near 100 — reads as
+      // "the last bit takes the most thought", which holds attention on the payoff.
+      const t = Math.min(elapsed / CLIMB_MS, 1);
+      const eased = 1 - Math.pow(1 - t, 2);
+      const pct = eased * 100;
       setProgress(pct);
-      if (pct >= 100) {
+      if (t >= 1) {
         clearInterval(interval);
-        // Small pause on a full ring before advancing, so 100% is felt.
-        setTimeout(fireDone, 350);
+        setTimeout(fireDone, HOLD_AT_FULL_MS);
       }
     }, TICK_MS);
 
@@ -66,13 +75,17 @@ export const CalculatingView: React.FC<CalculatingViewProps> = ({ logoSource, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduceMotion]);
 
-  // Reduce Motion shows a full ring immediately (derived, not stored) so there's
-  // no synchronous setState in the effect; otherwise the animated climb drives it.
   const displayProgress = reduceMotion ? 100 : progress;
 
   return (
     <View style={styles.wrap}>
-      <PlanTheater progress={displayProgress} reduceMotion={reduceMotion} logoSource={logoSource} />
+      <AnalyzingTheater
+        progress={displayProgress}
+        reduceMotion={reduceMotion}
+        stages={stages}
+        title={title}
+        subtitle={subtitle}
+      />
     </View>
   );
 };

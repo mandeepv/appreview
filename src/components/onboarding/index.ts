@@ -3,10 +3,16 @@
  * inside. See docs/specs/SPEC-17-onboarding-ux-system.md.
  */
 export { QuestionScreen, RevealFooter, ContinueButton } from './QuestionScreen';
+export { VBQuestionScreen } from './VBQuestionScreen';
 export { StatementScreen } from './StatementScreen';
+export { StoryScreen } from './StoryScreen';
+export { HighlightText } from './HighlightText';
+export type { TextPart } from './HighlightText';
 export { RecapChips, SnapshotCard } from './SnapshotPieces';
-export type { SnapshotRow } from './SnapshotPieces';
+export type { SnapshotRow, RecapChip } from './SnapshotPieces';
 export { CalculatingView } from './CalculatingView';
+export { AnalyzingTheater } from './AnalyzingTheater';
+export type { AnalyzingStage } from './AnalyzingTheater';
 export { OptionList, SelectionCountPill, isMultiSelectValid } from './OptionList';
 export type { Option } from './OptionList';
 export { OptionCard } from './OptionCard';

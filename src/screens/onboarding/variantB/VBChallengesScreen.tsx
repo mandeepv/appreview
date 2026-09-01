@@ -2,7 +2,7 @@ import React from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
 import {
-  QuestionScreen,
+  VBQuestionScreen,
   OptionList,
   ContinueButton,
   SelectionCountPill,
@@ -37,10 +37,10 @@ export const VBChallengesScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <QuestionScreen
+    <VBQuestionScreen
       screenName={VB.Challenges}
-      title="What's hardest for you lately?"
-      subtitle="Pick as many as feel true."
+      title="What's been the hardest part lately?"
+      subtitle="Pick as many as ring true."
       onBack={() => navigation.goBack()}
       footer={
         <>
@@ -50,11 +50,12 @@ export const VBChallengesScreen: React.FC<Props> = ({ navigation }) => {
       }
     >
       <OptionList
+        appearance="warm"
         mode="multi"
         options={CHALLENGE_OPTIONS}
         selected={selected}
         onToggle={toggle}
       />
-    </QuestionScreen>
+    </VBQuestionScreen>
   );
 };

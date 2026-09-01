@@ -35,9 +35,30 @@ export interface Option<T extends string> {
   value: T;
   label: string;
   subtitle?: string;
-  icon?: string;
+  /**
+   * Ionicons glyph name shown in a tinted media chip. This is the graceful
+   * fallback that renders NOW (and forever, for options that never get bespoke
+   * art) so no card is ever blank or shows a broken image. When `imageSource`
+   * is also set it wins; the icon still names the option for a11y.
+   */
+  icon?: React.ComponentProps<typeof import('@expo/vector-icons').Ionicons>['name'];
+  /**
+   * Bespoke illustration (see docs/specs/variant-b-illustration-style.md). Wire
+   * this per-option only once the real asset lands in assets/onboarding — until
+   * then the `icon` fallback carries the card. Wins over `icon` when present.
+   */
   imageSource?: import('react-native').ImageSourcePropType;
 }
+
+/**
+ * `appearance` scopes the visual treatment WITHOUT touching variant A:
+ *  - `'default'` (unset) → the original shared look. Variant A screens rely on
+ *    this; they pass no appearance and get byte-identical behavior (variant
+ *    falls through to OptionCard's own `illustration` default, border cards).
+ *  - `'warm'` → the variant-B Headspace/Noom treatment: `compact` icon-chip
+ *    default + soft lifted cards. ONLY variant B passes this.
+ */
+type OptionAppearance = 'default' | 'warm';
 
 interface SingleProps<T extends string> {
   mode: 'single';
@@ -49,6 +70,7 @@ interface SingleProps<T extends string> {
   /** Navigate onward. Called once, after the auto-advance delay. */
   onAdvance: (value: T) => void;
   variant?: OptionCardVariant;
+  appearance?: OptionAppearance;
   advanceDelayMs?: number;
 }
 
@@ -59,6 +81,7 @@ interface MultiProps<T extends string> {
   /** Toggle membership of a value in the selection. */
   onToggle: (value: T) => void;
   variant?: OptionCardVariant;
+  appearance?: OptionAppearance;
   /** Word for the pill, e.g. "area" → "3 areas selected". */
   countNoun?: string;
 }
@@ -67,6 +90,15 @@ type OptionListProps<T extends string> = SingleProps<T> | MultiProps<T>;
 
 export function OptionList<T extends string>(props: OptionListProps<T>) {
   const reduceMotion = useReduceMotion();
+
+  const warm = props.appearance === 'warm';
+  // Variant resolution is appearance-scoped so variant A is untouched:
+  //  - default appearance → pass `variant` straight through (undefined lets
+  //    OptionCard apply its own `illustration` default = variant A's old look).
+  //  - warm appearance → `compact` icon-chip default (variant B's dense lists).
+  const resolvedVariant: OptionCardVariant | undefined = warm
+    ? props.variant ?? 'compact'
+    : props.variant;
 
   // Single-select double-advance guard. Guards a rapid double-tap into firing
   // onAdvance twice. It must reset on FOCUS, not on mount: React Navigation's
@@ -101,7 +133,7 @@ export function OptionList<T extends string>(props: OptionListProps<T>) {
   };
 
   if (props.mode === 'single') {
-    const { options, selected, onSelect, onAdvance, variant, advanceDelayMs } = props;
+    const { options, selected, onSelect, onAdvance, advanceDelayMs } = props;
     const delay = advanceDelayMs ?? AUTO_ADVANCE_DELAY_MS;
     return (
       <View style={styles.list}>
@@ -112,7 +144,8 @@ export function OptionList<T extends string>(props: OptionListProps<T>) {
               subtitle={opt.subtitle}
               icon={opt.icon}
               imageSource={opt.imageSource}
-              variant={variant}
+              variant={resolvedVariant}
+              warm={warm}
               selected={selected === opt.value}
               onPress={() => handleSingleTap(opt.value, onSelect, onAdvance, delay)}
             />
@@ -122,7 +155,7 @@ export function OptionList<T extends string>(props: OptionListProps<T>) {
     );
   }
 
-  const { options, selected, onToggle, variant } = props;
+  const { options, selected, onToggle } = props;
   const handleToggle = (value: T) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onToggle(value);
@@ -136,7 +169,8 @@ export function OptionList<T extends string>(props: OptionListProps<T>) {
             subtitle={opt.subtitle}
             icon={opt.icon}
             imageSource={opt.imageSource}
-            variant={variant}
+            variant={resolvedVariant}
+            warm={warm}
             selected={selected.includes(opt.value)}
             onPress={() => handleToggle(opt.value)}
           />

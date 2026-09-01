@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Animated, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PostHogMaskView } from 'posthog-react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, Animation as AnimationConfig } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { stepFor } from './flows';
@@ -47,6 +49,14 @@ interface StatementScreenProps {
    * screens) can hide the progress bar. Question-adjacent beats derive it.
    */
   showProgress?: boolean;
+  /**
+   * Hide the title from PostHog session replay. Set on screens whose title
+   * interpolates the user's name (e.g. "Ready to build your plan, {name}?") —
+   * the name is PII we don't send to PostHog (docs/INVARIANTS.md). The title
+   * template is identical for every user, so masking it in replay loses no
+   * analytical signal. Wraps the title in PostHogMaskView (ph-no-capture).
+   */
+  maskTitle?: boolean;
 }
 
 export const StatementScreen: React.FC<StatementScreenProps> = ({
@@ -60,6 +70,7 @@ export const StatementScreen: React.FC<StatementScreenProps> = ({
   secondaryTitle,
   onSecondary,
   showProgress = true,
+  maskTitle = false,
 }) => {
   const { saveState, setLastScreen } = useOnboardingStore();
   const insets = useSafeAreaInsets();
@@ -118,7 +129,13 @@ export const StatementScreen: React.FC<StatementScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={{ opacity: fadeAnim }}>
-          <Text style={styles.title}>{title}</Text>
+          {maskTitle ? (
+            <PostHogMaskView>
+              <Text style={styles.title}>{title}</Text>
+            </PostHogMaskView>
+          ) : (
+            <Text style={styles.title}>{title}</Text>
+          )}
           {body ? <Text style={styles.body}>{body}</Text> : null}
           {children}
         </Animated.View>
@@ -140,17 +157,18 @@ export const StatementScreen: React.FC<StatementScreenProps> = ({
   );
 };
 
-// Minimal chevron matching QuestionScreen's BackButton affordance (kept local so
-// StatementScreen doesn't need to export internals from QuestionScreen).
+// Real Ionicons back chevron (matches VBQuestionScreen). Replaces the old text
+// "‹" glyph, which read as a hand-rolled primitive.
 const BackChevron: React.FC<{ onPress: () => void }> = ({ onPress }) => (
-  <Text
+  <TouchableOpacity
     onPress={onPress}
     accessibilityRole="button"
     accessibilityLabel="Go back"
-    style={styles.backChevron}
+    style={styles.backButton}
+    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
   >
-    ‹
-  </Text>
+    <Ionicons name="chevron-back" size={26} color={Colors.textPrimary} />
+  </TouchableOpacity>
 );
 
 // Lightweight progress bar (same visual as the system ProgressBar: a filled
@@ -167,7 +185,9 @@ const ProgressBarLite: React.FC<{ current: number; total: number }> = ({ current
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    // Warm cream canvas to match VBQuestionScreen/StoryScreen — the whole
+    // variant-B flow shares one warm surface, never clinical white.
+    backgroundColor: Colors.background,
   },
   header: {
     paddingHorizontal: Spacing['2xl'],
@@ -186,13 +206,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backChevron: {
+  backButton: {
     width: 40,
     height: 40,
-    lineHeight: 40,
-    textAlign: 'center',
-    fontSize: 34,
-    color: Colors.textSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   progressContainer: {
     flex: 1,

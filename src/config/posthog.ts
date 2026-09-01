@@ -32,6 +32,29 @@ export const posthog = new PostHog(apiKey || 'placeholder_key', {
   requestTimeout: 10000,
   fetchRetryCount: 3,
   fetchRetryDelay: 3000,
+  // Session replay. RN records in SCREENSHOT mode (it photographs the screen),
+  // so masking is a PII decision, not just cosmetic — see docs/INVARIANTS.md
+  // (no name/child data to PostHog) and OPS_STATE (dashboard toggle owner-run).
+  //
+  // NOTE: enabling here is necessary but NOT sufficient — replay ALSO has to be
+  // turned on in PostHog project settings (owner-only dashboard action). Until
+  // that toggle is flipped, this records nothing. So shipping this code is safe:
+  // it can't leak anything until the owner explicitly enables it server-side.
+  //
+  // Masking posture (defense-in-depth): text inputs masked globally, plus the
+  // specific name / child-age / snapshot views are wrapped in <PostHogMaskView>
+  // (see those screens) so the personalization PII is never captured as pixels
+  // even though most of the flow stays visible. maskAllImages stays FALSE so
+  // illustrations/icons remain visible; maskAllSandboxedViews masks Superwall's
+  // native paywall UI (nothing to learn there, and it's third-party surface).
+  enableSessionReplay: true,
+  sessionReplayConfig: {
+    maskAllTextInputs: true,
+    maskAllImages: false,
+    maskAllSandboxedViews: true,
+    captureLog: true,
+    captureNetworkTelemetry: false,
+  },
 })
 
 // Register `environment` as a super-property so it's attached to EVERY event.

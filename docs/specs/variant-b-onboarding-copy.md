@@ -1,6 +1,31 @@
 # Variant B onboarding — full copy (for review)
 
-**Status:** DRAFT for owner review · 2026-07-19 · v1.3.0 A/B (`onboarding-flow = variant_b`)
+> **⚠️ REDESIGNED — CODE IS THE SOURCE OF TRUTH (updated 2026-07-25).** Variant B
+> was reworked for conversion in two waves; the per-screen copy text further down
+> this doc is now HISTORICAL. The doc's STRUCTURE (3 acts, screen order,
+> proof-number checklist) stays authoritative; verbatim copy does not.
+>
+> **What shipped (code-side):**
+> - **Copy** — fully rewritten toward a human, conversion-first voice. **No
+>   em-dashes, no AI writing tics.** Numbers that matter are highlighted in the
+>   brand colour via `HighlightText` (the "you'll spend 2,372 hours" move).
+> - **Visual system (warm "Headspace/Noom" look)** — the first pass used a flat
+>   white layout with big emoji that read as a "toy"; it was replaced. Narrative
+>   beats now use **`StoryScreen`** (real on-brand illustration OR a single
+>   line-icon in a tinted brand chip — NOT giant emoji — + big left headline +
+>   two-beat entrance). Question beats use **`VBQuestionScreen`** (warm cream
+>   canvas, `warm` OptionCard treatment). The snapshot reveal is a stack of
+>   icon stat-cards with one accent hero row. The calculate beat is
+>   **`AnalyzingTheater`** (personalized — reflects the user's own answers back).
+> - **Variant A is untouched.** All of the above are variant-B-only components;
+>   the shared `QuestionScreen`/`StatementScreen`/`PlanTheater` variant A uses
+>   stay pixel-stable.
+>
+> **Art:** see `docs/specs/variant-b-illustration-style.md` — the real library is
+> the `_illo.jpg` set; the bare-name `.png` twins (md5 7143bd42…) are placeholder
+> dupes and must not be wired. Some slots still need real art generated.
+
+**Status:** DRAFT for owner review · 2026-07-19 (copy) · redesign started 2026-07-21 · v1.3.0 A/B (`onboarding-flow = variant_b`)
 **Structure:** 3-act story (Hook → Diagnose/Reflect → Calculate/Commit/Convert), 22 screens.
 Adapted from QUITTR / Clear30 / Prayer Screen / Prayer Lock, tuned for a *parenting* audience
 (reflection & aspiration carry the length, not severity-shaming).

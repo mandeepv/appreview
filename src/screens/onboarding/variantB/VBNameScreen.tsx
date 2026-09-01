@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../../navigation/OnboardingNavigator';
-import { QuestionScreen, ContinueButton } from '../../../components/onboarding';
+import { VBQuestionScreen, ContinueButton } from '../../../components/onboarding';
 import { FormInput } from '../../../components/FormInput';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { trackOnboardingStepCompleted } from '../../../lib/analytics';
@@ -41,7 +41,7 @@ export const VBNameScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <QuestionScreen
+    <VBQuestionScreen
       screenName={VB.Name}
       title="First, what should we call you?"
       subtitle="So your plan feels like yours."
@@ -59,6 +59,6 @@ export const VBNameScreen: React.FC<Props> = ({ navigation }) => {
         showCharacterCount={false}
         success={name.trim().length > 0}
       />
-    </QuestionScreen>
+    </VBQuestionScreen>
   );
 };

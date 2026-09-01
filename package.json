@@ -17,6 +17,7 @@
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
+    "@posthog/react-native-plugin": "^2.2.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.9.0",
     "@react-navigation/native": "^7.0.12",
@@ -38,6 +39,7 @@
     "expo-notifications": "~0.32.15",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-store-review": "~9.0.9",
     "expo-superwall": "1.1.6",
     "expo-web-browser": "~15.0.10",
     "posthog-react-native": "^4.53.3",

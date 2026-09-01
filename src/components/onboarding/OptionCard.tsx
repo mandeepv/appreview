@@ -9,7 +9,10 @@ import {
   Image,
   ImageSourcePropType,
 } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography, Animation } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, Spacing, BorderRadius, Typography, Animation, Shadows } from '../../constants/theme';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 /**
  * SPEC-17 — the ONE option-card visual family for onboarding.
@@ -39,9 +42,16 @@ interface OptionCardProps {
   selected: boolean;
   onPress: () => void;
   variant?: OptionCardVariant;
-  /** Emoji/text glyph shown in the media slot (illustration variant). */
-  icon?: string;
-  /** Image shown in the media slot (illustration variant). Wins over `icon`. */
+  /**
+   * Warm (Headspace/Noom) card treatment — soft lifted shadow, no heavy border,
+   * Ionicons media chip. ONLY variant B passes this (via OptionList
+   * appearance="warm"). When false the card renders the ORIGINAL shared look
+   * (border-2.5 white cards) so variant A is byte-identical.
+   */
+  warm?: boolean;
+  /** Ionicons glyph shown in the tinted media chip. The graceful fallback. */
+  icon?: IoniconName;
+  /** Illustration shown in the media slot. Wins over `icon` when present. */
   imageSource?: ImageSourcePropType;
   style?: ViewStyle;
   disabled?: boolean;
@@ -53,6 +63,7 @@ export const OptionCard: React.FC<OptionCardProps> = ({
   selected,
   onPress,
   variant = 'illustration',
+  warm = false,
   icon,
   imageSource,
   style,
@@ -96,7 +107,11 @@ export const OptionCard: React.FC<OptionCardProps> = ({
     }).start();
   };
 
-  const hasMedia = variant === 'illustration' && (imageSource || icon);
+  // Media renders for BOTH variants now: an illustration when one is wired, else
+  // the Ionicons chip. Every option gets a visual anchor — the fix for the old
+  // bare-text-on-white look. `compact` uses a smaller chip; `illustration` a
+  // larger image tile.
+  const hasMedia = Boolean(imageSource || icon);
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -108,9 +123,15 @@ export const OptionCard: React.FC<OptionCardProps> = ({
         accessibilityRole="button"
         accessibilityState={{ selected, disabled }}
         style={[
-          styles.card,
+          warm ? styles.cardWarm : styles.card,
           variant === 'compact' ? styles.cardCompact : styles.cardDefault,
-          selected ? styles.cardSelected : styles.cardUnselected,
+          warm
+            ? selected
+              ? styles.cardWarmSelected
+              : styles.cardWarmUnselected
+            : selected
+              ? styles.cardSelected
+              : styles.cardUnselected,
           style,
         ]}
         activeOpacity={0.9}
@@ -118,12 +139,35 @@ export const OptionCard: React.FC<OptionCardProps> = ({
         <View style={styles.content}>
           {hasMedia ? (
             imageSource ? (
-              <View style={[styles.imageContainer, selected && styles.imageContainerSelected]}>
-                <Image source={imageSource} style={styles.cardImage} resizeMode="contain" />
+              <View
+                style={[
+                  styles.imageContainer,
+                  variant === 'compact' && styles.imageContainerCompact,
+                  selected && styles.imageContainerSelected,
+                ]}
+              >
+                <Image
+                  source={imageSource}
+                  style={styles.cardImage}
+                  // Warm compact art fills the cream chip (cover) so its own cream
+                  // bg blends into the chip and only the subject reads; variant A
+                  // keeps its original `contain`.
+                  resizeMode={warm && variant === 'compact' ? 'cover' : 'contain'}
+                />
               </View>
             ) : (
-              <View style={[styles.iconContainer, selected && styles.iconContainerSelected]}>
-                <Text style={styles.icon}>{icon}</Text>
+              <View
+                style={[
+                  styles.iconContainer,
+                  variant === 'compact' && styles.iconContainerCompact,
+                  selected && styles.iconContainerSelected,
+                ]}
+              >
+                <Ionicons
+                  name={icon as IoniconName}
+                  size={variant === 'compact' ? 20 : 26}
+                  color={selected ? Colors.primary : Colors.primaryDark}
+                />
               </View>
             )
           ) : null}
@@ -151,6 +195,7 @@ export const OptionCard: React.FC<OptionCardProps> = ({
 };
 
 const styles = StyleSheet.create({
+  // ORIGINAL shared card (variant A). Untouched — border-2.5 on white.
   card: {
     borderRadius: BorderRadius.xl,
     borderWidth: 2.5,
@@ -171,6 +216,23 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
   },
+  // WARM card (variant B only): soft lifted surface on the cream canvas via a
+  // tinted shadow, a 1px hairline instead of a heavy border, and a teal glow on
+  // select. This is the Headspace/Noom depth the flat-white cards lacked.
+  cardWarm: {
+    borderRadius: BorderRadius['2xl'],
+    borderWidth: 1,
+  },
+  cardWarmSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryBg,
+    ...Shadows.primary,
+  },
+  cardWarmUnselected: {
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
+    ...Shadows.sm,
+  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -189,6 +251,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: Spacing.lg,
   },
+  iconContainerCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
+    marginRight: Spacing.md,
+  },
   iconContainerSelected: {
     backgroundColor: Colors.surface,
     borderWidth: 2,
@@ -204,15 +272,24 @@ const styles = StyleSheet.create({
     marginRight: Spacing.lg,
     overflow: 'hidden',
   },
+  // In compact (warm) lists an illustration chip matches the icon chip's size +
+  // radius, but its bg is the app CREAM (Colors.background) — which is almost
+  // exactly the _illo art's own baked-in background, so the art blends into the
+  // chip with no visible seam/box (the beige-square-on-page clash in the first
+  // render). Sits beside teal-tint icon chips as a soft, intentional pairing.
+  imageContainerCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
+    marginRight: Spacing.md,
+    backgroundColor: Colors.background,
+  },
   imageContainerSelected: {
     backgroundColor: Colors.surface,
   },
   cardImage: {
     width: '100%',
     height: '100%',
-  },
-  icon: {
-    fontSize: 26,
   },
   title: {
     fontWeight: Typography.weights.bold,

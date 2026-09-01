@@ -22,6 +22,21 @@ up being >1 day or blocks another item, promote it to its own doc.
 From the release/1.3.0 review (2026-07-20). The blockers + real majors were
 fixed in-branch; these are the low-impact remainders. None block ship.
 
+### R0. Housekeeping before committing the variant-B redesign 🟡
+The 2026-07-21..25 variant-B redesign left a few loose ends in the working tree:
+- **`.agents/` + `skills-lock.json` are NOT gitignored** and are dev tooling
+  (the `design-taste-frontend` skill install), not app code. Add them to
+  `.gitignore` (next to the existing `.claude/`) so they don't get committed
+  with the app. **Effort**: 2 min.
+- **`AnalyzingTheater` vs `CalculatingView`/`PlanTheater`** — confirm the new
+  variant-B `AnalyzingTheater` fully supersedes the old `CalculatingView` wiring
+  and there's no dead path left. The shared `PlanTheater` (real pre-paywall
+  LoadingScreen) must stay untouched.
+- **Illustration slots** — several variant-B screens still use line-icon chips
+  as stand-ins where a real illustration is wanted. `docs/specs/variant-b-illustration-style.md`
+  lists the missing slots + generation prompts; wire real art as it's produced.
+  Placeholder `.png` twins (md5 7143bd42…) must NOT be wired.
+
 ### R1. Auto-advance swallows a corrective tap 🟡
 **Problem**: on a single-select screen, if the user taps option A then quickly
 taps option B within the ~350ms auto-advance window, the second tap is ignored
@@ -803,24 +818,34 @@ refinements from the 2026-07-10 review live at #23 (union-before-push)
 and #24 (missing `lesson_completed` derivation test). See those.
 build later.
 
-### 13. Notifications feature not implemented 🟡
+### 13. Notifications — permission wired, SEQUENCE STILL UNDEFINED 🟡
 
-Onboarding asks users if they want notifications. Preference saved
-to `user_profiles.notifications_enabled`. But no code path anywhere
-in the app actually schedules or sends any notification.
-`expo-notifications` isn't imported for scheduling anywhere.
+**State (updated 2026-07-21, variant-B work):** `VBReminders` now does the
+FIRST half for real — tapping "Enable reminders" requests the OS notification
+permission (`expo-notifications`) on tap and stores the grant. Variant A never
+had a notification screen at all, so this is the only place the preference is
+collected.
 
-Every user in prod has been asked about notifications, said yes or
-no, and never received any.
+**Still missing — the reminder SEQUENCE is not defined and nothing is
+scheduled.** Permission-on-tap + intent is wired; NO notification is ever
+scheduled or sent. We deliberately stopped at permission because the reminder
+*shape* is an undecided product call:
 
-**Options**:
-- Build the feature (schedule daily/weekly reminders based on
-  preference). Not trivial — requires push notification server-side
-  setup, deep-link handling on tap, permission timing.
-- Remove the question from onboarding entirely so we're not
-  dishonestly asking about a feature that doesn't exist.
+- **frequency** (daily vs a few days/week vs streak-based) — UNDECIDED
+- **time of day** — UNDECIDED (owner said "decide later")
+- **copy** (what each notification says) — UNDECIDED
+- tap deep-link target, cancel-on-sign-out, denial re-ask — UNDECIDED
 
-**Effort**: build → 1-2 days. Remove the question → 30 min.
+⚠︎ Until this sequence is defined and scheduling is built, a user who taps
+"Enable reminders" grants permission but **still receives nothing.** Do not
+imply reminders work in marketing/ASR copy until scheduled.
+
+**Next step**: define the reminder sequence (frequency + time + copy), then
+build the scheduling layer on top of the already-wired permission. See the
+parked entry below (SPEC-11).
+
+**Effort**: define sequence → owner decision. Build scheduling on existing
+permission → ~half a day (local reminders; no server needed for local).
 
 ### 14. Alert.alert() error message rework 🟡
 
@@ -1116,7 +1141,8 @@ just before a release is exactly the kind of change that adds review risk.
 
 Each track is parked, not dropped. It starts on its stated trigger.
 
-- **Notifications (local reminders)** — parked by owner 2026-07-10; starts on explicit owner go, after the owner decides the reminder shape. Full spec arrives with the go (SPEC-11).
+- **Notifications (local reminders)** — parked by owner 2026-07-10; starts on explicit owner go, after the owner decides the reminder shape. Full spec arrives with the go (SPEC-11). **UPDATE 2026-07-21:** permission-request-on-tap is now wired in `VBReminders` (variant B) — but the reminder SEQUENCE (frequency + time-of-day + copy + tap target) is STILL UNDEFINED and nothing is scheduled. Defining that sequence is the remaining trigger; scheduling builds on the existing permission grant. See item #13 above.
+- **Bump `expo-superwall` 1.1.6 → 1.2.0** — deferred by owner 2026-07-22. 1.2.0 is a NON-breaking minor (bundles SuperwallKit iOS 4.15.3→4.16.1; adds `eventTrackingBehavior`, `singularDeviceId`, `getStoreFrontCountryCode` — none of which we use). Deliberately NOT bundled into the v1.3.0 variant-B work: it's a native bump on the MONEY path, and doing it mid-submission would ship a freshly-changed IAP layer through review untested. **Trigger:** after v1.3.0 is approved + stable. **How:** standalone commit → native rebuild → FULL sandbox purchase/restore/gate test pass → then ship. No pull to update now (no bug we're hitting); routine, deferrable.
 - **Android launch track** — starts on product demand (SPEC-12).
 - **Reusable app-template track** — parked until a second app is on the horizon.
 - **Ratings prompt at section completion** — parked; ~1h at the engine's completion point whenever activated; never near paywall/escape hatch; 3 prompts/yr Apple cap.
