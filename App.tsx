@@ -16,8 +16,45 @@ import Constants from 'expo-constants';
 import { posthog } from './src/config/posthog';
 import { useConfigStore } from './src/store/configStore';
 import { ForceUpdateModal } from './src/components/ForceUpdateModal';
+import { useFonts } from 'expo-font';
+import {
+  Newsreader_300Light,
+  Newsreader_400Regular,
+  Newsreader_400Regular_Italic,
+} from '@expo-google-fonts/newsreader';
+import {
+  Figtree_400Regular,
+  Figtree_500Medium,
+  Figtree_600SemiBold,
+} from '@expo-google-fonts/figtree';
+import {
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+} from '@expo-google-fonts/ibm-plex-mono';
 
 function AppContent() {
+  // Onboarding redesign fonts (Newsreader / Figtree / IBM Plex Mono).
+  //
+  // Deliberately NOT a render gate. INVARIANT #1 — every path into Root goes
+  // through the Loading gate — plus the splash work in SPEC-16 means the first
+  // frame has to keep coming from SplashScreen, not from a font-loading
+  // placeholder. Returning null here would put a white flash in front of the
+  // brand splash and change launch timing on the paywall path.
+  //
+  // So we let the tree render immediately: RN falls back to the system face
+  // for one frame and re-renders when the fonts land. Anything still on the
+  // old `Colors` palette never referenced these families anyway.
+  useFonts({
+    Newsreader_300Light,
+    Newsreader_400Regular,
+    Newsreader_400Regular_Italic,
+    Figtree_400Regular,
+    Figtree_500Medium,
+    Figtree_600SemiBold,
+    IBMPlexMono_400Regular,
+    IBMPlexMono_500Medium,
+  });
+
   const initialize = useAuthStore(state => state.initialize);
   const user = useAuthStore(state => state.user);
   const setIsSubscribed = useAuthStore(state => state.setIsSubscribed);

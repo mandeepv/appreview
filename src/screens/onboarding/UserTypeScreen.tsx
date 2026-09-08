@@ -1,278 +1,88 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native';
+/**
+ * Screen 12 in the design canvas — "STEP 1 OF 8".
+ *
+ * Single-select: circles, no count line.
+ *
+ * The canvas offers five roles where the data model has three
+ * (`'father' | 'mother' | 'other'`). Grandparent / Guardian / Someone else all
+ * store as `'other'` — the redesign is a visual pass, so the saved value and
+ * the analytics payload stay byte-identical to what v1.2.0 shipped. Widening
+ * `UserType` would change the Supabase write and the PostHog property, which
+ * is a data decision, not a design one.
+ *
+ * `roleChoice` keeps the finer-grained pick in local state only, so the
+ * selected row stays lit while the user is on the screen.
+ */
+
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingContainer } from '../../components/OnboardingContainer';
-import { Button } from '../../components/Button';
+import { OnboardingScreen } from '../../components/onboarding/OnboardingScreen';
+import { OptionRow } from '../../components/onboarding/OptionRow';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { UserType } from '../../types/onboarding';
-import { Colors } from '../../constants/theme';
 import { trackOnboardingStepCompleted } from '../../lib/analytics';
+import { OnboardingLayout as L } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'UserType'>;
 
-const { width } = Dimensions.get('window');
-const cardSize = (width - 48) * 0.48;
+type RoleChoice = 'mother' | 'father' | 'grandparent' | 'guardian' | 'someone-else';
 
-const Illustrations = {
-  mother: require('../../../assets/onboarding/mother_illustration.png'),
-  father: require('../../../assets/onboarding/father_illustration.png'),
-  guardian: require('../../../assets/onboarding/guardian_illustration.png'),
-};
+const ROLES: { key: RoleChoice; label: string; stored: UserType }[] = [
+  { key: 'mother', label: 'Mum', stored: 'mother' },
+  { key: 'father', label: 'Dad', stored: 'father' },
+  { key: 'grandparent', label: 'Grandparent', stored: 'other' },
+  { key: 'guardian', label: 'Guardian or carer', stored: 'other' },
+  { key: 'someone-else', label: 'Someone else who shows up', stored: 'other' },
+];
 
 export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
   const { userType, updateUserType } = useOnboardingStore();
 
+  // Seed from the store so going back re-lights a row. A stored 'other' can't
+  // tell us which of the three 'other' rows was picked, so it stays unlit —
+  // harmless, and better than lighting the wrong one.
+  const [roleChoice, setRoleChoice] = useState<RoleChoice | null>(() => {
+    if (userType === 'mother') return 'mother';
+    if (userType === 'father') return 'father';
+    return null;
+  });
+
+  const handleSelect = (role: (typeof ROLES)[number]) => {
+    setRoleChoice(role.key);
+    updateUserType(role.stored);
+  };
+
   const handleContinue = () => {
-    if (userType) {
-      trackOnboardingStepCompleted('UserType', userType);
-      navigation.navigate('NameAge');
-    }
+    if (!userType) return;
+    trackOnboardingStepCompleted('UserType', userType);
+    navigation.navigate('NameAge');
   };
 
   return (
-    <OnboardingContainer
-      title="Welcome to Kinderwell"
+    <OnboardingScreen
+      step={1}
+      headline="Welcome to Kinderwell"
       subtitle="Who are you parenting as?"
-      currentStep={1}
-      showBackButton={false}
-      scrollable={true}
-      centerTitle={true}
-      screenName="UserType"
+      onContinue={handleContinue}
+      continueDisabled={!userType}
     >
-      <View style={styles.container}>
-        <View>
-          <Text style={styles.microcopy}>
-            The next few questions help us personalize lessons for your family.{'\n'}
-            All responses are stored securely and used only to customize your experience.
-          </Text>
-
-          {/* Mother and Father cards side by side */}
-          <View style={styles.squareCardsRow}>
-            <TouchableOpacity
-              style={[
-                styles.squareCard,
-                userType === 'mother' && styles.squareCardSelected,
-              ]}
-              onPress={() => updateUserType('mother')}
-              activeOpacity={0.7}
-            >
-              {userType === 'mother' && (
-                <View style={styles.checkmark}>
-                  <Text style={styles.checkmarkText}>✓</Text>
-                </View>
-              )}
-              <View style={styles.iconCircle}>
-                <Image source={Illustrations.mother} style={styles.illustrationSquare} resizeMode="contain" />
-              </View>
-              <Text style={styles.squareCardLabel}>Mother</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.squareCard,
-                userType === 'father' && styles.squareCardSelected,
-              ]}
-              onPress={() => updateUserType('father')}
-              activeOpacity={0.7}
-            >
-              {userType === 'father' && (
-                <View style={styles.checkmark}>
-                  <Text style={styles.checkmarkText}>✓</Text>
-                </View>
-              )}
-              <View style={styles.iconCircle}>
-                <Image source={Illustrations.father} style={styles.illustrationSquare} resizeMode="contain" />
-              </View>
-              <Text style={styles.squareCardLabel}>Father</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Other/Guardian card */}
-          <TouchableOpacity
-            style={[
-              styles.horizontalCard,
-              userType === 'other' && styles.horizontalCardSelected,
-            ]}
-            onPress={() => updateUserType('other')}
-            activeOpacity={0.7}
-          >
-            {userType === 'other' && (
-              <View style={styles.checkmark}>
-                <Text style={styles.checkmarkText}>✓</Text>
-              </View>
-            )}
-            <View style={styles.iconCircleSmall}>
-              <Image source={Illustrations.guardian} style={styles.illustrationHorizontal} resizeMode="contain" />
-            </View>
-            <View style={styles.horizontalCardText}>
-              <Text style={styles.horizontalCardTitle}>Other / Guardian</Text>
-              <Text style={styles.horizontalCardSubtitle}>
-                Grandparent, caregiver, or guardian
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        <View>
-          <Button
-            title="Continue →"
-            onPress={handleContinue}
-            disabled={!userType}
+      <View style={styles.rows}>
+        {ROLES.map((role) => (
+          <OptionRow
+            key={role.key}
+            label={role.label}
+            mode="single"
+            selected={roleChoice === role.key}
+            onPress={() => handleSelect(role)}
           />
-        </View>
+        ))}
       </View>
-    </OnboardingContainer>
+    </OnboardingScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingVertical: 24,
-  },
-  squareCardsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  squareCard: {
-    width: '48%',
-    aspectRatio: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    position: 'relative',
-  },
-  squareCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryBg,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.backgroundGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  iconEmoji: {
-    fontSize: 48,
-  },
-  illustrationSquare: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  squareCardLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  horizontalCard: {
-    height: cardSize,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: Colors.border,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    position: 'relative',
-  },
-  horizontalCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryBg,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  iconCircleSmall: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.backgroundGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  iconEmojiSmall: {
-    fontSize: 28,
-  },
-  illustrationHorizontal: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  horizontalCardText: {
-    flex: 1,
-  },
-  horizontalCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  horizontalCardSubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-  checkmark: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-    shadowColor: Colors.primary,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  checkmarkText: {
-    color: Colors.surface,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  microcopy: {
-    textAlign: 'center',
-    color: Colors.textMuted,
-    fontSize: 13,
-    marginTop: 12,
-  },
+  rows: { gap: L.rowGap },
 });

@@ -221,6 +221,95 @@ export const IconSizes = {
   '2xl': 128,
 } as const;
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * ONBOARDING DESIGN SYSTEM (2026-09) — cream / forest
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * A SECOND, PARALLEL palette. It does NOT replace `Colors` above: the rest of
+ * the app (Learn, Settings, the lesson engine) still reads `Colors` and is
+ * deliberately untouched by this redesign. Only `src/screens/onboarding/`
+ * consumes what follows. Two palettes coexist on purpose — swapping the whole
+ * app in one go would restyle screens nobody has designed yet.
+ *
+ * Values are lifted verbatim from the Claude Design canvas "Kinderwell
+ * Onboarding Set.dc.html" (19 artboards) so the build matches the mockup
+ * exactly rather than approximating it by eye. When a number here looks
+ * arbitrary, it is because the design says so — check the canvas before
+ * "fixing" it.
+ */
+export const OnboardingColors = {
+  ink: '#23211e', // text, hairlines, the dark phone chrome
+  paper: '#eee9dc', // screen canvas
+  wash: '#e5dbc9', // tinted rows, child cards, unselected multi-select
+  forest: '#2f6b4a', // primary action, selected states, progress
+  forestDeep: '#23423a', // full-bleed takeover surfaces (splash)
+  mint: '#c9e3d3', // eyebrow/secondary numerals ON forest surfaces
+  clay: '#c0653c', // accent — used sparingly
+  clayDeep: '#8f4526', // canvas eyebrow label
+  cream: '#fbf7ef', // text/icons on forest + ink
+} as const;
+
+/** Ink at opacity — the design builds hierarchy with alpha, not extra greys. */
+export const oInk = (a: number) => `rgba(35,33,30,${a})`;
+/** Cream at opacity — for text on forest / forestDeep surfaces. */
+export const oCream = (a: number) => `rgba(251,247,239,${a})`;
+/** Forest at opacity — selected-state rules and tinted callouts. */
+export const oForest = (a: number) => `rgba(47,107,74,${a})`;
+
+/**
+ * Font families as registered by `useFonts` in App.tsx. Newsreader carries
+ * every headline (with one italic phrase — the signature move), Figtree does
+ * UI/labels, and IBM Plex Mono is reserved for the step label.
+ */
+export const OnboardingFonts = {
+  serif: 'Newsreader_400Regular',
+  serifItalic: 'Newsreader_400Regular_Italic',
+  serifLight: 'Newsreader_300Light', // the 104px weekends numeral only
+  sans: 'Figtree_400Regular',
+  sansMed: 'Figtree_500Medium',
+  sansSemi: 'Figtree_600SemiBold',
+  mono: 'IBMPlexMono_400Regular',
+  monoMed: 'IBMPlexMono_500Medium',
+} as const;
+
+/**
+ * Type scale. The floor is deliberate: body 17, UI 15-17, and nothing below 12
+ * except the status bar. The audience is 30-50 reading at 9pm — the earlier
+ * preview raised this floor after 9.5px mono labels proved unreadable on
+ * device, and the shipped canvas keeps the raised values.
+ */
+export const OnboardingType = {
+  hero: 104, // weekends takeover numeral
+  h1: 30, // screen headline
+  h2: 27, // stepper numerals, secondary headline
+  h3: 22,
+  serifRow: 19, // serif option rows (screen 18)
+  body: 17,
+  ui: 17, // button labels, row titles
+  uiSm: 15,
+  meta: 13,
+  mono: 12, // STEP n OF 8
+} as const;
+
+export const OnboardingRadius = {
+  card: 22, // child cards
+  row: 16, // option rows
+  callout: 18,
+  pill: 999,
+  disc: 999,
+} as const;
+
+/** 30px gutters and a 58-tall pill are load-bearing — every artboard uses them. */
+export const OnboardingLayout = {
+  screenPad: 30,
+  buttonHeight: 58,
+  stepperSize: 44,
+  checkbox: 23,
+  rowGap: 10,
+  totalSteps: 8, // "STEP n OF 8" — the eight question screens
+} as const;
+
 // Export default theme object
 export const theme = {
   colors: Colors,

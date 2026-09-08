@@ -1,185 +1,158 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Text, StyleSheet, ImageSourcePropType, Animated } from 'react-native';
+/**
+ * Screen 18 in the design canvas — "STEP 7 OF 8".
+ *
+ * The canvas note is the brief: "held, not audited". This is the one screen
+ * that asks the parent to admit something, so the rows are set in Newsreader
+ * rather than Figtree — serif reads as a letter, sans reads as a form — and
+ * the subtitle says out loud that nothing here is a verdict. The lock line and
+ * the offered way out are part of that, not decoration.
+ *
+ * "I'd rather not say" maps onto the existing `'okay'` value, which has always
+ * been the exclusive escape option ("I'm doing okay right now"). Keeping the
+ * stored value means the Supabase payload and the PostHog property are
+ * unchanged from v1.2.0 — only the wording the parent sees is softer.
+ */
+
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import Svg, { Path, Rect } from 'react-native-svg';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingContainer } from '../../components/OnboardingContainer';
-import { SelectableCard } from '../../components/SelectableCard';
-import { Button } from '../../components/Button';
+import { OnboardingScreen } from '../../components/onboarding/OnboardingScreen';
+import { OptionRow } from '../../components/onboarding/OptionRow';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { EmotionalChallenge } from '../../types/onboarding';
-import { Colors } from '../../constants/theme';
 import { trackOnboardingStepCompleted } from '../../lib/analytics';
+import {
+  OnboardingColors as C,
+  OnboardingFonts as F,
+  OnboardingType as T,
+  OnboardingLayout as L,
+  oInk,
+} from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'EmotionalChallenges'>;
 
+const FEELINGS: { value: EmotionalChallenge; label: string }[] = [
+  { value: 'overwhelmed', label: 'Feeling overwhelmed' },
+  { value: 'anxious', label: 'Feeling anxious' },
+  { value: 'burned-out', label: 'Feeling burned out' },
+  { value: 'emotionally-distant', label: 'Feeling emotionally distant' },
+];
+
+/** The exclusive opt-out. Kept as a distinct value so it never reads as a feeling. */
+const RATHER_NOT_SAY: EmotionalChallenge = 'okay';
+
+function LockIcon() {
+  return (
+    <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+      <Rect
+        x={4}
+        y={11}
+        width={16}
+        height={10}
+        rx={2.5}
+        stroke={C.forestDeep}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M8 11V7.5a4 4 0 018 0V11"
+        stroke={C.forestDeep}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
   const { emotionalChallenges, toggleEmotionalChallenge } = useOnboardingStore();
-  const [showScrollHint, setShowScrollHint] = useState(true);
-  const scrollHintOpacity = React.useRef(new Animated.Value(1)).current;
+  const optedOut = emotionalChallenges.includes(RATHER_NOT_SAY);
+  const feelingCount = emotionalChallenges.filter((c) => c !== RATHER_NOT_SAY).length;
 
-  const handleScroll = (event: any) => {
-    const { contentOffset } = event.nativeEvent;
-    if (contentOffset.y > 20 && showScrollHint) {
-      // User has scrolled, hide the hint
-      Animated.timing(scrollHintOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => setShowScrollHint(false));
+  // Picking a feeling clears the opt-out and vice versa — they can't both be
+  // true. This mirrors the v1.2.0 behaviour exactly.
+  const handleToggle = (value: EmotionalChallenge) => {
+    if (optedOut) toggleEmotionalChallenge(RATHER_NOT_SAY);
+    toggleEmotionalChallenge(value);
+  };
+
+  const handleRatherNotSay = () => {
+    if (optedOut) {
+      toggleEmotionalChallenge(RATHER_NOT_SAY);
+      return;
     }
+    emotionalChallenges.forEach((c) => toggleEmotionalChallenge(c));
+    toggleEmotionalChallenge(RATHER_NOT_SAY);
   };
 
   const handleContinue = () => {
-    trackOnboardingStepCompleted('EmotionalChallenges', { challenges: emotionalChallenges, skipped: false });
+    trackOnboardingStepCompleted('EmotionalChallenges', emotionalChallenges);
     navigation.navigate('Auth');
-  };
-
-  const handleSkip = () => {
-    trackOnboardingStepCompleted('EmotionalChallenges', { challenges: [], skipped: true });
-    navigation.navigate('Auth');
-  };
-
-  const challenges: { value: EmotionalChallenge; label: string; icon?: string; image?: ImageSourcePropType }[] = [
-    {
-      value: 'overwhelmed',
-      label: 'Feeling overwhelmed',
-      image: require('../../../assets/onboarding/emotional_overwhelmed.png')
-    },
-    {
-      value: 'anxious',
-      label: 'Feeling anxious',
-      image: require('../../../assets/onboarding/emotional_anxious.png')
-    },
-    {
-      value: 'burned-out',
-      label: 'Feeling burned out',
-      image: require('../../../assets/onboarding/emotional_burned_out.png')
-    },
-    {
-      value: 'emotionally-distant',
-      label: 'Feeling emotionally distant',
-      image: require('../../../assets/onboarding/emotional_distant.png')
-    },
-    {
-      value: 'okay',
-      label: "I’m doing okay right now",
-      image: require('../../../assets/onboarding/emotional_okay.png')
-    },
-  ];
-
-  const handleChallengeToggle = (challenge: EmotionalChallenge) => {
-    if (challenge === 'okay') {
-      if (emotionalChallenges.includes('okay')) {
-        toggleEmotionalChallenge('okay');
-      } else {
-        emotionalChallenges.forEach(c => toggleEmotionalChallenge(c));
-        toggleEmotionalChallenge('okay');
-      }
-    } else {
-      if (emotionalChallenges.includes('okay')) {
-        toggleEmotionalChallenge('okay');
-      }
-      toggleEmotionalChallenge(challenge);
-    }
   };
 
   return (
-    <OnboardingContainer
-      screenName="EmotionalChallenges"
-      title="How have you been feeling lately?"
-      subtitle="Stored securely to personalize your lessons."
-      currentStep={14}
+    <OnboardingScreen
+      step={7}
+      headline="How have you been *feeling* lately?"
+      subtitle="Whatever you pick, nothing here is a verdict on you. Take as many as are true."
       onBack={() => navigation.goBack()}
-      centerTitle={true}
-      scrollable={true}
+      onContinue={handleContinue}
+      continueDisabled={emotionalChallenges.length === 0}
+      scrollable
+      footerNote={
+        feelingCount > 0 ? (
+          <Text style={styles.count}>{`${feelingCount} selected`}</Text>
+        ) : undefined
+      }
+      footerAction={
+        <Text style={styles.ratherNot} onPress={handleRatherNotSay}>
+          {optedOut ? 'Actually, let me pick' : "I'd rather not say"}
+        </Text>
+      }
     >
-      <View style={styles.container}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.scrollView}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-        >
-          <View style={styles.cardsContainer}>
-            {challenges.map((challenge) => (
-              <SelectableCard
-                key={challenge.value}
-                title={challenge.label}
-                icon={challenge.icon}
-                imageSource={challenge.image}
-                selected={emotionalChallenges.includes(challenge.value)}
-                onPress={() => handleChallengeToggle(challenge.value)}
-              />
-            ))}
-          </View>
-
-          {emotionalChallenges.length > 0 && (
-            <Text style={styles.selectionCount}>
-              {emotionalChallenges.length} {emotionalChallenges.length === 1 ? 'feeling' : 'feelings'} selected
-            </Text>
-          )}
-        </ScrollView>
-
-        {/* Scroll hint indicator */}
-        {showScrollHint && (
-          <Animated.View style={[styles.scrollHint, { opacity: scrollHintOpacity }]}>
-            <Text style={styles.scrollHintText}>↓ Scroll for more options</Text>
-          </Animated.View>
-        )}
-
-        <View style={styles.bottomSection}>
-          <Button
-            title="Continue"
-            onPress={handleContinue}
-            disabled={emotionalChallenges.length === 0}
+      <View style={styles.rows}>
+        {FEELINGS.map((feeling) => (
+          <OptionRow
+            key={feeling.value}
+            label={feeling.label}
+            mode="multi"
+            serif
+            selected={emotionalChallenges.includes(feeling.value)}
+            onPress={() => handleToggle(feeling.value)}
           />
-        </View>
+        ))}
       </View>
-    </OnboardingContainer>
+
+      <View style={styles.lockRow}>
+        <LockIcon />
+        <Text style={styles.lockText}>Stored securely to personalize your lessons.</Text>
+      </View>
+    </OnboardingScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  rows: { gap: L.rowGap },
+  lockRow: { flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 22 },
+  lockText: {
     flex: 1,
+    fontFamily: F.serifItalic,
+    fontSize: T.uiSm,
+    lineHeight: T.uiSm * 1.5,
+    color: oInk(0.74),
   },
-  scrollView: {
-    flex: 1,
-  },
-  cardsContainer: {
-    paddingBottom: 8,
-  },
-  selectionCount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary,
+  count: {
+    fontFamily: F.sansMed,
+    fontSize: T.uiSm,
+    color: oInk(0.72),
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.primaryBg,
-    borderRadius: 100,
-    alignSelf: 'center',
-    overflow: 'hidden',
   },
-  scrollHint: {
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  scrollHintText: {
-    fontSize: 13,
-    color: Colors.textTertiary,
-    fontWeight: '500',
-  },
-  bottomSection: {
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  reassurance: {
+  ratherNot: {
+    fontFamily: F.sansMed,
+    fontSize: 16,
+    color: oInk(0.72),
     textAlign: 'center',
-    color: Colors.textMuted,
-    fontSize: 13,
-    marginTop: 12,
   },
 });
