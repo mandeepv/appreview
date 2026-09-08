@@ -64,14 +64,10 @@ export type OnboardingStackParamList = {
   UserType: undefined;
   NameAge: undefined;
   ChildrenCount: undefined;
-  ChildrenGender: undefined;
-  ChildrenAge: undefined;
   ImprovementGoals: undefined;
   Educational: undefined;
   PartnerInvolvement: undefined;
-  GoalSelection: undefined;
   ExperienceLevel: undefined;
-  ParentingStyles: undefined;
   EmotionalChallenges: undefined;
   Auth: { mode?: 'signin' | 'signup' } | undefined;
   Loading: undefined;
