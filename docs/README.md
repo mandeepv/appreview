@@ -30,6 +30,7 @@ The live process docs live here. **Everything in this folder (outside `archive/`
 |---|---|
 | `BACKLOG.md` | The single work queue — open hardening items. Read + update when picking next work. |
 | `PRODUCT_ROADMAP.md` | Feature / experiment queue with prioritization |
+| `REMINDERS.md` | ⏰ Dated, time-based obligations left over from the 2026-08 Apple app transfer — skim monthly, act only when a date is near. The load-bearing ones: rotate the Supabase Apple JWT before **~2027-02-17** (all new Apple sign-ins fail silently if it lapses) and renew **the account holder's** Apple Developer membership **June 2027** (it's what keeps Kinderwell on the App Store). |
 | `OPS_STATE.md` | Living register of external (non-code) state — DB migrations applied, dashboard settings, secrets, App Store Connect config. Update the row whenever you touch the setting; `unverified` = genuinely unknown. |
 | `releases/` | Per-release runbook **instances** (a dated, ticked copy of `RELEASE_CHECKLIST.md` per version). The directory is a living convention; each `v<X.Y.Z>.md` file is a snapshot — frozen after that version ships. See `releases/README.md`. |
 
@@ -42,6 +43,7 @@ The live process docs live here. **Everything in this folder (outside `archive/`
 ## Historical context (rarely needed)
 
 - **`archive/`** — frozen snapshots: old launch/compliance history, the 2026-07 Fable reviews + status tracker, the prod bug hunt, the folded `RELEASE_PROCESS`/`BEST_PRACTICES`/`SETUP_GUIDE`, the SPEC handoff, etc. See `archive/README.md` for what's in there and why. **`archive/` is history, not truth — if a snapshot contradicts current code, the code wins.**
+- **`archive/app-transfer-2026-08/`** — the completed Apple app transfer to The Account Holder's account (Team `APPLETEAMID`, executed 2026-08-21): the full execution-log runbook plus the one-off TN3159 Sign-in-with-Apple user-migration tooling. Frozen — read for the story, never re-execute. The parts that are still *live* are in `REMINDERS.md` (dates) and `OPS_STATE.md` (current account state).
 - **`spec-09/`** — SPEC-09 (data-driven lesson engine) working artifacts: the block survey and content errata. Snapshots of that migration.
 - **`specs/`** — future work packages (parked planning artifacts, e.g. SPEC-11 notifications, SPEC-12 android-readiness). Snapshots — not started work; each is parked until its trigger (see `BACKLOG.md` → "Parked work"). See `specs/README.md`.
 - **`ANALYTICS_DASHBOARDS.md`** — the PostHog dashboard spec (SHIP_READY_PLAN Appendix C). A parked artifact: the 4 dashboards are built after v1.2.0 ships. Not an active process doc.

@@ -85,6 +85,13 @@ Docs that were once actively used but are now historical. **Nothing has been del
 - **Why archived:** A Mamalearn-branded orphan at the repo root, outside every index. The extraction it describes is superseded by the SPEC-09 data-driven lesson engine (`src/lessons/content/*.ts`). Moved out of root during the SPEC-FIX-05 doc-accuracy sweep.
 - **Still useful for:** Reconstructing the original extraction run's stats/output, alongside `lessons_content.md` itself.
 
+### `app-transfer-2026-08/` (folder)
+- **Original purpose:** The complete plan + execution log for moving Kinderwell from The Owner's App Store Connect account to The Account Holder's (Team `APPLETEAMID`), plus the one-off TN3159 Sign-in-with-Apple user-migration tooling (`scripts/`) that re-mapped every Apple user to the new team.
+- **Why archived:** The transfer completed and was verified 2026-08-21 (3,774 Apple users migrated, 0 dupes/orphans/lost). A one-time event — read for the story, never re-execute. Archived 2026-08-24.
+- **Still useful for:** How the transfer was actually executed (the runbook is a step-by-step log, not a plan), and the TN3159 migration mechanism if Apple sign-in ever needs forensics. Path note: paths *inside* the runbook are pre-archive (`scripts/apple-transfer/…`); they now live at `docs/archive/app-transfer-2026-08/scripts/…`.
+- **⚠️ What is NOT here:** the generated data files (`apple-users.csv`, `migration-bridge.json`, `*.sql`) carry real Apple user identifiers and are gitignored — deliberately never committed. They exist only on the owner's machine as a recovery copy.
+- **Still live elsewhere:** dated obligations → `docs/REMINDERS.md`; current account/ASC state → `docs/OPS_STATE.md`; JWT procedure → `docs/APPLE_JWT_ROTATION.md`.
+
 ## Adding to archive
 
 When archiving:

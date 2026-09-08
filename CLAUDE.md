@@ -48,3 +48,4 @@ Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-educat
 - Live docs index: `docs/README.md` (the evergreen core + living trackers). Open work queue: `docs/BACKLOG.md`.
 - Future/parked work packages: `docs/specs/` (snapshots — parked until their trigger; see `docs/BACKLOG.md` → "Parked work"). The master hardening plan lives outside this repo (owner's workspace).
 - Live App Store version and release history: git tags (`v*-build-*`, `appstore-live-*`).
+- **Apple account:** the app was transferred 2026-08-21 to The Account Holder's account (Team `APPLETEAMID`) — the owner still operates everything. `docs/REMINDERS.md` holds the dated obligations that outlive the transfer (JWT rotation ~2027-02-17; the account holder's membership renewal June 2027 — it's what keeps the app listed). History: `docs/archive/app-transfer-2026-08/`.
