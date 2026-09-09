@@ -11,8 +11,10 @@
  * read as one control; grouping them in a pill keeps the value and its two
  * controls together the way the original did.
  *
- * Both fields are grouped at the top, 24px apart, exactly as v1.2.0 stacked
- * them. Only the Continue pill sits at the bottom — that is the shell's job.
+ * Both fields are grouped at the top as v1.2.0 stacked them, with generous air
+ * between them — at a tight gap the two labels read as one block of text
+ * rather than two separate questions. Only the Continue pill sits at the
+ * bottom; that is the shell's job.
  */
 
 import React, { useState } from 'react';
@@ -113,22 +115,22 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
       onContinue={handleContinue}
       continueDisabled={!hasName || age <= 0}
     >
-      <View>
-        <Text style={styles.fieldLabel}>Your first name</Text>
+      <View style={styles.nameBlock}>
+        <Text style={styles.fieldLabel}>Your name</Text>
         <View style={[styles.fieldRule, ruleActive ? styles.fieldRuleActive : null]}>
           <TextInput
             value={name}
             onChangeText={setName}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="Enter your first name"
+            placeholder="Enter your name"
             placeholderTextColor={oInk(0.45)}
             style={styles.input}
             maxLength={50}
             returnKeyType="done"
             autoCapitalize="words"
             autoCorrect={false}
-            accessibilityLabel="Your first name"
+            accessibilityLabel="Your name"
           />
           {hasName ? <Tick /> : null}
         </View>
@@ -155,6 +157,9 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  // The shell already leaves 28px under the headline; this adds to it so the
+  // first field is not crowded against the title.
+  nameBlock: { marginTop: 14 },
   fieldLabel: { fontFamily: F.sansSemi, fontSize: 19, color: C.ink, letterSpacing: 0.2 },
   fieldRule: {
     flexDirection: 'row',
@@ -179,7 +184,7 @@ const styles = StyleSheet.create({
   // it read as two sections. An earlier pass pushed this block to the bottom
   // of the screen, which separated the age from the name it belongs with.
   ageBlock: {
-    marginTop: 24,
+    marginTop: 44,
   },
   // One pill holding minus | value | plus, centred — keeps the controls beside
   // the number they change rather than at opposite screen edges.
