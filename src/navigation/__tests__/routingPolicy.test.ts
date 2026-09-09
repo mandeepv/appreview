@@ -1,6 +1,8 @@
 import {
   resolvePostAuthDestination,
   resolveGateOutcome,
+  resolveResumeStack,
+  ONBOARDING_FLOW,
   type OnboardingStatus,
   type AuthMode,
   type GateResult,
@@ -123,5 +125,62 @@ describe('resolveGateOutcome — every gate outcome × isSubscribed', () => {
         expect(['enter_root', 're_present', 'retry']).toContain(outcome);
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveResumeStack — the back-button-on-resume regression
+// ---------------------------------------------------------------------------
+//
+// SplashScreen used to resume an interrupted signup with replace(lastScreen),
+// leaving a one-entry stack: the resumed screen rendered a back button with
+// nothing behind it, so tapping it logged "GO_BACK was not handled by any
+// navigator" and did nothing. These lock in that a resume restores the whole
+// path, so back works from wherever the user comes back.
+describe('resolveResumeStack — restores the full path, not just the screen', () => {
+  it('returns every screen up to and including the resumed one', () => {
+    expect(resolveResumeStack('ChildrenCount')).toEqual([
+      'Welcome',
+      'UserType',
+      'NameAge',
+      'ChildrenCount',
+    ]);
+  });
+
+  it('gives every non-root screen something to go back to', () => {
+    // The actual regression: any resumable screen past Welcome must leave at
+    // least one entry beneath it, or the back button is dead again.
+    for (const screen of ONBOARDING_FLOW.slice(1)) {
+      const stack = resolveResumeStack(screen);
+      expect(stack).not.toBeNull();
+      expect(stack!.length).toBeGreaterThan(1);
+      expect(stack![stack!.length - 1]).toBe(screen);
+    }
+  });
+
+  it('resumes Welcome as a lone root — it is the bottom of the flow', () => {
+    expect(resolveResumeStack('Welcome')).toEqual(['Welcome']);
+  });
+
+  it('preserves flow order in the restored stack', () => {
+    const stack = resolveResumeStack('EmotionalChallenges');
+    expect(stack).toEqual([...ONBOARDING_FLOW]);
+  });
+
+  // lastScreen is an unvalidated AsyncStorage string: a key written by an older
+  // build, or a screen since renamed or deleted, can be anything. Returning
+  // null is what lets SplashScreen fall back to Welcome instead of throwing.
+  it.each([
+    ['a screen that no longer exists', 'ChildrenGender'],
+    ['a screen outside the question flow', 'Auth'],
+    ['a route that was never onboarding', 'Root'],
+    ['junk', 'not-a-screen'],
+    ['empty string', ''],
+  ])('returns null for %s', (_label, value) => {
+    expect(resolveResumeStack(value)).toBeNull();
+  });
+
+  it('returns null when nothing was persisted', () => {
+    expect(resolveResumeStack(null)).toBeNull();
   });
 });

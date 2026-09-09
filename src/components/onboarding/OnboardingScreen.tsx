@@ -30,6 +30,7 @@ import {
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import {
@@ -172,6 +173,20 @@ export function OnboardingScreen({
   onHeadlinePress,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+
+  // Only draw the back affordance when there is somewhere to go.
+  //
+  // The resume path is the reason this matters: SplashScreen restores an
+  // interrupted signup, and if it ever lands a screen at the root of the stack
+  // a back button there would have nothing to pop — React Navigation logs
+  // "GO_BACK was not handled by any navigator" and the tap does nothing.
+  // resolveResumeStack now rebuilds the full path so that shouldn't happen,
+  // but this stays as the belt-and-braces: canGoBack() is runtime truth, and
+  // any future entry point that lands mid-flow gets correct behaviour for free
+  // rather than a dead button.
+  const canGoBack = navigation.canGoBack();
+  const showBack = Boolean(onBack) && canGoBack;
   const Body = scrollable ? ScrollView : View;
   const bodyProps = scrollable
     ? { showsVerticalScrollIndicator: false, contentContainerStyle: styles.scrollInner }
@@ -180,7 +195,7 @@ export function OnboardingScreen({
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.content}>
-        {onBack ? (
+        {showBack && onBack ? (
           <View style={styles.backRow}>
             <BackChevron onPress={onBack} />
           </View>

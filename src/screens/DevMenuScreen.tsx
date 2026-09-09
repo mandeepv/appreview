@@ -6,9 +6,36 @@ import type { OnboardingStackParamList } from '../navigation/OnboardingNavigator
 import { Colors, Typography, BorderRadius, Shadows } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { reportError } from '../config/sentry';
+import { useOnboardingStore } from '../store/onboardingStore';
 
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
+
+  const { clearState } = useOnboardingStore();
+
+  /**
+   * Wipes the persisted onboarding state so the next launch behaves like a
+   * fresh install.
+   *
+   * Why this exists: SplashScreen resumes an interrupted signup by replacing
+   * itself with the deepest screen reached (SPEC-08), which is correct for
+   * users but makes the flow impossible to re-walk while developing — every
+   * reload drops you back where you were. clearState() removes the three
+   * onboarding keys (state, last screen, has-reached-auth), so Splash takes
+   * the first_open branch instead.
+   *
+   * Note this only clears DEVICE state. A signed-in account with a saved
+   * profile row in Supabase still routes to the gate rather than onboarding —
+   * sign out as well to walk the whole flow from a clean slate.
+   */
+  const handleRestartOnboarding = async () => {
+    await clearState();
+    Alert.alert(
+      'Onboarding reset',
+      'Device onboarding state cleared. Starting from the beginning.',
+      [{ text: 'OK', onPress: () => navigation.replace('Welcome') }],
+    );
+  };
 
   const handleThrowTestError = () => {
     reportError(new Error(`Sentry test error @ ${new Date().toISOString()}`), {
@@ -106,6 +133,13 @@ export const DevMenuScreen: React.FC = () => {
               <Text style={styles.buttonDescription}>2nd data-driven lesson — proves the engine generalizes</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.variantSection}>
+          <Text style={styles.variantHeader}>Onboarding</Text>
+          <TouchableOpacity style={styles.variantBtn} onPress={handleRestartOnboarding}>
+            <Text style={styles.variantBtnText}>Restart onboarding from screen 1</Text>
           </TouchableOpacity>
         </View>
 

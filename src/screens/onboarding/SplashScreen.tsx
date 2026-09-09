@@ -12,6 +12,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { trackOnboardingStarted } from '../../lib/analytics';
+import { resolveResumeStack } from '../../navigation/routingPolicy';
 
 /**
  * SplashScreen is the mandatory first-launch surface. It fires the entrance
@@ -89,13 +90,28 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
               // SPEC-08 FLAG: `lastScreen` is a persisted string from
               // AsyncStorage (getLastScreen(): Promise<string | null>), so it
               // is NOT type-guaranteed to be a real onboarding route — a stale
-              // or renamed key could be anything. We narrow to the ParamList
-              // key type for the call, but keep the existing try/catch that
-              // falls back to 'Welcome' if replace() throws on an unknown
-              // route. This is a runtime string → route-name boundary; the
-              // cast is the honest type for "we can't prove this at compile
-              // time." Not a lazy `as any` — it's `keyof` + a runtime guard.
-              navigation.replace(lastScreen as keyof OnboardingStackParamList);
+              // or renamed key could be anything. resolveResumeStack does that
+              // narrowing and returns null for anything it doesn't recognise,
+              // so the runtime string → route-name boundary is handled by a
+              // real lookup rather than a cast. The try/catch stays as the
+              // outer guard.
+              //
+              // We RESTORE THE WHOLE PATH rather than replacing onto the single
+              // resumed screen. `replace` left a one-entry stack, so the back
+              // button on the resumed screen had nothing to pop — it logged
+              // "GO_BACK was not handled by any navigator" and did nothing.
+              // Resetting to the full path means the user lands exactly where
+              // they left off AND can walk back through their earlier answers,
+              // which is the point of resuming.
+              const stack = resolveResumeStack(lastScreen);
+              if (stack) {
+                navigation.reset({
+                  index: stack.length - 1,
+                  routes: stack.map((name) => ({ name })),
+                });
+              } else {
+                navigation.replace('Welcome');
+              }
             } catch {
               navigation.replace('Welcome');
             }
@@ -112,10 +128,7 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [navigation, user, isLoading]);
 
-  // Screen 10 in the design canvas — the forestDeep takeover. Only the visual
-  // layer changed here: the routing effect above (auth hydration, resume, the
-  // Loading gate) is untouched, because it is the launch path INVARIANT #1
-  // depends on.
+  // Screen 10 in the design canvas — the forestDeep takeover.
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.container}>

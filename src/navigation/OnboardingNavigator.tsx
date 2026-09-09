@@ -33,7 +33,10 @@ export const OnboardingNavigator: React.FC = () => {
         headerShown: false,
         animation: 'slide_from_right',
       }}
-      initialRouteName="Splash"
+      // DevMenu is registered but nothing links to it, so in development we
+      // start there — it is the only way to reach the "Restart onboarding"
+      // reset while iterating on the flow. Production always starts at Splash.
+      initialRouteName={__DEV__ ? 'DevMenu' : 'Splash'}
     >
       {__DEV__ && <Stack.Screen name="DevMenu" component={DevMenuScreen} />}
       {__DEV__ && <Stack.Screen name="LessonPreview" component={LessonPreviewRoute} />}

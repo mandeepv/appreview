@@ -140,3 +140,59 @@ export function resolveGateOutcome(result: GateResult, isSubscribed: boolean): G
       return isSubscribed ? 'enter_root' : 'retry';
   }
 }
+
+// ---------------------------------------------------------------------------
+// resolveResumeStack — rebuilding history when onboarding resumes
+// ---------------------------------------------------------------------------
+
+/**
+ * The onboarding question flow in order, as the screens actually navigate it.
+ * Welcome is the root; Auth is deliberately NOT here (it is the terminus and
+ * has its own resume branch in SplashScreen).
+ *
+ * This is the single source of truth for the order. If you reorder screens or
+ * insert one, change it HERE — `resolveResumeStack` and its tests read from
+ * this array, so the back stack follows automatically.
+ */
+export const ONBOARDING_FLOW = [
+  'Welcome',
+  'UserType',
+  'NameAge',
+  'ChildrenCount',
+  'ImprovementGoals',
+  'Educational',
+  'PartnerInvolvement',
+  'ExperienceLevel',
+  'EmotionalChallenges',
+] as const;
+
+export type OnboardingFlowScreen = (typeof ONBOARDING_FLOW)[number];
+
+/**
+ * Given the deepest screen a user reached, return the full stack to restore.
+ *
+ * THE BUG THIS FIXES (present since at least v1.2.0): SplashScreen resumed an
+ * interrupted signup with `navigation.replace(lastScreen)`. `replace` swaps
+ * the current entry rather than pushing, so the stack held exactly ONE screen
+ * — the resumed one. Every screen renders a back affordance unconditionally,
+ * so the user saw a back button with nothing behind it; tapping it produced
+ * "The action 'GO_BACK' was not handled by any navigator" and did nothing.
+ *
+ * Returning the whole path lets SplashScreen use `navigation.reset`, so the
+ * user lands on the same screen as before but can now walk back through the
+ * answers they already gave — which is the point of resuming at all.
+ *
+ * `lastScreen` is an unvalidated string from AsyncStorage (a stale or renamed
+ * key can be anything), so an unrecognised value returns null and the caller
+ * falls back to Welcome — same defensive posture as the try/catch it replaces.
+ */
+export function resolveResumeStack(lastScreen: string | null): OnboardingFlowScreen[] | null {
+  if (!lastScreen) return null;
+
+  const index = ONBOARDING_FLOW.indexOf(lastScreen as OnboardingFlowScreen);
+  if (index < 0) return null;
+
+  // Everything up to and including the resumed screen. index 0 (Welcome) is
+  // already the root, so this correctly yields just ['Welcome'].
+  return ONBOARDING_FLOW.slice(0, index + 1) as unknown as OnboardingFlowScreen[];
+}
