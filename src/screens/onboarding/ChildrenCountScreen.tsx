@@ -1,36 +1,121 @@
-import React from 'react';
-import { LayoutAnimation, Platform, UIManager, TouchableOpacity, StyleSheet, View, Text } from 'react-native';
+/**
+ * Screen 01 in the design canvas — "STEP 3 OF 8".
+ *
+ * The canvas note is the whole idea: "one card per child, not one form". The
+ * old screen asked for a count, then a single set of age-range chips shared
+ * across every child, and cyclically assigned them — so two children could
+ * never be recorded as 4 and 7, only as "one of these ages applies". Here each
+ * child gets its own card with its own exact age and gender.
+ *
+ * GENDER IS BACK, CAREFULLY. `Child.gender` carries a standing warning: it was
+ * once defaulted to 'boy' and silently saved that for everyone, so the type
+ * keeps it optional and the note asks that any future collection require an
+ * explicit tap. That is honoured here — a card starts with neither chip lit,
+ * nothing is written until the parent taps, and Continue does not require it.
+ *
+ * AGE: the store speaks ChildAgeRange ('2-4', '5-7', …) and the canvas asks
+ * for an exact year. We collect the year the design asks for and map it to the
+ * existing bucket on save, so the Supabase payload and the analytics property
+ * are unchanged from v1.2.0. `childYears` is local state only.
+ */
+
+import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import Svg, { Path } from 'react-native-svg';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingContainer } from '../../components/OnboardingContainer';
-import { Button } from '../../components/Button';
+import { OnboardingScreen } from '../../components/onboarding/OnboardingScreen';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { ChildAgeRange, ChildGender } from '../../types/onboarding';
-import { Colors } from '../../constants/theme';
 import { trackOnboardingStepCompleted } from '../../lib/analytics';
+import {
+  OnboardingColors as C,
+  OnboardingFonts as F,
+  OnboardingType as T,
+  OnboardingRadius as R,
+  oInk,
+  oForest,
+} from '../../constants/theme';
 
-if (Platform.OS === 'android') {
-  if (UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ChildrenCount'>;
 
-const AGE_RANGES: { label: string; value: ChildAgeRange }[] = [
-  { label: '0–1', value: '0-1' },
-  { label: '2–4', value: '2-4' },
-  { label: '5–7', value: '5-7' },
-  { label: '8–12', value: '8-12' },
-  { label: '13–17', value: '13-17' },
-  { label: '18+', value: '18+' },
-];
+const ORDINALS = ['Eldest', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
+const MAX_CHILDREN = 6;
+const DEFAULT_AGE = 5;
 
-const GENDER_OPTIONS: { label: string; value: ChildGender }[] = [
-  { label: 'Girl', value: 'girl' },
-  { label: 'Boy', value: 'boy' },
-  { label: 'Prefer not to say', value: 'prefer-not-to-say' },
-];
+/** Exact year → the bucket the store and Supabase already speak. */
+function ageRangeFor(years: number): ChildAgeRange {
+  if (years <= 1) return '0-1';
+  if (years <= 4) return '2-4';
+  if (years <= 7) return '5-7';
+  if (years <= 12) return '8-12';
+  if (years <= 17) return '13-17';
+  return '18+';
+}
+
+function GenderChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      style={({ pressed }) => [
+        styles.chip,
+        selected ? styles.chipOn : styles.chipOff,
+        pressed ? { opacity: 0.8 } : null,
+      ]}
+    >
+      <Text style={[styles.chipText, selected ? styles.chipTextOn : styles.chipTextOff]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function AgeStepper({
+  years,
+  onChange,
+}: {
+  years: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <View style={styles.ageStepper}>
+      <Pressable
+        onPress={() => onChange(Math.max(0, years - 1))}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Younger"
+        style={({ pressed }) => [styles.ageBtn, pressed ? { opacity: 0.6 } : null]}
+      >
+        <View style={styles.minusBar} />
+      </Pressable>
+      <Pressable
+        onPress={() => onChange(Math.min(18, years + 1))}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Older"
+        style={({ pressed }) => [styles.ageBtn, styles.ageBtnPlus, pressed ? { opacity: 0.6 } : null]}
+      >
+        <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+          <Path d="M12 5v14M5 12h14" stroke={C.cream} strokeWidth={3} strokeLinecap="round" />
+        </Svg>
+      </Pressable>
+    </View>
+  );
+}
 
 export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
   const {
@@ -38,380 +123,213 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
     updateChildrenCount,
     children,
     updateChildAgeRange,
-    updateChildGender
+    updateChildGender,
   } = useOnboardingStore();
 
-  // Lazy initializer so we hydrate from the store on the first render
-  // instead of doing it in an effect (which caused a cascading render —
-  // caught by react-hooks/set-state-in-effect).
-  const [selectedAges, setSelectedAges] = React.useState<Set<ChildAgeRange>>(() => {
-    const initial = new Set<ChildAgeRange>();
-    if (childrenCount) {
-      children.forEach(child => {
-        if (child.ageRange) initial.add(child.ageRange);
-      });
-    }
-    return initial;
-  });
-  const [showPersonalization, setShowPersonalization] = React.useState(false);
+  const count = childrenCount || 0;
 
-  const animate = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  };
+  // Exact years live here; only the bucket reaches the store. Seeded from any
+  // range already saved so going back doesn't lose the parent's answer.
+  const [childYears, setChildYears] = useState<number[]>(() =>
+    Array.from({ length: MAX_CHILDREN }, (_, i) => {
+      const saved = children[i]?.ageRange;
+      if (!saved) return DEFAULT_AGE;
+      const first = parseInt(String(saved).split('-')[0], 10);
+      return Number.isFinite(first) ? Math.max(first, 0) : DEFAULT_AGE;
+    }),
+  );
 
-  const incrementCount = () => {
-    animate();
-    updateChildrenCount((childrenCount || 0) + 1);
-  };
+  const animate = () => LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
-  const decrementCount = () => {
-    const current = childrenCount || 0;
-    if (current > 0) {
-      animate();
-      updateChildrenCount(current - 1);
-    }
-  };
-
-  const toggleAge = (age: ChildAgeRange) => {
-    const newAges = new Set(selectedAges);
-    const currentCount = childrenCount || 0;
-
-    if (newAges.has(age)) {
-      newAges.delete(age);
-    } else {
-      // Only allow selection if we haven't reached the limit
-      if (newAges.size < currentCount) {
-        newAges.add(age);
-      }
-    }
-    setSelectedAges(newAges);
-  };
-
-  const togglePersonalization = () => {
-    animate();
-    setShowPersonalization(!showPersonalization);
+  const setYears = (index: number, next: number) => {
+    setChildYears((prev) => prev.map((y, i) => (i === index ? next : y)));
   };
 
   const handleContinue = () => {
-    const count = childrenCount || 1;
-    const ages = Array.from(selectedAges);
-
     for (let i = 0; i < count; i++) {
-      // Assign ages cyclically if count > ages selected
-      if (ages.length > 0) {
-        const ageToAssign = ages[i % ages.length];
-        updateChildAgeRange(i, ageToAssign);
-      }
+      updateChildAgeRange(i, ageRangeFor(childYears[i]));
     }
-    trackOnboardingStepCompleted('ChildrenCount', { count, age_ranges: ages });
+    trackOnboardingStepCompleted('ChildrenCount', {
+      count,
+      age_ranges: Array.from({ length: count }, (_, i) => ageRangeFor(childYears[i])),
+    });
     navigation.navigate('ImprovementGoals');
   };
 
-  const hasChildren = (childrenCount || 0) > 0;
-  const hasAges = selectedAges.size > 0;
-  const canContinue = hasChildren && hasAges;
-
   return (
-    <OnboardingContainer
-      screenName="ChildrenCount"
-      title="Let's personalize this for your child(ren)"
-      currentStep={3}
+    <OnboardingScreen
+      step={3}
+      headline="Tell us about your *kids*."
+      subtitle="Exact ages matter — a 4-year-old and a 7-year-old need different words for the same moment."
       onBack={() => navigation.goBack()}
-      centerTitle={true}
+      onContinue={handleContinue}
+      continueDisabled={count === 0}
+      scrollable
+      footerNote={<Text style={styles.footnote}>You can update this any time.</Text>}
     >
-      <View style={styles.container}>
-        <View style={styles.scrollContainer}>
-          {/* Count Section - Always Visible */}
-          <View style={styles.section}>
-            <Text style={styles.label}>How many children do you have?</Text>
-            <View style={styles.selectorContainer}>
-              <View style={styles.selector}>
-                <TouchableOpacity
-                  style={[styles.button, styles.buttonMinus]}
-                  onPress={decrementCount}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.buttonTextMinus}>-</Text>
-                </TouchableOpacity>
-                <View style={styles.display}>
-                  <Text style={styles.displayText}>{childrenCount || 0}</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.button, styles.buttonPlus]}
-                  onPress={incrementCount}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.buttonTextPlus}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+      <View style={styles.countRow}>
+        <Text style={styles.countLabel}>How many children?</Text>
+        <View style={styles.countStepper}>
+          <Pressable
+            onPress={() => {
+              if (count > 0) {
+                animate();
+                updateChildrenCount(count - 1);
+              }
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Fewer children"
+            style={({ pressed }) => [styles.countBtn, pressed ? { opacity: 0.6 } : null]}
+          >
+            <View style={styles.minusBarLg} />
+          </Pressable>
 
-          {/* Age Section - Revealed if children > 0 */}
-          {hasChildren && (
-            <View style={styles.section}>
-              <Text style={styles.label}>How old are they? (Select all that apply)</Text>
-              <View style={styles.ageGrid}>
-                {AGE_RANGES.map((range) => (
-                  <TouchableOpacity
-                    key={range.value}
-                    style={[
-                      styles.ageOption,
-                      selectedAges.has(range.value) && styles.ageOptionSelected
-                    ]}
-                    onPress={() => toggleAge(range.value)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.ageOptionText,
-                      selectedAges.has(range.value) && styles.ageOptionTextSelected
-                    ]}>
-                      {range.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          <Text style={styles.countValue}>{count}</Text>
 
-              {/* Personalization Trigger */}
-              {/* <View style={styles.divider} />
-              <TouchableOpacity
-                style={styles.expandButton}
-                onPress={togglePersonalization}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.expandText}>Additional info (Optional)</Text>
-                <Text style={styles.expandIcon}>{showPersonalization ? '▲' : '▼'}</Text>
-              </TouchableOpacity> */}
-
-              {/* Gender Section - Optional Expand */}
-              {showPersonalization && (
-                <View style={styles.personalizationSection}>
-                  <Text style={styles.subLabel}>Gender selection</Text>
-                  {Array.from({ length: childrenCount || 1 }).map((_, index) => (
-                    <View key={index} style={styles.childRow}>
-                      <Text style={styles.childLabel}>Child {index + 1}</Text>
-                      <View style={styles.genderRow}>
-                        {GENDER_OPTIONS.map((option) => (
-                          <TouchableOpacity
-                            key={option.value}
-                            style={[
-                              styles.genderButton,
-                              children[index]?.gender === option.value && styles.genderButtonSelected,
-                              option.value === 'prefer-not-to-say' && styles.genderButtonWide
-                            ]}
-                            onPress={() => updateChildGender(index, option.value)}
-                          >
-                            <Text style={[
-                              styles.genderText,
-                              children[index]?.gender === option.value && styles.genderTextSelected
-                            ]}>
-                              {option.label === 'Prefer not to say' ? 'N/A' : option.label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
+          <Pressable
+            onPress={() => {
+              if (count < MAX_CHILDREN) {
+                animate();
+                updateChildrenCount(count + 1);
+              }
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="More children"
+            style={({ pressed }) => [
+              styles.countBtn,
+              styles.countBtnPlus,
+              pressed ? { opacity: 0.6 } : null,
+            ]}
+          >
+            <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+              <Path d="M12 5v14M5 12h14" stroke={C.cream} strokeWidth={2.8} strokeLinecap="round" />
+            </Svg>
+          </Pressable>
         </View>
-
-        <Button
-          title="Continue"
-          onPress={handleContinue}
-          disabled={!canContinue}
-        />
       </View>
-    </OnboardingContainer>
+
+      <View style={styles.cards}>
+        {Array.from({ length: count }, (_, i) => {
+          const gender = children[i]?.gender;
+          const years = childYears[i];
+          return (
+            <View key={i} style={styles.card}>
+              <View style={styles.cardHead}>
+                <Text style={styles.cardTag}>{(ORDINALS[i] || 'Child').toUpperCase()}</Text>
+                <AgeStepper years={years} onChange={(next) => setYears(i, next)} />
+              </View>
+
+              <View style={styles.cardBody}>
+                <View style={styles.ageCol}>
+                  <Text style={styles.ageLabel}>Age</Text>
+                  <View style={styles.ageValueRule}>
+                    <Text style={styles.ageValue}>{years}</Text>
+                    <Text style={styles.ageUnit}>{years === 1 ? 'year old' : 'years old'}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.chips}>
+                  <GenderChip
+                    label="Girl"
+                    selected={gender === 'girl'}
+                    onPress={() => updateChildGender(i, 'girl' as ChildGender)}
+                  />
+                  <GenderChip
+                    label="Boy"
+                    selected={gender === 'boy'}
+                    onPress={() => updateChildGender(i, 'boy' as ChildGender)}
+                  />
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </OnboardingScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingVertical: 24,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.backgroundGray,
-    marginVertical: 16,
-  },
-  ageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  ageOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 100,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 8,
-  },
-  ageOptionSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryBg,
-  },
-  ageOptionText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  ageOptionTextSelected: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  expandText: {
-    fontSize: 14,
-    color: Colors.textTertiary,
-    fontWeight: '500',
-    marginRight: 6,
-  },
-  expandIcon: {
-    fontSize: 12,
-    color: Colors.textTertiary,
-  },
-  personalizationSection: {
-    marginTop: 16,
-    backgroundColor: Colors.backgroundGray,
-    borderRadius: 16,
-    padding: 16,
-  },
-  subLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: 12,
-  },
-  childRow: {
+  countRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: oInk(0.09),
   },
-  childLabel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '500',
+  countLabel: { fontFamily: F.sansMed, fontSize: T.ui, color: C.ink },
+  countStepper: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  countBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: oInk(0.28),
   },
-  genderRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  genderButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  genderButtonWide: {
-    paddingHorizontal: 8,
-  },
-  genderButtonSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryBg,
-  },
-  genderText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  genderTextSelected: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  microcopy: {
+  countBtnPlus: { backgroundColor: C.forest, borderWidth: 0 },
+  countValue: {
+    width: 46,
     textAlign: 'center',
-    color: Colors.textMuted,
-    fontSize: 13,
-    marginTop: 'auto',
-    marginBottom: 8,
+    fontFamily: F.serif,
+    fontSize: T.h2,
+    color: C.ink,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 16,
-    textAlign: 'center',
+  minusBarLg: { width: 15, height: 1.8, borderRadius: 2, backgroundColor: C.ink },
+
+  cards: { gap: 12, marginTop: 20 },
+  card: { backgroundColor: C.wash, borderRadius: R.card, padding: 18 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardTag: {
+    fontFamily: F.monoMed,
+    fontSize: T.mono,
+    letterSpacing: T.mono * 0.05,
+    color: oInk(0.72),
   },
-  selectorContainer: {
-    alignItems: 'center',
-  },
-  selector: {
+  cardBody: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 12 },
+  ageCol: { flex: 1 },
+  ageLabel: { fontFamily: F.sansMed, fontSize: T.meta, color: oInk(0.7) },
+  ageValueRule: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
-    borderRadius: 100,
-    padding: 8,
-    width: '100%',
-    maxWidth: 300,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    alignSelf: 'center',
+    alignItems: 'baseline',
+    gap: 7,
+    marginTop: 2,
+    paddingBottom: 5,
+    borderBottomWidth: 1.5,
+    borderBottomColor: oForest(0.5),
   },
-  button: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  ageValue: { fontFamily: F.serif, fontSize: T.h2, color: C.ink },
+  ageUnit: { fontFamily: F.serif, fontSize: T.uiSm, color: oInk(0.62) },
+
+  ageStepper: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ageBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: oInk(0.26),
   },
-  buttonMinus: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  buttonPlus: {
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  buttonTextMinus: {
-    fontSize: 24,
-    color: Colors.textMuted,
-    fontWeight: '500',
-    lineHeight: 28,
-  },
-  buttonTextPlus: {
-    fontSize: 24,
-    color: Colors.surface,
-    fontWeight: '500',
-    lineHeight: 28,
-  },
-  display: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  displayText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
+  ageBtnPlus: { backgroundColor: C.forest, borderWidth: 0 },
+  minusBar: { width: 12, height: 1.7, borderRadius: 2, backgroundColor: C.ink },
+
+  chips: { flexDirection: 'row', gap: 7, paddingBottom: 4 },
+  chip: { paddingVertical: 9, paddingHorizontal: 15, borderRadius: 999 },
+  chipOn: { backgroundColor: C.forest },
+  chipOff: { borderWidth: 1.5, borderColor: oInk(0.26) },
+  chipText: { fontFamily: F.sansSemi, fontSize: T.uiSm },
+  chipTextOn: { color: C.cream },
+  chipTextOff: { color: oInk(0.74) },
+
+  footnote: {
+    fontFamily: F.serifItalic,
+    fontSize: T.uiSm,
+    color: oInk(0.7),
+    textAlign: 'center',
   },
 });

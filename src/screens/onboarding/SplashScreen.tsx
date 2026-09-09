@@ -1,11 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { LinearGradient } from 'expo-linear-gradient';
 import type { OnboardingStackParamList } from '../../navigation/types';
-import { Heading1, Subtitle } from '../../components/Typography';
-import { Colors, Spacing, Animation } from '../../constants/theme';
+import { KinderwellMark } from '../../components/onboarding/KinderwellMark';
+import {
+  Animation,
+  OnboardingColors as C,
+  OnboardingFonts as F,
+} from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { trackOnboardingStarted } from '../../lib/analytics';
@@ -109,66 +112,47 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
     }
   }, [navigation, user, isLoading]);
 
+  // Screen 10 in the design canvas — the forestDeep takeover. Only the visual
+  // layer changed here: the routing effect above (auth hydration, resume, the
+  // Loading gate) is untouched, because it is the launch path INVARIANT #1
+  // depends on.
   return (
-    <LinearGradient
-      colors={[Colors.primary, Colors.primaryDark]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.gradient}
-    >
+    <View style={styles.screen}>
       <SafeAreaView style={styles.container}>
-        <Animated.View style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          }
-        ]}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../../../assets/splash.png')}
-              style={styles.logo}
-              resizeMode="cover"
-            />
-          </View>
-          <Heading1 style={styles.title}>Kinderwell</Heading1>
-          <Subtitle style={styles.subtitle}>Your parenting journey starts here</Subtitle>
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <KinderwellMark size={106} color={C.cream} />
+          <Text style={styles.title}>Kinderwell</Text>
+          <Text style={styles.subtitle}>The manual you never got.</Text>
         </Animated.View>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    gap: Spacing.lg,
-  },
-  logoContainer: {
-    width: 220,
-    height: 220,
-    borderRadius: 40,
-    overflow: 'hidden',
-    backgroundColor: Colors.surface,
-  },
-  logo: {
-    width: '100%',
-    height: '100%',
-  },
+  screen: { flex: 1, backgroundColor: C.forestDeep },
+  container: { flex: 1, justifyContent: 'center' },
+  content: { paddingHorizontal: 44, paddingBottom: 92, alignItems: 'flex-start' },
   title: {
-    color: Colors.surface,
-    marginTop: Spacing['2xl'],
+    fontFamily: F.serif,
+    fontSize: 44,
+    letterSpacing: -1.3,
+    color: C.cream,
+    marginTop: 38,
   },
   subtitle: {
-    color: Colors.surface,
-    opacity: 0.95,
+    fontFamily: F.serifItalic,
+    fontSize: 18,
+    lineHeight: 18 * 1.5,
+    color: C.mint,
+    marginTop: 12,
   },
 });
