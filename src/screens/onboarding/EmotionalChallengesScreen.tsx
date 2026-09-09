@@ -7,10 +7,12 @@
  * the subtitle says out loud that nothing here is a verdict.
  *
  * The canvas also drew a "stored securely" lock line and an "I'd rather not
- * say" opt-out. Both were cut in review: the lock line raised a privacy
- * question mid-flow that the parent had not asked, and the opt-out sat under
- * the Continue pill competing with it. The 'okay' store value that backed the
- * opt-out is untouched — older rows still carry it, nothing writes it now.
+ * say" opt-out. Both were cut: the lock line raised a privacy question
+ * mid-flow that the parent had not asked, and the opt-out sat under the
+ * Continue pill competing with it.
+ *
+ * "I'm doing okay right now" is NOT that opt-out — it is v1.2.0's fifth
+ * option and a real answer, so it stays, and stays exclusive.
  */
 
 import React from 'react';
@@ -36,11 +38,40 @@ const FEELINGS: { value: EmotionalChallenge; label: string }[] = [
   { value: 'anxious', label: 'Feeling anxious' },
   { value: 'burned-out', label: 'Feeling burned out' },
   { value: 'emotionally-distant', label: 'Feeling emotionally distant' },
+  { value: 'okay', label: "I'm doing okay right now" },
 ];
+
+/**
+ * Exclusive: it cannot be true alongside a struggle, so picking it clears the
+ * others and picking any other clears it. v1.2.0 behaved the same way.
+ *
+ * Distinct from the "I'd rather not say" opt-out that briefly sat under the
+ * Continue pill — that was a refusal to answer and was cut. This is an answer.
+ */
+const OKAY: EmotionalChallenge = 'okay';
 
 export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
   const { emotionalChallenges, toggleEmotionalChallenge } = useOnboardingStore();
-  const feelingCount = emotionalChallenges.length;
+  // Count the struggles only: "1 selected" under a lone "I'm doing okay"
+  // restates what the row already shows.
+  const feelingCount = emotionalChallenges.filter((c) => c !== OKAY).length;
+
+  const handleToggle = (value: EmotionalChallenge) => {
+    const isOkay = value === OKAY;
+    const okaySelected = emotionalChallenges.includes(OKAY);
+
+    if (isOkay && !okaySelected) {
+      // Choosing "doing okay" clears every struggle.
+      emotionalChallenges.forEach((c) => toggleEmotionalChallenge(c));
+      toggleEmotionalChallenge(OKAY);
+      return;
+    }
+    if (!isOkay && okaySelected) {
+      // Choosing a struggle clears "doing okay".
+      toggleEmotionalChallenge(OKAY);
+    }
+    toggleEmotionalChallenge(value);
+  };
 
   const handleContinue = () => {
     trackOnboardingStepCompleted('EmotionalChallenges', emotionalChallenges);
@@ -51,7 +82,7 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
     <OnboardingScreen
       step={7}
       headline="How have you been *feeling* lately?"
-      subtitle="Whatever you pick, nothing here is a verdict on you. Take as many as are true."
+      subtitle="Select all that apply."
       onBack={() => navigation.goBack()}
       onContinue={handleContinue}
       continueDisabled={emotionalChallenges.length === 0}
@@ -70,7 +101,7 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
             mode="multi"
             serif
             selected={emotionalChallenges.includes(feeling.value)}
-            onPress={() => toggleEmotionalChallenge(feeling.value)}
+            onPress={() => handleToggle(feeling.value)}
           />
         ))}
       </View>
