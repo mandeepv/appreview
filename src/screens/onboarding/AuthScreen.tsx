@@ -276,11 +276,13 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <OnboardingScreen
       step={8}
-      headline={mode === 'signin' ? 'Welcome *back*.' : 'Save your *plan*.'}
+      // v1.2.0's copy. My rewrite ("So your answers are still here tomorrow,
+      // on any device") opened mid-sentence and read as a fragment.
+      headline={mode === 'signin' ? 'Welcome *back*' : 'Save your *progress*'}
       subtitle={
         mode === 'signin'
-          ? 'Pick up right where you left off.'
-          : "So your answers are still here tomorrow, on any device."
+          ? 'Sign in to continue your parenting journey.'
+          : "We'll save your preferences and progress securely."
       }
       onBack={mode === 'signin' ? () => navigation.goBack() : undefined}
       onHeadlinePress={handleTitlePress}
