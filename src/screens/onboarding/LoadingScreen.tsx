@@ -860,6 +860,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
               style={styles.escapeButton}
             />
 
+            {/* Clay only here. It is the one place on this screen where a
+                different colour is the point — an error should not read in the
+                same mint as normal progress. */}
             {escapeError && (
               <Caption center color={C.clay} style={styles.escapeError}>
                 {escapeError}
@@ -890,30 +893,33 @@ const styles = StyleSheet.create({
   ring: { alignSelf: 'center' },
   title: {
     fontFamily: F.serif,
-    fontSize: 27,
-    lineHeight: 27 * 1.25,
+    fontSize: 31,
+    lineHeight: 31 * 1.22,
     color: C.cream,
-    marginTop: 34,
+    marginTop: 38,
     textAlign: 'center',
   },
   subtitle: {
     fontFamily: F.sans,
-    fontSize: 15,
-    lineHeight: 15 * 1.55,
-    color: oCream(0.72),
+    fontSize: 16,
+    lineHeight: 16 * 1.55,
+    color: oCream(0.75),
     marginTop: 12,
     textAlign: 'center',
     paddingHorizontal: 12,
   },
   tasks: { marginTop: 40, alignSelf: 'center' },
-  task: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 8 },
-  taskDot: { width: 8, height: 8, borderRadius: 999 },
-  taskDotDone: { backgroundColor: oCream(0.35) },
-  taskDotActive: { backgroundColor: C.clay },
-  taskDotIdle: { backgroundColor: oCream(0.22) },
-  taskText: { fontFamily: F.sans, fontSize: 15, color: oCream(0.55) },
+  task: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 11 },
+  // Rows carry real weight: 10pt dots and 17pt text on a big dark canvas,
+  // where 8pt dots and 15pt text disappeared into it.
+  taskDot: { width: 10, height: 10, borderRadius: 999 },
+  taskDotDone: { backgroundColor: oCream(0.45) },
+  // Mint, matching the ring — clay appeared nowhere else in the flow.
+  taskDotActive: { backgroundColor: C.mint },
+  taskDotIdle: { backgroundColor: oCream(0.2) },
+  taskText: { fontFamily: F.sans, fontSize: 17, color: oCream(0.6) },
   taskTextActive: { fontFamily: F.sansSemi, color: C.cream },
-  taskTextIdle: { color: oCream(0.4) },
+  taskTextIdle: { color: oCream(0.42) },
   status: {
     fontFamily: F.sans,
     fontSize: 13,

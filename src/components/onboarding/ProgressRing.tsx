@@ -21,8 +21,8 @@ import {
 
 export function ProgressRing({
   percent,
-  size = 180,
-  stroke = 3,
+  size = 190,
+  stroke = 10,
 }: {
   percent: number;
   size?: number;
@@ -40,7 +40,7 @@ export function ProgressRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={oCream(0.22)}
+          stroke={oCream(0.16)}
           strokeWidth={stroke}
           fill="none"
         />
@@ -48,10 +48,11 @@ export function ProgressRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          // Clay is the accent that never appears on the cream screens, so the
-          // arc reads as this screen's own colour rather than a repeat of the
-          // forest used for every selected row.
-          stroke={C.clay}
+          // Mint, not clay. Clay appears nowhere else in onboarding, so it
+          // read as a colour arriving from outside the system. Mint is already
+          // the palette's designated tint FOR green surfaces — it belongs
+          // here, and it still separates cleanly from the forestDeep ground.
+          stroke={C.mint}
           strokeWidth={stroke}
           fill="none"
           strokeDasharray={`${filled} ${circumference - filled}`}
@@ -72,8 +73,8 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   percent: {
     fontFamily: F.serifItalic,
-    fontSize: 46,
+    fontSize: 58,
     color: C.cream,
-    letterSpacing: -1,
+    letterSpacing: -1.5,
   },
 });
