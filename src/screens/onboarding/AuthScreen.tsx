@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AntDesign } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingScreen } from '../../components/onboarding/OnboardingScreen';
+import { GoogleMark } from '../../components/onboarding/GoogleMark';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useAuthStore } from '../../store/authStore';
 import type { Session } from '@supabase/supabase-js';
@@ -300,9 +300,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
               <ActivityIndicator color="#DB4437" />
             ) : (
               <>
-                <View style={styles.googleIconContainer}>
-                  <AntDesign name="google" size={22} color="#DB4437" />
-                </View>
+                <GoogleMark size={20} />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
               </>
             )}
@@ -392,12 +390,14 @@ const styles = StyleSheet.create({
   //
   // This is one of the few places the house font must lose — matching the
   // native control beside it matters more than palette consistency.
+  // Metrics matched to Apple's native label, which is the reference beside it:
+  // system font (SF), 19pt, semibold, and NO extra tracking — Apple's is
+  // tighter, so letterSpacing made the Google label look wider and lighter.
   googleButtonText: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '600',
     color: '#1F1F1F',
     marginLeft: 12,
-    letterSpacing: 0.2,
   },
   appleButton: {
     width: '100%',
@@ -408,12 +408,6 @@ const styles = StyleSheet.create({
     height: 56,
     backgroundColor: '#000000',
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleIconContainer: {
-    width: 24,
-    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
