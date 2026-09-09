@@ -11,9 +11,8 @@
  * read as one control; grouping them in a pill keeps the value and its two
  * controls together the way the original did.
  *
- * NOT scrollable: two fields always fit, and inside a ScrollView the age
- * block's `marginTop: 'auto'` would be a no-op — a ScrollView sizes to its
- * content, so there is no free space for auto to consume.
+ * Both fields are grouped at the top, 24px apart, exactly as v1.2.0 stacked
+ * them. Only the Continue pill sits at the bottom — that is the shell's job.
  */
 
 import React, { useState } from 'react';
@@ -175,16 +174,12 @@ const styles = StyleSheet.create({
     padding: 0,
   },
 
-  // No divider between the two fields — they are one short form, and the rule
-  // made them read as separate sections.
-  //
-  // marginTop: 'auto' pushes this block to the bottom of the body, so the
-  // stepper sits just above the Continue pill and stays inside comfortable
-  // thumb reach. Anchored high it forced a reach to the top third of a large
-  // phone for a control the user taps repeatedly.
+  // Both fields sit together at the top with a 24px gap, as v1.2.0 had them
+  // (`content` gap 2xl). No divider — it is one short form, and the rule made
+  // it read as two sections. An earlier pass pushed this block to the bottom
+  // of the screen, which separated the age from the name it belongs with.
   ageBlock: {
-    marginTop: 'auto',
-    paddingTop: 30,
+    marginTop: 24,
   },
   // One pill holding minus | value | plus, centred — keeps the controls beside
   // the number they change rather than at opposite screen edges.
