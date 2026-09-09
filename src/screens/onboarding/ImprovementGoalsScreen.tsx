@@ -6,11 +6,11 @@
  * only feedback that the taps registered without making the parent re-scan
  * the list.
  *
- * The headline asks what to work on rather than what feels hardest. The
- * options are goals ("Closer relationship", "More quality time"), so under a
- * "what's hardest" framing half of them answered a different question than
- * the one being asked. The stored values are untouched — this is a wording
- * change only, so the funnel stays comparable.
+ * The headline asks what to work on rather than what feels hardest. Half the
+ * options are goals ("Closer relationship", "More quality time"), so the old
+ * "what's hardest" framing had them answering a different question than the
+ * one asked. The option labels are v1.2.0's, unchanged — only the question
+ * moved, so the stored values and the funnel stay comparable.
  */
 
 import React from 'react';
@@ -31,17 +31,14 @@ import {
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ImprovementGoals'>;
 
-// Every row is a thing to work TOWARD, so they all answer the same question.
-// Two were left phrased as complaints — "Poor character traits" also judged
-// the child, which is not what a parent wants to tap about their own kid.
 const GOALS: { value: ImprovementGoal; label: string }[] = [
-  { value: 'behavior-issues', label: 'Better behavior' },
+  { value: 'behavior-issues', label: 'Behavior issues' },
   { value: 'closer-relationship', label: 'Closer relationship' },
-  { value: 'less-fighting', label: 'Less fighting / tension' },
+  { value: 'less-fighting', label: 'Less fighting / tensions' },
   { value: 'improved-parenting-skills', label: 'Improved parenting skills' },
   { value: 'quality-time', label: 'More quality time' },
-  { value: 'character-traits', label: 'Kindness and character' },
-  { value: 'tantrums', label: 'Fewer tantrums / whining' },
+  { value: 'character-traits', label: 'Poor character traits' },
+  { value: 'tantrums', label: 'Tantrums / whining' },
 ];
 
 export const ImprovementGoalsScreen: React.FC<Props> = ({ navigation }) => {
