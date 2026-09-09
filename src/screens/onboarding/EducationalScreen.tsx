@@ -4,13 +4,18 @@
  * No progress rail: this screen asks nothing, and moving the count on a screen
  * that takes no answer makes the flow feel longer than it is.
  *
- * Two things drive the layout.
+ * PERSONALISATION LEADS. It sits directly after eight questions, so paying
+ * that off first is the strongest move available; it used to be third.
  *
- * PERSONALISATION LEADS. It sits directly after eight questions, so proving we
- * read them is the strongest move available — and the proof is the parent's
- * own answers rendered as chips ("Age 4 · Tantrums"), not a sentence claiming
- * we listened. Chips fall back to a generic-but-true line when the store is
- * empty (cold launch, resumed session, cleared local state).
+ * An earlier pass echoed the parent's actual answers back as chips ("Age 4 ·
+ * Tantrums"), read live from the store. Cut on review — the age we hold is a
+ * band, not a year, so the chips were approximating an answer back at the
+ * person who gave it, which is worse than not repeating it at all.
+ *
+ * CLAIMS STAY INSIDE WHAT THE PRODUCT DOES. The lessons carry no references,
+ * so nothing here says they cite research. No proof number either: OPS_STATE
+ * treats unverifiable proof claims as an App Review risk, and there is no
+ * verified figure to use.
  *
  * WEIGHT. An earlier pass stacked three filled cards and the CTA fell below
  * the fold on a small phone. Rows are now icon + text separated by hairlines,
@@ -31,8 +36,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { OnboardingScreen, RichHeadline } from '../../components/onboarding/OnboardingScreen';
-import { useOnboardingStore } from '../../store/onboardingStore';
-import { ImprovementGoal } from '../../types/onboarding';
 import { trackOnboardingStepCompleted } from '../../lib/analytics';
 import {
   OnboardingColors as C,
@@ -91,63 +94,24 @@ function ClipboardMark() {
   );
 }
 
-/** Short chip labels — the long option copy would not fit inline. */
-const GOAL_CHIPS: Record<ImprovementGoal, string> = {
-  'behavior-issues': 'Behavior',
-  'closer-relationship': 'Closeness',
-  'less-fighting': 'Less fighting',
-  'improved-parenting-skills': 'Parenting skills',
-  'quality-time': 'Quality time',
-  'character-traits': 'Character',
-  tantrums: 'Tantrums',
-};
-
 export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
-  const { children, improvementGoals } = useOnboardingStore();
-
-  // The chips ARE the proof that we read the answers, so they are built from
-  // the store rather than described. Age bands render as the band's lower
-  // bound ("Age 4"), which is what a parent recognises as their own answer.
-  const chips = React.useMemo(() => {
-    const out: string[] = [];
-
-    const bands = Array.from(
-      new Set((children ?? []).map((c) => c.ageRange).filter(Boolean)),
-    ) as string[];
-    bands.slice(0, 2).forEach((band) => {
-      out.push(band === '18+' ? 'Age 18+' : `Age ${band.split('-')[0]}`);
-    });
-
-    (improvementGoals ?? []).slice(0, 2).forEach((goal) => {
-      const label = GOAL_CHIPS[goal];
-      if (label) out.push(label);
-    });
-
-    return out;
-  }, [children, improvementGoals]);
-
   const rows = [
     {
       Mark: ChildMark,
-      title: 'Made for *your* family',
-      // Falls back to a claim that is still true when we have no answers.
-      body:
-        chips.length > 0
-          ? 'You told us about your family. Every lesson starts there.'
-          : "Your kids' ages, your biggest struggle right now. Not the same course everyone gets.",
-      chips: chips.length > 0 ? chips : null,
+      title: 'Personalized for *your* family',
+      body: "Your kids' ages, your biggest struggle right now. Not the same course everyone gets.",
     },
     {
       Mark: TimerMark,
-      title: 'Five minutes, *one* thing to try',
+      title: 'One lesson, *5 minutes* a day',
       body: "Read it at bedtime, try it tomorrow. Miss a day and there's nothing to catch up on.",
-      chips: null,
     },
     {
       Mark: ClipboardMark,
       title: 'Written by child *psychologists*',
-      body: 'Every lesson is reviewed and cites its research. Nothing here came off a forum at 2am.',
-      chips: null,
+      // Deliberately no citation claim: the lessons do not carry references,
+      // so "cites its research" would be a promise the product does not keep.
+      body: 'Grounded in child development, written in plain language.',
     },
   ];
 
@@ -188,7 +152,7 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
       scrollable
     >
       <View>
-        {rows.map(({ Mark, title, body, chips: rowChips }, i) => (
+        {rows.map(({ Mark, title, body }, i) => (
           <Animated.View
             key={title}
             style={[
@@ -213,15 +177,6 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
             <View style={styles.rowText}>
               <RichHeadline style={styles.rowTitle}>{title}</RichHeadline>
               <Text style={styles.rowBody}>{body}</Text>
-              {rowChips ? (
-                <View style={styles.chips}>
-                  {rowChips.map((chip) => (
-                    <View key={chip} style={styles.chip}>
-                      <Text style={styles.chipText}>{chip}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
             </View>
           </Animated.View>
         ))}
@@ -252,12 +207,4 @@ const styles = StyleSheet.create({
     color: oInk(0.76),
     marginTop: 5,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 11 },
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: oForest(0.12),
-  },
-  chipText: { fontFamily: F.sansSemi, fontSize: T.meta, color: C.forestDeep },
 });
