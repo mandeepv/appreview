@@ -28,9 +28,8 @@ const OPTIONS: { value: PartnerInvolvement; label: string }[] = [
   { value: 'very-involved', label: 'Very involved' },
   { value: 'involved-sometimes', label: 'Involved sometimes' },
   { value: 'rarely-involved', label: 'Rarely involved' },
-  // Covers both "my partner isn't involved" and "there's no partner" — one
-  // answer as far as the lessons are concerned.
-  { value: 'not-involved', label: "Not involved, or I'm on my own" },
+  // Also covers "no partner" — one answer as far as the lessons care.
+  { value: 'not-involved', label: 'Not involved' },
 ];
 
 export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
