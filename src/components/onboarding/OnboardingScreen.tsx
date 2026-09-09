@@ -9,7 +9,7 @@
  *
  * Anatomy, top to bottom (all values from the canvas — see the tokens block in
  * `src/constants/theme.ts` before adjusting any of them):
- *   - a back chevron and an eight-segment progress rail on one row
+ *   - a back chevron and a continuous progress bar on one row
  *   - a serif headline where one phrase is italic (pass it in *stars*)
  *   - an optional serif subtitle
  *   - the caller's content
@@ -87,11 +87,12 @@ export function BackChevron({ onPress }: { onPress: () => void }) {
 }
 
 /**
- * Segmented progress: one bar per question, filled up to the current step.
+ * A single continuous bar, filled to the current step.
  *
- * Replaces the earlier "STEP 3 OF 8" mono label. Eight segments make the
- * remaining count legible at a glance without reading a number, which is the
- * whole reason to prefer a bar here.
+ * Replaces the earlier "STEP 3 OF 8" mono label. The canvas drew this as eight
+ * separate segments, one per question; on device the gaps read as jagged, so
+ * it is one unbroken track instead. Same information — how far along, how much
+ * left — without the visual noise of seven seams.
  *
  * The back chevron lives INSIDE this row, in a 44px hit target, rather than on
  * its own line above. That keeps the control in one fixed place on every
@@ -113,12 +114,7 @@ export function ProgressRail({
         {onBack ? <BackChevron onPress={onBack} /> : null}
       </View>
       <View style={styles.railTrack}>
-        {Array.from({ length: total }, (_, i) => (
-          <View
-            key={i}
-            style={[styles.railSegment, i < step ? styles.railSegmentOn : styles.railSegmentOff]}
-          />
-        ))}
+        <View style={[styles.railFill, { width: `${(Math.min(step, total) / total) * 100}%` }]} />
       </View>
     </View>
   );
@@ -287,10 +283,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  railTrack: { flex: 1, flexDirection: 'row', gap: 4 },
-  railSegment: { flex: 1, height: 5, borderRadius: 3 },
-  railSegmentOn: { backgroundColor: C.forest },
-  railSegmentOff: { backgroundColor: oInk(0.14) },
+  railTrack: {
+    flex: 1,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: oInk(0.14),
+    overflow: 'hidden',
+  },
+  railFill: { height: '100%', borderRadius: 3, backgroundColor: C.forest },
   headline: {
     fontFamily: F.serif,
     fontSize: T.h1,
