@@ -4,7 +4,7 @@
  * Single-select: circles, no count line.
  *
  * The canvas drew five roles (Mum / Dad / Grandparent / Guardian / Someone
- * else). We ship the three v1.2.0 shipped — Mother, Father, Other · Guardian —
+ * else). We ship the three v1.2.0 shipped — Mother, Father, Other / Guardian —
  * because the extra two collapsed onto the same stored 'other' anyway, so they
  * lengthened the list without telling us anything new.
  */
@@ -25,7 +25,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'UserType'>;
 const ROLES: { value: UserType; label: string }[] = [
   { value: 'mother', label: 'Mother' },
   { value: 'father', label: 'Father' },
-  { value: 'other', label: 'Other · Guardian' },
+  { value: 'other', label: 'Other / Guardian' },
 ];
 
 export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
