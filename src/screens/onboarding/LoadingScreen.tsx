@@ -37,6 +37,11 @@ const SUPPORT_EMAIL = 'support@example.com';
 // enough that "Superwall is unreachable" is a real possibility, not a blip.
 const ESCAPE_HATCH_AFTER_ATTEMPTS = 3;
 
+// Development-only multiplier on the plan-building theater's tick. 1 = the
+// shipped 4-second run; raise it to inspect the screen. Guarded by __DEV__ so
+// production timing can never be affected by a stray edit.
+const THEATER_SLOWMO = __DEV__ ? 1 : 1;
+
 // How long to wait for onPresent after asking Superwall to present. If it
 // hasn't fired by then, the presentation is considered frozen and we fall
 // back to the retry state (SPEC-01 R4).
@@ -515,6 +520,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       // Post-onboarding: run the 4-second progress theater (the
       // "analyzing your family profile" messaging) so the user sees the
       // app doing something with their answers. Then run the gate.
+      // 80 ticks x 50ms = 4s in production. THEATER_SLOWMO stretches that in
+      // development so the screen can actually be looked at — four seconds is
+      // enough for a user and far too short to judge a design against.
+      const tick = 50 * THEATER_SLOWMO;
       const interval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 100) {
@@ -524,7 +533,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           }
           return prev + 1.25;
         });
-      }, 50);
+      }, tick);
       return () => clearInterval(interval);
     }
 

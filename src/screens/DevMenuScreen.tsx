@@ -11,7 +11,8 @@ import { useOnboardingStore } from '../store/onboardingStore';
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
 
-  const { clearState } = useOnboardingStore();
+  const { clearState, updateUserType, updateChildrenCount, updateChildAgeRange, toggleImprovementGoal } =
+    useOnboardingStore();
 
   /**
    * Wipes the persisted onboarding state so the next launch behaves like a
@@ -35,6 +36,29 @@ export const DevMenuScreen: React.FC = () => {
       'Device onboarding state cleared. Starting from the beginning.',
       [{ text: 'OK', onPress: () => navigation.replace('Welcome') }],
     );
+  };
+
+  /**
+   * Runs the plan-building theater, which is otherwise near-impossible to see.
+   *
+   * LoadingScreen only plays it when `onboardingStore.userType !== null` — the
+   * signal that the user just finished onboarding this session. Reaching the
+   * screen any other way starts at 100 and goes straight to the gate, which is
+   * deliberate: a signed-in user hits this screen on EVERY launch, and a
+   * four-second bar each time would be maddening.
+   *
+   * So this seeds a plausible family first, which also exercises the
+   * personalised task copy ("a 4- and 7-year-old", "tantrums and sibling
+   * fights") rather than the generic fallbacks.
+   */
+  const handleRunPlanTheater = () => {
+    updateUserType('mother');
+    updateChildrenCount(2);
+    updateChildAgeRange(0, '2-4');
+    updateChildAgeRange(1, '5-7');
+    toggleImprovementGoal('tantrums');
+    toggleImprovementGoal('less-fighting');
+    navigation.navigate('Loading');
   };
 
   const handleThrowTestError = () => {
@@ -140,6 +164,9 @@ export const DevMenuScreen: React.FC = () => {
           <Text style={styles.variantHeader}>Onboarding</Text>
           <TouchableOpacity style={styles.variantBtn} onPress={handleRestartOnboarding}>
             <Text style={styles.variantBtnText}>Restart onboarding from screen 1</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.variantBtn} onPress={handleRunPlanTheater}>
+            <Text style={styles.variantBtnText}>Play &quot;building your plan&quot; (4s)</Text>
           </TouchableOpacity>
         </View>
 
