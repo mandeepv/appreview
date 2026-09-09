@@ -13,6 +13,7 @@ export const DevMenuScreen: React.FC = () => {
 
   const { clearState, updateUserType, updateChildrenCount, updateChildAgeRange, toggleImprovementGoal } =
     useOnboardingStore();
+  const improvementGoals = useOnboardingStore((state) => state.improvementGoals);
 
   /**
    * Wipes the persisted onboarding state so the next launch behaves like a
@@ -29,12 +30,13 @@ export const DevMenuScreen: React.FC = () => {
    * profile row in Supabase still routes to the gate rather than onboarding —
    * sign out as well to walk the whole flow from a clean slate.
    */
-  const handleFreshStart = async () => {
-    // Clear first, THEN go to Splash. Without the clear, Splash resumes into
-    // whatever screen you last reached (SPEC-08), so the button that looks
-    // like "start over" drops you back in the middle of the flow.
+  const handleRestartOnboarding = async () => {
     await clearState();
-    navigation.replace('Splash');
+    Alert.alert(
+      'Onboarding reset',
+      'Device onboarding state cleared. Starting from the beginning.',
+      [{ text: 'OK', onPress: () => navigation.replace('Welcome') }],
+    );
   };
 
   /**
@@ -49,14 +51,20 @@ export const DevMenuScreen: React.FC = () => {
    * So this seeds a plausible family first, which also exercises the
    * personalised task copy ("a 4- and 7-year-old", "tantrums and sibling
    * fights") rather than the generic fallbacks.
+   *
+   * Idempotent: press it as often as you like and the seed stays the same.
    */
   const handleRunPlanTheater = () => {
     updateUserType('mother');
     updateChildrenCount(2);
     updateChildAgeRange(0, '2-4');
     updateChildAgeRange(1, '5-7');
-    toggleImprovementGoal('tantrums');
-    toggleImprovementGoal('less-fighting');
+    // toggleImprovementGoal FLIPS, so calling it blind would clear the goals on
+    // the second press and the run would fall back to generic copy. Seed only
+    // what is missing, so the button can be pressed as many times as you like.
+    (['tantrums', 'less-fighting'] as const).forEach((goal) => {
+      if (!improvementGoals.includes(goal)) toggleImprovementGoal(goal);
+    });
     navigation.navigate('Loading');
   };
 
@@ -83,17 +91,15 @@ export const DevMenuScreen: React.FC = () => {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.button}
-            onPress={handleFreshStart}
+            onPress={() => navigation.navigate('Splash')}
             activeOpacity={0.8}
           >
             <View style={styles.iconCircle}>
               <Ionicons name="sparkles-outline" size={32} color={Colors.primary} />
             </View>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitle}>Start from Splash</Text>
-              <Text style={styles.buttonDescription}>
-                Clears saved progress and runs the whole flow from the top
-              </Text>
+              <Text style={styles.buttonTitle}>Splash Screen</Text>
+              <Text style={styles.buttonDescription}>View the app splash/intro screen</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -163,6 +169,9 @@ export const DevMenuScreen: React.FC = () => {
 
         <View style={styles.variantSection}>
           <Text style={styles.variantHeader}>Onboarding</Text>
+          <TouchableOpacity style={styles.variantBtn} onPress={handleRestartOnboarding}>
+            <Text style={styles.variantBtnText}>Restart onboarding from screen 1</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.variantBtn} onPress={handleRunPlanTheater}>
             <Text style={styles.variantBtnText}>Play &quot;building your plan&quot; (4s)</Text>
           </TouchableOpacity>

@@ -42,6 +42,14 @@ const ESCAPE_HATCH_AFTER_ATTEMPTS = 3;
 // production timing can never be affected by a stray edit.
 const THEATER_SLOWMO = __DEV__ ? 1 : 1;
 
+// Development-only: hold on the finished screen instead of running the gate at
+// 100%. The gate presents the paywall or routes to Root, so a replay always
+// ends by throwing you off the screen you were trying to look at. With this
+// true the theater completes and stays put, and the DevMenu button can be
+// pressed repeatedly. NEVER true in production — it would strand every real
+// user at 100% and bypass the subscription gate entirely (INVARIANT #1).
+const THEATER_HOLD_AT_END = __DEV__ ? false : false;
+
 // How long to wait for onPresent after asking Superwall to present. If it
 // hasn't fired by then, the presentation is considered frozen and we fall
 // back to the retry state (SPEC-01 R4).
@@ -528,7 +536,11 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         setProgress((prev) => {
           if (prev >= 100) {
             clearInterval(interval);
-            setTimeout(() => runGate(), 600);
+            if (!THEATER_HOLD_AT_END) {
+              setTimeout(() => runGate(), 600);
+            } else if (__DEV__) {
+              console.log('[theater] holding at 100% — THEATER_HOLD_AT_END is on');
+            }
             return 100;
           }
           return prev + 1.25;
