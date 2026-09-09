@@ -3,13 +3,17 @@
  *
  * Layout follows v1.2.0 rather than the canvas, which drew both fields as thin
  * hairline rules with small labels. On device that read as too quiet to fill
- * in, so the sizes here are the shipped ones: 16pt semibold labels, an 18pt
+ * in, so the sizes here follow the shipped ones: 19pt semibold labels, an 18pt
  * input, and the stepper's 40pt value between two 56pt buttons.
  *
  * The stepper is a single pill containing minus, value, plus. Spreading the
  * buttons across the screen width pushed them to opposite edges and broke the
  * read as one control; grouping them in a pill keeps the value and its two
  * controls together the way the original did.
+ *
+ * NOT scrollable: two fields always fit, and inside a ScrollView the age
+ * block's `marginTop: 'auto'` would be a no-op — a ScrollView sizes to its
+ * content, so there is no free space for auto to consume.
  */
 
 import React, { useState } from 'react';
@@ -109,7 +113,6 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
       onBack={() => navigation.goBack()}
       onContinue={handleContinue}
       continueDisabled={!hasName || age <= 0}
-      scrollable
     >
       <View>
         <Text style={styles.fieldLabel}>Your first name</Text>
@@ -153,7 +156,7 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  fieldLabel: { fontFamily: F.sansSemi, fontSize: 16, color: C.ink, letterSpacing: 0.2 },
+  fieldLabel: { fontFamily: F.sansSemi, fontSize: 19, color: C.ink, letterSpacing: 0.2 },
   fieldRule: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -172,11 +175,16 @@ const styles = StyleSheet.create({
     padding: 0,
   },
 
+  // No divider between the two fields — they are one short form, and the rule
+  // made them read as separate sections.
+  //
+  // marginTop: 'auto' pushes this block to the bottom of the body, so the
+  // stepper sits just above the Continue pill and stays inside comfortable
+  // thumb reach. Anchored high it forced a reach to the top third of a large
+  // phone for a control the user taps repeatedly.
   ageBlock: {
-    marginTop: 34,
-    paddingTop: 26,
-    borderTopWidth: 1,
-    borderTopColor: oInk(0.09),
+    marginTop: 'auto',
+    paddingTop: 30,
   },
   // One pill holding minus | value | plus, centred — keeps the controls beside
   // the number they change rather than at opposite screen edges.
