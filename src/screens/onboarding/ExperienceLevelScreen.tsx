@@ -20,12 +20,15 @@ import { OnboardingLayout as L } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ExperienceLevel'>;
 
-// Titles alone, no supporting lines. Three descriptions turned a one-tap
-// question into a paragraph to read; the labels already say enough.
+// v1.2.0's labels, which actually answer the question asked. An earlier pass
+// collapsed each option to a single line and kept the wrong half — the
+// SUBTITLE ("Start from the basics", "Advanced concepts and techniques") says
+// what we will do about the answer, not how familiar the parent is, so two of
+// the three options were replying to a question nobody asked.
 const LEVELS: { value: ExperienceLevel; label: string }[] = [
-  { value: 'new-to-science', label: 'Start from the basics' },
-  { value: 'somewhat-familiar', label: 'I know the basics' },
-  { value: 'know-a-lot', label: 'Go deeper than usual' },
+  { value: 'new-to-science', label: "I'm new to parenting science" },
+  { value: 'somewhat-familiar', label: "I'm somewhat familiar with it" },
+  { value: 'know-a-lot', label: 'I know a lot about parenting science' },
 ];
 
 export const ExperienceLevelScreen: React.FC<Props> = ({ navigation }) => {
