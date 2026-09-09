@@ -1,12 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Image, Linking } from 'react-native';
+import { View, Text, StyleSheet, Animated, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { ProgressBar } from '../../components/ProgressBar';
 import { Button } from '../../components/Button';
 import { Caption } from '../../components/Typography';
-import { Colors, Spacing, Typography } from '../../constants/theme';
+import {
+  Colors,
+  Spacing,
+  Typography,
+  OnboardingColors as C,
+  OnboardingFonts as F,
+  OnboardingType as T,
+  oInk,
+} from '../../constants/theme';
+import { KinderwellMark } from '../../components/onboarding/KinderwellMark';
+import { RichHeadline } from '../../components/onboarding/OnboardingScreen';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useConfigStore } from '../../store/configStore';
@@ -700,17 +710,11 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
               },
             ]}
           >
-            <Image
-              source={require('../../../assets/icon.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <KinderwellMark size={72} color={C.forest} />
           </Animated.View>
         </View>
 
-        <Text style={styles.title}>
-          Designing your parenting journey
-        </Text>
+        <RichHeadline style={styles.title}>Designing your *parenting journey*</RichHeadline>
 
         <Text style={styles.description}>
           Creating a personalized program tailored to your family
@@ -770,7 +774,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: C.paper,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing['4xl'],
@@ -786,34 +790,25 @@ const styles = StyleSheet.create({
   logoWrapper: {
     width: 120,
     height: 120,
-    borderRadius: 60,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#4F8F8B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  logo: {
-    width: 120,
-    height: 120,
   },
   title: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
+    fontFamily: F.serif,
+    fontSize: T.h1,
+    lineHeight: T.h1 * 1.2,
+    letterSpacing: -0.45,
+    color: C.ink,
     marginBottom: Spacing.lg,
     textAlign: 'center',
-    lineHeight: Typography.sizes['3xl'] * Typography.lineHeights.tight,
   },
   description: {
-    fontSize: Typography.sizes.base,
-    color: Colors.textSecondary,
+    fontFamily: F.serif,
+    fontSize: T.body,
+    lineHeight: T.body * 1.6,
+    color: oInk(0.76),
     marginBottom: Spacing['5xl'],
     textAlign: 'center',
-    lineHeight: Typography.sizes.base * Typography.lineHeights.normal,
     paddingHorizontal: Spacing.md,
   },
   progressContainer: {
@@ -824,10 +819,11 @@ const styles = StyleSheet.create({
     height: 6,
   },
   status: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textTertiary,
+    fontFamily: F.monoMed,
+    fontSize: T.mono,
+    letterSpacing: T.mono * 0.05,
+    color: oInk(0.7),
     textAlign: 'center',
-    fontWeight: Typography.weights.medium,
   },
   escapeContainer: {
     width: '100%',

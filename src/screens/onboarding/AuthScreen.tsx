@@ -4,14 +4,18 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AntDesign } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingContainer } from '../../components/OnboardingContainer';
+import { OnboardingScreen } from '../../components/onboarding/OnboardingScreen';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useAuthStore } from '../../store/authStore';
 import type { Session } from '@supabase/supabase-js';
 import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { resolvePostAuthDestination } from '../../navigation/routingPolicy';
-import { Colors } from '../../constants/theme';
+import {
+  OnboardingFonts as F,
+  OnboardingType as T,
+  oInk,
+} from '../../constants/theme';
 import { identifyUserWithOnboarding, trackAuthAttempted, trackAuthAbandoned, trackAuthSucceeded, safeCapture } from '../../lib/analytics';
 import { reportError } from '../../config/sentry';
 
@@ -260,28 +264,29 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
+  // Restyled onto the cream/forest system. The canvas has no sign-in artboard
+  // (its screen 04 is a notifications ask), so this borrows the shell — step
+  // label, serif headline with one italic phrase, 30px gutters — rather than
+  // copying a screen that asks something else.
+  //
+  // EVERYTHING ABOVE THIS RETURN IS UNCHANGED. The 7-tap demo bypass still
+  // hangs off the headline press (DEMO_MODE.md), both provider handlers and
+  // the onboarding-check branches are untouched, and the signin-mode provider
+  // hint and the Terms/Privacy links are preserved verbatim.
   return (
-    <OnboardingContainer
-      currentStep={15}
-      showBackButton={mode === 'signin'}
+    <OnboardingScreen
+      step={8}
+      headline={mode === 'signin' ? 'Welcome *back*.' : 'Keep your plan *safe*.'}
+      subtitle={
+        mode === 'signin'
+          ? 'Sign in to pick up where you left off.'
+          : "Your answers and progress, saved securely — so the plan is still here tomorrow."
+      }
       onBack={mode === 'signin' ? () => navigation.goBack() : undefined}
-      scrollable={true}
+      onHeadlinePress={handleTitlePress}
+      scrollable
     >
       <View style={styles.container}>
-        <View style={styles.content}>
-          <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.8}>
-            <Text style={styles.title}>
-              {mode === 'signin' ? 'Welcome back' : 'Save your progress'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.description}>
-            {mode === 'signin'
-              ? 'Sign in to continue your parenting journey.'
-              : "We'll save your preferences and progress securely."}
-          </Text>
-        </View>
-
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.googleButton, isLoading && styles.buttonDisabled]}
@@ -338,82 +343,49 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text onPress={() => Linking.openURL('https://mandeepv.github.io/kinderwell-legal/privacy.html')} style={{ textDecorationLine: 'underline' }}>Privacy Policy</Text>
         </Text>
       </View>
-    </OnboardingContainer>
+    </OnboardingScreen>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    paddingVertical: 24,
-  },
-  content: {
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  iconContainer: {
-    width: 128,
-    height: 128,
-    backgroundColor: Colors.primary,
-    borderRadius: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-  },
-  icon: {
-    fontSize: 64,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 24,
-    lineHeight: 24,
+    justifyContent: 'flex-end',
+    paddingBottom: 8,
   },
   buttonContainer: {
-    gap: 16,
-    paddingHorizontal: 24,
+    gap: 12,
+    marginTop: 30,
   },
+  // Google keeps its own white/branded treatment — provider buttons are one of
+  // the few places a house palette must not win. Only the radius and height
+  // move, so it sits on the cream surface without looking transplanted.
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 56,
+    height: 58,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderColor: oInk(0.14),
     paddingHorizontal: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
   },
   googleButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontFamily: F.sansSemi,
+    fontSize: T.ui,
     color: '#1F1F1F',
     marginLeft: 12,
-    letterSpacing: 0.2,
   },
   appleButton: {
     width: '100%',
-    height: 56,
+    height: 58,
   },
   appleLoadingContainer: {
     width: '100%',
-    height: 56,
+    height: 58,
     backgroundColor: '#000000',
-    borderRadius: 12,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -424,19 +396,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   providerHint: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+    fontFamily: F.serifItalic,
+    fontSize: T.uiSm,
+    lineHeight: T.uiSm * 1.5,
+    color: oInk(0.74),
     textAlign: 'center',
     marginTop: 20,
-    paddingHorizontal: 24,
-    lineHeight: 18,
   },
   terms: {
-    fontSize: 12,
-    color: Colors.textTertiary,
+    fontFamily: F.sans,
+    fontSize: T.meta,
+    lineHeight: T.meta * 1.5,
+    color: oInk(0.6),
     textAlign: 'center',
-    marginTop: 16,
-    paddingHorizontal: 32,
+    marginTop: 18,
   },
   buttonDisabled: {
     opacity: 0.6,

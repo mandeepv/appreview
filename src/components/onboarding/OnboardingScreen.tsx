@@ -147,6 +147,13 @@ type Props = {
   continueDisabled?: boolean;
   /** Long option lists need to scroll; short ones shouldn't bounce. */
   scrollable?: boolean;
+  /**
+   * Makes the headline tappable. This exists for exactly one caller: AuthScreen
+   * hangs the 7-tap Apple-reviewer demo bypass off its title (see
+   * docs/DEMO_MODE.md). Deliberately invisible — no ripple, no affordance —
+   * because a discoverable bypass is a rejection risk.
+   */
+  onHeadlinePress?: () => void;
 };
 
 export function OnboardingScreen({
@@ -162,6 +169,7 @@ export function OnboardingScreen({
   onContinue,
   continueDisabled = false,
   scrollable = false,
+  onHeadlinePress,
 }: Props) {
   const insets = useSafeAreaInsets();
   const Body = scrollable ? ScrollView : View;
@@ -180,7 +188,13 @@ export function OnboardingScreen({
 
         {step !== undefined ? <StepLabel step={step} total={totalSteps} /> : null}
 
-        <RichHeadline style={styles.headline}>{headline}</RichHeadline>
+        {onHeadlinePress ? (
+          <Pressable onPress={onHeadlinePress} accessible={false}>
+            <RichHeadline style={styles.headline}>{headline}</RichHeadline>
+          </Pressable>
+        ) : (
+          <RichHeadline style={styles.headline}>{headline}</RichHeadline>
+        )}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
         <Body style={styles.body} {...bodyProps}>
