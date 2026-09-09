@@ -380,11 +380,22 @@ const styles = StyleSheet.create({
     borderColor: oInk(0.14),
     paddingHorizontal: 24,
   },
+  // NO fontFamily — deliberately the system font (San Francisco).
+  //
+  // Apple's AppleAuthenticationButton draws its own label natively and exposes
+  // no typography control, so it is always SF. Setting Figtree here made the
+  // two buttons disagree: Figtree's x-height is smaller, so at an identical
+  // 17pt the Google label looked visibly smaller than "Continue with Apple"
+  // beside it. v1.2.0 matched precisely because it never set a family.
+  //
+  // This is one of the few places the house font must lose — matching the
+  // native control beside it matters more than palette consistency.
   googleButtonText: {
-    fontFamily: F.sansSemi,
-    fontSize: T.ui,
+    fontSize: 17,
+    fontWeight: '600',
     color: '#1F1F1F',
     marginLeft: 12,
+    letterSpacing: 0.2,
   },
   appleButton: {
     width: '100%',
