@@ -29,13 +29,12 @@ export const DevMenuScreen: React.FC = () => {
    * profile row in Supabase still routes to the gate rather than onboarding —
    * sign out as well to walk the whole flow from a clean slate.
    */
-  const handleRestartOnboarding = async () => {
+  const handleFreshStart = async () => {
+    // Clear first, THEN go to Splash. Without the clear, Splash resumes into
+    // whatever screen you last reached (SPEC-08), so the button that looks
+    // like "start over" drops you back in the middle of the flow.
     await clearState();
-    Alert.alert(
-      'Onboarding reset',
-      'Device onboarding state cleared. Starting from the beginning.',
-      [{ text: 'OK', onPress: () => navigation.replace('Welcome') }],
-    );
+    navigation.replace('Splash');
   };
 
   /**
@@ -84,15 +83,17 @@ export const DevMenuScreen: React.FC = () => {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate('Splash')}
+            onPress={handleFreshStart}
             activeOpacity={0.8}
           >
             <View style={styles.iconCircle}>
               <Ionicons name="sparkles-outline" size={32} color={Colors.primary} />
             </View>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitle}>Splash Screen</Text>
-              <Text style={styles.buttonDescription}>View the app splash/intro screen</Text>
+              <Text style={styles.buttonTitle}>Start from Splash</Text>
+              <Text style={styles.buttonDescription}>
+                Clears saved progress and runs the whole flow from the top
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -162,9 +163,6 @@ export const DevMenuScreen: React.FC = () => {
 
         <View style={styles.variantSection}>
           <Text style={styles.variantHeader}>Onboarding</Text>
-          <TouchableOpacity style={styles.variantBtn} onPress={handleRestartOnboarding}>
-            <Text style={styles.variantBtnText}>Restart onboarding from screen 1</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={styles.variantBtn} onPress={handleRunPlanTheater}>
             <Text style={styles.variantBtnText}>Play &quot;building your plan&quot; (4s)</Text>
           </TouchableOpacity>
