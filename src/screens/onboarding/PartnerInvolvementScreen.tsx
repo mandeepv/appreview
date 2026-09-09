@@ -1,10 +1,14 @@
 /**
- * Screen 16 in the design canvas — "STEP 5 OF 8".
+ * Screen 16 in the design canvas — step 5 of 8.
  *
- * Single-select. The canvas note: "No partner" sits apart, not at the bottom
- * of a ranking — the first four rows are a scale of involvement, and leaving
- * the fifth inside that list reads as "least involved" rather than "different
- * situation". A rule and a gap separate it.
+ * Single-select, four options. v1.2.0 had five: "Not involved" and "No
+ * partner" both shipped, and in practice they read as the same answer to a
+ * parent skimming at 9pm. They are now one row.
+ *
+ * The stored value stays 'not-involved'. 'no-partner' is still a valid
+ * PartnerInvolvement member so existing rows keep resolving, but nothing
+ * writes it any more — the two blur together in future breakdowns, which is
+ * the accepted cost of the merge.
  */
 
 import React from 'react';
@@ -16,21 +20,18 @@ import { OptionRow } from '../../components/onboarding/OptionRow';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { PartnerInvolvement } from '../../types/onboarding';
 import { trackOnboardingStepCompleted } from '../../lib/analytics';
-import { OnboardingLayout as L, oInk } from '../../constants/theme';
+import { OnboardingLayout as L } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'PartnerInvolvement'>;
 
-const SCALE: { value: PartnerInvolvement; label: string }[] = [
+const OPTIONS: { value: PartnerInvolvement; label: string }[] = [
   { value: 'very-involved', label: 'Very involved' },
   { value: 'involved-sometimes', label: 'Involved sometimes' },
   { value: 'rarely-involved', label: 'Rarely involved' },
-  { value: 'not-involved', label: 'Not involved' },
+  // Covers both "my partner isn't involved" and "there's no partner" — one
+  // answer as far as the lessons are concerned.
+  { value: 'not-involved', label: "Not involved, or I'm on my own" },
 ];
-
-const APART: { value: PartnerInvolvement; label: string } = {
-  value: 'no-partner',
-  label: 'No partner',
-};
 
 export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
   const { partnerInvolvement, updatePartnerInvolvement } = useOnboardingStore();
@@ -51,30 +52,25 @@ export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
       continueDisabled={!partnerInvolvement}
     >
       <View style={styles.rows}>
-        {SCALE.map((option) => (
+        {OPTIONS.map((option) => (
           <OptionRow
             key={option.value}
             label={option.label}
             mode="single"
-            selected={partnerInvolvement === option.value}
+            // A stored 'no-partner' from before the merge still lights the
+            // merged row, so going back doesn't look like the answer was lost.
+            selected={
+              partnerInvolvement === option.value ||
+              (option.value === 'not-involved' && partnerInvolvement === 'no-partner')
+            }
             onPress={() => updatePartnerInvolvement(option.value)}
           />
         ))}
       </View>
-
-      <View style={styles.divider} />
-
-      <OptionRow
-        label={APART.label}
-        mode="single"
-        selected={partnerInvolvement === APART.value}
-        onPress={() => updatePartnerInvolvement(APART.value)}
-      />
     </OnboardingScreen>
   );
 };
 
 const styles = StyleSheet.create({
   rows: { gap: L.rowGap },
-  divider: { height: 1, backgroundColor: oInk(0.12), marginVertical: 18 },
 });

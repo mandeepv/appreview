@@ -20,22 +20,12 @@ import { OnboardingLayout as L } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ExperienceLevel'>;
 
-const LEVELS: { value: ExperienceLevel; label: string; description: string }[] = [
-  {
-    value: 'new-to-science',
-    label: 'Start from the basics',
-    description: "I've not read much. Assume nothing and I'll keep up.",
-  },
-  {
-    value: 'somewhat-familiar',
-    label: 'I know a lot about parenting science',
-    description: 'Skip the explaining — I want what to do in the room.',
-  },
-  {
-    value: 'know-a-lot',
-    label: 'Advanced concepts and techniques',
-    description: 'Co-regulation, repair, nervous systems. Go deeper than usual.',
-  },
+// Titles alone, no supporting lines. Three descriptions turned a one-tap
+// question into a paragraph to read; the labels already say enough.
+const LEVELS: { value: ExperienceLevel; label: string }[] = [
+  { value: 'new-to-science', label: 'Start from the basics' },
+  { value: 'somewhat-familiar', label: 'I know the basics' },
+  { value: 'know-a-lot', label: 'Go deeper than usual' },
 ];
 
 export const ExperienceLevelScreen: React.FC<Props> = ({ navigation }) => {
@@ -51,7 +41,6 @@ export const ExperienceLevelScreen: React.FC<Props> = ({ navigation }) => {
     <OnboardingScreen
       step={6}
       headline="How familiar are you with modern parenting *ideas*?"
-      subtitle="There's no wrong answer — it only sets where we begin."
       onBack={() => navigation.goBack()}
       onContinue={handleContinue}
       continueDisabled={!experienceLevel}
@@ -61,7 +50,6 @@ export const ExperienceLevelScreen: React.FC<Props> = ({ navigation }) => {
           <OptionRow
             key={level.value}
             label={level.label}
-            description={level.description}
             mode="single"
             selected={experienceLevel === level.value}
             onPress={() => updateExperienceLevel(level.value)}

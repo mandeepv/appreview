@@ -1,20 +1,15 @@
 /**
- * Screen 12 in the design canvas — "STEP 1 OF 8".
+ * Screen 12 in the design canvas — step 1 of 8.
  *
  * Single-select: circles, no count line.
  *
- * The canvas offers five roles where the data model has three
- * (`'father' | 'mother' | 'other'`). Grandparent / Guardian / Someone else all
- * store as `'other'` — the redesign is a visual pass, so the saved value and
- * the analytics payload stay byte-identical to what v1.2.0 shipped. Widening
- * `UserType` would change the Supabase write and the PostHog property, which
- * is a data decision, not a design one.
- *
- * `roleChoice` keeps the finer-grained pick in local state only, so the
- * selected row stays lit while the user is on the screen.
+ * The canvas drew five roles (Mum / Dad / Grandparent / Guardian / Someone
+ * else). We ship the three v1.2.0 shipped — Mother, Father, Other · Guardian —
+ * because the extra two collapsed onto the same stored 'other' anyway, so they
+ * lengthened the list without telling us anything new.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
@@ -27,32 +22,14 @@ import { OnboardingLayout as L } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'UserType'>;
 
-type RoleChoice = 'mother' | 'father' | 'grandparent' | 'guardian' | 'someone-else';
-
-const ROLES: { key: RoleChoice; label: string; stored: UserType }[] = [
-  { key: 'mother', label: 'Mum', stored: 'mother' },
-  { key: 'father', label: 'Dad', stored: 'father' },
-  { key: 'grandparent', label: 'Grandparent', stored: 'other' },
-  { key: 'guardian', label: 'Guardian or carer', stored: 'other' },
-  { key: 'someone-else', label: 'Someone else who shows up', stored: 'other' },
+const ROLES: { value: UserType; label: string }[] = [
+  { value: 'mother', label: 'Mother' },
+  { value: 'father', label: 'Father' },
+  { value: 'other', label: 'Other · Guardian' },
 ];
 
 export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
   const { userType, updateUserType } = useOnboardingStore();
-
-  // Seed from the store so going back re-lights a row. A stored 'other' can't
-  // tell us which of the three 'other' rows was picked, so it stays unlit —
-  // harmless, and better than lighting the wrong one.
-  const [roleChoice, setRoleChoice] = useState<RoleChoice | null>(() => {
-    if (userType === 'mother') return 'mother';
-    if (userType === 'father') return 'father';
-    return null;
-  });
-
-  const handleSelect = (role: (typeof ROLES)[number]) => {
-    setRoleChoice(role.key);
-    updateUserType(role.stored);
-  };
 
   const handleContinue = () => {
     if (!userType) return;
@@ -71,11 +48,11 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.rows}>
         {ROLES.map((role) => (
           <OptionRow
-            key={role.key}
+            key={role.value}
             label={role.label}
             mode="single"
-            selected={roleChoice === role.key}
-            onPress={() => handleSelect(role)}
+            selected={userType === role.value}
+            onPress={() => updateUserType(role.value)}
           />
         ))}
       </View>

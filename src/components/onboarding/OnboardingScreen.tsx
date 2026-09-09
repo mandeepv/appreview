@@ -9,7 +9,7 @@
  *
  * Anatomy, top to bottom (all values from the canvas — see the tokens block in
  * `src/constants/theme.ts` before adjusting any of them):
- *   - "STEP n OF 8" in mono, followed by a hairline that runs to the edge
+ *   - a back chevron and an eight-segment progress rail on one row
  *   - a serif headline where one phrase is italic (pass it in *stars*)
  *   - an optional serif subtitle
  *   - the caller's content
@@ -86,12 +86,40 @@ export function BackChevron({ onPress }: { onPress: () => void }) {
   );
 }
 
-/** "STEP 3 OF 8" plus the hairline that runs to the screen edge. */
-export function StepLabel({ step, total = L.totalSteps }: { step: number; total?: number }) {
+/**
+ * Segmented progress: one bar per question, filled up to the current step.
+ *
+ * Replaces the earlier "STEP 3 OF 8" mono label. Eight segments make the
+ * remaining count legible at a glance without reading a number, which is the
+ * whole reason to prefer a bar here.
+ *
+ * The back chevron lives INSIDE this row, in a 44px hit target, rather than on
+ * its own line above. That keeps the control in one fixed place on every
+ * screen — including step 1, where it returns to Welcome — so it never appears
+ * and disappears between screens as the user moves through the flow.
+ */
+export function ProgressRail({
+  step,
+  total = L.totalSteps,
+  onBack,
+}: {
+  step: number;
+  total?: number;
+  onBack?: () => void;
+}) {
   return (
-    <View style={styles.stepRow}>
-      <Text style={styles.stepText}>{`STEP ${step} OF ${total}`}</Text>
-      <View style={styles.stepRule} />
+    <View style={styles.railRow}>
+      <View style={styles.railBackSlot}>
+        {onBack ? <BackChevron onPress={onBack} /> : null}
+      </View>
+      <View style={styles.railTrack}>
+        {Array.from({ length: total }, (_, i) => (
+          <View
+            key={i}
+            style={[styles.railSegment, i < step ? styles.railSegmentOn : styles.railSegmentOff]}
+          />
+        ))}
+      </View>
     </View>
   );
 }
@@ -195,13 +223,23 @@ export function OnboardingScreen({
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.content}>
-        {showBack && onBack ? (
-          <View style={styles.backRow}>
-            <BackChevron onPress={onBack} />
+        {step !== undefined ? (
+          // The chevron rides inside the rail so it holds one fixed position
+          // across every question screen.
+          <ProgressRail
+            step={step}
+            total={totalSteps}
+            onBack={showBack && onBack ? onBack : undefined}
+          />
+        ) : showBack && onBack ? (
+          // Screens without a step (Auth, "Why this works") still need a way
+          // back; they get the bare chevron in the same slot.
+          <View style={styles.railRow}>
+            <View style={styles.railBackSlot}>
+              <BackChevron onPress={onBack} />
+            </View>
           </View>
         ) : null}
-
-        {step !== undefined ? <StepLabel step={step} total={totalSteps} /> : null}
 
         {onHeadlinePress ? (
           <Pressable onPress={onHeadlinePress} accessible={false}>
@@ -239,15 +277,20 @@ export function OnboardingScreen({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
   content: { flex: 1, paddingHorizontal: L.screenPad },
-  backRow: { paddingTop: 6, paddingBottom: 8, alignSelf: 'flex-start' },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 8 },
-  stepText: {
-    fontFamily: F.monoMed,
-    fontSize: T.mono,
-    letterSpacing: T.mono * 0.05,
-    color: oInk(0.7),
+  railRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 4 },
+  // 44px is the iOS minimum touch target; the negative margin pulls the chevron
+  // glyph back to the 30px gutter so the padding does not visibly indent it.
+  railBackSlot: {
+    width: 44,
+    height: 44,
+    marginLeft: -11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stepRule: { flex: 1, height: 1, backgroundColor: oInk(0.16) },
+  railTrack: { flex: 1, flexDirection: 'row', gap: 4 },
+  railSegment: { flex: 1, height: 5, borderRadius: 3 },
+  railSegmentOn: { backgroundColor: C.forest },
+  railSegmentOff: { backgroundColor: oInk(0.14) },
   headline: {
     fontFamily: F.serif,
     fontSize: T.h1,

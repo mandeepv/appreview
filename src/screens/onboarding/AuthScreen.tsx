@@ -357,16 +357,20 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 30,
   },
-  // Google keeps its own white/branded treatment — provider buttons are one of
-  // the few places a house palette must not win. Only the radius and height
-  // move, so it sits on the cream surface without looking transplanted.
+  // Provider buttons keep v1.2.0's geometry: 56 tall, 12 radius.
+  //
+  // They must match each other, and Apple's native AppleAuthenticationButton
+  // only exposes `cornerRadius` — it will not render a full-round pill. Making
+  // Google a 999 pill therefore produced one rounded and one squared button
+  // side by side. Both follow Apple's shape, and neither takes the house
+  // palette: provider marks are one place a brand system must not win.
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 58,
+    height: 56,
     backgroundColor: '#FFFFFF',
-    borderRadius: 999,
+    borderRadius: 12,
     borderWidth: 1.5,
     borderColor: oInk(0.14),
     paddingHorizontal: 24,
@@ -379,13 +383,13 @@ const styles = StyleSheet.create({
   },
   appleButton: {
     width: '100%',
-    height: 58,
+    height: 56,
   },
   appleLoadingContainer: {
     width: '100%',
-    height: 58,
+    height: 56,
     backgroundColor: '#000000',
-    borderRadius: 999,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

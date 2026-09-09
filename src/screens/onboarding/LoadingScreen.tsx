@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Animated, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { ProgressBar } from '../../components/ProgressBar';
 import { Button } from '../../components/Button';
 import { Caption } from '../../components/Typography';
 import {
@@ -15,7 +14,7 @@ import {
   OnboardingType as T,
   oInk,
 } from '../../constants/theme';
-import { KinderwellMark } from '../../components/onboarding/KinderwellMark';
+import Svg, { Path } from 'react-native-svg';
 import { RichHeadline } from '../../components/onboarding/OnboardingScreen';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
@@ -44,6 +43,21 @@ const ESCAPE_HATCH_AFTER_ATTEMPTS = 3;
 const PRESENT_WATCHDOG_MS = 5000;
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
+
+/** Check drawn inside a completed task's disc. */
+function TaskTick() {
+  return (
+    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M20 6L9 17l-5-5"
+        stroke={C.cream}
+        strokeWidth={3.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 /**
  * LoadingScreen is the subscription gate. Every route to Root passes through
@@ -82,7 +96,6 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const [progress, setProgress] = useState(() =>
     onboardingStore.userType !== null ? 0 : 100,
   );
-  const [scaleAnim] = useState(new Animated.Value(1));
   const [gateStatus, setGateStatus] = useState<'idle' | 'presenting' | 'retry' | 'blocked'>('idle');
   const { identify } = useUser();
   const paywallPresentedRef = useRef(false);
@@ -508,22 +521,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   latestRunGateRef.current = runGate;
 
   useEffect(() => {
-    // Gentle continuous breathing animation runs on every path.
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 1.05,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 2500,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
+    // The breathing loop that scaled the old centre logo is gone with it — the
+    // build theater carries its own motion through the percentage and the
+    // tasks checking off.
     const hasOnboardingPayload = onboardingStore.userType !== null;
 
     if (hasOnboardingPayload) {
@@ -689,6 +689,61 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  // The build theater, written from the parent's own answers.
+  //
+  // Each task names something only this user told us — the ages of their
+  // children, the thing they said was hardest — so the wait reads as work
+  // being done for them rather than a spinner. Every part degrades to a
+  // truthful generic phrase when an answer is missing (cold launch, resumed
+  // session, or a signed-in user whose local store was cleared).
+  const buildHeadline = 'Sitting with what you *told us*.';
+
+  const buildTasks = React.useMemo(() => {
+    const goalLabels: Record<string, string> = {
+      'behavior-issues': 'behaviour',
+      'closer-relationship': 'closeness',
+      'less-fighting': 'sibling fights',
+      'improved-parenting-skills': 'the day-to-day',
+      'quality-time': 'time together',
+      'character-traits': 'character',
+      tantrums: 'tantrums',
+    };
+
+    const goals = (onboardingStore.improvementGoals ?? [])
+      .map((g) => goalLabels[g])
+      .filter(Boolean)
+      .slice(0, 2);
+    const goalPhrase =
+      goals.length === 2 ? `${goals[0]} and ${goals[1]}` : goals.length === 1 ? goals[0] : null;
+
+    // Age bands like '5-7' become "a 5- to 7-year-old" — readable, and honest
+    // that we hold a band rather than an exact age.
+    const bands = Array.from(
+      new Set((onboardingStore.children ?? []).map((c) => c.ageRange).filter(Boolean)),
+    ) as string[];
+    const agePhrase =
+      bands.length > 0
+        ? bands
+            .slice(0, 2)
+            .map((b) => (b === '18+' ? '18+' : b.replace('-', ' to ')))
+            .join(' and ')
+        : null;
+
+    return [
+      {
+        at: 34,
+        label: goalPhrase
+          ? `Reading your notes on ${goalPhrase}`
+          : 'Reading everything you told us',
+      },
+      {
+        at: 72,
+        label: agePhrase ? `Matching tools to ages ${agePhrase}` : 'Matching tools to your family',
+      },
+      { at: 100, label: 'Ordering your evenings, hardest first' },
+    ];
+  }, [onboardingStore.improvementGoals, onboardingStore.children]);
+
   const getMessage = () => {
     if (gateStatus === 'retry') return "Checking your subscription — please make sure you're online...";
     if (progress < 25) return 'Analyzing your family profile...';
@@ -701,27 +756,47 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <Animated.View
-            style={[
-              styles.logoWrapper,
-              {
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
-          >
-            <KinderwellMark size={72} color={C.forest} />
-          </Animated.View>
-        </View>
-
-        <RichHeadline style={styles.title}>Designing your *parenting journey*</RichHeadline>
-
-        <Text style={styles.description}>
-          Creating a personalized program tailored to your family
+        <Text style={styles.eyebrow}>
+          {progress >= 100 ? 'YOUR PLAN IS BUILT' : 'BUILDING YOUR PLAN'}
         </Text>
 
-        <View style={styles.progressContainer}>
-          <ProgressBar current={progress} total={100} style={styles.progressBar} />
+        <View style={styles.percentRow}>
+          <Text style={styles.percent}>{Math.round(progress)}</Text>
+          <Text style={styles.percentSign}>%</Text>
+        </View>
+
+        <View style={styles.bar}>
+          <View style={[styles.barFill, { width: `${Math.min(100, Math.max(0, progress))}%` }]} />
+        </View>
+
+        <RichHeadline style={styles.title}>{buildHeadline}</RichHeadline>
+
+        {/* The three tasks name what THIS parent told us — their children's
+            ages, the thing they said was hardest. Generic loading copy is what
+            made the old version feel like a stall rather than work. */}
+        <View style={styles.tasks}>
+          {buildTasks.map((task, i) => {
+            const done = progress >= task.at;
+            const active = !done && progress >= (buildTasks[i - 1]?.at ?? 0);
+            return (
+              <View
+                key={task.label}
+                style={[styles.task, i < buildTasks.length - 1 ? styles.taskRule : null]}
+              >
+                <View
+                  style={[
+                    styles.taskDot,
+                    done ? styles.taskDotDone : active ? styles.taskDotActive : styles.taskDotIdle,
+                  ]}
+                >
+                  {done ? <TaskTick /> : active ? <View style={styles.taskDotPip} /> : null}
+                </View>
+                <Text style={[styles.taskText, !done && !active ? styles.taskTextIdle : null]}>
+                  {task.label}
+                </Text>
+              </View>
+            );
+          })}
         </View>
 
         <Text style={styles.status}>{getMessage()}</Text>
@@ -775,55 +850,77 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: C.paper,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing['4xl'],
+    paddingHorizontal: 30,
   },
   content: {
     width: '100%',
     maxWidth: 400,
-    alignItems: 'center',
-  },
-  logoContainer: {
-    marginBottom: Spacing['5xl'],
-  },
-  logoWrapper: {
-    width: 120,
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'center',
   },
   title: {
     fontFamily: F.serif,
-    fontSize: T.h1,
-    lineHeight: T.h1 * 1.2,
-    letterSpacing: -0.45,
+    fontSize: 27,
+    lineHeight: 27 * 1.32,
     color: C.ink,
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
+    marginTop: 26,
+    alignSelf: 'flex-start',
   },
-  description: {
-    fontFamily: F.serif,
-    fontSize: T.body,
-    lineHeight: T.body * 1.6,
-    color: oInk(0.76),
-    marginBottom: Spacing['5xl'],
-    textAlign: 'center',
-    paddingHorizontal: Spacing.md,
-  },
-  progressContainer: {
-    width: '100%',
-    marginBottom: Spacing['2xl'],
-  },
-  progressBar: {
-    height: 6,
-  },
-  status: {
+  eyebrow: {
     fontFamily: F.monoMed,
     fontSize: T.mono,
     letterSpacing: T.mono * 0.05,
     color: oInk(0.7),
-    textAlign: 'center',
+    alignSelf: 'flex-start',
+  },
+  percentRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 5, marginTop: 14, alignSelf: 'flex-start' },
+  percent: {
+    fontFamily: F.serifLight,
+    fontSize: 82,
+    lineHeight: 82 * 0.88,
+    letterSpacing: -3,
+    color: C.ink,
+  },
+  percentSign: {
+    fontFamily: F.serifItalic,
+    fontSize: 24,
+    color: oInk(0.55),
+    paddingBottom: 11,
+  },
+  bar: {
+    width: '100%',
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: oInk(0.14),
+    overflow: 'hidden',
+    marginTop: 18,
+  },
+  barFill: { height: '100%', borderRadius: 3, backgroundColor: C.forest },
+  tasks: { width: '100%', marginTop: 30 },
+  task: { flexDirection: 'row', alignItems: 'flex-start', gap: 15, paddingVertical: 16 },
+  taskRule: { borderBottomWidth: 1, borderBottomColor: oInk(0.09) },
+  taskDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  taskDotDone: { backgroundColor: C.forest, borderColor: C.forest },
+  taskDotActive: { borderColor: C.forest },
+  taskDotIdle: { borderColor: oInk(0.2) },
+  taskDotPip: { width: 8, height: 8, borderRadius: 999, backgroundColor: C.forest },
+  taskText: { flex: 1, fontFamily: F.serif, fontSize: 19, lineHeight: 19 * 1.45, color: C.ink },
+  taskTextIdle: { color: oInk(0.5) },
+  status: {
+    fontFamily: F.serifItalic,
+    fontSize: 16,
+    lineHeight: 16 * 1.6,
+    color: oInk(0.74),
+    marginTop: 24,
+    alignSelf: 'flex-start',
   },
   escapeContainer: {
     width: '100%',

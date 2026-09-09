@@ -95,11 +95,13 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
   const ruleActive = hasName || focused;
 
   const handleContinue = () => {
-    // Unchanged from v1.2.0: an empty name still stores 'Parent' rather than
-    // blocking, and the analytics payload reports presence, never the name.
-    const finalName = trimmed || 'Parent';
-    updateNameAndAge(finalName, age);
-    trackOnboardingStepCompleted('NameAge', { age, has_name: hasName });
+    // A name is now required. v1.2.0 accepted a blank field and stored
+    // 'Parent', which meant later screens addressed a stranger as "Parent" —
+    // worse than asking again here. The analytics payload still reports
+    // presence only, never the name itself.
+    if (!hasName) return;
+    updateNameAndAge(trimmed, age);
+    trackOnboardingStepCompleted('NameAge', { age, has_name: true });
     navigation.navigate('ChildrenCount');
   };
 
@@ -110,7 +112,7 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
       subtitle="So examples feel relevant to your life."
       onBack={() => navigation.goBack()}
       onContinue={handleContinue}
-      continueDisabled={age <= 0}
+      continueDisabled={!hasName || age <= 0}
       scrollable
     >
       <View>
@@ -134,21 +136,18 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.ageRow}>
-        <View>
-          <Text style={styles.fieldLabel}>Your age</Text>
-          <View style={styles.ageValueRow}>
-            <Text style={styles.ageValue}>{age}</Text>
-            <Text style={styles.ageRange}>{`${MIN_AGE} – ${MAX_AGE}`}</Text>
-          </View>
-        </View>
-
+      <View style={styles.ageBlock}>
+        <Text style={styles.fieldLabel}>Your age</Text>
+        {/* minus | value | plus — the v1.2.0 CounterSelector arrangement.
+            Flanking the number reads as "adjust this", where both buttons on
+            one side reads as a pair of unrelated controls. */}
         <View style={styles.stepper}>
           <StepperButton
             kind="minus"
             disabled={age <= MIN_AGE}
             onPress={() => setAge((prev) => Math.max(MIN_AGE, prev - 1))}
           />
+          <Text style={styles.ageValue}>{age}</Text>
           <StepperButton
             kind="plus"
             disabled={age >= MAX_AGE}
@@ -175,20 +174,26 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontFamily: F.serif, fontSize: T.h3, color: C.ink, padding: 0 },
   inputPlaceholderFace: { fontFamily: F.serifItalic },
 
-  ageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  ageBlock: {
     marginTop: 30,
     paddingTop: 22,
     borderTopWidth: 1,
     borderTopColor: oInk(0.09),
   },
-  ageValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 2 },
-  ageValue: { fontFamily: F.serif, fontSize: T.h1, color: C.ink },
-  ageRange: { fontFamily: F.serif, fontSize: T.uiSm, color: oInk(0.66) },
+  ageValue: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: F.serif,
+    fontSize: T.h1,
+    color: C.ink,
+  },
 
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
   stepBtn: {
     width: 46,
     height: 46,
