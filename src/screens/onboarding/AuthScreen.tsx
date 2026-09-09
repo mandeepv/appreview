@@ -276,11 +276,11 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <OnboardingScreen
       step={8}
-      headline={mode === 'signin' ? 'Welcome *back*.' : 'Keep your plan *safe*.'}
+      headline={mode === 'signin' ? 'Welcome *back*.' : 'Save your *plan*.'}
       subtitle={
         mode === 'signin'
-          ? 'Sign in to pick up where you left off.'
-          : "Your answers and progress, saved securely — so the plan is still here tomorrow."
+          ? 'Pick up right where you left off.'
+          : "So your answers are still here tomorrow, on any device."
       }
       onBack={mode === 'signin' ? () => navigation.goBack() : undefined}
       onHeadlinePress={handleTitlePress}
@@ -312,7 +312,12 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           ) : (
             <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              // CONTINUE, not SIGN_IN: this screen serves both a first-time
+              // signup and a returning sign-in, so the verb has to be true in
+              // both. It also matches "Continue with Google" beside it —
+              // SIGN_IN rendered "Sign in with Apple" next to a Continue
+              // button, which read as two different actions.
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
               cornerRadius={12}
               style={styles.appleButton}
