@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Alert, ActivityIndicator, Linking } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingScreen } from '../../components/onboarding/OnboardingScreen';
+import { OnboardingScreen, RichHeadline } from '../../components/onboarding/OnboardingScreen';
 import { GoogleMark } from '../../components/onboarding/GoogleMark';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useAuthStore } from '../../store/authStore';
@@ -12,6 +12,7 @@ import { signInWithGoogle, signInWithApple } from '../../services/authService';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { resolvePostAuthDestination } from '../../navigation/routingPolicy';
 import {
+  OnboardingColors as C,
   OnboardingFonts as F,
   OnboardingType as T,
   oInk,
@@ -273,20 +274,28 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   // hangs off the headline press (DEMO_MODE.md), both provider handlers and
   // the onboarding-check branches are untouched, and the signin-mode provider
   // hint and the Terms/Privacy links are preserved verbatim.
+  const title = mode === 'signin' ? 'Welcome *back*' : 'Save your *progress*';
+  const blurb =
+    mode === 'signin'
+      ? 'Sign in to continue your parenting journey.'
+      : "We'll save your preferences and progress securely.";
+
   return (
     <OnboardingScreen
-      // v1.2.0's copy. My rewrite ("So your answers are still here tomorrow,
-      // on any device") opened mid-sentence and read as a fragment.
-      headline={mode === 'signin' ? 'Welcome *back*' : 'Save your *progress*'}
-      subtitle={
-        mode === 'signin'
-          ? 'Sign in to continue your parenting journey.'
-          : "We'll save your preferences and progress securely."
-      }
+      // Headline is rendered in the BODY, not the shell's headline slot.
+      //
+      // The shell pins its headline to the top and the body fills what is
+      // left, so centring the buttons left the title stranded at the top with
+      // a void between. v1.2.0 kept title, blurb and buttons in one centred
+      // group — this reproduces that.
       onBack={mode === 'signin' ? () => navigation.goBack() : undefined}
-      onHeadlinePress={handleTitlePress}
     >
       <View style={styles.container}>
+        <Pressable onPress={handleTitlePress} style={styles.heading}>
+          <RichHeadline style={styles.title}>{title}</RichHeadline>
+          <Text style={styles.blurb}>{blurb}</Text>
+        </Pressable>
+
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.googleButton, isLoading && styles.buttonDisabled]}
@@ -359,6 +368,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingVertical: 24,
+  },
+  // 48px under the blurb, as v1.2.0's `content` had — enough that the buttons
+  // read as a separate act without drifting away from the text.
+  heading: { marginBottom: 48 },
+  title: {
+    fontFamily: F.serif,
+    fontSize: 30,
+    lineHeight: 30 * 1.2,
+    letterSpacing: -0.45,
+    color: C.ink,
+  },
+  blurb: {
+    fontFamily: F.serif,
+    fontSize: 17,
+    lineHeight: 17 * 1.6,
+    color: oInk(0.76),
+    marginTop: 12,
   },
   buttonContainer: {
     gap: 16,

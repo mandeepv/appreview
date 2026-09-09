@@ -158,8 +158,12 @@ type Props = {
    *  count should only move when the parent is actually asked something. */
   step?: number;
   totalSteps?: number;
-  /** Wrap the emphasised phrase in *stars*. */
-  headline: string;
+  /**
+   * Wrap the emphasised phrase in *stars*. Optional: AuthScreen renders its
+   * own heading inside the body so the title and the provider buttons can be
+   * centred as one group, which the shell's top-pinned slot cannot do.
+   */
+  headline?: string;
   subtitle?: string;
   onBack?: () => void;
   children: React.ReactNode;
@@ -237,13 +241,15 @@ export function OnboardingScreen({
           </View>
         ) : null}
 
-        {onHeadlinePress ? (
-          <Pressable onPress={onHeadlinePress} accessible={false}>
+        {headline !== undefined ? (
+          onHeadlinePress ? (
+            <Pressable onPress={onHeadlinePress} accessible={false}>
+              <RichHeadline style={styles.headline}>{headline}</RichHeadline>
+            </Pressable>
+          ) : (
             <RichHeadline style={styles.headline}>{headline}</RichHeadline>
-          </Pressable>
-        ) : (
-          <RichHeadline style={styles.headline}>{headline}</RichHeadline>
-        )}
+          )
+        ) : null}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
         {/* `styles.body` carries flex:1 on both paths, so the body takes the
