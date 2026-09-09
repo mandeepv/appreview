@@ -6,16 +6,16 @@ import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { Button } from '../../components/Button';
 import { Caption } from '../../components/Typography';
 import {
-  Colors,
   Spacing,
   Typography,
   OnboardingColors as C,
   OnboardingFonts as F,
   OnboardingType as T,
   oInk,
+  oCream,
 } from '../../constants/theme';
-import Svg, { Path } from 'react-native-svg';
 import { RichHeadline } from '../../components/onboarding/OnboardingScreen';
+import { ProgressRing } from '../../components/onboarding/ProgressRing';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useConfigStore } from '../../store/configStore';
@@ -43,21 +43,6 @@ const ESCAPE_HATCH_AFTER_ATTEMPTS = 3;
 const PRESENT_WATCHDOG_MS = 5000;
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
-
-/** Check drawn inside a completed task's disc. */
-function TaskTick() {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M20 6L9 17l-5-5"
-        stroke={C.cream}
-        strokeWidth={3.4}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
 
 /**
  * LoadingScreen is the subscription gate. Every route to Root passes through
@@ -696,9 +681,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // being done for them rather than a spinner. Every part degrades to a
   // truthful generic phrase when an answer is missing (cold launch, resumed
   // session, or a signed-in user whose local store was cleared).
-  const buildHeadline = 'Sitting with what you *told us*.';
-
-  const buildTasks = React.useMemo(() => {
+  const { buildTasks, buildSubtitle } = React.useMemo(() => {
     const goalLabels: Record<string, string> = {
       'behavior-issues': 'behaviour',
       'closer-relationship': 'closeness',
@@ -716,33 +699,58 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     const goalPhrase =
       goals.length === 2 ? `${goals[0]} and ${goals[1]}` : goals.length === 1 ? goals[0] : null;
 
-    // Age bands like '5-7' become "a 5- to 7-year-old" — readable, and honest
-    // that we hold a band rather than an exact age.
+    // Age bands read as their lower bound ("a 4- and 7-year-old"). We hold a
+    // band, not a year, so this is the closest honest phrasing.
     const bands = Array.from(
       new Set((onboardingStore.children ?? []).map((c) => c.ageRange).filter(Boolean)),
     ) as string[];
+    const ages = bands
+      .slice(0, 2)
+      .map((b) => (b === '18+' ? '18+' : b.split('-')[0]));
     const agePhrase =
-      bands.length > 0
-        ? bands
-            .slice(0, 2)
-            .map((b) => (b === '18+' ? '18+' : b.replace('-', ' to ')))
-            .join(' and ')
-        : null;
+      ages.length === 2
+        ? `a ${ages[0]}- and ${ages[1]}-year-old`
+        : ages.length === 1
+          ? `a ${ages[0]}-year-old`
+          : null;
 
-    return [
-      {
-        at: 34,
-        label: goalPhrase
-          ? `Reading your notes on ${goalPhrase}`
-          : 'Reading everything you told us',
-      },
-      {
-        at: 72,
-        label: agePhrase ? `Matching tools to ages ${agePhrase}` : 'Matching tools to your family',
-      },
-      { at: 100, label: 'Ordering your evenings, hardest first' },
-    ];
+    // One line under the headline naming this family back to them. Degrades to
+    // a true generic when the store is empty (cold launch, resumed session).
+    const subtitle =
+      agePhrase && goalPhrase
+        ? `For ${agePhrase}, in a house where ${goalPhrase} is the hard part.`
+        : agePhrase
+          ? `For ${agePhrase}, built around what you told us.`
+          : goalPhrase
+            ? `Built around ${goalPhrase}, and the week you described.`
+            : 'Built around the answers you just gave us.';
+
+    return {
+      buildSubtitle: subtitle,
+      buildTasks: [
+        {
+          at: 34,
+          headline: 'Reading your *answers*',
+          label: goalPhrase ? `Reading your notes on ${goalPhrase}` : 'Reading your answers',
+        },
+        {
+          at: 72,
+          headline: 'Matching *techniques*',
+          label: agePhrase ? `Matching tools to ${agePhrase}` : 'Matching tools to your family',
+        },
+        {
+          at: 100,
+          headline: 'Building your *plan*',
+          label: 'Ordering your evenings, hardest first',
+        },
+      ],
+    };
   }, [onboardingStore.improvementGoals, onboardingStore.children]);
+
+  // The task currently running drives the headline. Past 100 the last one
+  // stays, so the finished screen reads "Building your plan" rather than blank.
+  const activeTask =
+    buildTasks.find((t) => progress < t.at) ?? buildTasks[buildTasks.length - 1];
 
   const getMessage = () => {
     if (gateStatus === 'retry') return "Checking your subscription — please make sure you're online...";
@@ -756,42 +764,37 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.eyebrow}>
-          {progress >= 100 ? 'YOUR PLAN IS BUILT' : 'BUILDING YOUR PLAN'}
-        </Text>
-
-        <View style={styles.percentRow}>
-          <Text style={styles.percent}>{Math.round(progress)}</Text>
-          <Text style={styles.percentSign}>%</Text>
+        <View style={styles.ring}>
+          <ProgressRing percent={progress} />
         </View>
 
-        <View style={styles.bar}>
-          <View style={[styles.barFill, { width: `${Math.min(100, Math.max(0, progress))}%` }]} />
-        </View>
+        {/* The headline names the task actually running, so the screen reports
+            what it is doing rather than repeating one fixed sentence. */}
+        <RichHeadline style={styles.title}>{activeTask.headline}</RichHeadline>
+        <Text style={styles.subtitle}>{buildSubtitle}</Text>
 
-        <RichHeadline style={styles.title}>{buildHeadline}</RichHeadline>
-
-        {/* The three tasks name what THIS parent told us — their children's
-            ages, the thing they said was hardest. Generic loading copy is what
-            made the old version feel like a stall rather than work. */}
+        {/* Tasks name what THIS parent told us — their children's ages, the
+            thing they said was hardest. Generic loading copy is what made the
+            old version feel like a stall rather than work. */}
         <View style={styles.tasks}>
           {buildTasks.map((task, i) => {
             const done = progress >= task.at;
             const active = !done && progress >= (buildTasks[i - 1]?.at ?? 0);
             return (
-              <View
-                key={task.label}
-                style={[styles.task, i < buildTasks.length - 1 ? styles.taskRule : null]}
-              >
+              <View key={task.label} style={styles.task}>
                 <View
                   style={[
                     styles.taskDot,
-                    done ? styles.taskDotDone : active ? styles.taskDotActive : styles.taskDotIdle,
+                    active ? styles.taskDotActive : done ? styles.taskDotDone : styles.taskDotIdle,
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.taskText,
+                    active ? styles.taskTextActive : null,
+                    !done && !active ? styles.taskTextIdle : null,
                   ]}
                 >
-                  {done ? <TaskTick /> : active ? <View style={styles.taskDotPip} /> : null}
-                </View>
-                <Text style={[styles.taskText, !done && !active ? styles.taskTextIdle : null]}>
                   {task.label}
                 </Text>
               </View>
@@ -808,7 +811,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             fallback, not the main event. */}
         {showEscapeHatch && (
           <View style={styles.escapeContainer}>
-            <Caption center style={styles.escapeIntro}>
+            {/* Explicit cream: Caption defaults to dark ink, which is
+                invisible on this screen's forestDeep ground. */}
+            <Caption center color={C.cream} style={styles.escapeIntro}>
               Still having trouble? You can:
             </Caption>
 
@@ -835,7 +840,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             />
 
             {escapeError && (
-              <Caption center color={Colors.error} style={styles.escapeError}>
+              <Caption center color={C.clay} style={styles.escapeError}>
                 {escapeError}
               </Caption>
             )}
@@ -849,7 +854,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: C.paper,
+    backgroundColor: C.forestDeep,
     justifyContent: 'center',
     paddingHorizontal: 30,
   },
@@ -858,73 +863,52 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: 'center',
   },
+  // The takeover. This is the one screen where the app stops asking and works,
+  // so it goes dark: a scene change, and a second home for forestDeep so the
+  // colour is not splash-only. Everything on it is cream-on-green.
+  ring: { alignSelf: 'center' },
   title: {
     fontFamily: F.serif,
     fontSize: 27,
-    lineHeight: 27 * 1.32,
-    color: C.ink,
-    marginTop: 26,
-    alignSelf: 'flex-start',
+    lineHeight: 27 * 1.25,
+    color: C.cream,
+    marginTop: 34,
+    textAlign: 'center',
   },
-  eyebrow: {
-    fontFamily: F.monoMed,
-    fontSize: T.mono,
-    letterSpacing: T.mono * 0.05,
-    color: oInk(0.7),
-    alignSelf: 'flex-start',
+  subtitle: {
+    fontFamily: F.sans,
+    fontSize: 15,
+    lineHeight: 15 * 1.55,
+    color: oCream(0.72),
+    marginTop: 12,
+    textAlign: 'center',
+    paddingHorizontal: 12,
   },
-  percentRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 5, marginTop: 14, alignSelf: 'flex-start' },
-  percent: {
-    fontFamily: F.serifLight,
-    fontSize: 82,
-    lineHeight: 82 * 0.88,
-    letterSpacing: -3,
-    color: C.ink,
-  },
-  percentSign: {
-    fontFamily: F.serifItalic,
-    fontSize: 24,
-    color: oInk(0.55),
-    paddingBottom: 11,
-  },
-  bar: {
-    width: '100%',
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: oInk(0.14),
-    overflow: 'hidden',
-    marginTop: 18,
-  },
-  barFill: { height: '100%', borderRadius: 3, backgroundColor: C.forest },
-  tasks: { width: '100%', marginTop: 30 },
-  task: { flexDirection: 'row', alignItems: 'flex-start', gap: 15, paddingVertical: 16 },
-  taskRule: { borderBottomWidth: 1, borderBottomColor: oInk(0.09) },
-  taskDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 1,
-  },
-  taskDotDone: { backgroundColor: C.forest, borderColor: C.forest },
-  taskDotActive: { borderColor: C.forest },
-  taskDotIdle: { borderColor: oInk(0.2) },
-  taskDotPip: { width: 8, height: 8, borderRadius: 999, backgroundColor: C.forest },
-  taskText: { flex: 1, fontFamily: F.serif, fontSize: 19, lineHeight: 19 * 1.45, color: C.ink },
-  taskTextIdle: { color: oInk(0.5) },
+  tasks: { marginTop: 40, alignSelf: 'center' },
+  task: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 8 },
+  taskDot: { width: 8, height: 8, borderRadius: 999 },
+  taskDotDone: { backgroundColor: oCream(0.35) },
+  taskDotActive: { backgroundColor: C.clay },
+  taskDotIdle: { backgroundColor: oCream(0.22) },
+  taskText: { fontFamily: F.sans, fontSize: 15, color: oCream(0.55) },
+  taskTextActive: { fontFamily: F.sansSemi, color: C.cream },
+  taskTextIdle: { color: oCream(0.4) },
   status: {
-    fontFamily: F.serifItalic,
-    fontSize: 16,
-    lineHeight: 16 * 1.6,
-    color: oInk(0.74),
-    marginTop: 24,
-    alignSelf: 'flex-start',
+    fontFamily: F.sans,
+    fontSize: 13,
+    lineHeight: 13 * 1.5,
+    color: oCream(0.5),
+    marginTop: 28,
+    textAlign: 'center',
   },
   escapeContainer: {
     width: '100%',
     marginTop: Spacing['3xl'],
+    // A hairline separates the fallback from the build above it — the retry
+    // loop is still running, and these are the exit, not the main event.
+    borderTopWidth: 1,
+    borderTopColor: oCream(0.16),
+    paddingTop: Spacing.lg,
   },
   escapeIntro: {
     marginBottom: Spacing.md,
