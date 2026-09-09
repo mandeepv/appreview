@@ -197,13 +197,13 @@ export function OnboardingScreen({
         )}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
+        {/* `styles.body` carries flex:1 on both paths, so the body takes the
+            space between header and footer: a short View leaves the footer at
+            the bottom, and a long list scrolls inside its own bounds instead
+            of growing over the header. */}
         <Body style={styles.body} {...bodyProps}>
           {children}
         </Body>
-
-        {/* Pushes the footer down when the content is short, and lets the list
-            scroll under a footer that stays put when it is long. */}
-        {!scrollable ? <View style={styles.spacer} /> : null}
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           {footerNote ? <View style={styles.footerNote}>{footerNote}</View> : null}
@@ -248,9 +248,16 @@ const styles = StyleSheet.create({
     color: oInk(0.78),
     marginTop: 12,
   },
-  body: { marginTop: 28 },
+  /**
+   * `flex: 1` is load-bearing on the scrollable path. A ScrollView with no
+   * flex in a column parent expands past its share of the height, overlapping
+   * the header — which swallowed taps on the back chevron on exactly the four
+   * screens that pass `scrollable`. Constraining it here makes the ScrollView
+   * take the leftover space and scroll inside it, so the header stays tappable
+   * and the footer stays put.
+   */
+  body: { flex: 1, marginTop: 28 },
   scrollInner: { paddingBottom: 8 },
-  spacer: { flex: 1, minHeight: 14 },
   footer: { paddingTop: 4 },
   footerNote: { paddingBottom: 13 },
   footerAction: { marginTop: 18 },
