@@ -300,7 +300,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
               <ActivityIndicator color="#DB4437" />
             ) : (
               <>
-                <GoogleMark size={20} />
+                <GoogleMark size={21} />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
               </>
             )}
@@ -390,14 +390,20 @@ const styles = StyleSheet.create({
   //
   // This is one of the few places the house font must lose — matching the
   // native control beside it matters more than palette consistency.
-  // Metrics matched to Apple's native label, which is the reference beside it:
-  // system font (SF), 19pt, semibold, and NO extra tracking — Apple's is
-  // tighter, so letterSpacing made the Google label look wider and lighter.
+  // Matched to Apple's native label, which cannot be styled and is therefore
+  // the reference.
+  //
+  // ASAuthorizationAppleIDButton scales its label to the button's height and
+  // exposes no way to read it back, so this is calibrated by eye against the
+  // button beside it: 17 and 19 read smaller, 24 (the 43%-of-height figure)
+  // and 22 read larger. 21 is the match at a 56pt button height.
+  //
+  // If the button height changes, revisit this.
   googleButtonText: {
-    fontSize: 19,
-    fontWeight: '600',
+    fontSize: 21,
+    fontWeight: '500',
     color: '#1F1F1F',
-    marginLeft: 12,
+    marginLeft: 10,
   },
   appleButton: {
     width: '100%',
