@@ -528,9 +528,15 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       // Post-onboarding: run the 4-second progress theater (the
       // "analyzing your family profile" messaging) so the user sees the
       // app doing something with their answers. Then run the gate.
-      // 80 ticks x 50ms = 4s in production. THEATER_SLOWMO stretches that in
-      // development so the screen can actually be looked at — four seconds is
-      // enough for a user and far too short to judge a design against.
+      // 200 ticks x 50ms = 10s. Was 4s (+1.25/tick), which gave each of the
+      // three tasks ~1.4s — too fast to register a subtitle that names your
+      // children's ages back to you. At 10s each task holds ~3.3s.
+      //
+      // This is dead time in front of a paywall, so it is a real trade: the
+      // screen has to feel like work being done, not a stall. Watch
+      // onboarding_completed against subscription_purchased before keeping it.
+      //
+      // THEATER_SLOWMO stretches it further in development for inspection.
       const tick = 50 * THEATER_SLOWMO;
       const interval = setInterval(() => {
         setProgress((prev) => {
@@ -543,7 +549,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             }
             return 100;
           }
-          return prev + 1.25;
+          return prev + 0.5;
         });
       }, tick);
       return () => clearInterval(interval);
