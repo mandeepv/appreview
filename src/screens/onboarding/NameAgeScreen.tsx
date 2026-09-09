@@ -1,16 +1,15 @@
 /**
- * Screens 13a / 13b in the design canvas — "STEP 2 OF 8".
+ * Screens 13a / 13b in the design canvas — step 2 of 8.
  *
- * The canvas draws the name field three times (EMPTY / TYPING / VALID) as a
- * state legend, not as three fields: one underlined input that moves from a
- * hairline rule and italic placeholder, to a forest rule while typing, to a
- * forest rule with a tick once it holds a name. 13b is the same screen with
- * the keyboard up — the stepper stays reachable, which is why the age control
- * is a compact row rather than a full-width block.
+ * Layout follows v1.2.0 rather than the canvas, which drew both fields as thin
+ * hairline rules with small labels. On device that read as too quiet to fill
+ * in, so the sizes here are the shipped ones: 16pt semibold labels, an 18pt
+ * input, and the stepper's 40pt value between two 56pt buttons.
  *
- * The field is a serif input on a rule rather than a boxed FormInput. That is
- * deliberate in the canvas: a bordered box reads as a form to fill in, a rule
- * reads as a letter to complete.
+ * The stepper is a single pill containing minus, value, plus. Spreading the
+ * buttons across the screen width pushed them to opposite edges and broke the
+ * read as one control; grouping them in a pill keeps the value and its two
+ * controls together the way the original did.
  */
 
 import React, { useState } from 'react';
@@ -24,7 +23,6 @@ import { trackOnboardingStepCompleted } from '../../lib/analytics';
 import {
   OnboardingColors as C,
   OnboardingFonts as F,
-  OnboardingType as T,
   oInk,
 } from '../../constants/theme';
 
@@ -35,7 +33,7 @@ const MAX_AGE = 100;
 
 function Tick() {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path
         d="M20 6L9 17l-5-5"
         stroke={C.forest}
@@ -47,7 +45,7 @@ function Tick() {
   );
 }
 
-function StepperButton({
+function StepButton({
   kind,
   onPress,
   disabled,
@@ -61,18 +59,17 @@ function StepperButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      hitSlop={6}
       accessibilityRole="button"
       accessibilityLabel={isPlus ? 'Increase age' : 'Decrease age'}
       style={({ pressed }) => [
         styles.stepBtn,
         isPlus ? styles.stepBtnPlus : styles.stepBtnMinus,
-        disabled ? { opacity: 0.4 } : null,
+        disabled ? styles.stepBtnDisabled : null,
         pressed && !disabled ? { opacity: 0.7 } : null,
       ]}
     >
       {isPlus ? (
-        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
           <Path d="M12 5v14M5 12h14" stroke={C.cream} strokeWidth={2.8} strokeLinecap="round" />
         </Svg>
       ) : (
@@ -90,15 +87,12 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
 
   const trimmed = name.trim();
   const hasName = trimmed.length > 0;
-  // The rule lights forest as soon as the field is live — typing or filled —
-  // and stays hairline only while genuinely empty and untouched.
   const ruleActive = hasName || focused;
 
   const handleContinue = () => {
-    // A name is now required. v1.2.0 accepted a blank field and stored
-    // 'Parent', which meant later screens addressed a stranger as "Parent" —
-    // worse than asking again here. The analytics payload still reports
-    // presence only, never the name itself.
+    // A name is required. v1.2.0 accepted a blank field and stored 'Parent',
+    // which meant later screens addressed a stranger as "Parent". The
+    // analytics payload still reports presence only, never the name.
     if (!hasName) return;
     updateNameAndAge(trimmed, age);
     trackOnboardingStepCompleted('NameAge', { age, has_name: true });
@@ -108,8 +102,10 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <OnboardingScreen
       step={2}
-      headline="Let's *personalize* this for you."
-      subtitle="So examples feel relevant to your life."
+      // Emphasis sits on who this is for, not on the machinery of
+      // personalising. The canvas's subtitle ("So examples feel relevant to
+      // your life") only restated the headline, so it is gone.
+      headline="Let's personalize this for *you*."
       onBack={() => navigation.goBack()}
       onContinue={handleContinue}
       continueDisabled={!hasName || age <= 0}
@@ -123,9 +119,9 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
             onChangeText={setName}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="What should we call you?"
-            placeholderTextColor={oInk(0.72)}
-            style={[styles.input, !hasName ? styles.inputPlaceholderFace : null]}
+            placeholder="Enter your first name"
+            placeholderTextColor={oInk(0.45)}
+            style={styles.input}
             maxLength={50}
             returnKeyType="done"
             autoCapitalize="words"
@@ -138,17 +134,14 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
 
       <View style={styles.ageBlock}>
         <Text style={styles.fieldLabel}>Your age</Text>
-        {/* minus | value | plus — the v1.2.0 CounterSelector arrangement.
-            Flanking the number reads as "adjust this", where both buttons on
-            one side reads as a pair of unrelated controls. */}
-        <View style={styles.stepper}>
-          <StepperButton
+        <View style={styles.stepperPill}>
+          <StepButton
             kind="minus"
             disabled={age <= MIN_AGE}
             onPress={() => setAge((prev) => Math.max(MIN_AGE, prev - 1))}
           />
           <Text style={styles.ageValue}>{age}</Text>
-          <StepperButton
+          <StepButton
             kind="plus"
             disabled={age >= MAX_AGE}
             onPress={() => setAge((prev) => Math.min(MAX_AGE, prev + 1))}
@@ -160,48 +153,59 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  fieldLabel: { fontFamily: F.sansMed, fontSize: T.meta, color: oInk(0.7) },
+  fieldLabel: { fontFamily: F.sansSemi, fontSize: 16, color: C.ink, letterSpacing: 0.2 },
   fieldRule: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 8,
-    paddingBottom: 9,
+    marginTop: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1.5,
     borderBottomColor: oInk(0.24),
   },
   fieldRuleActive: { borderBottomColor: C.forest },
-  input: { flex: 1, fontFamily: F.serif, fontSize: T.h3, color: C.ink, padding: 0 },
-  inputPlaceholderFace: { fontFamily: F.serifItalic },
+  input: {
+    flex: 1,
+    fontFamily: F.sansMed,
+    fontSize: 18,
+    color: C.ink,
+    padding: 0,
+  },
 
   ageBlock: {
-    marginTop: 30,
-    paddingTop: 22,
+    marginTop: 34,
+    paddingTop: 26,
     borderTopWidth: 1,
     borderTopColor: oInk(0.09),
   },
-  ageValue: {
-    flex: 1,
-    textAlign: 'center',
-    fontFamily: F.serif,
-    fontSize: T.h1,
-    color: C.ink,
-  },
-
-  stepper: {
+  // One pill holding minus | value | plus, centred — keeps the controls beside
+  // the number they change rather than at opposite screen edges.
+  stepperPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
+    alignSelf: 'center',
+    backgroundColor: C.wash,
+    borderRadius: 999,
+    padding: 8,
+    marginTop: 16,
+  },
+  ageValue: {
+    minWidth: 108,
+    textAlign: 'center',
+    fontFamily: F.serif,
+    fontSize: 40,
+    letterSpacing: -1,
+    color: C.ink,
   },
   stepBtn: {
-    width: 46,
-    height: 46,
+    width: 56,
+    height: 56,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBtnMinus: { borderWidth: 1.5, borderColor: oInk(0.28) },
+  stepBtnMinus: { backgroundColor: C.paper, borderWidth: 1.5, borderColor: oInk(0.18) },
   stepBtnPlus: { backgroundColor: C.forest },
-  minusBar: { width: 16, height: 1.8, borderRadius: 2, backgroundColor: C.ink },
+  stepBtnDisabled: { opacity: 0.35 },
+  minusBar: { width: 20, height: 2.2, borderRadius: 2, backgroundColor: C.ink },
 });

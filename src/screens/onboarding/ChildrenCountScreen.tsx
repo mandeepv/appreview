@@ -137,7 +137,7 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
               pressed ? { opacity: 0.6 } : null,
             ]}
           >
-            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
               <Path d="M12 5v14M5 12h14" stroke={C.cream} strokeWidth={2.8} strokeLinecap="round" />
             </Svg>
           </Pressable>
@@ -177,30 +177,36 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  label: { fontFamily: F.sansMed, fontSize: T.ui, color: C.ink },
+  label: { fontFamily: F.sansSemi, fontSize: 16, color: C.ink, letterSpacing: 0.2 },
   hint: { fontFamily: F.serifItalic, fontSize: T.uiSm, color: oInk(0.7), marginTop: 4 },
 
+  // Same pill as NameAge — minus, value, plus grouped together rather than
+  // spread to the screen edges.
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
+    alignSelf: 'center',
+    backgroundColor: C.wash,
+    borderRadius: 999,
+    padding: 8,
+    marginTop: 16,
   },
   stepBtn: {
-    width: 46,
-    height: 46,
+    width: 56,
+    height: 56,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBtnMinus: { borderWidth: 1.5, borderColor: oInk(0.28) },
+  stepBtnMinus: { backgroundColor: C.paper, borderWidth: 1.5, borderColor: oInk(0.18) },
   stepBtnPlus: { backgroundColor: C.forest },
-  minusBar: { width: 16, height: 1.8, borderRadius: 2, backgroundColor: C.ink },
+  minusBar: { width: 20, height: 2.2, borderRadius: 2, backgroundColor: C.ink },
   countValue: {
-    flex: 1,
+    minWidth: 108,
     textAlign: 'center',
     fontFamily: F.serif,
-    fontSize: T.h1,
+    fontSize: 40,
+    letterSpacing: -1,
     color: C.ink,
   },
 
