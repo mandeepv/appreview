@@ -1,10 +1,15 @@
 /**
  * Screen 11 in the design canvas — "one way forward, one quiet way back in".
  *
- * The mark sits top-left rather than centred, the promise carries the screen,
- * and the two proof lines are checks rather than badges. "Get started" is the
- * only filled control; signing in is a quiet underline underneath, because
- * returning users are the minority and a second pill would split the decision.
+ * The mark sits top-left rather than centred, and the promise carries the
+ * screen. "Get started" is the only filled control; signing in is a quiet
+ * underline underneath, because returning users are the minority and a second
+ * pill would split the decision.
+ *
+ * Two proof rows ("Written by child psychologists", "Used the same evening you
+ * read it") used to sit under the lede. They were cut: the lede now names the
+ * psychologists and the five minutes itself, so the rows repeated it in a
+ * second visual register.
  *
  * Both navigation paths are unchanged from v1.2.0: Get started → UserType
  * (with the restart-tracking branch), Sign in → Auth in signin mode.
@@ -14,7 +19,6 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import Svg, { Path } from 'react-native-svg';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
 import { KinderwellMark } from '../../components/onboarding/KinderwellMark';
 import { RichHeadline, ContinuePill } from '../../components/onboarding/OnboardingScreen';
@@ -31,22 +35,6 @@ import {
 } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
-
-const PROOF = ['Written by child psychologists', 'Used the same evening you read it'];
-
-function CheckMark() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M20 6L9 17l-5-5"
-        stroke={C.forest}
-        strokeWidth={2.8}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
 
 export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -95,24 +83,11 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.grow} />
 
           <RichHeadline style={styles.headline}>
-            The hardest job in the world came with *no manual*.
+            Become a better parent, *five minutes a day*.
           </RichHeadline>
           <Text style={styles.lede}>
-            Kinderwell is the manual. Six questions, five minutes, and a plan built around your
-            family.
+            Short daily lessons from child psychologists, built around your kids.
           </Text>
-
-          <View style={styles.proof}>
-            {PROOF.map((line, i) => (
-              <View
-                key={line}
-                style={[styles.proofRow, i < PROOF.length - 1 ? styles.proofRule : null]}
-              >
-                <CheckMark />
-                <Text style={styles.proofText}>{line}</Text>
-              </View>
-            ))}
-          </View>
 
           <View style={styles.grow} />
 
@@ -151,10 +126,6 @@ const styles = StyleSheet.create({
     marginTop: 14,
     maxWidth: 310,
   },
-  proof: { marginTop: 30 },
-  proofRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12 },
-  proofRule: { borderBottomWidth: 1, borderBottomColor: oInk(0.09) },
-  proofText: { flex: 1, fontFamily: F.serif, fontSize: T.body, color: C.ink },
   signInRow: {
     flexDirection: 'row',
     alignItems: 'center',
