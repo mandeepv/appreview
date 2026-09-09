@@ -104,14 +104,14 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
     {
       Mark: TimerMark,
       title: 'One lesson, *5 minutes* a day',
-      body: "Read it at bedtime, try it tomorrow. Miss a day and there's nothing to catch up on.",
+      body: 'Short and practical lessons that will make parenting easier.',
     },
     {
       Mark: ClipboardMark,
       title: 'Written by child *psychologists*',
-      // Deliberately no citation claim: the lessons do not carry references,
-      // so "cites its research" would be a promise the product does not keep.
-      body: 'Grounded in child development, written in plain language.',
+      // No citation claim: the lessons carry no references, so anything about
+      // citing sources would be a promise the product does not keep.
+      body: 'Grounded in research and science. Written simply.',
     },
   ];
 
