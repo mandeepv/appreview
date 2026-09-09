@@ -20,7 +20,6 @@ import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { KinderwellMark } from '../../components/onboarding/KinderwellMark';
 import { RichHeadline, ContinuePill } from '../../components/onboarding/OnboardingScreen';
 import { trackWelcomeCtaTapped, trackOnboardingRestarted } from '../../lib/analytics';
 import { useOnboardingStore } from '../../store/onboardingStore';
@@ -78,9 +77,9 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
     <View style={styles.screen}>
       <SafeAreaView style={styles.safe}>
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-          <KinderwellMark size={46} color={C.forest} />
-
           <View style={styles.grow} />
+
+          <Text style={styles.wordmark}>Kinderwell</Text>
 
           <RichHeadline style={styles.headline}>
             Become a better parent, *five minutes a day*.
@@ -110,6 +109,16 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
   safe: { flex: 1 },
   content: { flex: 1, paddingHorizontal: L.screenPad, paddingTop: 34, paddingBottom: 34 },
+  // Wordmark rather than the drawn mark: the glyph read as a stray element
+  // here, and the name in the brand serif does the same job with less. It sits
+  // directly above the headline so the two read as one block.
+  wordmark: {
+    fontFamily: F.serif,
+    fontSize: 34,
+    letterSpacing: -0.8,
+    color: C.forest,
+    marginBottom: 26,
+  },
   grow: { flex: 1, minHeight: 20 },
   headline: {
     fontFamily: F.serif,
