@@ -307,7 +307,12 @@ export const OnboardingLayout = {
   stepperSize: 44,
   checkbox: 23,
   rowGap: 10,
-  totalSteps: 8, // "STEP n OF 8" — the eight question screens
+  // Seven question screens carry the progress bar. Educational (a
+  // reassurance beat) and Auth (the sign-up) show none — neither asks
+  // anything, and advancing the bar there would overstate the work done.
+  // EmotionalChallenges is step 7, so the bar reaches full on the last
+  // question rather than stopping short.
+  totalSteps: 7,
 } as const;
 
 // Export default theme object

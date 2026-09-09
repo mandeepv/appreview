@@ -275,7 +275,6 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   // hint and the Terms/Privacy links are preserved verbatim.
   return (
     <OnboardingScreen
-      step={8}
       // v1.2.0's copy. My rewrite ("So your answers are still here tomorrow,
       // on any device") opened mid-sentence and read as a fragment.
       headline={mode === 'signin' ? 'Welcome *back*' : 'Save your *progress*'}
@@ -286,7 +285,6 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       }
       onBack={mode === 'signin' ? () => navigation.goBack() : undefined}
       onHeadlinePress={handleTitlePress}
-      scrollable
     >
       <View style={styles.container}>
         <View style={styles.buttonContainer}>
@@ -353,14 +351,17 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
+  // Centred in the body, as v1.2.0 had it. 'flex-end' pushed the buttons to
+  // the bottom of the body — but the body starts just under the headline, so
+  // they landed high with dead space beneath rather than sitting in the middle
+  // of the screen where the thumb is.
   container: {
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 8,
+    justifyContent: 'center',
+    paddingVertical: 24,
   },
   buttonContainer: {
-    gap: 12,
-    marginTop: 30,
+    gap: 16,
   },
   // Provider buttons keep v1.2.0's geometry: 56 tall, 12 radius.
   //
