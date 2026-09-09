@@ -44,9 +44,9 @@ import { trackOnboardingStepCompleted } from '../../lib/analytics';
 import {
   OnboardingColors as C,
   OnboardingFonts as F,
+  OnboardingRadius as R,
   OnboardingType as T,
   oInk,
-  oForest,
 } from '../../constants/theme';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Educational'>;
@@ -55,10 +55,10 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Educational'>;
 function ChildMark() {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={7} r={3.4} stroke={C.forest} strokeWidth={2} />
+      <Circle cx={12} cy={7} r={3.4} stroke={C.cream} strokeWidth={2} />
       <Path
         d="M5.5 20.5a6.5 6.5 0 0113 0"
-        stroke={C.forest}
+        stroke={C.cream}
         strokeWidth={2}
         strokeLinecap="round"
       />
@@ -70,10 +70,10 @@ function ChildMark() {
 function TimerMark() {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={13} r={7.6} stroke={C.forest} strokeWidth={2} />
+      <Circle cx={12} cy={13} r={7.6} stroke={C.cream} strokeWidth={2} />
       <Path
         d="M12 9.4V13l2.6 1.7M9.4 3.4h5.2"
-        stroke={C.forest}
+        stroke={C.cream}
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -86,10 +86,10 @@ function TimerMark() {
 function ClipboardMark() {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Rect x={5} y={4.5} width={14} height={16} rx={2.4} stroke={C.forest} strokeWidth={2} />
+      <Rect x={5} y={4.5} width={14} height={16} rx={2.4} stroke={C.cream} strokeWidth={2} />
       <Path
         d="M9.2 4.5V3.4h5.6v1.1M9.4 11h5.2M9.4 15h3.4"
-        stroke={C.forest}
+        stroke={C.cream}
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -177,14 +177,24 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 22 },
-  rowRule: { borderBottomWidth: 1, borderBottomColor: oInk(0.09) },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: C.wash,
+    borderRadius: R.card,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+  },
+  rowRule: { marginBottom: 12 },
+  // Filled forest discs rather than hairline rings. All three points carry
+  // equal weight, so the screen needed texture, not hierarchy — the green
+  // reads as three deliberate marks where outlines read as absence.
   markDisc: {
-    width: 42,
-    height: 42,
+    width: 52,
+    height: 52,
     borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: oForest(0.4),
+    backgroundColor: C.forest,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
