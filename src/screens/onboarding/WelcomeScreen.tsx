@@ -110,14 +110,23 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { flex: 1, paddingHorizontal: L.screenPad, paddingTop: 34, paddingBottom: 34 },
   // Wordmark rather than the drawn mark: the glyph read as a stray element
-  // here, and the name in the brand serif does the same job with less. It sits
-  // directly above the headline so the two read as one block.
+  // here, and the name in the brand serif does the same job with less.
+  //
+  // Deliberately SMALLER than the headline. The wordmark answers "what app is
+  // this?" in a glance; the headline does the persuading. At 34 it outranked
+  // the 30pt promise, which is the wrong way round on a screen selling the
+  // promise to someone who does not know the name yet. Presence comes from
+  // the tracking, not the size.
+  //
+  // Left-aligned on the same 30px gutter as the headline and lede — the shared
+  // edge is what makes the three read as one block; centring it would orphan
+  // it again, and centred type reads ceremonial where this flow is editorial.
   wordmark: {
     fontFamily: F.serif,
-    fontSize: 34,
-    letterSpacing: -0.8,
+    fontSize: 22,
+    letterSpacing: 0.3,
     color: C.forest,
-    marginBottom: 26,
+    marginBottom: 22,
   },
   grow: { flex: 1, minHeight: 20 },
   headline: {

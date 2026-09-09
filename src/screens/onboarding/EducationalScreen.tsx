@@ -17,10 +17,14 @@
  * treats unverifiable proof claims as an App Review risk, and there is no
  * verified figure to use.
  *
- * WEIGHT. An earlier pass stacked three filled cards and the CTA fell below
- * the fold on a small phone. Rows are now icon + text separated by hairlines,
- * so three claims read as a list rather than a wall. Icons stay; the 01/02/03
- * numerals went — together they were two decorations competing in one corner.
+ * WEIGHT. This has come down twice. First from three filled cards, which
+ * stacked into a wall and pushed the CTA below the fold on a small phone.
+ * Then from icon + title + sentence, which was uniform enough that the eye
+ * skimmed all three — and every sentence was one more claim to take on faith.
+ *
+ * It is now three titles with air between them, which is short enough to
+ * actually get read. Icons stay; the 01/02/03 numerals went, since together
+ * they were two decorations competing in one corner.
  *
  * Rows fade in ~220ms apart so the three claims arrive as a sequence rather
  * than a block. Motion is skipped under Reduce Motion.
@@ -95,24 +99,14 @@ function ClipboardMark() {
 }
 
 export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
+  // Titles only. Three rows of icon + title + sentence was a uniform rhythm
+  // with nothing to land on, so the eye skimmed all of it — and every sentence
+  // was another claim to take on faith. Three short lines with air between
+  // them get read completely.
   const rows = [
-    {
-      Mark: ChildMark,
-      title: 'Personalized for *your* family',
-      body: "Your kids' ages, your biggest struggle right now. Not the same course everyone gets.",
-    },
-    {
-      Mark: TimerMark,
-      title: 'One lesson, *5 minutes* a day',
-      body: 'Short and practical lessons that will make parenting easier.',
-    },
-    {
-      Mark: ClipboardMark,
-      title: 'Written by child *psychologists*',
-      // No citation claim: the lessons carry no references, so anything about
-      // citing sources would be a promise the product does not keep.
-      body: 'Grounded in research and science. Written simply.',
-    },
+    { Mark: ChildMark, title: 'Personalized for *your* family' },
+    { Mark: TimerMark, title: 'One lesson, *5 minutes* a day' },
+    { Mark: ClipboardMark, title: 'Written by child *psychologists*' },
   ];
 
   // One Animated.Value per row, staggered so the claims arrive as a sequence.
@@ -152,7 +146,7 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
       scrollable
     >
       <View>
-        {rows.map(({ Mark, title, body }, i) => (
+        {rows.map(({ Mark, title }, i) => (
           <Animated.View
             key={title}
             style={[
@@ -174,10 +168,7 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
             <View style={styles.markDisc}>
               <Mark />
             </View>
-            <View style={styles.rowText}>
-              <RichHeadline style={styles.rowTitle}>{title}</RichHeadline>
-              <Text style={styles.rowBody}>{body}</Text>
-            </View>
+            <RichHeadline style={styles.rowTitle}>{title}</RichHeadline>
           </Animated.View>
         ))}
       </View>
@@ -186,7 +177,7 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 15, paddingVertical: 18 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 22 },
   rowRule: { borderBottomWidth: 1, borderBottomColor: oInk(0.09) },
   markDisc: {
     width: 42,
@@ -198,13 +189,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  rowText: { flex: 1 },
-  rowTitle: { fontFamily: F.serif, fontSize: 21, lineHeight: 21 * 1.3, color: C.ink },
-  rowBody: {
-    fontFamily: F.serif,
-    fontSize: 16,
-    lineHeight: 16 * 1.5,
-    color: oInk(0.76),
-    marginTop: 5,
-  },
+  rowTitle: { flex: 1, fontFamily: F.serif, fontSize: 22, lineHeight: 22 * 1.3, color: C.ink },
 });
