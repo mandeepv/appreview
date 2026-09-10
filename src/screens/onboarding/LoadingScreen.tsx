@@ -779,14 +779,19 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const activeTask =
     buildTasks.find((t) => progress < t.at) ?? buildTasks[buildTasks.length - 1];
 
-  const getMessage = () => {
-    if (gateStatus === 'retry') return "Checking your subscription — please make sure you're online...";
-    if (progress < 25) return 'Analyzing your family profile...';
-    if (progress < 50) return 'Tailoring lessons for your needs...';
-    if (progress < 75) return 'Balancing science with real-life...';
-    if (progress < 95) return 'Finalizing your journey...';
-    return 'Almost ready!';
-  };
+  /**
+   * Only the retry state has anything left to say.
+   *
+   * This used to cycle "Analyzing your family profile…", "Tailoring lessons…"
+   * and so on beneath the ring — a second running commentary competing with
+   * the task list directly above it, saying the same thing in vaguer words.
+   * With the task rows naming real answers, the extra line was just more text
+   * on screen. The offline warning stays: nothing else tells the user why a
+   * finished bar has not moved on.
+   */
+  const statusMessage = gateStatus === 'retry'
+    ? "Checking your subscription — please make sure you're online..."
+    : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -829,7 +834,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           })}
         </View>
 
-        <Text style={styles.status}>{getMessage()}</Text>
+        {statusMessage ? <Text style={styles.status}>{statusMessage}</Text> : null}
 
         {/* R3b: escape hatch. Only after the gate has failed to reach
             Superwall enough times (>= ESCAPE_HATCH_AFTER_ATTEMPTS) do we
