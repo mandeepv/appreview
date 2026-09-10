@@ -35,6 +35,14 @@ export const STORAGE_KEYS = {
   // sign-out. See docs/PAYWALL_MODEL.md.
   IS_SUBSCRIBED: '@kinderwell_is_subscribed',
 
+  // Whole-lesson completion for the Learn path: a JSON array of lesson slugs.
+  //
+  // Deliberately SEPARATE from the per-lesson section keys below. `storageKey`
+  // is overloaded — it also marks a lesson as hub-style, which changes where
+  // `lesson_started` fires and demands a HUB_META entry — so flow lessons 1-4
+  // cannot simply be given one. See src/lessons/lessonCompletion.ts.
+  LESSONS_COMPLETED: '@kinderwell_lessons_completed',
+
   // Per-lesson section-completion progress. Keyed per device, not per
   // user — so they survive account deletion. See the comment in
   // authService.deleteAccount for rationale.

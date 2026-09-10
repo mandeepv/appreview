@@ -23,6 +23,7 @@ import { QuizQuestion } from '../components/QuizQuestion';
 import { QuizQuestionMultiSelect } from '../components/QuizQuestionMultiSelect';
 import { BlockRenderer } from './components/BlockRenderer';
 import { createProgressStore } from './progressStore';
+import { markLessonCompleted } from './lessonCompletion';
 import { safeCapture } from '../lib/analytics';
 import { Colors, Typography, Shadows } from '../constants/theme';
 import type { Lesson, LessonScreen } from './schema';
@@ -148,6 +149,11 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     });
     if (justCompletedLesson) {
       safeCapture('lesson_completed', { lesson_id: lesson.slug });
+      // Whole-lesson record for the Learn path. Deliberately NOT derived from
+      // `storageKey`: flow lessons 1-4 cannot carry one without changing where
+      // lesson_started fires. See src/lessons/lessonCompletion.ts.
+      // Fire-and-forget — a lost checkmark must never block finishing a lesson.
+      void markLessonCompleted(lesson.slug);
     }
 
     onSectionComplete();
