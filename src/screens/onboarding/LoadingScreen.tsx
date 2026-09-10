@@ -95,6 +95,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     onboardingStore.userType !== null ? 0 : 100,
   );
   const [gateStatus, setGateStatus] = useState<'idle' | 'presenting' | 'retry' | 'blocked'>('idle');
+
   const { identify } = useUser();
   const paywallPresentedRef = useRef(false);
   const { signOut } = useAuthStore();

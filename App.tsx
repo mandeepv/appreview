@@ -33,17 +33,23 @@ import {
 } from '@expo-google-fonts/ibm-plex-mono';
 
 function AppContent() {
-  // Onboarding redesign fonts (Newsreader / Figtree / IBM Plex Mono).
+  // Onboarding fonts (Newsreader / Figtree / IBM Plex Mono).
   //
-  // Deliberately NOT a render gate. INVARIANT #1 — every path into Root goes
-  // through the Loading gate — plus the splash work in SPEC-16 means the first
-  // frame has to keep coming from SplashScreen, not from a font-loading
-  // placeholder. Returning null here would put a white flash in front of the
-  // brand splash and change launch timing on the paywall path.
+  // These are EMBEDDED AT BUILD TIME by the expo-font config plugin (see
+  // app.json), so in any native build they are present on the very first
+  // frame and this call resolves instantly.
   //
-  // So we let the tree render immediately: RN falls back to the system face
-  // for one frame and re-renders when the fonts land. Anything still on the
-  // old `Colors` palette never referenced these families anyway.
+  // It stays for one reason: Expo Go and the JS-only dev client have no
+  // native build to embed into, so without it the fonts never register there
+  // at all. In a production build it is a no-op.
+  //
+  // Deliberately NOT a render gate either way. Blocking the tree would put a
+  // blank frame in front of the brand splash and change launch timing on the
+  // paywall path (INVARIANT #1, SPEC-16).
+  //
+  // Runtime registration was what caused the visible reflow on the plan
+  // screen: every screen drew once in the system face and re-laid-out when
+  // the fonts landed. Embedding removes the gap rather than hiding it.
   useFonts({
     Newsreader_300Light,
     Newsreader_400Regular,
