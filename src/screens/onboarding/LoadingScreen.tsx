@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { Button } from '../../components/Button';
-import { Caption } from '../../components/Typography';
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, Animated, Linking } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { OnboardingStackParamList } from "../../navigation/OnboardingNavigator";
+import { Button } from "../../components/Button";
+import { Caption } from "../../components/Typography";
 import {
   Spacing,
   Typography,
@@ -13,24 +13,24 @@ import {
   OnboardingType as T,
   oInk,
   oCream,
-} from '../../constants/theme';
-import { RichHeadline } from '../../components/onboarding/OnboardingScreen';
-import { ProgressRing } from '../../components/onboarding/ProgressRing';
-import { useAuthStore } from '../../store/authStore';
-import { useOnboardingStore } from '../../store/onboardingStore';
-import { useConfigStore } from '../../store/configStore';
-import { resolveGateOutcome } from '../../navigation/routingPolicy';
-import { saveUserOnboardingData } from '../../services/onboardingService';
-import { restorePurchases } from '../../services/purchaseService';
-import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
-import Constants from 'expo-constants';
-import { safeCapture } from '../../lib/analytics';
-import { reportError, addGateBreadcrumb } from '../../config/sentry';
+} from "../../constants/theme";
+import { RichHeadline } from "../../components/onboarding/OnboardingScreen";
+import { ProgressRing } from "../../components/onboarding/ProgressRing";
+import { useAuthStore } from "../../store/authStore";
+import { useOnboardingStore } from "../../store/onboardingStore";
+import { useConfigStore } from "../../store/configStore";
+import { resolveGateOutcome } from "../../navigation/routingPolicy";
+import { saveUserOnboardingData } from "../../services/onboardingService";
+import { restorePurchases } from "../../services/purchaseService";
+import { usePlacement, useUser, useSuperwallEvents } from "expo-superwall";
+import Constants from "expo-constants";
+import { safeCapture } from "../../lib/analytics";
+import { reportError, addGateBreadcrumb } from "../../config/sentry";
 
 // Support address for the escape-hatch "Contact support" action. Matches
 // SettingsScreen's handleContactSupport so support routing stays consistent
 // (SPEC-01 R3, DECISION(owner)).
-const SUPPORT_EMAIL = 'support@example.com';
+const SUPPORT_EMAIL = "support@example.com";
 
 // Number of failed gate attempts before we surface the escape hatch. At 3
 // retries (the retry interval is 3s) the user has been stuck ~9s+ — long
@@ -55,7 +55,7 @@ const THEATER_HOLD_AT_END = __DEV__ ? false : false;
 // back to the retry state (SPEC-01 R4).
 const PRESENT_WATCHDOG_MS = 5000;
 
-type Props = NativeStackScreenProps<OnboardingStackParamList, 'Loading'>;
+type Props = NativeStackScreenProps<OnboardingStackParamList, "Loading">;
 
 /**
  * LoadingScreen is the subscription gate. Every route to Root passes through
@@ -94,7 +94,21 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const [progress, setProgress] = useState(() =>
     onboardingStore.userType !== null ? 0 : 100,
   );
-  const [gateStatus, setGateStatus] = useState<'idle' | 'presenting' | 'retry' | 'blocked'>('idle');
+  const [gateStatus, setGateStatus] = useState<
+    "idle" | "presenting" | "retry" | "blocked"
+  >("idle");
+
+  // Is this screen actually BUILDING a plan, or just passing through the gate?
+  //
+  // Read once at mount from the same signal that sets the initial progress. A
+  // returning user arrives with an empty store — Splash sends signed-in users
+  // straight here without loadState(), and AuthScreen clears the store for
+  // anyone who already has a profile row — so there is nothing to build.
+  //
+  // They used to see the finished build screen for a beat: a full ring and
+  // "YOUR PLAN IS BUILT" claiming work that never happened, on every single
+  // launch. They get a short welcome instead.
+  const [isBuilding] = useState(() => onboardingStore.userType !== null);
 
   const { identify } = useUser();
   const paywallPresentedRef = useRef(false);
@@ -107,7 +121,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // check has resolved, and must never run if force-update is active.
   // configStore is the single source of truth shared with App.tsx (which
   // renders the ForceUpdateModal), so the two can't present concurrently.
-  const configStatus = useConfigStore(state => state.status);
+  const configStatus = useConfigStore((state) => state.status);
 
   // R4: watchdog timer that fires if onPresent doesn't arrive after a
   // present attempt. Held in a ref so runGate can (re)arm it and onPresent /
@@ -171,18 +185,18 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     onSuperwallEvent: (eventInfo) => {
       // Fires when user taps a plan on the paywall (before App Store sheet appears).
       // safeCapture swallows any error — analytics must never break the paywall flow.
-      if (eventInfo.event.event === 'transactionStart') {
-        safeCapture('paywall_option_selected', {
+      if (eventInfo.event.event === "transactionStart") {
+        safeCapture("paywall_option_selected", {
           product_id: eventInfo.params?.product_id,
           paywall_name: eventInfo.params?.paywall_name,
         });
-      } else if (eventInfo.event.event === 'transactionAbandon') {
-        safeCapture('paywall_purchase_abandoned', {
+      } else if (eventInfo.event.event === "transactionAbandon") {
+        safeCapture("paywall_purchase_abandoned", {
           product_id: eventInfo.params?.product_id,
           paywall_name: eventInfo.params?.paywall_name,
         });
-      } else if (eventInfo.event.event === 'transactionFail') {
-        safeCapture('paywall_purchase_failed', {
+      } else if (eventInfo.event.event === "transactionFail") {
+        safeCapture("paywall_purchase_failed", {
           product_id: eventInfo.params?.product_id,
           paywall_name: eventInfo.params?.paywall_name,
           error: eventInfo.params?.error_message,
@@ -202,65 +216,81 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     // screen, so clearing is moot but harmless.)
     gateInFlightRef.current = false;
     switch (outcome) {
-      case 'enter_root':
-        navigation.replace('Root');
+      case "enter_root":
+        navigation.replace("Root");
         return;
-      case 're_present':
-        if (__DEV__) console.log('🔒 Paywall dismissed without purchase — re-presenting (hard gate)');
+      case "re_present":
+        if (__DEV__)
+          console.log(
+            "🔒 Paywall dismissed without purchase — re-presenting (hard gate)",
+          );
         // Small delay so Superwall's own dismiss animation completes before we
         // ask it to present again. Without the delay, the re-present can
         // no-op silently.
         setTimeout(() => runGate(), 300);
         return;
-      case 'retry':
-        setGateStatus('retry');
+      case "retry":
+        setGateStatus("retry");
         return;
     }
   };
 
   const { registerPlacement } = usePlacement({
     onPresent: (paywallInfo) => {
-      if (__DEV__) console.log('✅ Paywall presented:', paywallInfo.name);
+      if (__DEV__) console.log("✅ Paywall presented:", paywallInfo.name);
       // R5 (SPEC-06): funnel event for the paywall actually rendering. Was
       // previously only a __DEV__ log — now a real event so we can measure
       // gate → paywall-shown → purchase. safeCapture (house pattern).
-      safeCapture('paywall_presented', { paywall_name: paywallInfo.name });
+      safeCapture("paywall_presented", { paywall_name: paywallInfo.name });
       // R4: presentation arrived — disarm the frozen-state watchdog.
       clearPresentWatchdog();
       paywallPresentedRef.current = true;
-      setGateStatus('presenting');
+      setGateStatus("presenting");
     },
     onDismiss: (paywallInfo, result) => {
-      if (__DEV__) console.log('👋 Paywall dismissed:', result.type);
+      if (__DEV__) console.log("👋 Paywall dismissed:", result.type);
 
       // Entitlement side effects (setIsSubscribed + analytics) stay here; the
       // route decision comes from resolveGateOutcome. purchased and restored
       // are both entitlements → enter_root; declined → re_present (hard gate).
-      if (result.type === 'purchased') {
-        if (__DEV__) console.log('💰 Purchase completed! Updating subscription status...');
+      if (result.type === "purchased") {
+        if (__DEV__)
+          console.log("💰 Purchase completed! Updating subscription status...");
         // The App.tsx subscription-status listener will flip isSubscribed →
         // true, but we also set it here so navigation isn't racing that event.
         setIsSubscribed(true);
-        safeCapture('subscription_purchased', { paywall_name: paywallInfo.name });
-      } else if (result.type === 'restored') {
+        safeCapture("subscription_purchased", {
+          paywall_name: paywallInfo.name,
+        });
+      } else if (result.type === "restored") {
         // Restore succeeded on the paywall — a real entitlement, same as
         // purchased (SPEC-01 R2; 'restored' used to fall into re-present and
         // trap a legitimately-restored payer). Fire subscription_restored,
         // NOT subscription_purchased — no money changed hands.
-        if (__DEV__) console.log('♻️ Purchases restored on paywall — treating as entitlement');
+        if (__DEV__)
+          console.log(
+            "♻️ Purchases restored on paywall — treating as entitlement",
+          );
         setIsSubscribed(true);
-        safeCapture('subscription_restored', { paywall_name: paywallInfo.name });
+        safeCapture("subscription_restored", {
+          paywall_name: paywallInfo.name,
+        });
       } else {
         // declined — a dismiss without entitlement. Hard-paywall model: the
         // template should have no dismiss control, but if one slips through we
         // re-present rather than let the user past.
-        safeCapture('paywall_dismissed', {
+        safeCapture("paywall_dismissed", {
           paywall_name: paywallInfo.name,
           dismiss_type: result.type,
         });
       }
 
-      applyGateOutcome(resolveGateOutcome({ kind: 'dismiss', type: result.type }, isSubscribed));
+      applyGateOutcome(
+        resolveGateOutcome(
+          { kind: "dismiss", type: result.type },
+          isSubscribed,
+        ),
+      );
     },
     onSkip: (reason) => {
       // "Skip" fires when Superwall bypasses paywall presentation itself.
@@ -270,39 +300,51 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       // resolveGateOutcome maps it to 'retry' (fail safe to the gate), and we
       // fire a DISTINCT event so a real dashboard break is immediately visible
       // in analytics rather than hiding inside the generic skip counter.
-      if (__DEV__) console.log('⏭️ Paywall skipped by Superwall:', reason.type);
-      safeCapture('paywall_skipped_by_superwall', { skip_reason: reason.type });
-      if (reason.type === 'PlacementNotFound') {
+      if (__DEV__) console.log("⏭️ Paywall skipped by Superwall:", reason.type);
+      safeCapture("paywall_skipped_by_superwall", { skip_reason: reason.type });
+      if (reason.type === "PlacementNotFound") {
         // Distinct, alert-worthy signal: the subscription_gate placement is
         // missing/renamed. A spike here = a dashboard misconfig locking users
         // to (or, pre-fix, past) the paywall. See docs/PAYWALL_MODEL.md.
-        safeCapture('paywall_placement_not_found', { skip_reason: reason.type });
-        reportError(new Error('Superwall PlacementNotFound for subscription_gate'), {
-          screen: 'LoadingScreen',
-          context: 'paywall_placement_not_found',
+        safeCapture("paywall_placement_not_found", {
+          skip_reason: reason.type,
         });
+        reportError(
+          new Error("Superwall PlacementNotFound for subscription_gate"),
+          {
+            screen: "LoadingScreen",
+            context: "paywall_placement_not_found",
+          },
+        );
       }
-      applyGateOutcome(resolveGateOutcome({ kind: 'skip', reason: reason.type }, isSubscribed));
+      applyGateOutcome(
+        resolveGateOutcome({ kind: "skip", reason: reason.type }, isSubscribed),
+      );
     },
     onError: (error) => {
       // Superwall SDK error (network unreachable or template load failure).
       // Policy (Fable review #9): confirmed subscribers fail open to Root;
       // everyone else sits on retry. That mapping now lives in
       // resolveGateOutcome — here we just log/report and apply it.
-      if (__DEV__) console.error('❌ Paywall error:', error);
+      if (__DEV__) console.error("❌ Paywall error:", error);
       // R4 (structural): an error means no presentation is coming — disarm
       // the frozen-state watchdog so it can't redundantly re-trigger retry.
       clearPresentWatchdog();
       // Sentry is the single system of record for FAILURES (SPEC-06 R1) —
       // report to Sentry only, not PostHog. PostHog is for behavior events.
-      reportError(new Error(typeof error === 'string' ? error : 'Paywall error'), {
-        screen: 'LoadingScreen',
-        context: 'paywall',
-      });
+      reportError(
+        new Error(typeof error === "string" ? error : "Paywall error"),
+        {
+          screen: "LoadingScreen",
+          context: "paywall",
+        },
+      );
       if (isSubscribed && __DEV__) {
-        console.log('[LoadingScreen] Superwall unreachable but user is confirmed subscribed — failing open');
+        console.log(
+          "[LoadingScreen] Superwall unreachable but user is confirmed subscribed — failing open",
+        );
       }
-      applyGateOutcome(resolveGateOutcome({ kind: 'error' }, isSubscribed));
+      applyGateOutcome(resolveGateOutcome({ kind: "error" }, isSubscribed));
     },
   });
 
@@ -315,7 +357,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     const hasOnboardingPayload = onboardingStore.userType !== null;
     if (!hasOnboardingPayload) {
-      if (__DEV__) console.log('📝 No onboarding data pending — skipping save (cold-launch path)');
+      if (__DEV__)
+        console.log(
+          "📝 No onboarding data pending — skipping save (cold-launch path)",
+        );
       return;
     }
     const saveOnboardingData = async () => {
@@ -335,9 +380,8 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             // doesn't overwrite columns for fields that aren't in the
             // payload). The 'Parent' literal stays out of the DB entirely.
             const typedName = onboardingStore.name?.trim();
-            const nameToSave = typedName && typedName !== 'Parent'
-              ? typedName
-              : undefined;
+            const nameToSave =
+              typedName && typedName !== "Parent" ? typedName : undefined;
 
             const onboardingData = {
               userType: onboardingStore.userType,
@@ -359,13 +403,13 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
 
             await saveUserOnboardingData(user.id, onboardingData);
           } else {
-            if (__DEV__) console.log('📝 Demo user - skipping Supabase save');
+            if (__DEV__) console.log("📝 Demo user - skipping Supabase save");
           }
 
           // Clear local onboarding state after saving
           await onboardingStore.clearState();
         } catch (error) {
-          if (__DEV__) console.error('Error saving onboarding data:', error);
+          if (__DEV__) console.error("Error saving onboarding data:", error);
           // Continue anyway - don't block user from entering app
         }
       }
@@ -381,7 +425,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     // registerPlacement. Converts any future two-scheduler regression from
     // revenue-path noise into a harmless logged no-op.
     if (gateInFlightRef.current) {
-      if (__DEV__) console.log('🚫 runGate ignored — a gate attempt is already in flight / presented');
+      if (__DEV__)
+        console.log(
+          "🚫 runGate ignored — a gate attempt is already in flight / presented",
+        );
       return;
     }
 
@@ -394,13 +441,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     // we deferred. If 'force_update', the ForceUpdateModal owns the screen
     // and the gate never runs.
     const status = useConfigStore.getState().status;
-    if (status === 'loading') {
-      if (__DEV__) console.log('⏳ Gate deferred — waiting on app_config check');
+    if (status === "loading") {
+      if (__DEV__)
+        console.log("⏳ Gate deferred — waiting on app_config check");
       wasDeferredRef.current = true;
       return;
     }
-    if (status === 'force_update') {
-      if (__DEV__) console.log('🛑 Gate suppressed — force-update is active');
+    if (status === "force_update") {
+      if (__DEV__) console.log("🛑 Gate suppressed — force-update is active");
       return;
     }
 
@@ -423,13 +471,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     // just-lapsed user is an acceptable trade against kicking legit
     // paying users offline.
     if (isDemoUser) {
-      if (__DEV__) console.log('⏩ Skipping paywall — demo user');
-      navigation.replace('Root');
+      if (__DEV__) console.log("⏩ Skipping paywall — demo user");
+      navigation.replace("Root");
       return;
     }
     if (isSubscribed) {
-      if (__DEV__) console.log('⏩ Skipping paywall — user is a confirmed subscriber');
-      navigation.replace('Root');
+      if (__DEV__)
+        console.log("⏩ Skipping paywall — user is a confirmed subscriber");
+      navigation.replace("Root");
       return;
     }
 
@@ -445,15 +494,16 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     // build time if SKIP_PAYWALL=true is paired with the prod Supabase
     // project ref (so a bad eas.json profile blows up in CI, not on device).
     const skipPaywall = Constants.expoConfig?.extra?.skipPaywall;
-    const shouldSkipPaywall = __DEV__ && skipPaywall === 'true';
+    const shouldSkipPaywall = __DEV__ && skipPaywall === "true";
     if (shouldSkipPaywall) {
-      if (__DEV__) console.log('⏩ Skipping paywall — SKIP_PAYWALL=true (dev only)');
-      navigation.replace('Root');
+      if (__DEV__)
+        console.log("⏩ Skipping paywall — SKIP_PAYWALL=true (dev only)");
+      navigation.replace("Root");
       return;
     }
 
-    if (__DEV__) console.log('=== 🚀 RUNNING GATE (unsubscribed user) ===');
-    if (__DEV__) console.log('User ID:', user?.id);
+    if (__DEV__) console.log("=== 🚀 RUNNING GATE (unsubscribed user) ===");
+    if (__DEV__) console.log("User ID:", user?.id);
 
     // R4 watchdog for the frozen "presenting" state. After a
     // dismiss→re-present, if Superwall never fires onPresent, gateStatus would
@@ -471,13 +521,18 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     clearPresentWatchdog();
     presentWatchdogRef.current = setTimeout(() => {
       if (!paywallPresentedRef.current) {
-        if (__DEV__) console.log('⏱️ onPresent never fired within 5s — treating presentation as frozen, dropping to retry');
+        if (__DEV__)
+          console.log(
+            "⏱️ onPresent never fired within 5s — treating presentation as frozen, dropping to retry",
+          );
         // R4 (SPEC-06): breadcrumb the watchdog firing before dropping to retry.
-        addGateBreadcrumb('gate: present watchdog fired (onPresent never arrived, 5s)');
+        addGateBreadcrumb(
+          "gate: present watchdog fired (onPresent never arrived, 5s)",
+        );
         // The stalled attempt is over — release the in-flight flag so retry
         // can re-attempt (SPEC-FIX-01 R1).
         gateInFlightRef.current = false;
-        setGateStatus('retry');
+        setGateStatus("retry");
       }
     }, PRESENT_WATCHDOG_MS);
 
@@ -486,26 +541,27 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       // this user, not the device. Handles the case of two people sharing
       // a device — each pays for their own subscription.
       if (user?.id) {
-        if (__DEV__) console.log('👤 Identifying user with Superwall:', user.id);
+        if (__DEV__)
+          console.log("👤 Identifying user with Superwall:", user.id);
         await identify(user.id);
       }
 
-      if (__DEV__) console.log('📱 Registering placement: subscription_gate');
+      if (__DEV__) console.log("📱 Registering placement: subscription_gate");
       await registerPlacement({
-        placement: 'subscription_gate',
+        placement: "subscription_gate",
       });
 
-      if (__DEV__) console.log('✅ Placement registered');
+      if (__DEV__) console.log("✅ Placement registered");
     } catch (error) {
       // The register attempt failed outright — no presentation is coming, so
       // disarm the watchdog before falling into the retry/fail-open branch.
       clearPresentWatchdog();
-      if (__DEV__) console.error('❌ Error running gate:', error);
+      if (__DEV__) console.error("❌ Error running gate:", error);
       // usePlacement's onError only fires for Superwall SDK errors, not for
       // our own await failures — but the decision is the same, so route it
       // through the same kernel outcome (error → fail-open for subscribers,
       // else retry).
-      applyGateOutcome(resolveGateOutcome({ kind: 'error' }, isSubscribed));
+      applyGateOutcome(resolveGateOutcome({ kind: "error" }, isSubscribed));
     }
   };
 
@@ -546,7 +602,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             if (!THEATER_HOLD_AT_END) {
               setTimeout(() => runGate(), 600);
             } else if (__DEV__) {
-              console.log('[theater] holding at 100% — THEATER_HOLD_AT_END is on');
+              console.log(
+                "[theater] holding at 100% — THEATER_HOLD_AT_END is on",
+              );
             }
             return 100;
           }
@@ -575,9 +633,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // is the single scheduler. Only when the config check was genuinely still in
   // flight at mount does this fire the deferred run.
   useEffect(() => {
-    if (configStatus === 'ok' && wasDeferredRef.current) {
+    if (configStatus === "ok" && wasDeferredRef.current) {
       wasDeferredRef.current = false;
-      if (__DEV__) console.log('✅ app_config resolved to ok — running deferred gate');
+      if (__DEV__)
+        console.log("✅ app_config resolved to ok — running deferred gate");
       latestRunGateRef.current();
     }
   }, [configStatus]);
@@ -594,11 +653,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // SPEC-FIX-01 R1 minor #3: call through latestRunGateRef so the interval
   // never runs a stale runGate (a mid-retry isSubscribed flip is respected).
   useEffect(() => {
-    if (gateStatus !== 'retry') return;
+    if (gateStatus !== "retry") return;
     const retryTimer = setInterval(() => {
       retryAttemptsRef.current += 1;
       setRetryCount(retryAttemptsRef.current); // drive render (escape-hatch derivation)
-      if (__DEV__) console.log(`🔁 Retrying gate (attempt ${retryAttemptsRef.current}, Superwall was unreachable)`);
+      if (__DEV__)
+        console.log(
+          `🔁 Retrying gate (attempt ${retryAttemptsRef.current}, Superwall was unreachable)`,
+        );
       latestRunGateRef.current();
     }, 3000);
     return () => clearInterval(retryTimer);
@@ -619,7 +681,8 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // visible only while the gate is actually stuck retrying past the threshold.
   // The moment the gate recovers (gateStatus leaves 'retry'), this goes false
   // and the buttons unmount, so they can never sit behind a healthy paywall.
-  const showEscapeHatch = gateStatus === 'retry' && retryCount >= ESCAPE_HATCH_AFTER_ATTEMPTS;
+  const showEscapeHatch =
+    gateStatus === "retry" && retryCount >= ESCAPE_HATCH_AFTER_ATTEMPTS;
 
   // R3b: fire gate_escape_hatch_shown exactly once per screen mount, the first
   // time the hatch becomes visible. (Fire-once via the ref even though
@@ -627,9 +690,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     if (showEscapeHatch && !escapeHatchCapturedRef.current) {
       escapeHatchCapturedRef.current = true;
-      safeCapture('gate_escape_hatch_shown');
+      safeCapture("gate_escape_hatch_shown");
       // R4 (SPEC-06): also breadcrumb the escape-hatch rendering.
-      addGateBreadcrumb('gate: escape hatch rendered');
+      addGateBreadcrumb("gate: escape hatch rendered");
     }
   }, [showEscapeHatch]);
 
@@ -644,26 +707,32 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     if (isRestoringHatch) return;
     setEscapeError(null);
     setIsRestoringHatch(true);
-    safeCapture('gate_escape_restore_tapped');
+    safeCapture("gate_escape_restore_tapped");
     try {
       const result = await restorePurchases();
-      if (result.outcome === 'restored') {
+      if (result.outcome === "restored") {
         setIsSubscribed(true);
         // SPEC-FIX-01 R4.3: this restore came from the escape hatch, not a
         // Superwall paywall — so tag it with source: 'escape_hatch' rather
         // than stuffing a synthetic value into paywall_name. paywall_name is
         // reserved for REAL Superwall paywall names (see the onDismiss path),
         // so it stays absent here.
-        safeCapture('subscription_restored', { source: 'escape_hatch' });
-        navigation.replace('Root');
+        safeCapture("subscription_restored", { source: "escape_hatch" });
+        navigation.replace("Root");
         return;
       }
-      if (result.outcome === 'no_purchases') {
-        setEscapeError("No previous purchase was found for this Apple ID. Make sure you're signed in with the Apple ID you used to subscribe.");
-      } else if (result.outcome === 'unknown') {
-        setEscapeError("We're still checking with the App Store. Please try again in a moment.");
+      if (result.outcome === "no_purchases") {
+        setEscapeError(
+          "No previous purchase was found for this Apple ID. Make sure you're signed in with the Apple ID you used to subscribe.",
+        );
+      } else if (result.outcome === "unknown") {
+        setEscapeError(
+          "We're still checking with the App Store. Please try again in a moment.",
+        );
       } else {
-        setEscapeError('Something went wrong. Please check your connection and try again.');
+        setEscapeError(
+          "Something went wrong. Please check your connection and try again.",
+        );
       }
     } finally {
       setIsRestoringHatch(false);
@@ -675,17 +744,17 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // and we reset the nav stack to Welcome.
   const handleEscapeSignOut = async () => {
     setEscapeError(null);
-    safeCapture('gate_escape_sign_out_tapped');
+    safeCapture("gate_escape_sign_out_tapped");
     try {
       await signOut();
-      navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+      navigation.reset({ index: 0, routes: [{ name: "Welcome" }] });
     } catch (error) {
-      if (__DEV__) console.error('Escape-hatch sign-out failed:', error);
+      if (__DEV__) console.error("Escape-hatch sign-out failed:", error);
       reportError(error instanceof Error ? error : new Error(String(error)), {
-        screen: 'LoadingScreen',
-        context: 'gate_escape_sign_out',
+        screen: "LoadingScreen",
+        context: "gate_escape_sign_out",
       });
-      setEscapeError('Could not sign out. Please try again.');
+      setEscapeError("Could not sign out. Please try again.");
     }
   };
 
@@ -693,12 +762,16 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // (Linking.openURL can reject if no mail client is configured).
   const handleEscapeContactSupport = async () => {
     setEscapeError(null);
-    safeCapture('gate_escape_contact_support_tapped');
+    safeCapture("gate_escape_contact_support_tapped");
     try {
-      await Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Kinderwell — trouble reaching the app')}`);
+      await Linking.openURL(
+        `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Kinderwell — trouble reaching the app")}`,
+      );
     } catch (error) {
-      if (__DEV__) console.error('Escape-hatch mailto failed:', error);
-      setEscapeError(`Couldn't open your email app. Please email us at ${SUPPORT_EMAIL}.`);
+      if (__DEV__) console.error("Escape-hatch mailto failed:", error);
+      setEscapeError(
+        `Couldn't open your email app. Please email us at ${SUPPORT_EMAIL}.`,
+      );
     }
   };
 
@@ -711,13 +784,13 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // session, or a signed-in user whose local store was cleared).
   const { buildTasks, buildSubtitle } = React.useMemo(() => {
     const goalLabels: Record<string, string> = {
-      'behavior-issues': 'behaviour',
-      'closer-relationship': 'closeness',
-      'less-fighting': 'sibling fights',
-      'improved-parenting-skills': 'the day-to-day',
-      'quality-time': 'time together',
-      'character-traits': 'character',
-      tantrums: 'tantrums',
+      "behavior-issues": "behaviour",
+      "closer-relationship": "closeness",
+      "less-fighting": "sibling fights",
+      "improved-parenting-skills": "the day-to-day",
+      "quality-time": "time together",
+      "character-traits": "character",
+      tantrums: "tantrums",
     };
 
     const goals = (onboardingStore.improvementGoals ?? [])
@@ -725,16 +798,22 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       .filter(Boolean)
       .slice(0, 2);
     const goalPhrase =
-      goals.length === 2 ? `${goals[0]} and ${goals[1]}` : goals.length === 1 ? goals[0] : null;
+      goals.length === 2
+        ? `${goals[0]} and ${goals[1]}`
+        : goals.length === 1
+          ? goals[0]
+          : null;
 
     // Age bands read as their lower bound ("a 4- and 7-year-old"). We hold a
     // band, not a year, so this is the closest honest phrasing.
     const bands = Array.from(
-      new Set((onboardingStore.children ?? []).map((c) => c.ageRange).filter(Boolean)),
+      new Set(
+        (onboardingStore.children ?? []).map((c) => c.ageRange).filter(Boolean),
+      ),
     ) as string[];
     const ages = bands
       .slice(0, 2)
-      .map((b) => (b === '18+' ? '18+' : b.split('-')[0]));
+      .map((b) => (b === "18+" ? "18+" : b.split("-")[0]));
     const agePhrase =
       ages.length === 2
         ? `a ${ages[0]}- and ${ages[1]}-year-old`
@@ -751,7 +830,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           ? `For ${agePhrase}, built around what you told us.`
           : goalPhrase
             ? `Built around ${goalPhrase}, and the week you described.`
-            : 'Built around the answers you just gave us.';
+            : "Built around the answers you just gave us.";
 
     return {
       buildSubtitle: subtitle,
@@ -764,9 +843,13 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         // notes on tantrums and sibling fights") directly under a headline
         // saying the same thing ("Reading your answers"). Both updated on the
         // same tick, so a task change read as text flickering into other text.
-        { at: 34, headline: 'Reading your *answers*', label: 'Your answers' },
-        { at: 72, headline: 'Matching *techniques*', label: 'Techniques for your family' },
-        { at: 100, headline: 'Building your *plan*', label: 'Your plan' },
+        { at: 34, headline: "Reading your *answers*", label: "Your answers" },
+        {
+          at: 72,
+          headline: "Matching *techniques*",
+          label: "Techniques for your family",
+        },
+        { at: 100, headline: "Building your *plan*", label: "Your plan" },
       ],
     };
   }, [onboardingStore.improvementGoals, onboardingStore.children]);
@@ -774,7 +857,8 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // The task currently running drives the headline. Past 100 the last one
   // stays, so the finished screen reads "Building your plan" rather than blank.
   const activeTask =
-    buildTasks.find((t) => progress < t.at) ?? buildTasks[buildTasks.length - 1];
+    buildTasks.find((t) => progress < t.at) ??
+    buildTasks[buildTasks.length - 1];
 
   /**
    * Only the retry state has anything left to say.
@@ -786,27 +870,48 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
    * on screen. The offline warning stays: nothing else tells the user why a
    * finished bar has not moved on.
    */
-  const statusMessage = gateStatus === 'retry'
-    ? "Checking your subscription — please make sure you're online..."
-    : null;
+  const statusMessage =
+    gateStatus === "retry"
+      ? "Checking your subscription — please make sure you're online..."
+      : null;
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.ring}>
-          <ProgressRing percent={progress} />
-        </View>
+        {isBuilding ? (
+          <View style={styles.ring}>
+            <ProgressRing percent={progress} />
+          </View>
+        ) : (
+          // Returning user: nothing is being built, so the screen says the
+          // one true thing it can and gets out of the way. A finished ring
+          // here claimed work that never happened.
+          <View style={styles.welcome}>
+            <RichHeadline style={styles.welcomeTitle}>
+              Welcome *back*.
+            </RichHeadline>
+            <Text style={styles.welcomeSub}>
+              Picking up where you left off…
+            </Text>
+          </View>
+        )}
 
         {/* The headline names the task actually running, so the screen reports
             what it is doing rather than repeating one fixed sentence. */}
-        <RichHeadline style={styles.title}>{activeTask.headline}</RichHeadline>
-        <Text style={styles.subtitle}>{buildSubtitle}</Text>
+        {isBuilding ? (
+          <>
+            <RichHeadline style={styles.title}>
+              {activeTask.headline}
+            </RichHeadline>
+            <Text style={styles.subtitle}>{buildSubtitle}</Text>
+          </>
+        ) : null}
 
         {/* Tasks name what THIS parent told us — their children's ages, the
             thing they said was hardest. Generic loading copy is what made the
             old version feel like a stall rather than work. */}
         <View style={styles.tasks}>
-          {buildTasks.map((task, i) => {
+          {(isBuilding ? buildTasks : []).map((task, i) => {
             const done = progress >= task.at;
             const active = !done && progress >= (buildTasks[i - 1]?.at ?? 0);
             return (
@@ -814,7 +919,11 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
                 <View
                   style={[
                     styles.taskDot,
-                    active ? styles.taskDotActive : done ? styles.taskDotDone : styles.taskDotIdle,
+                    active
+                      ? styles.taskDotActive
+                      : done
+                        ? styles.taskDotDone
+                        : styles.taskDotIdle,
                   ]}
                 />
                 <Text
@@ -831,7 +940,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           })}
         </View>
 
-        {statusMessage ? <Text style={styles.status}>{statusMessage}</Text> : null}
+        {statusMessage ? (
+          <Text style={styles.status}>{statusMessage}</Text>
+        ) : null}
 
         {/* R3b: escape hatch. Only after the gate has failed to reach
             Superwall enough times (>= ESCAPE_HATCH_AFTER_ATTEMPTS) do we
@@ -887,25 +998,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: C.forestDeep,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 30,
   },
   content: {
-    width: '100%',
+    width: "100%",
     maxWidth: 400,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
   // The takeover. This is the one screen where the app stops asking and works,
   // so it goes dark: a scene change, and a second home for forestDeep so the
   // colour is not splash-only. Everything on it is cream-on-green.
-  ring: { alignSelf: 'center' },
+  ring: { alignSelf: "center" },
+  welcome: { alignItems: "center", paddingHorizontal: 10 },
+  welcomeTitle: {
+    fontFamily: F.serif,
+    fontSize: 34,
+    lineHeight: 34 * 1.2,
+    color: C.cream,
+    textAlign: "center",
+  },
+  welcomeSub: {
+    fontFamily: F.sans,
+    fontSize: 16,
+    lineHeight: 16 * 1.55,
+    color: oCream(0.7),
+    marginTop: 12,
+    textAlign: "center",
+  },
   title: {
     fontFamily: F.serif,
     fontSize: 31,
     lineHeight: 31 * 1.22,
     color: C.cream,
     marginTop: 38,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     fontFamily: F.sans,
@@ -913,11 +1040,16 @@ const styles = StyleSheet.create({
     lineHeight: 16 * 1.55,
     color: oCream(0.75),
     marginTop: 12,
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: 12,
   },
-  tasks: { marginTop: 40, alignSelf: 'center' },
-  task: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 11 },
+  tasks: { marginTop: 40, alignSelf: "center" },
+  task: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingVertical: 11,
+  },
   // Rows carry real weight: 10pt dots and 17pt text on a big dark canvas,
   // where 8pt dots and 15pt text disappeared into it.
   taskDot: { width: 10, height: 10, borderRadius: 999 },
@@ -934,11 +1066,11 @@ const styles = StyleSheet.create({
     lineHeight: 13 * 1.5,
     color: oCream(0.5),
     marginTop: 28,
-    textAlign: 'center',
+    textAlign: "center",
   },
   escapeContainer: {
-    width: '100%',
-    marginTop: Spacing['3xl'],
+    width: "100%",
+    marginTop: Spacing["3xl"],
     // A hairline separates the fallback from the build above it — the retry
     // loop is still running, and these are the exit, not the main event.
     borderTopWidth: 1,
