@@ -756,21 +756,17 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     return {
       buildSubtitle: subtitle,
       buildTasks: [
-        {
-          at: 34,
-          headline: 'Reading your *answers*',
-          label: goalPhrase ? `Reading your notes on ${goalPhrase}` : 'Reading your answers',
-        },
-        {
-          at: 72,
-          headline: 'Matching *techniques*',
-          label: agePhrase ? `Matching tools to ${agePhrase}` : 'Matching tools to your family',
-        },
-        {
-          at: 100,
-          headline: 'Building your *plan*',
-          label: 'Ordering your evenings, hardest first',
-        },
+        // The task rows are a checklist, not prose: three short states the
+        // user can scan. The personalisation lives in the subtitle, which is
+        // said ONCE.
+        //
+        // They used to carry a long personalised label each ("Reading your
+        // notes on tantrums and sibling fights") directly under a headline
+        // saying the same thing ("Reading your answers"). Both updated on the
+        // same tick, so a task change read as text flickering into other text.
+        { at: 34, headline: 'Reading your *answers*', label: 'Your answers' },
+        { at: 72, headline: 'Matching *techniques*', label: 'Techniques for your family' },
+        { at: 100, headline: 'Building your *plan*', label: 'Your plan' },
       ],
     };
   }, [onboardingStore.improvementGoals, onboardingStore.children]);
