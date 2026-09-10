@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Animated, Linking } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { OnboardingStackParamList } from "../../navigation/OnboardingNavigator";
-import { Button } from "../../components/Button";
-import { Caption } from "../../components/Typography";
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
+import { Button } from '../../components/Button';
+import { Caption } from '../../components/Typography';
 import {
   Spacing,
   Typography,
@@ -13,19 +13,19 @@ import {
   OnboardingType as T,
   oInk,
   oCream,
-} from "../../constants/theme";
-import { RichHeadline } from "../../components/onboarding/OnboardingScreen";
-import { ProgressRing } from "../../components/onboarding/ProgressRing";
-import { useAuthStore } from "../../store/authStore";
-import { useOnboardingStore } from "../../store/onboardingStore";
-import { useConfigStore } from "../../store/configStore";
-import { resolveGateOutcome } from "../../navigation/routingPolicy";
-import { saveUserOnboardingData } from "../../services/onboardingService";
-import { restorePurchases } from "../../services/purchaseService";
-import { usePlacement, useUser, useSuperwallEvents } from "expo-superwall";
-import Constants from "expo-constants";
-import { safeCapture } from "../../lib/analytics";
-import { reportError, addGateBreadcrumb } from "../../config/sentry";
+} from '../../constants/theme';
+import { RichHeadline } from '../../components/onboarding/OnboardingScreen';
+import { ProgressRing } from '../../components/onboarding/ProgressRing';
+import { useAuthStore } from '../../store/authStore';
+import { useOnboardingStore } from '../../store/onboardingStore';
+import { useConfigStore } from '../../store/configStore';
+import { resolveGateOutcome } from '../../navigation/routingPolicy';
+import { saveUserOnboardingData } from '../../services/onboardingService';
+import { restorePurchases } from '../../services/purchaseService';
+import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
+import Constants from 'expo-constants';
+import { safeCapture } from '../../lib/analytics';
+import { reportError, addGateBreadcrumb } from '../../config/sentry';
 
 // Support address for the escape-hatch "Contact support" action. Matches
 // SettingsScreen's handleContactSupport so support routing stays consistent
@@ -217,7 +217,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     gateInFlightRef.current = false;
     switch (outcome) {
       case "enter_root":
-        navigation.replace("Root");
+        navigation.replace('Root');
         return;
       case "re_present":
         if (__DEV__)
@@ -472,13 +472,13 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     // paying users offline.
     if (isDemoUser) {
       if (__DEV__) console.log("⏩ Skipping paywall — demo user");
-      navigation.replace("Root");
+      navigation.replace('Root');
       return;
     }
     if (isSubscribed) {
       if (__DEV__)
         console.log("⏩ Skipping paywall — user is a confirmed subscriber");
-      navigation.replace("Root");
+      navigation.replace('Root');
       return;
     }
 
@@ -498,7 +498,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     if (shouldSkipPaywall) {
       if (__DEV__)
         console.log("⏩ Skipping paywall — SKIP_PAYWALL=true (dev only)");
-      navigation.replace("Root");
+      navigation.replace('Root');
       return;
     }
 
@@ -724,7 +724,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         // reserved for REAL Superwall paywall names (see the onDismiss path),
         // so it stays absent here.
         safeCapture("subscription_restored", { source: "escape_hatch" });
-        navigation.replace("Root");
+        navigation.replace('Root');
         return;
       }
       if (result.outcome === "no_purchases") {
