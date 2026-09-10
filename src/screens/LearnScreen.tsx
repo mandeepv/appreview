@@ -1,171 +1,124 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { safeCapture } from '../lib/analytics';
+/**
+ * The Learn path — canvas artboards 21a / 21b.
+ *
+ * Replaces a flat list of thirteen lesson cards. A list asks a tired parent to
+ * choose; a path asks them to continue. The lessons and their order are
+ * unchanged (see src/lessons/units.ts) — the units are a grouping over the
+ * existing sequence, and every node still navigates through LESSON_NAV and the
+ * paywall gate exactly as the list did.
+ *
+ * NOTHING IS LOCKED. This is a subscription app: a parent who wants lesson nine
+ * tonight gets lesson nine. The path emphasises ONE next step and leaves every
+ * other lesson openable. "Next" is an invitation, not a gate — locking content
+ * someone has paid for is a support ticket and a refund.
+ *
+ * Node states, per the canvas:
+ *   done       filled forest disc with a check
+ *   next       thick forest ring, and the row expands into a forest card
+ *   available  thin forest ring (the lesson has been opened, or follows next)
+ *   untouched  hairline ink ring
+ */
+
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { LESSON_NAV } from '../navigation/lessonRoutes';
-import { Colors, Typography, Shadows, BorderRadius } from '../constants/theme';
 import { useLessonGate } from '../hooks/useLessonGate';
+import { safeCapture } from '../lib/analytics';
+import { getCompletedLessons } from '../lessons/lessonCompletion';
+import { PATH_UNITS, PATH_LESSONS, resolveNextLesson, unitProgress } from '../lessons/units';
+import type { PathLesson } from '../lessons/units';
+import { getLesson } from '../lessons/registry';
+import {
+  OnboardingColors as C,
+  OnboardingFonts as F,
+  OnboardingRadius as R,
+  oInk,
+  oCream,
+} from '../constants/theme';
 
-interface LearningModule {
-  id: string;
-  icon: string;
-  label: string;
-  title: string;
-  description: string;
-  color: string;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+function Check({ size = 14 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M20 6L9 17l-5-5"
+        stroke={C.cream}
+        strokeWidth={3.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
 }
 
-const learningModules: LearningModule[] = [
-  {
-    id: '1',
-    icon: '❤️',
-    label: 'FOUNDATION',
-    title: 'What changed parenting Science?',
-    description: 'Learn how to deeply fuel their correcting behavior.',
-    color: Colors.primaryTint, // All lessons use Soft Sage Teal tint
-  },
-  {
-    id: '2',
-    icon: '😊',
-    label: 'WELLNESS',
-    title: 'Happiness Chemicals',
-    description: 'Happiness is really a set of chemicals in our body that we need to understand if we want to increase long term well being.',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '3',
-    icon: '🧠',
-    label: 'HEALTH',
-    title: 'The Long-Term Unhappiness Chemical',
-    description: 'Which chemical should we focus on decreasing in ourselves and our children.',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '4',
-    icon: '💝',
-    label: 'WELLNESS',
-    title: 'The Long-Term Happiness Chemical',
-    description: 'Which chemical should we focus on increasing in ourselves and our children?',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '5',
-    icon: '🏷️',
-    label: 'FOUNDATION',
-    title: 'The Importance of Labeling Emotions',
-    description: 'This lesson will teach you why it is important to learn to label emotions and how to do it.',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '6',
-    icon: '📝',
-    label: 'SKILL',
-    title: 'Naming our Emotions',
-    description: 'In this exercise you will recall past situations, name your emotions during that situation and explain the reasons you might have felt that way. Think of specific events, not general time periods of life.',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '7',
-    icon: '💧',
-    label: 'FOUNDATION',
-    title: 'Sprinklers: Building Deep Bonds',
-    description: 'This lesson will teach you how to build deep bonds with loved ones by recognizing "sprinklers".',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '8',
-    icon: '🛡️',
-    label: 'SKILL',
-    title: 'Emotional Sandbags',
-    description: 'Now that we know the importance of labeling emotions, how do we use this knowledge to help our relationships?',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '9',
-    icon: '⚠️',
-    label: 'SKILL',
-    title: 'Communication Mistakes',
-    description: 'This lesson will give you examples of how NOT to build a deep bond with your loved one.',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '10',
-    icon: '🤲',
-    label: 'SKILL',
-    title: 'Helping Someone Process Emotions',
-    description: 'How should we help our upset loved ones?',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '11',
-    icon: '🌫️',
-    label: 'FOUNDATION',
-    title: 'Dissociation',
-    description: 'This lesson will train you in an important concept called dissociation. This frequently happens with our loved ones.',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '12',
-    icon: '🔄',
-    label: 'SKILL',
-    title: 'Serve and Return',
-    description: 'This lesson will teach you a simple communication technique that improves well-being.',
-    color: Colors.primaryTint,
-  },
-  {
-    id: '13',
-    icon: '📸',
-    label: 'WELLNESS',
-    title: 'Recording Deep Bond Moments',
-    description: 'This lesson will change the way you think about recording memories.',
-    color: Colors.primaryTint,
-  },
-];
-
-// LESSON_NAV (lesson ID → navigation target) now lives in
-// src/navigation/lessonRoutes.ts so it can be unit-tested without importing
-// this component. Behavior here is unchanged — same lookup, same targets.
+/** "Four sections · about 6 minutes" — read from the lesson's real content. */
+function describeLesson(slug: string): string {
+  const lesson = getLesson(slug);
+  if (!lesson) return '';
+  const count = lesson.sections.length;
+  const screens = lesson.sections.reduce((n, s) => n + s.screens.length, 0);
+  // ~8 screens a minute, rounded to something a parent can plan around. A
+  // deliberately soft estimate — "about" is doing real work in that sentence.
+  const minutes = Math.max(2, Math.round(screens / 8));
+  const sectionWord = count === 1 ? 'One section' : `${count} sections`;
+  return `${sectionWord} · about ${minutes} minutes`;
+}
 
 export default function LearnScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<Nav>();
   const { gateToLesson } = useLessonGate();
+  const [completed, setCompleted] = useState<string[]>([]);
 
-  const handleModulePress = (moduleId: string) => {
-    const module = learningModules.find((m) => m.id === moduleId);
-    const target = LESSON_NAV[moduleId];
+  // Re-read on focus: a lesson finished and backed out of must show its check
+  // immediately, not after a relaunch.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getCompletedLessons().then((slugs) => {
+        if (!cancelled) setCompleted(slugs);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
-    // SPEC-FIX-03 R4: send the registry SLUG as `lesson_id` so the tapped →
-    // started funnel joins (engine events also key on the slug). The numeric
-    // module id is kept as a secondary `lesson_number` so nothing is lost.
-    const props = {
-      lesson_id: target?.slug ?? moduleId,
-      lesson_number: moduleId,
-      lesson_title: module?.title ?? null,
-      lesson_label: module?.label ?? null,
-    };
+  const next = resolveNextLesson(completed);
+  const doneCount = completed.filter((s) => PATH_LESSONS.some((l) => l.slug === s)).length;
 
-    // Two events, two questions.
-    //   lesson_tapped fires on TAP — the honest top-of-funnel signal
-    //   (how many people even try to open this lesson).
-    //   lesson_started fires only after gateToLesson lets us through
-    //   — the honest "content actually opened" metric.
-    // Prior code fired lesson_started on tap, so paywall bounces
-    // counted as lesson starts. Funnel analysis was misleading.
-    // Fable review #8.
-    // SPEC-13 R5: lesson_tapped stays here (the intent event); lesson_started
-    // is now fired by the ENGINE at the true "opened" moment (LessonHubScreen
-    // for hub lessons, LessonController for flow lessons) — see R4. Firing it
-    // here too would double-count, so it's removed. Funnel: tapped → gate →
-    // started. Migrated to safeCapture.
-    safeCapture('lesson_tapped', props);
+  const openLesson = (lesson: PathLesson) => {
+    const target = LESSON_NAV[lesson.id];
+    if (!target) return;
 
-    gateToLesson(`learn_module_${moduleId}`, () => {
-      if (!target) return;
+    // Analytics unchanged from the list this screen replaces. SPEC-FIX-03 R4:
+    // send the registry SLUG as `lesson_id` so the tapped → started funnel
+    // joins (engine events key on the slug); the numeric id rides along as
+    // `lesson_number`.
+    //
+    // lesson_tapped is the INTENT event and fires on tap. `lesson_started` is
+    // fired by the engine at the true "opened" moment (LessonHubScreen for hub
+    // lessons, LessonController for flow lessons) — firing it here too would
+    // double-count paywall bounces as lesson starts, which is the exact bug
+    // Fable review #8 fixed. SPEC-13 R5.
+    safeCapture('lesson_tapped', {
+      lesson_id: target.slug,
+      lesson_number: lesson.id,
+      lesson_title: lesson.title,
+    });
+
+    // The gate placement key must stay `learn_module_<id>` — it is a Superwall
+    // placement identifier configured in the dashboard, not a local string.
+    gateToLesson(`learn_module_${lesson.id}`, () => {
       if (target.kind === 'data') {
-        // Flow lessons (1-4): launch the generic data-driven lesson directly.
-        // Single section, first screen; return to MainTabs on completion.
+        // Flow lessons (1-4): the generic data-driven lesson, first screen.
+        // returnTo is load-bearing — without it the lesson has nowhere to
+        // return on completion.
         navigation.navigate('LessonScreen', {
           lessonId: target.lessonId,
           sectionIndex: 0,
@@ -179,164 +132,193 @@ export default function LearnScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>What You'll Learn</Text>
+        <Text style={styles.headerTitle}>Your path</Text>
+        <Text style={styles.headerCount}>{`${doneCount} of ${PATH_LESSONS.length} done`}</Text>
       </View>
 
-      <View style={styles.illustrationContainer}>
-        <View style={styles.illustrationPlaceholder}>
-          <Text style={styles.illustrationEmoji}>👨‍👩‍👧‍👦</Text>
-        </View>
-      </View>
-
-      <View style={styles.titleSection}>
-        <Text style={styles.title}>Your Growth Path</Text>
-        <Text style={styles.subtitle}>
-          Short, 5-minute daily lessons designed for busy parents.
-        </Text>
-      </View>
-
-      <View style={styles.modulesContainer}>
-        {learningModules.map((module) => {
-          // SPEC-13 R3: every lesson is launchable — the old always-true
-          // 13-clause `isClickable` chain (and its dead disabled / "Coming Soon"
-          // branches) is removed. Every card is a tappable TouchableOpacity.
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollInner}
+        showsVerticalScrollIndicator={false}
+      >
+        {PATH_UNITS.map((unit, unitIndex) => {
+          const progress = unitProgress(unit, completed);
           return (
-            <TouchableOpacity
-              key={module.id}
-              style={styles.moduleCard}
-              onPress={() => handleModulePress(module.id)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.iconCircle, { backgroundColor: module.color }]}>
-                <Text style={styles.moduleIcon}>{module.icon}</Text>
+            <View key={unit.id} style={unitIndex > 0 ? styles.unitSpacer : undefined}>
+              <View style={styles.unitHeader}>
+                <Text style={styles.unitName}>{`Unit ${unitIndex + 1} · ${unit.name}`}</Text>
+                <View style={styles.unitRule} />
+                <Text
+                  style={[
+                    styles.unitCount,
+                    progress.done > 0 ? styles.unitCountActive : null,
+                  ]}
+                >
+                  {`${progress.done}/${progress.total}`}
+                </Text>
               </View>
-              <View style={styles.moduleContent}>
-                <Text style={styles.moduleLabel}>{module.label}</Text>
-                <Text style={styles.moduleTitle}>{module.title}</Text>
-                <Text style={styles.moduleDescription}>{module.description}</Text>
+
+              <View style={styles.rail}>
+                {/* The connecting line. Sits behind the nodes and stops short
+                    of the last one so the path does not trail into nothing. */}
+                <View style={styles.railLine} />
+
+                {unit.lessons.map((lesson) => {
+                  const isDone = completed.includes(lesson.slug);
+                  const isNext = lesson.slug === next?.slug;
+
+                  return (
+                    <View key={lesson.id} style={styles.node}>
+                      <View
+                        style={[
+                          styles.dot,
+                          isDone
+                            ? styles.dotDone
+                            : isNext
+                              ? styles.dotNext
+                              : styles.dotIdle,
+                        ]}
+                      >
+                        {isDone ? <Check /> : null}
+                      </View>
+
+                      {isNext ? (
+                        <Pressable
+                          onPress={() => openLesson(lesson)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Continue: ${lesson.title}`}
+                          style={({ pressed }) => [
+                            styles.nextCard,
+                            pressed ? { opacity: 0.9 } : null,
+                          ]}
+                        >
+                          <Text style={styles.nextEyebrow}>PICK UP HERE</Text>
+                          <Text style={styles.nextTitle}>{lesson.title}</Text>
+                          <Text style={styles.nextMeta}>{describeLesson(lesson.slug)}</Text>
+                          <View style={styles.nextButton}>
+                            <Text style={styles.nextButtonLabel}>Continue</Text>
+                          </View>
+                        </Pressable>
+                      ) : (
+                        <Pressable
+                          onPress={() => openLesson(lesson)}
+                          accessibilityRole="button"
+                          accessibilityLabel={lesson.title}
+                          style={({ pressed }) => [
+                            styles.row,
+                            pressed ? { opacity: 0.6 } : null,
+                          ]}
+                        >
+                          <Text style={[styles.rowTitle, isDone ? styles.rowTitleDone : null]}>
+                            {lesson.title}
+                          </Text>
+                          <Text style={styles.rowMeta}>
+                            {isDone ? 'Done' : describeLesson(lesson.slug)}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
-            </TouchableOpacity>
+            </View>
           );
         })}
-      </View>
-
-      <View style={styles.disclaimerContainer}>
-        <Text style={styles.disclaimerText}>
-          Content is educational and based on child development research. Not medical or therapeutic advice.
-        </Text>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
+const DOT = 26;
+const RAIL_INSET = 40;
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.backgroundGray,
-  },
-  contentContainer: {
-    paddingBottom: 32,
-  },
+  screen: { flex: 1, backgroundColor: C.paper },
+
   header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-  },
-  illustrationContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 24,
-  },
-  illustrationPlaceholder: {
-    width: '100%',
-    height: 200,
-    backgroundColor: Colors.primaryBg,
-    borderRadius: BorderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  illustrationEmoji: {
-    fontSize: 80,
-  },
-  titleSection: {
-    paddingHorizontal: 24,
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  modulesContainer: {
-    paddingHorizontal: 24,
-    gap: 16,
-  },
-  moduleCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: 20,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    ...Shadows.md,
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: 30,
+    paddingTop: 10,
+    paddingBottom: 16,
   },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
+  headerTitle: { fontFamily: F.serif, fontSize: 27, letterSpacing: -0.4, color: C.ink },
+  headerCount: { fontFamily: F.sansMed, fontSize: 14, color: C.forestDeep },
+
+  scroll: { flex: 1 },
+  scrollInner: { paddingHorizontal: 30, paddingBottom: 40 },
+  unitSpacer: { marginTop: 22 },
+
+  unitHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 14 },
+  unitName: { fontFamily: F.serif, fontSize: 19, color: oInk(0.74) },
+  unitRule: { flex: 1, height: 1, backgroundColor: oInk(0.14) },
+  unitCount: { fontFamily: F.sansMed, fontSize: 13, color: oInk(0.72) },
+  unitCountActive: { color: C.forestDeep },
+
+  rail: { position: 'relative', paddingLeft: RAIL_INSET },
+  railLine: {
+    position: 'absolute',
+    left: DOT / 2 - 1,
+    top: 4,
+    bottom: 18,
+    width: 2,
+    backgroundColor: oInk(0.12),
+  },
+
+  node: { position: 'relative', paddingBottom: 20 },
+  dot: {
+    position: 'absolute',
+    left: -RAIL_INSET,
+    top: 0,
+    width: DOT,
+    height: DOT,
+    borderRadius: 999,
     alignItems: 'center',
-    marginRight: 16,
+    justifyContent: 'center',
+    backgroundColor: C.paper,
   },
-  moduleIcon: {
-    fontSize: 24,
-  },
-  moduleContent: {
-    flex: 1,
-  },
-  moduleLabel: {
+  dotDone: { backgroundColor: C.forest },
+  // The next node's ring is thick so it reads as the one live thing on screen
+  // even before the card beneath it registers.
+  dotNext: { borderWidth: 3, borderColor: C.forest, top: 22 },
+  dotIdle: { borderWidth: 1.5, borderColor: oInk(0.26) },
+
+  row: { paddingRight: 4 },
+  rowTitle: { fontFamily: F.serif, fontSize: 19, lineHeight: 19 * 1.35, color: C.ink },
+  rowTitleDone: { color: oInk(0.7) },
+  rowMeta: { fontFamily: F.sansMed, fontSize: 14, color: oInk(0.72), marginTop: 3 },
+
+  nextCard: { backgroundColor: C.forest, borderRadius: R.card, padding: 22, marginTop: 4 },
+  nextEyebrow: {
+    fontFamily: F.monoMed,
     fontSize: 12,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.primary,
-    marginBottom: 4,
-    letterSpacing: 0.5,
+    letterSpacing: 12 * 0.05,
+    color: C.mint,
   },
-  moduleTitle: {
-    fontSize: 18,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-    marginBottom: 4,
+  nextTitle: {
+    fontFamily: F.serif,
+    fontSize: 24,
+    lineHeight: 24 * 1.28,
+    color: C.cream,
+    marginTop: 10,
   },
-  moduleDescription: {
-    fontSize: 14,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textTertiary,
-    lineHeight: 20,
+  nextMeta: {
+    fontFamily: F.serif,
+    fontSize: 17,
+    lineHeight: 17 * 1.5,
+    color: oCream(0.9),
+    marginTop: 8,
   },
-  disclaimerContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    paddingBottom: 32,
+  nextButton: {
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: C.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
   },
-  disclaimerText: {
-    fontSize: 11,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    lineHeight: 16,
-    opacity: 0.7,
-  },
+  nextButtonLabel: { fontFamily: F.sansSemi, fontSize: 17, color: C.forestDeep },
 });
