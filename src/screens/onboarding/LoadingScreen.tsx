@@ -614,12 +614,18 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
       return () => clearInterval(interval);
     }
 
-    // Cold-launch through the gate: progress is already 100 (lazy init).
-    // Just a brief spinner state then run the gate. Under the
-    // hard-paywall model this screen is hit on every launch of a
-    // signed-in user; a 4-second progress bar every time would be
-    // needlessly annoying.
-    const timer = setTimeout(() => runGate(), 200);
+    // Cold-launch through the gate: nothing to build, so the screen shows the
+    // "Welcome back" state while the gate resolves.
+    //
+    // 1.2s, not the 200ms it used to be. At 200ms the welcome appeared and
+    // vanished before it could be read — a flash that registers as a glitch
+    // rather than a greeting. Long enough to land, short enough that a
+    // returning user does not feel held up: under the hard-paywall model this
+    // screen sits in front of EVERY launch of a signed-in user.
+    //
+    // Note this is a floor, not the total. Superwall usually takes longer than
+    // this to present, so in practice the wait is dominated by the gate.
+    const timer = setTimeout(() => runGate(), 1200);
     return () => clearTimeout(timer);
   }, [navigation]);
 
