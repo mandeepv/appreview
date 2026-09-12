@@ -40,6 +40,9 @@ export const LESSON_ORDER = [
 /** How many unnamed-but-visible nodes sit past the current one. */
 export const VISIBLE_AHEAD = 3;
 
+/** How many finished nodes stay on screen above the current card. */
+export const HISTORY_SHOWN = 3;
+
 export interface PathNode {
   /** Stable identity across renders: "<lessonSlug>#<sectionId>". */
   key: string;
@@ -118,10 +121,25 @@ export function canOpen(node: PathNode, completedKeys: string[]): boolean {
  * than stopping dead. Rendering all 49 would be a wall, which is the problem
  * this screen exists to solve.
  */
-export function visibleNodes(completedKeys: string[], tailBeyondHorizon = 3): PathNode[] {
+export function visibleNodes(
+  completedKeys: string[],
+  tailBeyondHorizon = 3,
+  historyShown = HISTORY_SHOWN,
+): PathNode[] {
   const current = currentIndex(completedKeys);
   const end = Math.min(PATH_NODES.length, current + VISIBLE_AHEAD + tailBeyondHorizon + 1);
-  return PATH_NODES.slice(0, end);
+  // Only the last few finished nodes are rendered.
+  //
+  // This is what keeps the card ON SCREEN. Rendering all of a parent's history
+  // above it pushes the card below the fold by section ten, and an auto-scroll
+  // to correct that proved unreliable — it depends on layout callbacks that
+  // fire in no fixed order, and on a centred container where a measured y does
+  // not map to a scroll offset. Capping the history means there is nothing to
+  // scroll past: the card sits near the top by construction.
+  //
+  // The full history is not lost, it is simply not the point of this screen.
+  const start = Math.max(0, current - historyShown);
+  return PATH_NODES.slice(start, end);
 }
 
 /** Completed / total, for the header. */

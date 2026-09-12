@@ -2,6 +2,7 @@ import {
   PATH_NODES,
   LESSON_ORDER,
   VISIBLE_AHEAD,
+  HISTORY_SHOWN,
   PATH_COVERS_ALL_LESSONS,
   currentIndex,
   nodeState,
@@ -117,14 +118,26 @@ describe('visibleNodes — what actually renders', () => {
     expect(visible.some((n) => n.index === currentIndex(done))).toBe(true);
   });
 
-  it('keeps finished nodes visible so the parent can scroll back', () => {
-    const done = PATH_NODES.slice(0, 6).map((n) => n.key);
-    expect(visibleNodes(done).slice(0, 6).map((n) => n.key)).toEqual(done);
+  // History is CAPPED, not shown in full. Rendering every finished node above
+  // the card is what pushed it below the fold on a long path.
+  it('shows only the last few finished nodes', () => {
+    const done = PATH_NODES.slice(0, 10).map((n) => n.key);
+    const visible = visibleNodes(done);
+    const shownDone = visible.filter((n) => done.includes(n.key));
+    expect(shownDone.length).toBeLessThanOrEqual(HISTORY_SHOWN);
+  });
+
+  it('keeps the most RECENT finished nodes, not the oldest', () => {
+    const done = PATH_NODES.slice(0, 10).map((n) => n.key);
+    const visible = visibleNodes(done);
+    expect(visible[0].index).toBeGreaterThan(0);
+    expect(visible.some((n) => n.key === PATH_NODES[9].key)).toBe(true);
   });
 
   it('never runs past the end of the path', () => {
     const done = PATH_NODES.map((n) => n.key);
-    expect(visibleNodes(done)).toHaveLength(PATH_NODES.length);
+    const visible = visibleNodes(done);
+    expect(visible[visible.length - 1].index).toBe(PATH_NODES.length - 1);
   });
 });
 
