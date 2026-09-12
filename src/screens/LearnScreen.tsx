@@ -34,6 +34,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { useLessonGate } from '../hooks/useLessonGate';
 import { safeCapture } from '../lib/analytics';
 import { getCompletedPathKeys } from '../lessons/pathProgress';
+import { getStreak, getNodeDays, weekdayLabel } from '../lessons/streak';
 import { getLesson } from '../lessons/registry';
 import {
   visibleNodes,
@@ -49,6 +50,7 @@ import {
   OnboardingRadius as R,
   oInk,
   oCream,
+  oClay,
 } from '../constants/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -93,10 +95,27 @@ function describeSection(node: PathNode): string {
   return lesson?.title ?? '';
 }
 
+/** The streak pill's flame. Clay, the one warm accent in the system. */
+function Flame() {
+  return (
+    <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 3c.6 3-1.8 4.2-2.6 6.3-.8 2.2.5 3.7.5 3.7s-2-.4-2.4-2.4C6.2 12.9 5.5 14.6 5.5 16a6.5 6.5 0 0013 0c0-4.6-4-6.8-6.5-13z"
+        stroke={C.clay}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export default function LearnScreen() {
   const navigation = useNavigation<Nav>();
   const { gateToLesson } = useLessonGate();
   const [completed, setCompleted] = useState<string[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [nodeDays, setNodeDays] = useState<Record<string, string>>({});
 
   // Re-read on focus: finishing a section and backing out must tick the rail
   // immediately, not after a relaunch.
@@ -105,6 +124,12 @@ export default function LearnScreen() {
       let cancelled = false;
       getCompletedPathKeys().then((keys) => {
         if (!cancelled) setCompleted(keys);
+      });
+      getStreak().then((days) => {
+        if (!cancelled) setStreak(days);
+      });
+      getNodeDays().then((map) => {
+        if (!cancelled) setNodeDays(map);
       });
       return () => {
         cancelled = true;
@@ -144,8 +169,16 @@ export default function LearnScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.wordmark}>KINDERWELL</Text>
-        <Text style={styles.progress}>{`${progress.done} of ${progress.total}`}</Text>
+        <Text style={styles.wordmark}>Kinderwell</Text>
+        {/* The pill appears only from two days. At 0 or 1 there is no streak to
+            speak of, and showing "1" or "0" to a parent who missed a night
+            turns a neutral screen into a scoreboard. */}
+        {streak >= 2 ? (
+          <View style={styles.streakPill}>
+            <Flame />
+            <Text style={styles.streakCount}>{streak}</Text>
+          </View>
+        ) : null}
       </View>
 
       <ScrollView
@@ -196,6 +229,11 @@ export default function LearnScreen() {
                   <View style={styles.dotDone} />
                 </View>
                 <View style={styles.doneRow}>
+                  {/* Absent for anything finished before day-recording shipped,
+                      so the row must read correctly without it. */}
+                  {nodeDays[node.key] ? (
+                    <Text style={styles.dayLabel}>{weekdayLabel(nodeDays[node.key])}</Text>
+                  ) : null}
                   <Text style={styles.doneTitle}>{node.title}</Text>
                   <Check />
                 </View>
@@ -240,19 +278,26 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
 
   header: {
-    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 26,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: oInk(0.1),
   },
-  wordmark: {
-    fontFamily: F.monoMed,
-    fontSize: 11,
-    letterSpacing: 11 * 0.1,
-    color: oInk(0.6),
+  // Serif, sentence case — the masthead of a book rather than a product label.
+  wordmark: { fontFamily: F.serif, fontSize: 26, letterSpacing: -0.4, color: C.ink },
+  streakPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: oClay(0.12),
   },
-  progress: { fontFamily: F.sansMed, fontSize: 13, color: oInk(0.55) },
+  streakCount: { fontFamily: F.sansSemi, fontSize: 14, color: C.clayDeep },
 
   scroll: { flex: 1 },
   scrollInner: { paddingHorizontal: 26, paddingBottom: 40 },
@@ -316,6 +361,13 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
   },
   doneTitle: { flex: 1, fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.7) },
+  dayLabel: {
+    fontFamily: F.monoMed,
+    fontSize: 10,
+    letterSpacing: 10 * 0.08,
+    color: oInk(0.42),
+    marginTop: 5,
+  },
 
   aheadRow: { flex: 1, paddingVertical: 19, paddingLeft: 14, minHeight: 20 },
   aheadTitle: { fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.62) },

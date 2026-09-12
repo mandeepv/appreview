@@ -35,6 +35,18 @@ export const STORAGE_KEYS = {
   // sign-out. See docs/PAYWALL_MODEL.md.
   IS_SUBSCRIBED: '@kinderwell_is_subscribed',
 
+  // Local calendar days on which the parent finished a section, as a JSON
+  // array of YYYY-MM-DD. The only place any TIMESTAMP is kept — the per-lesson
+  // progress stores hold section ids and nothing else, so a streak cannot be
+  // derived from them. See src/lessons/streak.ts.
+  ACTIVE_DAYS: '@kinderwell_active_days',
+
+  // Which local day each path node was finished on, as { nodeKey: YYYY-MM-DD }.
+  // Drives the rail's weekday labels. Distinct from ACTIVE_DAYS: that answers
+  // "was anything done that day" for the streak, this answers "when was this
+  // node done".
+  NODE_DAYS: '@kinderwell_node_days',
+
   // Whole-lesson completion for the Learn path: a JSON array of lesson slugs.
   //
   // Deliberately SEPARATE from the per-lesson section keys below. `storageKey`

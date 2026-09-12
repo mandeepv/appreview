@@ -256,6 +256,8 @@ export const oInk = (a: number) => `rgba(35,33,30,${a})`;
 export const oCream = (a: number) => `rgba(251,247,239,${a})`;
 /** Forest at opacity — selected-state rules and tinted callouts. */
 export const oForest = (a: number) => `rgba(47,107,74,${a})`;
+/** Clay at opacity — the streak pill's wash, and little else. */
+export const oClay = (a: number) => `rgba(192,101,60,${a})`;
 
 /**
  * Font families as registered by `useFonts` in App.tsx. Newsreader carries
