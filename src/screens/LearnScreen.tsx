@@ -1,22 +1,27 @@
 /**
- * The Learn path — canvas artboards 21a / 21b.
+ * The Learn path — canvas artboard 29b, with the 30c ending.
  *
- * Replaces a flat list of thirteen lesson cards. A list asks a tired parent to
- * choose; a path asks them to continue. The lessons and their order are
- * unchanged (see src/lessons/units.ts) — the units are a grouping over the
- * existing sequence, and every node still navigates through LESSON_NAV and the
- * paywall gate exactly as the list did.
+ * A single rail of every section in every lesson, 49 nodes deep. The lesson
+ * layer is gone from navigation: a node opens its section directly, so the hub
+ * screen is no longer on the happy path.
  *
- * NOTHING IS LOCKED. This is a subscription app: a parent who wants lesson nine
- * tonight gets lesson nine. The path emphasises ONE next step and leaves every
- * other lesson openable. "Next" is an invitation, not a gate — locking content
- * someone has paid for is a support ticket and a refund.
+ * Geometry is 29b's: a 22px gutter holding a 1px rail, 9px hollow dots for
+ * finished nodes, a 12px filled dot beside tonight's card, 7px faint dots
+ * ahead. No left-hand number gutter — the rail is the only left edge.
  *
- * Node states, per the canvas:
- *   done       filled forest disc with a check
- *   next       thick forest ring, and the row expands into a forest card
- *   available  thin forest ring (the lesson has been opened, or follows next)
- *   untouched  hairline ink ring
+ * WHAT THE RAIL SHOWS
+ *   finished   title + check, scroll back to re-read
+ *   tonight    a forest card: eyebrow, title, description, Start
+ *   ahead      the next three, named but not openable
+ *   beyond     dots only — the rail continues, the titles do not
+ *
+ * The ending is 30c's: the rail arrives somewhere rather than trailing into a
+ * dashed panel or a numbered future. It must never look like something is
+ * missing.
+ *
+ * LOCKED, SEQUENTIALLY. Only a finished node or tonight's opens. Finishing
+ * tonight's immediately opens the next — there is no daily drip, so a parent
+ * with a free evening can keep going.
  */
 
 import React, { useCallback, useState } from 'react';
@@ -26,13 +31,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { LESSON_NAV } from '../navigation/lessonRoutes';
 import { useLessonGate } from '../hooks/useLessonGate';
 import { safeCapture } from '../lib/analytics';
-import { getCompletedLessons } from '../lessons/lessonCompletion';
-import { PATH_UNITS, PATH_LESSONS, resolveNextLesson, unitProgress } from '../lessons/units';
-import type { PathLesson } from '../lessons/units';
+import { getCompletedPathKeys } from '../lessons/pathProgress';
 import { getLesson } from '../lessons/registry';
+import {
+  visibleNodes,
+  nodeState,
+  canOpen,
+  pathProgress,
+  PATH_NODES,
+  type PathNode,
+} from '../lessons/units';
 import {
   OnboardingColors as C,
   OnboardingFonts as F,
@@ -43,13 +53,13 @@ import {
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-function Check({ size = 14 }: { size?: number }) {
+function Check() {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
       <Path
         d="M20 6L9 17l-5-5"
-        stroke={C.cream}
-        strokeWidth={3.4}
+        stroke={oInk(0.4)}
+        strokeWidth={2.6}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -57,17 +67,30 @@ function Check({ size = 14 }: { size?: number }) {
   );
 }
 
-/** "Four sections · about 6 minutes" — read from the lesson's real content. */
-function describeLesson(slug: string): string {
-  const lesson = getLesson(slug);
-  if (!lesson) return '';
-  const count = lesson.sections.length;
-  const screens = lesson.sections.reduce((n, s) => n + s.screens.length, 0);
-  // ~8 screens a minute, rounded to something a parent can plan around. A
-  // deliberately soft estimate — "about" is doing real work in that sentence.
-  const minutes = Math.max(2, Math.round(screens / 8));
-  const sectionWord = count === 1 ? 'One section' : `${count} sections`;
-  return `${sectionWord} · about ${minutes} minutes`;
+/**
+ * The line under tonight's title. Pulled from the section's own first real
+ * paragraph, so the card describes the actual content rather than a generic
+ * promise that content may not keep.
+ */
+function describeSection(node: PathNode): string {
+  const lesson = getLesson(node.lessonSlug);
+  const section = lesson?.sections[node.sectionIndex];
+  if (!section) return '';
+  for (const screen of section.screens) {
+    // A section can end on a `sectionComplete` screen, which carries no blocks.
+    if (screen.kind !== 'content') continue;
+    for (const block of screen.blocks) {
+      // A paragraph's text can be a rich run-array rather than a string; only
+      // the plain form is usable as a one-line description.
+      if (block.type === 'paragraph' && typeof block.text === 'string') {
+        const text = block.text.trim().replace(/\s+/g, ' ');
+        if (text.length > 20) {
+          return text.length > 120 ? `${text.slice(0, 117).trimEnd()}…` : text;
+        }
+      }
+    }
+  }
+  return lesson?.title ?? '';
 }
 
 export default function LearnScreen() {
@@ -75,13 +98,13 @@ export default function LearnScreen() {
   const { gateToLesson } = useLessonGate();
   const [completed, setCompleted] = useState<string[]>([]);
 
-  // Re-read on focus: a lesson finished and backed out of must show its check
+  // Re-read on focus: finishing a section and backing out must tick the rail
   // immediately, not after a relaunch.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      getCompletedLessons().then((slugs) => {
-        if (!cancelled) setCompleted(slugs);
+      getCompletedPathKeys().then((keys) => {
+        if (!cancelled) setCompleted(keys);
       });
       return () => {
         cancelled = true;
@@ -89,53 +112,40 @@ export default function LearnScreen() {
     }, []),
   );
 
-  const next = resolveNextLesson(completed);
-  const doneCount = completed.filter((s) => PATH_LESSONS.some((l) => l.slug === s)).length;
+  const nodes = visibleNodes(completed);
+  const progress = pathProgress(completed);
+  const allDone = progress.done >= PATH_NODES.length;
 
-  const openLesson = (lesson: PathLesson) => {
-    const target = LESSON_NAV[lesson.id];
-    if (!target) return;
+  const openNode = (node: PathNode) => {
+    if (!canOpen(node, completed)) return;
 
-    // Analytics unchanged from the list this screen replaces. SPEC-FIX-03 R4:
-    // send the registry SLUG as `lesson_id` so the tapped → started funnel
-    // joins (engine events key on the slug); the numeric id rides along as
-    // `lesson_number`.
-    //
-    // lesson_tapped is the INTENT event and fires on tap. `lesson_started` is
-    // fired by the engine at the true "opened" moment (LessonHubScreen for hub
-    // lessons, LessonController for flow lessons) — firing it here too would
-    // double-count paywall bounces as lesson starts, which is the exact bug
-    // Fable review #8 fixed. SPEC-13 R5.
+    // Analytics keep the established shape: slug as lesson_id so the tapped →
+    // started funnel joins the engine's events. `lesson_started` is still fired
+    // by the engine, never here — firing it on tap counted paywall bounces as
+    // lesson starts (Fable review #8, SPEC-13 R5).
     safeCapture('lesson_tapped', {
-      lesson_id: target.slug,
-      lesson_number: lesson.id,
-      lesson_title: lesson.title,
+      lesson_id: node.lessonSlug,
+      section_id: node.sectionId,
+      path_index: node.index,
     });
 
-    // The gate placement key must stay `learn_module_<id>` — it is a Superwall
-    // placement identifier configured in the dashboard, not a local string.
-    gateToLesson(`learn_module_${lesson.id}`, () => {
-      if (target.kind === 'data') {
-        // Flow lessons (1-4): the generic data-driven lesson, first screen.
-        // returnTo is load-bearing — without it the lesson has nowhere to
-        // return on completion.
-        navigation.navigate('LessonScreen', {
-          lessonId: target.lessonId,
-          sectionIndex: 0,
-          screenIndex: 0,
-          returnTo: 'MainTabs',
-        });
-      } else {
-        navigation.navigate(target.name);
-      }
+    // The gate placement key stays `learn_module_<lessonSlug>` — a Superwall
+    // dashboard identifier, not a local string.
+    gateToLesson(`learn_module_${node.lessonSlug}`, () => {
+      navigation.navigate('LessonScreen', {
+        lessonId: node.lessonSlug,
+        sectionIndex: node.sectionIndex,
+        screenIndex: 0,
+        returnTo: 'MainTabs',
+      });
     });
   };
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your path</Text>
-        <Text style={styles.headerCount}>{`${doneCount} of ${PATH_LESSONS.length} done`}</Text>
+        <Text style={styles.wordmark}>KINDERWELL</Text>
+        <Text style={styles.progress}>{`${progress.done} of ${progress.total}`}</Text>
       </View>
 
       <ScrollView
@@ -143,182 +153,213 @@ export default function LearnScreen() {
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
       >
-        {PATH_UNITS.map((unit, unitIndex) => {
-          const progress = unitProgress(unit, completed);
-          return (
-            <View key={unit.id} style={unitIndex > 0 ? styles.unitSpacer : undefined}>
-              <View style={styles.unitHeader}>
-                <Text style={styles.unitName}>{`Unit ${unitIndex + 1} · ${unit.name}`}</Text>
-                <View style={styles.unitRule} />
-                <Text
-                  style={[
-                    styles.unitCount,
-                    progress.done > 0 ? styles.unitCountActive : null,
-                  ]}
-                >
-                  {`${progress.done}/${progress.total}`}
-                </Text>
-              </View>
+        {nodes.map((node) => {
+          const state = nodeState(node, completed);
 
-              <View style={styles.rail}>
-                {/* The connecting line. Sits behind the nodes and stops short
-                    of the last one so the path does not trail into nothing. */}
-                <View style={styles.railLine} />
-
-                {unit.lessons.map((lesson) => {
-                  const isDone = completed.includes(lesson.slug);
-                  const isNext = lesson.slug === next?.slug;
-
-                  return (
-                    <View key={lesson.id} style={styles.node}>
-                      <View
-                        style={[
-                          styles.dot,
-                          isDone
-                            ? styles.dotDone
-                            : isNext
-                              ? styles.dotNext
-                              : styles.dotIdle,
-                        ]}
-                      >
-                        {isDone ? <Check /> : null}
-                      </View>
-
-                      {isNext ? (
-                        <Pressable
-                          onPress={() => openLesson(lesson)}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Continue: ${lesson.title}`}
-                          style={({ pressed }) => [
-                            styles.nextCard,
-                            pressed ? { opacity: 0.9 } : null,
-                          ]}
-                        >
-                          <Text style={styles.nextEyebrow}>PICK UP HERE</Text>
-                          <Text style={styles.nextTitle}>{lesson.title}</Text>
-                          <Text style={styles.nextMeta}>{describeLesson(lesson.slug)}</Text>
-                          <View style={styles.nextButton}>
-                            <Text style={styles.nextButtonLabel}>Continue</Text>
-                          </View>
-                        </Pressable>
-                      ) : (
-                        <Pressable
-                          onPress={() => openLesson(lesson)}
-                          accessibilityRole="button"
-                          accessibilityLabel={lesson.title}
-                          style={({ pressed }) => [
-                            styles.row,
-                            pressed ? { opacity: 0.6 } : null,
-                          ]}
-                        >
-                          <Text style={[styles.rowTitle, isDone ? styles.rowTitleDone : null]}>
-                            {lesson.title}
-                          </Text>
-                          <Text style={styles.rowMeta}>
-                            {isDone ? 'Done' : describeLesson(lesson.slug)}
-                          </Text>
-                        </Pressable>
-                      )}
+          if (state === 'current') {
+            return (
+              <View key={node.key} style={styles.row}>
+                <View style={styles.gutter}>
+                  <View style={styles.railLine} />
+                  <View style={styles.dotCurrent} />
+                </View>
+                <View style={styles.cardWrap}>
+                  <Pressable
+                    onPress={() => openNode(node)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Tonight: ${node.title}`}
+                    style={({ pressed }) => [styles.card, pressed ? { opacity: 0.92 } : null]}
+                  >
+                    <Text style={styles.cardEyebrow}>TONIGHT · FIVE MINUTES</Text>
+                    <Text style={styles.cardTitle}>{node.title}</Text>
+                    <Text style={styles.cardBody}>{describeSection(node)}</Text>
+                    <View style={styles.cardButton}>
+                      <Text style={styles.cardButtonLabel}>Start</Text>
                     </View>
-                  );
-                })}
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }
+
+          if (state === 'done') {
+            return (
+              <Pressable
+                key={node.key}
+                onPress={() => openNode(node)}
+                accessibilityRole="button"
+                accessibilityLabel={node.title}
+                style={({ pressed }) => [styles.row, pressed ? { opacity: 0.6 } : null]}
+              >
+                <View style={styles.gutter}>
+                  <View style={styles.railLine} />
+                  <View style={styles.dotDone} />
+                </View>
+                <View style={styles.doneRow}>
+                  <Text style={styles.doneTitle}>{node.title}</Text>
+                  <Check />
+                </View>
+              </Pressable>
+            );
+          }
+
+          // 'ahead' is named but inert; 'locked' is the rail continuing with no
+          // title at all. Neither is pressable — a locked node that swallows a
+          // tap is worse than one that plainly does not invite it.
+          return (
+            <View key={node.key} style={styles.row}>
+              <View style={styles.gutter}>
+                <View style={styles.railLineFaint} />
+                <View style={styles.dotAhead} />
+              </View>
+              <View style={styles.aheadRow}>
+                {state === 'ahead' ? <Text style={styles.aheadTitle}>{node.title}</Text> : null}
               </View>
             </View>
           );
         })}
+
+        {/* The rail arriving somewhere — 30c. Not a dashed panel, not a
+            numbered future; both read as unfinished. */}
+        <View style={styles.endRow}>
+          <View style={styles.gutter} />
+          <View style={styles.end}>
+            <Text style={styles.endText}>
+              {allDone ? "You've finished every one." : 'The rest gets written as you go.'}
+            </Text>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const DOT = 26;
-const RAIL_INSET = 40;
+const GUTTER = 22;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
 
   header: {
+    height: 44,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 30,
-    paddingTop: 10,
-    paddingBottom: 16,
+    paddingHorizontal: 26,
   },
-  headerTitle: { fontFamily: F.serif, fontSize: 27, letterSpacing: -0.4, color: C.ink },
-  headerCount: { fontFamily: F.sansMed, fontSize: 14, color: C.forestDeep },
+  wordmark: {
+    fontFamily: F.monoMed,
+    fontSize: 11,
+    letterSpacing: 11 * 0.1,
+    color: oInk(0.6),
+  },
+  progress: { fontFamily: F.sansMed, fontSize: 13, color: oInk(0.55) },
 
   scroll: { flex: 1 },
-  scrollInner: { paddingHorizontal: 30, paddingBottom: 40 },
-  unitSpacer: { marginTop: 22 },
+  scrollInner: { paddingHorizontal: 26, paddingBottom: 40 },
 
-  unitHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 14 },
-  unitName: { fontFamily: F.serif, fontSize: 19, color: oInk(0.74) },
-  unitRule: { flex: 1, height: 1, backgroundColor: oInk(0.14) },
-  unitCount: { fontFamily: F.sansMed, fontSize: 13, color: oInk(0.72) },
-  unitCountActive: { color: C.forestDeep },
-
-  rail: { position: 'relative', paddingLeft: RAIL_INSET },
+  row: { flexDirection: 'row' },
+  gutter: { width: GUTTER, flexShrink: 0, position: 'relative' },
   railLine: {
     position: 'absolute',
-    left: DOT / 2 - 1,
-    top: 4,
-    bottom: 18,
-    width: 2,
-    backgroundColor: oInk(0.12),
-  },
-
-  node: { position: 'relative', paddingBottom: 20 },
-  dot: {
-    position: 'absolute',
-    left: -RAIL_INSET,
+    left: 5,
     top: 0,
-    width: DOT,
-    height: DOT,
+    bottom: 0,
+    width: 1,
+    backgroundColor: oInk(0.2),
+  },
+  railLineFaint: {
+    position: 'absolute',
+    left: 5,
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: oInk(0.14),
+  },
+
+  dotDone: {
+    position: 'absolute',
+    left: 1.5,
+    top: 24,
+    width: 9,
+    height: 9,
     borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: C.paper,
+    borderWidth: 1.5,
+    borderColor: oInk(0.4),
   },
-  dotDone: { backgroundColor: C.forest },
-  // The next node's ring is thick so it reads as the one live thing on screen
-  // even before the card beneath it registers.
-  dotNext: { borderWidth: 3, borderColor: C.forest, top: 22 },
-  dotIdle: { borderWidth: 1.5, borderColor: oInk(0.26) },
+  dotCurrent: {
+    position: 'absolute',
+    left: 0,
+    top: 30,
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: C.forest,
+  },
+  dotAhead: {
+    position: 'absolute',
+    left: 2.5,
+    top: 26,
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: oInk(0.22),
+  },
 
-  row: { paddingRight: 4 },
-  rowTitle: { fontFamily: F.serif, fontSize: 19, lineHeight: 19 * 1.35, color: C.ink },
-  rowTitleDone: { color: oInk(0.7) },
-  rowMeta: { fontFamily: F.sansMed, fontSize: 14, color: oInk(0.72), marginTop: 3 },
+  doneRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 16,
+    paddingLeft: 14,
+  },
+  doneTitle: { flex: 1, fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.7) },
 
-  nextCard: { backgroundColor: C.forest, borderRadius: R.card, padding: 22, marginTop: 4 },
-  nextEyebrow: {
+  aheadRow: { flex: 1, paddingVertical: 19, paddingLeft: 14, minHeight: 20 },
+  aheadTitle: { fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.62) },
+
+  cardWrap: { flex: 1, paddingVertical: 8, paddingLeft: 14 },
+  card: {
+    backgroundColor: C.forest,
+    borderRadius: R.card,
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: 20,
+  },
+  cardEyebrow: {
     fontFamily: F.monoMed,
-    fontSize: 12,
-    letterSpacing: 12 * 0.05,
-    color: C.mint,
+    fontSize: 11,
+    letterSpacing: 11 * 0.1,
+    color: oCream(0.72),
   },
-  nextTitle: {
-    fontFamily: F.serif,
-    fontSize: 24,
-    lineHeight: 24 * 1.28,
+  cardTitle: {
+    fontFamily: F.sansSemi,
+    fontSize: 25,
+    lineHeight: 25 * 1.22,
+    letterSpacing: -0.65,
     color: C.cream,
-    marginTop: 10,
+    marginTop: 12,
   },
-  nextMeta: {
+  cardBody: {
     fontFamily: F.serif,
-    fontSize: 17,
-    lineHeight: 17 * 1.5,
-    color: oCream(0.9),
-    marginTop: 8,
+    fontSize: 16,
+    lineHeight: 16 * 1.55,
+    color: oCream(0.82),
+    marginTop: 9,
   },
-  nextButton: {
-    height: 48,
+  cardButton: {
+    height: 50,
     borderRadius: 999,
     backgroundColor: C.cream,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 18,
   },
-  nextButtonLabel: { fontFamily: F.sansSemi, fontSize: 17, color: C.forestDeep },
+  cardButtonLabel: { fontFamily: F.sansSemi, fontSize: 16, color: C.forest },
+
+  endRow: { flexDirection: 'row' },
+  end: { flex: 1, paddingLeft: 14, paddingTop: 14 },
+  endText: { fontFamily: F.serifItalic, fontSize: 15, lineHeight: 15 * 1.5, color: oInk(0.5) },
 });

@@ -1,104 +1,138 @@
 /**
- * The Learn path, grouped into units.
+ * The Learn path — a flat rail of every section in every lesson.
  *
- * Pure data, no React — so the ordering can be unit-tested without a simulator
- * (same constraint as lessonRoutes.ts).
+ * Pure data + pure functions, no React, so the ordering and lock rules are
+ * unit-testable without a simulator (same constraint as lessonRoutes.ts).
  *
- * WHY UNITS. The Learn screen was a flat list of thirteen lessons, which asks a
- * tired parent to choose rather than continue. Chunking into four named units
- * turns "thirteen things" into "four short stretches", and gives progress
- * somewhere to land: a unit can be finished even when the path cannot.
+ * FLATTENED. The path used to have one node per lesson, with sections hidden
+ * behind a hub screen. It now has one node per SECTION — 49 of them — so the
+ * rail is the only navigation and the hub is no longer on the happy path.
  *
- * ORDER IS THE EXISTING ORDER. These are the same thirteen lessons in the same
- * sequence LearnScreen already rendered — the units are a grouping over that
- * order, not a re-teach. The `id` values match LESSON_NAV, so navigation is
- * unchanged.
+ * LOCKED, SEQUENTIALLY. Exactly one node is current; everything after it is
+ * locked, and finishing the current one immediately opens the next. No daily
+ * drip: a parent with a free evening can keep going.
  *
- * NOTHING IS LOCKED. This is a subscription app; a paying parent who wants
- * lesson nine tonight gets lesson nine. The path RECOMMENDS a next step by
- * emphasising it, and every other lesson stays openable. "Next" is an
- * invitation, never a gate.
+ * THE VISIBLE HORIZON. Completed nodes stay (scroll back through them), the
+ * current node is a card, and only the NEXT THREE are named. Beyond that the
+ * rail continues unnamed — the future has weight without the whole course
+ * being written out in advance.
  */
 
-export type UnitId = 'foundations' | 'naming' | 'bond' | 'hard';
+import { LESSON_REGISTRY, getLesson } from './registry';
 
-export interface PathLesson {
-  /** Matches the key in LESSON_NAV — the existing navigation contract. */
-  id: string;
-  /** Registry slug, used to read whole-lesson completion. */
-  slug: string;
+/** Lesson order on the path. The same sequence the Learn list always used. */
+export const LESSON_ORDER = [
+  'lesson1',
+  'lesson2',
+  'lesson3',
+  'lesson4',
+  'labelingEmotions',
+  'namingEmotions',
+  'sprinklers',
+  'emotionalSandbags',
+  'serveReturn',
+  'recordingDeepBondMoments',
+  'communicationMistakes',
+  'helpingProcessEmotions',
+  'dissociation',
+] as const;
+
+/** How many unnamed-but-visible nodes sit past the current one. */
+export const VISIBLE_AHEAD = 3;
+
+export interface PathNode {
+  /** Stable identity across renders: "<lessonSlug>#<sectionId>". */
+  key: string;
+  lessonSlug: string;
+  /** Index into the lesson's own sections array — what LessonScreen navigates by. */
+  sectionIndex: number;
+  /** The section's id as stored in its completed-sections array. */
+  sectionId: string;
+  /** The real section title from lesson content. Not rewritten here. */
   title: string;
+  /** Position on the whole rail, 0-based. */
+  index: number;
 }
 
-export interface PathUnit {
-  id: UnitId;
-  /** Shown as "Unit 2 · Naming what they feel". */
-  name: string;
-  lessons: PathLesson[];
-}
+/** Every section of every lesson, in path order. */
+export const PATH_NODES: PathNode[] = LESSON_ORDER.flatMap((slug) => {
+  const lesson = getLesson(slug);
+  if (!lesson) return [];
+  return lesson.sections.map((section, sectionIndex) => ({
+    key: `${slug}#${section.id}`,
+    lessonSlug: slug,
+    sectionIndex,
+    sectionId: section.id,
+    title: section.title,
+    index: 0, // assigned below — flatMap cannot see the running total
+  }));
+}).map((node, index) => ({ ...node, index }));
 
-export const PATH_UNITS: PathUnit[] = [
-  {
-    id: 'foundations',
-    name: 'Where this comes from',
-    lessons: [
-      { id: '1', slug: 'lesson1', title: 'What changed parenting Science?' },
-      { id: '2', slug: 'lesson2', title: 'Happiness Chemicals' },
-      { id: '3', slug: 'lesson3', title: 'The Long-Term Unhappiness Chemical' },
-      { id: '4', slug: 'lesson4', title: 'The Long-Term Happiness Chemical' },
-    ],
-  },
-  {
-    id: 'naming',
-    name: 'Naming what they feel',
-    lessons: [
-      { id: '5', slug: 'labelingEmotions', title: 'The Importance of Labeling Emotions' },
-      { id: '6', slug: 'namingEmotions', title: 'Naming our Emotions' },
-    ],
-  },
-  {
-    id: 'bond',
-    name: 'Building the bond',
-    lessons: [
-      { id: '7', slug: 'sprinklers', title: 'Sprinklers: Building Deep Bonds' },
-      { id: '8', slug: 'emotionalSandbags', title: 'Emotional Sandbags' },
-      { id: '12', slug: 'serveReturn', title: 'Serve and Return' },
-      { id: '13', slug: 'recordingDeepBondMoments', title: 'Recording Deep Bond Moments' },
-    ],
-  },
-  {
-    id: 'hard',
-    name: 'When it gets hard',
-    lessons: [
-      { id: '9', slug: 'communicationMistakes', title: 'Communication Mistakes' },
-      { id: '10', slug: 'helpingProcessEmotions', title: 'Helping Someone Process Emotions' },
-      { id: '11', slug: 'dissociation', title: 'Dissociation' },
-    ],
-  },
-];
-
-/** Every lesson on the path, flattened, in path order. */
-export const PATH_LESSONS: PathLesson[] = PATH_UNITS.flatMap((u) => u.lessons);
+export type NodeState = 'done' | 'current' | 'ahead' | 'locked';
 
 /**
- * The lesson to emphasise: the first one not yet finished.
+ * Which node the parent is on: the first one they have not finished.
  *
- * Returns null when everything is done — the caller then has no "next" to
- * highlight, which is the correct end state rather than a bug.
+ * Completion is a SET, not a count — a parent can finish out of order via a
+ * deep link or an older build, and the current node must still be the earliest
+ * gap rather than "one past the last thing they did".
+ *
+ * Returns the rail length when everything is done, so `state()` reports every
+ * node as 'done' and no card is drawn.
  */
-export function resolveNextLesson(completedSlugs: string[]): PathLesson | null {
-  const done = new Set(completedSlugs);
-  return PATH_LESSONS.find((l) => !done.has(l.slug)) ?? null;
+export function currentIndex(completedKeys: string[]): number {
+  const done = new Set(completedKeys);
+  const first = PATH_NODES.findIndex((n) => !done.has(n.key));
+  return first === -1 ? PATH_NODES.length : first;
 }
 
-/** Completed / total for one unit, for the header count. */
-export function unitProgress(
-  unit: PathUnit,
-  completedSlugs: string[],
-): { done: number; total: number } {
-  const done = new Set(completedSlugs);
+/**
+ * What one node looks like on the rail.
+ *
+ *   done     finished — stays visible, scroll back to re-read
+ *   current  the card, the only thing with a Start button
+ *   ahead    named but not openable (the next VISIBLE_AHEAD)
+ *   locked   past the horizon: the rail continues, the title does not
+ */
+export function nodeState(node: PathNode, completedKeys: string[]): NodeState {
+  const done = new Set(completedKeys);
+  if (done.has(node.key)) return 'done';
+
+  const current = currentIndex(completedKeys);
+  if (node.index === current) return 'current';
+  if (node.index <= current + VISIBLE_AHEAD) return 'ahead';
+  return 'locked';
+}
+
+/** Only a finished node or the current one may be opened. */
+export function canOpen(node: PathNode, completedKeys: string[]): boolean {
+  const state = nodeState(node, completedKeys);
+  return state === 'done' || state === 'current';
+}
+
+/**
+ * The slice of the rail worth rendering.
+ *
+ * Everything up to and including the current node, plus the named horizon, plus
+ * a few unnamed nodes so the rail visibly continues under the tab bar rather
+ * than stopping dead. Rendering all 49 would be a wall, which is the problem
+ * this screen exists to solve.
+ */
+export function visibleNodes(completedKeys: string[], tailBeyondHorizon = 3): PathNode[] {
+  const current = currentIndex(completedKeys);
+  const end = Math.min(PATH_NODES.length, current + VISIBLE_AHEAD + tailBeyondHorizon + 1);
+  return PATH_NODES.slice(0, end);
+}
+
+/** Completed / total, for the header. */
+export function pathProgress(completedKeys: string[]): { done: number; total: number } {
+  const done = new Set(completedKeys);
   return {
-    done: unit.lessons.filter((l) => done.has(l.slug)).length,
-    total: unit.lessons.length,
+    done: PATH_NODES.filter((n) => done.has(n.key)).length,
+    total: PATH_NODES.length,
   };
 }
+
+/** Guard: the path must describe the same lessons the registry holds. */
+export const PATH_COVERS_ALL_LESSONS =
+  LESSON_ORDER.length === Object.keys(LESSON_REGISTRY).length;
