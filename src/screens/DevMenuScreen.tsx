@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { OnboardingStackParamList } from '../navigation/OnboardingNavigator';
@@ -129,8 +129,12 @@ export const DevMenuScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator
+    >
+      <View>
         <View style={styles.header}>
           <Text style={styles.emoji}>🛠️</Text>
           <Text style={styles.title}>Developer Menu</Text>
@@ -257,7 +261,7 @@ export const DevMenuScreen: React.FC = () => {
           </Text>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -266,10 +270,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.backgroundGray,
   },
+  // Content-sized, not centred: the menu outgrew one screen, and centring a
+  // taller-than-screen column pushes its ends out of reach.
   content: {
-    flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 48,
   },
   header: {
     alignItems: 'center',
@@ -348,9 +354,12 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 12,
   },
+  // NO flex — these stack in a column, and flex:1 made every button share the
+  // leftover height, squeezing each to near-zero and clipping its label away.
+  // The style was originally written for a ROW of two.
   variantBtn: {
-    flex: 1,
     paddingVertical: 12,
+    marginBottom: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.textTertiary,
