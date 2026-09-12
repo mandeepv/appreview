@@ -139,6 +139,35 @@ describe('visibleNodes — what actually renders', () => {
     const visible = visibleNodes(done);
     expect(visible[visible.length - 1].index).toBe(PATH_NODES.length - 1);
   });
+
+  // A finished path has no current node, so the rail is history only. It must
+  // still render something rather than collapsing to an empty screen.
+  it('still returns nodes when the whole path is finished', () => {
+    const done = PATH_NODES.map((n) => n.key);
+    expect(visibleNodes(done).length).toBeGreaterThan(0);
+  });
+
+  // The screen centres a short rail and top-aligns a long one. Both branches
+  // need the current node on screen, so the slice must stay small throughout.
+  it('stays a short list at every point on the path', () => {
+    for (let i = 0; i <= PATH_NODES.length; i += 1) {
+      const done = PATH_NODES.slice(0, i).map((n) => n.key);
+      expect(visibleNodes(done).length).toBeLessThanOrEqual(HISTORY_SHOWN + VISIBLE_AHEAD + 4);
+    }
+  });
+
+  // Out-of-order completion (deep link, older build) must not strand the card
+  // off the rendered slice — the earliest gap is what the parent is shown.
+  it('includes the current node even when completion is out of order', () => {
+    const done = [PATH_NODES[0].key, PATH_NODES[8].key, PATH_NODES[20].key];
+    const visible = visibleNodes(done);
+    expect(visible.some((n) => n.index === currentIndex(done))).toBe(true);
+  });
+
+  // Completion keys from a renamed or removed section must not shift the path.
+  it('ignores unknown keys rather than advancing past them', () => {
+    expect(visibleNodes(['gone#1', 'nope#2']).some((n) => n.index === 0)).toBe(true);
+  });
 });
 
 describe('pathProgress', () => {

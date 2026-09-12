@@ -115,16 +115,35 @@ export default function LearnScreen() {
   const { gateToLesson } = useLessonGate();
   const [completed, setCompleted] = useState<string[]>([]);
   const [streak, setStreak] = useState(0);
+  // Distinguishes "nothing finished yet" from "not read from disk yet". Without
+  // it both look like `completed === []`, and the screen renders a day-one rail
+  // for one frame before snapping to the real position — which for a parent
+  // mid-path flashes the wrong lesson as tonight's.
+  const [loaded, setLoaded] = useState(false);
 
-  // Scroll the current card into view once the rail is taller than the screen.
-  //
-  // Finished rows accumulate above it, so by section 10 the one thing the
-  // screen exists for has scrolled off the top. `cardY` is captured from the
-  // card's own layout rather than computed from row heights, which vary with
-  // how many lines a title wraps to.
+  // Re-read on every focus, not just on mount. The screen stays mounted under
+  // the tab navigator, so returning from a finished lesson would otherwise show
+  // the same card still waiting to be started.
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        // Settled, not all: one rejected read must not blank the whole rail.
+        const [keys, days] = await Promise.allSettled([getCompletedPathKeys(), getStreak()]);
+        if (!alive) return;
+        if (keys.status === 'fulfilled') setCompleted(keys.value);
+        if (days.status === 'fulfilled') setStreak(days.value);
+        setLoaded(true);
+      })();
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
+
   const nodes = visibleNodes(completed);
   const progress = pathProgress(completed);
-  const allDone = progress.done >= PATH_NODES.length;
+  const allDone = loaded && progress.done >= PATH_NODES.length;
 
   const openNode = (node: PathNode) => {
     if (!canOpen(node, completed)) return;
@@ -168,87 +187,110 @@ export default function LearnScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollInner}
+        contentContainerStyle={[
+          styles.scrollInner,
+          // Centring is right for a short day-one rail, but once the rail is
+          // long it must sit from the top or the first rows hang off screen.
+          nodes.length > 5 ? styles.scrollInnerTop : null,
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {nodes.map((node) => {
-          const state = nodeState(node, completed);
-
-          if (state === 'current') {
-            return (
-              <View key={node.key} style={styles.row}>
-                <View style={styles.gutter}>
-                  <View style={styles.railLine} />
-                  <View style={styles.dotCurrent} />
-                </View>
-                <View style={styles.cardWrap}>
-                  <Pressable
-                    onPress={() => openNode(node)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Tonight: ${node.title}`}
-                    style={({ pressed }) => [styles.card, pressed ? { opacity: 0.92 } : null]}
-                  >
-                    <Text style={styles.cardEyebrow}>TONIGHT · FIVE MINUTES</Text>
-                    <Text style={styles.cardTitle}>{node.title}</Text>
-                    <Text style={styles.cardBody}>{describeSection(node)}</Text>
-                    <View style={styles.cardButton}>
-                      <Text style={styles.cardButtonLabel}>Start</Text>
-                    </View>
-                  </Pressable>
-                </View>
-              </View>
-            );
-          }
-
-          if (state === 'done') {
-            return (
-              <Pressable
-                key={node.key}
-                onPress={() => openNode(node)}
-                accessibilityRole="button"
-                accessibilityLabel={node.title}
-                style={({ pressed }) => [styles.row, pressed ? { opacity: 0.6 } : null]}
-              >
-                <View style={styles.gutter}>
-                  <View style={styles.railLine} />
-                  <View style={styles.dotDone} />
-                </View>
-                <View style={styles.doneRow}>
-                  <Text style={styles.doneTitle}>{node.title}</Text>
-                  <Check />
-                </View>
-              </Pressable>
-            );
-          }
-
-          // 'ahead' is named but inert; 'locked' is the rail continuing with no
-          // title at all. Neither is pressable — a locked node that swallows a
-          // tap is worse than one that plainly does not invite it.
-          return (
-            <View key={node.key} style={styles.row}>
-              <View style={styles.gutter}>
-                <View style={styles.railLineFaint} />
-                <View style={styles.dotAhead} />
-              </View>
-              <View style={styles.aheadRow}>
-                {state === 'ahead' ? <Text style={styles.aheadTitle}>{node.title}</Text> : null}
-              </View>
-            </View>
-          );
-        })}
+        {/* Reading progress is one AsyncStorage round-trip. Holding the rail
+            back for it shows an empty cream screen for a frame, which beats
+            drawing the wrong lesson as tonight's and then swapping it. */}
+        {!loaded
+          ? null
+          : nodes.map((node) => {
+              const state = nodeState(node, completed);
+              return <PathRow key={node.key} node={node} state={state} onOpen={openNode} />;
+            })}
 
         {/* The rail arriving somewhere — 30c. Not a dashed panel, not a
             numbered future; both read as unfinished. */}
-        <View style={styles.endRow}>
-          <View style={styles.gutter} />
-          <View style={styles.end}>
-            <Text style={styles.endText}>
-              {allDone ? "You've finished every one." : 'The rest gets written as you go.'}
-            </Text>
+        {loaded ? (
+          <View style={styles.endRow}>
+            <View style={styles.gutter} />
+            <View style={styles.end}>
+              <Text style={styles.endText}>
+                {allDone ? "You've finished every one." : 'The rest gets written as you go.'}
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/** One node on the rail. Which of the four shapes it takes is `state`. */
+function PathRow({
+  node,
+  state,
+  onOpen,
+}: {
+  node: PathNode;
+  state: ReturnType<typeof nodeState>;
+  onOpen: (node: PathNode) => void;
+}) {
+  if (state === 'current') {
+    return (
+      <View style={styles.row}>
+        <View style={styles.gutter}>
+          <View style={styles.railLine} />
+          <View style={styles.dotCurrent} />
+        </View>
+        <View style={styles.cardWrap}>
+          <Pressable
+            onPress={() => onOpen(node)}
+            accessibilityRole="button"
+            accessibilityLabel={`Tonight: ${node.title}`}
+            style={({ pressed }) => [styles.card, pressed ? { opacity: 0.92 } : null]}
+          >
+            <Text style={styles.cardEyebrow}>TONIGHT · FIVE MINUTES</Text>
+            <Text style={styles.cardTitle}>{node.title}</Text>
+            <Text style={styles.cardBody}>{describeSection(node)}</Text>
+            <View style={styles.cardButton}>
+              <Text style={styles.cardButtonLabel}>Start</Text>
+            </View>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  if (state === 'done') {
+    return (
+      <Pressable
+        onPress={() => onOpen(node)}
+        accessibilityRole="button"
+        accessibilityLabel={node.title}
+        style={({ pressed }) => [styles.row, pressed ? { opacity: 0.6 } : null]}
+      >
+        <View style={styles.gutter}>
+          <View style={styles.railLine} />
+          <View style={styles.dotDone} />
+        </View>
+        <View style={styles.doneRow}>
+          <Text style={styles.doneTitle}>{node.title}</Text>
+          <Check />
+        </View>
+      </Pressable>
+    );
+  }
+
+  // 'ahead' is named but inert; 'locked' is the rail continuing with no title
+  // at all. Neither is pressable — a locked node that swallows a tap is worse
+  // than one that plainly does not invite it.
+  return (
+    <View style={styles.row}>
+      <View style={styles.gutter}>
+        <View style={styles.railLineFaint} />
+        <View style={styles.dotAhead} />
+      </View>
+      <View style={styles.aheadRow}>
+        {state === 'ahead' ? <Text style={styles.aheadTitle}>{node.title}</Text> : null}
+      </View>
+    </View>
   );
 }
 
@@ -290,6 +332,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 26,
     paddingBottom: 40,
   },
+  // Once the rail is long enough to fill the screen, centring would push its
+  // first rows above the top edge where they cannot be scrolled back to.
+  scrollInnerTop: { justifyContent: 'flex-start', paddingTop: 22 },
 
   row: { flexDirection: 'row' },
   gutter: { width: GUTTER, flexShrink: 0, position: 'relative' },
