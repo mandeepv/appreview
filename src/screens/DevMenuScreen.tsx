@@ -137,6 +137,25 @@ export const DevMenuScreen: React.FC = () => {
     } as never);
   };
 
+  /**
+   * Open the REAL lesson screen, the one a parent gets.
+   *
+   * These buttons used to go to `LessonPreview` — a SPEC-09 harness that drives
+   * the hub and controller itself, outside the navigator. It renders, so the
+   * buttons looked fine, but it is not the shipping screen: no real navigation,
+   * no gate, and its own back behaviour.
+   *
+   * DevMenu is in the ONBOARDING stack while LessonScreen lives in
+   * RootNavigator, so this has to go through 'Root' and name the nested screen
+   * rather than navigating to it directly.
+   */
+  const openLesson = (slug: string) => {
+    navigation.navigate('Root', {
+      screen: 'LessonScreen',
+      params: { lessonId: slug, sectionIndex: 0, screenIndex: 0, returnTo: 'MainTabs' },
+    } as never);
+  };
+
   const handleThrowTestError = () => {
     reportError(new Error(`Sentry test error @ ${new Date().toISOString()}`), {
       source: 'DevMenu',
@@ -211,30 +230,30 @@ export const DevMenuScreen: React.FC = () => {
               side-by-side against the hand-built version. Dev-only. */}
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate('LessonPreview', { slug: 'sprinklers' })}
+            onPress={() => openLesson('sprinklers')}
             activeOpacity={0.8}
           >
             <View style={[styles.iconCircle, { backgroundColor: '#E8F2F1' }]}>
               <Ionicons name="flask-outline" size={32} color={Colors.primary} />
             </View>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitle}>Preview harness: Sprinklers</Text>
-              <Text style={styles.buttonDescription}>SPEC-09 preview route, not the real lesson screen</Text>
+              <Text style={styles.buttonTitle}>Open Sprinklers</Text>
+              <Text style={styles.buttonDescription}>The real lesson screen, section 1</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate('LessonPreview', { slug: 'recordingDeepBondMoments' })}
+            onPress={() => openLesson('recordingDeepBondMoments')}
             activeOpacity={0.8}
           >
             <View style={[styles.iconCircle, { backgroundColor: '#E8F2F1' }]}>
               <Ionicons name="flask-outline" size={32} color={Colors.primary} />
             </View>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitle}>Preview harness: Recording Moments</Text>
-              <Text style={styles.buttonDescription}>SPEC-09 preview route, not the real lesson screen</Text>
+              <Text style={styles.buttonTitle}>Open Recording Moments</Text>
+              <Text style={styles.buttonDescription}>The real lesson screen, section 1</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -248,25 +267,6 @@ export const DevMenuScreen: React.FC = () => {
           <TouchableOpacity style={styles.variantBtn} onPress={handleRunPlanTheater}>
             <Text style={styles.variantBtnText}>Play &quot;building your plan&quot; (4s)</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.variantSection}>
-          <Text style={styles.variantHeader}>Open a section directly</Text>
-          {[
-            { label: 'Flow lesson (lesson1, 1 section)', slug: 'lesson1', index: 0 },
-            { label: 'Sprinklers section 1 of 5', slug: 'sprinklers', index: 0 },
-            { label: 'Sprinklers section 5 of 5 (last)', slug: 'sprinklers', index: 4 },
-            { label: 'Communication Mistakes 1 of 13', slug: 'communicationMistakes', index: 0 },
-            { label: 'Communication Mistakes 13 of 13', slug: 'communicationMistakes', index: 12 },
-          ].map((entry) => (
-            <TouchableOpacity
-              key={`${entry.slug}-${entry.index}`}
-              style={styles.variantBtn}
-              onPress={() => openSection(entry.slug, entry.index)}
-            >
-              <Text style={styles.variantBtnText}>{entry.label}</Text>
-            </TouchableOpacity>
-          ))}
         </View>
 
         <View style={styles.variantSection}>
