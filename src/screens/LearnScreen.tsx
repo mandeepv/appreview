@@ -123,9 +123,31 @@ export default function LearnScreen() {
   // card's own layout rather than computed from row heights, which vary with
   // how many lines a title wraps to.
   const scrollRef = useRef<ScrollView>(null);
-  const cardY = useRef(0);
+  const cardY = useRef<number | null>(null);
   const hasScrolled = useRef(false);
   const viewportH = useRef(0);
+  const contentH = useRef(0);
+
+  /**
+   * Scroll to the card once everything it needs is known.
+   *
+   * Viewport height, content height and the card's own y arrive from three
+   * different callbacks in no guaranteed order, so all three call this and it
+   * returns until the last one lands. The previous version read viewportH
+   * inside onContentSizeChange alone — which fires FIRST, so it saw 0, bailed,
+   * and never got a second chance. That is why the rail never scrolled.
+   */
+  const maybeScrollToCard = useCallback(() => {
+    const y0 = cardY.current;
+    if (hasScrolled.current) return;
+    if (y0 === null || viewportH.current === 0 || contentH.current === 0) return;
+    // A rail that fits stays centred; yanking a three-row screen is worse.
+    if (contentH.current <= viewportH.current) return;
+    hasScrolled.current = true;
+    // Leave some finished path above it, so it reads as a position on a road
+    // rather than the top of a list.
+    scrollRef.current?.scrollTo({ y: Math.max(0, y0 - 120), animated: false });
+  }, []);
 
   // Re-read on focus: finishing a section and backing out must tick the rail
   // immediately, not after a relaunch.
@@ -135,6 +157,7 @@ export default function LearnScreen() {
       // Re-arm on each focus so returning from a lesson re-centres on the new
       // current node rather than staying where the last scroll left it.
       hasScrolled.current = false;
+      cardY.current = null;
       getCompletedPathKeys().then((keys) => {
         if (!cancelled) setCompleted(keys);
       });
@@ -197,16 +220,12 @@ export default function LearnScreen() {
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
         onContentSizeChange={(_w, contentHeight) => {
-          if (hasScrolled.current || viewportH.current === 0) return;
-          if (contentHeight <= viewportH.current) return; // short rail: leave it centred
-          hasScrolled.current = true;
-          // Leave a little of the finished rail visible above the card, so it
-          // reads as a position on a path rather than the top of a list.
-          const y = Math.max(0, cardY.current - 120);
-          scrollRef.current?.scrollTo({ y, animated: false });
+          contentH.current = contentHeight;
+          maybeScrollToCard();
         }}
         onLayout={(e) => {
           viewportH.current = e.nativeEvent.layout.height;
+          maybeScrollToCard();
         }}
       >
         {nodes.map((node) => {
@@ -223,6 +242,7 @@ export default function LearnScreen() {
                   style={styles.cardWrap}
                   onLayout={(e) => {
                     cardY.current = e.nativeEvent.layout.y;
+                    maybeScrollToCard();
                   }}
                 >
                   <Pressable
