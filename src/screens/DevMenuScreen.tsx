@@ -117,6 +117,26 @@ export const DevMenuScreen: React.FC = () => {
     ]);
   };
 
+  /**
+   * Open a lesson section directly.
+   *
+   * DevMenu sits in the ONBOARDING stack; LessonScreen lives in RootNavigator,
+   * so this cannot `navigate('LessonScreen')` the way LearnScreen does — that
+   * route is not in scope here. It has to go through 'Root' and name the
+   * nested screen, which is the wiring the older preview buttons were missing.
+   */
+  const openSection = (lessonSlug: string, sectionIndex: number) => {
+    navigation.navigate('Root', {
+      screen: 'LessonScreen',
+      params: {
+        lessonId: lessonSlug,
+        sectionIndex,
+        screenIndex: 0,
+        returnTo: 'MainTabs',
+      },
+    } as never);
+  };
+
   const handleThrowTestError = () => {
     reportError(new Error(`Sentry test error @ ${new Date().toISOString()}`), {
       source: 'DevMenu',
@@ -198,8 +218,8 @@ export const DevMenuScreen: React.FC = () => {
               <Ionicons name="flask-outline" size={32} color={Colors.primary} />
             </View>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitle}>Preview: Sprinklers (data engine)</Text>
-              <Text style={styles.buttonDescription}>Data-driven Sprinklers — compare vs the live version</Text>
+              <Text style={styles.buttonTitle}>Preview harness: Sprinklers</Text>
+              <Text style={styles.buttonDescription}>SPEC-09 preview route, not the real lesson screen</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -213,8 +233,8 @@ export const DevMenuScreen: React.FC = () => {
               <Ionicons name="flask-outline" size={32} color={Colors.primary} />
             </View>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitle}>Preview: Recording Moments (data engine)</Text>
-              <Text style={styles.buttonDescription}>2nd data-driven lesson — proves the engine generalizes</Text>
+              <Text style={styles.buttonTitle}>Preview harness: Recording Moments</Text>
+              <Text style={styles.buttonDescription}>SPEC-09 preview route, not the real lesson screen</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -228,6 +248,25 @@ export const DevMenuScreen: React.FC = () => {
           <TouchableOpacity style={styles.variantBtn} onPress={handleRunPlanTheater}>
             <Text style={styles.variantBtnText}>Play &quot;building your plan&quot; (4s)</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.variantSection}>
+          <Text style={styles.variantHeader}>Open a section directly</Text>
+          {[
+            { label: 'Flow lesson (lesson1, 1 section)', slug: 'lesson1', index: 0 },
+            { label: 'Sprinklers section 1 of 5', slug: 'sprinklers', index: 0 },
+            { label: 'Sprinklers section 5 of 5 (last)', slug: 'sprinklers', index: 4 },
+            { label: 'Communication Mistakes 1 of 13', slug: 'communicationMistakes', index: 0 },
+            { label: 'Communication Mistakes 13 of 13', slug: 'communicationMistakes', index: 12 },
+          ].map((entry) => (
+            <TouchableOpacity
+              key={`${entry.slug}-${entry.index}`}
+              style={styles.variantBtn}
+              onPress={() => openSection(entry.slug, entry.index)}
+            >
+              <Text style={styles.variantBtnText}>{entry.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <View style={styles.variantSection}>
