@@ -24,7 +24,7 @@
  * with a free evening can keep going.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -116,11 +116,25 @@ export default function LearnScreen() {
   const [completed, setCompleted] = useState<string[]>([]);
   const [streak, setStreak] = useState(0);
 
+  // Scroll the current card into view once the rail is taller than the screen.
+  //
+  // Finished rows accumulate above it, so by section 10 the one thing the
+  // screen exists for has scrolled off the top. `cardY` is captured from the
+  // card's own layout rather than computed from row heights, which vary with
+  // how many lines a title wraps to.
+  const scrollRef = useRef<ScrollView>(null);
+  const cardY = useRef(0);
+  const hasScrolled = useRef(false);
+  const viewportH = useRef(0);
+
   // Re-read on focus: finishing a section and backing out must tick the rail
   // immediately, not after a relaunch.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      // Re-arm on each focus so returning from a lesson re-centres on the new
+      // current node rather than staying where the last scroll left it.
+      hasScrolled.current = false;
       getCompletedPathKeys().then((keys) => {
         if (!cancelled) setCompleted(keys);
       });
@@ -178,9 +192,22 @@ export default function LearnScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
+        onContentSizeChange={(_w, contentHeight) => {
+          if (hasScrolled.current || viewportH.current === 0) return;
+          if (contentHeight <= viewportH.current) return; // short rail: leave it centred
+          hasScrolled.current = true;
+          // Leave a little of the finished rail visible above the card, so it
+          // reads as a position on a path rather than the top of a list.
+          const y = Math.max(0, cardY.current - 120);
+          scrollRef.current?.scrollTo({ y, animated: false });
+        }}
+        onLayout={(e) => {
+          viewportH.current = e.nativeEvent.layout.height;
+        }}
       >
         {nodes.map((node) => {
           const state = nodeState(node, completed);
@@ -192,7 +219,12 @@ export default function LearnScreen() {
                   <View style={styles.railLine} />
                   <View style={styles.dotCurrent} />
                 </View>
-                <View style={styles.cardWrap}>
+                <View
+                  style={styles.cardWrap}
+                  onLayout={(e) => {
+                    cardY.current = e.nativeEvent.layout.y;
+                  }}
+                >
                   <Pressable
                     onPress={() => openNode(node)}
                     accessibilityRole="button"
