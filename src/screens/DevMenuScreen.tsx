@@ -7,6 +7,10 @@ import { Colors, Typography, BorderRadius, Shadows } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { reportError } from '../config/sentry';
 import { useOnboardingStore } from '../store/onboardingStore';
+import { PATH_NODES } from '../lessons/units';
+import { getLesson } from '../lessons/registry';
+import { createProgressStore } from '../lessons/progressStore';
+import { markLessonCompleted, clearCompletedLessons } from '../lessons/lessonCompletion';
 
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
@@ -66,6 +70,46 @@ export const DevMenuScreen: React.FC = () => {
       if (!improvementGoals.includes(goal)) toggleImprovementGoal(goal);
     });
     navigation.navigate('Loading');
+  };
+
+  /**
+   * Unlock the path up to a given node so the locked rail can be walked.
+   *
+   * The path is sequentially locked, so inspecting node 20 otherwise means
+   * finishing nineteen sections first. This writes real completion through the
+   * same per-lesson stores the app reads, rather than a dev-only bypass — what
+   * you see afterwards is exactly what a parent at that point would see.
+   */
+  const unlockPathTo = async (count: number) => {
+    const nodes = PATH_NODES.slice(0, count);
+    for (const node of nodes) {
+      const lesson = getLesson(node.lessonSlug);
+      if (lesson?.storageKey) {
+        await createProgressStore(lesson.storageKey).markSectionComplete(node.sectionId);
+      } else {
+        // Flow lessons 1-4 keep completion in the whole-lesson record.
+        await markLessonCompleted(node.lessonSlug);
+      }
+    }
+    Alert.alert(
+      'Path unlocked',
+      `${count} of ${PATH_NODES.length} sections marked complete. Open Learn to see it.`,
+      [{ text: 'OK', onPress: () => navigation.navigate('Root') }],
+    );
+  };
+
+  /** Back to a brand-new user: nothing finished, locked at node 1. */
+  const resetPath = async () => {
+    for (const slug of new Set(PATH_NODES.map((n) => n.lessonSlug))) {
+      const lesson = getLesson(slug);
+      if (lesson?.storageKey) {
+        await createProgressStore(lesson.storageKey).reset();
+      }
+    }
+    await clearCompletedLessons();
+    Alert.alert('Path reset', 'Every section is unfinished again.', [
+      { text: 'OK', onPress: () => navigation.navigate('Root') },
+    ]);
   };
 
   const handleThrowTestError = () => {
@@ -174,6 +218,24 @@ export const DevMenuScreen: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity style={styles.variantBtn} onPress={handleRunPlanTheater}>
             <Text style={styles.variantBtnText}>Play &quot;building your plan&quot; (4s)</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.variantSection}>
+          <Text style={styles.variantHeader}>Learn path ({PATH_NODES.length} sections)</Text>
+          <TouchableOpacity style={styles.variantBtn} onPress={resetPath}>
+            <Text style={styles.variantBtnText}>Reset — locked at section 1</Text>
+          </TouchableOpacity>
+          {[3, 10, 25, PATH_NODES.length - 1].map((n) => (
+            <TouchableOpacity key={n} style={styles.variantBtn} onPress={() => unlockPathTo(n)}>
+              <Text style={styles.variantBtnText}>{`Unlock through section ${n}`}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={styles.variantBtn}
+            onPress={() => unlockPathTo(PATH_NODES.length)}
+          >
+            <Text style={styles.variantBtnText}>Finish the whole path</Text>
           </TouchableOpacity>
         </View>
 
