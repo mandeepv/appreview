@@ -34,7 +34,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { useLessonGate } from '../hooks/useLessonGate';
 import { safeCapture } from '../lib/analytics';
 import { getCompletedPathKeys } from '../lessons/pathProgress';
-import { getStreak, getNodeDays, weekdayLabel } from '../lessons/streak';
+import { getStreak } from '../lessons/streak';
 import { getLesson } from '../lessons/registry';
 import {
   visibleNodes,
@@ -115,7 +115,6 @@ export default function LearnScreen() {
   const { gateToLesson } = useLessonGate();
   const [completed, setCompleted] = useState<string[]>([]);
   const [streak, setStreak] = useState(0);
-  const [nodeDays, setNodeDays] = useState<Record<string, string>>({});
 
   // Re-read on focus: finishing a section and backing out must tick the rail
   // immediately, not after a relaunch.
@@ -127,9 +126,6 @@ export default function LearnScreen() {
       });
       getStreak().then((days) => {
         if (!cancelled) setStreak(days);
-      });
-      getNodeDays().then((map) => {
-        if (!cancelled) setNodeDays(map);
       });
       return () => {
         cancelled = true;
@@ -229,11 +225,6 @@ export default function LearnScreen() {
                   <View style={styles.dotDone} />
                 </View>
                 <View style={styles.doneRow}>
-                  {/* Absent for anything finished before day-recording shipped,
-                      so the row must read correctly without it. */}
-                  {nodeDays[node.key] ? (
-                    <Text style={styles.dayLabel}>{weekdayLabel(nodeDays[node.key])}</Text>
-                  ) : null}
                   <Text style={styles.doneTitle}>{node.title}</Text>
                   <Check />
                 </View>
@@ -300,7 +291,16 @@ const styles = StyleSheet.create({
   streakCount: { fontFamily: F.sansSemi, fontSize: 14, color: C.clayDeep },
 
   scroll: { flex: 1 },
-  scrollInner: { paddingHorizontal: 26, paddingBottom: 40 },
+  // flexGrow + centred: on day one the rail is a handful of rows and pinning
+  // it to the top left the card stranded under the masthead with the screen
+  // empty beneath. Once the rail outgrows the viewport this has no effect and
+  // it scrolls normally from the top.
+  scrollInner: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 26,
+    paddingBottom: 40,
+  },
 
   row: { flexDirection: 'row' },
   gutter: { width: GUTTER, flexShrink: 0, position: 'relative' },
@@ -361,13 +361,6 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
   },
   doneTitle: { flex: 1, fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.7) },
-  dayLabel: {
-    fontFamily: F.monoMed,
-    fontSize: 10,
-    letterSpacing: 10 * 0.08,
-    color: oInk(0.42),
-    marginTop: 5,
-  },
 
   aheadRow: { flex: 1, paddingVertical: 19, paddingLeft: 14, minHeight: 20 },
   aheadTitle: { fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.62) },

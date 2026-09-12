@@ -41,11 +41,6 @@ export const STORAGE_KEYS = {
   // derived from them. See src/lessons/streak.ts.
   ACTIVE_DAYS: '@kinderwell_active_days',
 
-  // Which local day each path node was finished on, as { nodeKey: YYYY-MM-DD }.
-  // Drives the rail's weekday labels. Distinct from ACTIVE_DAYS: that answers
-  // "was anything done that day" for the streak, this answers "when was this
-  // node done".
-  NODE_DAYS: '@kinderwell_node_days',
 
   // Whole-lesson completion for the Learn path: a JSON array of lesson slugs.
   //

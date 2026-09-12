@@ -24,7 +24,7 @@ import { QuizQuestionMultiSelect } from '../components/QuizQuestionMultiSelect';
 import { BlockRenderer } from './components/BlockRenderer';
 import { createProgressStore } from './progressStore';
 import { markLessonCompleted } from './lessonCompletion';
-import { recordActiveDay, recordNodeDay } from './streak';
+import { recordActiveDay } from './streak';
 import { safeCapture } from '../lib/analytics';
 import { Colors, Typography, Shadows } from '../constants/theme';
 import type { Lesson, LessonScreen } from './schema';
@@ -152,8 +152,6 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     // Streak is by DAY, not by section: finishing five tonight is one day.
     // Fire-and-forget — a missed day must never block finishing a lesson.
     void recordActiveDay();
-    // And which day THIS node was finished, for the rail's weekday label.
-    void recordNodeDay(`${lesson.slug}#${section.id}`);
     if (justCompletedLesson) {
       safeCapture('lesson_completed', { lesson_id: lesson.slug });
       // Whole-lesson record for the Learn path. Deliberately NOT derived from

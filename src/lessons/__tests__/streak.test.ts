@@ -16,7 +16,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   }),
 }));
 
-import { localDayKey, weekdayLabel, getStreak, recordActiveDay } from '../streak';
+import { localDayKey, getStreak, recordActiveDay } from '../streak';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 
 beforeEach(() => {
@@ -57,19 +57,6 @@ describe('localDayKey', () => {
 
   it('keeps an early-morning time on the same local day', () => {
     expect(localDayKey(new Date(2026, 8, 12, 0, 15))).toBe('2026-09-12');
-  });
-});
-
-describe('weekdayLabel', () => {
-  it('names the weekday for a day key', () => {
-    // 2026-09-12 is a Saturday.
-    expect(weekdayLabel('2026-09-12')).toBe('SAT');
-    expect(weekdayLabel('2026-09-13')).toBe('SUN');
-  });
-
-  it('returns empty for a malformed key rather than throwing', () => {
-    expect(weekdayLabel('')).toBe('');
-    expect(weekdayLabel('nonsense')).toBe('');
   });
 });
 

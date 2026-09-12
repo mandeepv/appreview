@@ -11,7 +11,7 @@ import { PATH_NODES } from '../lessons/units';
 import { getLesson } from '../lessons/registry';
 import { createProgressStore } from '../lessons/progressStore';
 import { markLessonCompleted, clearCompletedLessons } from '../lessons/lessonCompletion';
-import { clearStreak, recordActiveDay, recordNodeDay } from '../lessons/streak';
+import { clearStreak, recordActiveDay } from '../lessons/streak';
 
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
@@ -91,8 +91,6 @@ export const DevMenuScreen: React.FC = () => {
         // Flow lessons 1-4 keep completion in the whole-lesson record.
         await markLessonCompleted(node.lessonSlug);
       }
-      // Stamp a day too, so the rail's weekday labels have something to show.
-      await recordNodeDay(node.key);
     }
     await recordActiveDay();
     Alert.alert(

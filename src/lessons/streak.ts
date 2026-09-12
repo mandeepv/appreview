@@ -24,7 +24,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const KEY = STORAGE_KEYS.ACTIVE_DAYS;
-const NODE_DAYS_KEY = STORAGE_KEYS.NODE_DAYS;
 
 /** Local YYYY-MM-DD. Deliberately not toISOString(), which shifts to UTC. */
 export function localDayKey(date = new Date()): string {
@@ -90,51 +89,9 @@ export async function getStreak(): Promise<number> {
   return count;
 }
 
-/**
- * Which local day a given path node was finished on, for the rail's day labels
- * ("SUN" beside a finished row).
- *
- * Separate from the day ARRAY above: that answers "was anything done on day X"
- * for the streak, this answers "when was node Y done" for the rail. Neither can
- * be derived from the other, and the per-lesson progress stores hold no
- * timestamps at all.
- *
- * Best-effort: nodes finished before this shipped have no entry and simply show
- * no label, which is why the rail must read correctly without one.
- */
-export async function recordNodeDay(nodeKey: string): Promise<void> {
-  try {
-    const raw = await AsyncStorage.getItem(NODE_DAYS_KEY);
-    const map: Record<string, string> = raw ? JSON.parse(raw) : {};
-    if (map[nodeKey]) return;
-    map[nodeKey] = localDayKey();
-    await AsyncStorage.setItem(NODE_DAYS_KEY, JSON.stringify(map));
-  } catch {
-    // Non-fatal — a missing label costs three letters on one row.
-  }
-}
-
-export async function getNodeDays(): Promise<Record<string, string>> {
-  try {
-    const raw = await AsyncStorage.getItem(NODE_DAYS_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-/** "SUN" / "MON" … from a YYYY-MM-DD produced by localDayKey. */
-export function weekdayLabel(dayKey: string): string {
-  const [y, m, d] = dayKey.split('-').map(Number);
-  if (!y || !m || !d) return '';
-  return ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][new Date(y, m - 1, d).getDay()] ?? '';
-}
-
 export async function clearStreak(): Promise<void> {
   try {
-    await AsyncStorage.multiRemove([KEY, NODE_DAYS_KEY]);
+    await AsyncStorage.removeItem(KEY);
   } catch {
     // Same reasoning as above.
   }
