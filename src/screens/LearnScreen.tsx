@@ -39,7 +39,6 @@ import type { RootStackParamList } from '../navigation/types';
 import { useLessonGate } from '../hooks/useLessonGate';
 import { safeCapture } from '../lib/analytics';
 import { getCompletedPathKeys } from '../lessons/pathProgress';
-import { getStreak } from '../lessons/streak';
 import { getLesson } from '../lessons/registry';
 import {
   visibleNodes,
@@ -55,7 +54,7 @@ import {
   OnboardingRadius as R,
   oInk,
   oCream,
-  oClay,
+  // oClay — used only by the parked streak pill; restore with it.
 } from '../constants/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -100,12 +99,8 @@ function describeSection(node: PathNode): string {
   return lesson?.title ?? '';
 }
 
-/**
- * The streak pill's flame. Clay, the one warm accent in the system.
- *
- * Dimmed at zero: the count is always shown, but an unlit flame reads as "not
- * going yet" rather than putting the system's warmest colour on a bad week.
- */
+/* PARKED FOR v-NEXT — the streak pill's flame, with the pill in the header.
+
 function Flame({ dim = false }: { dim?: boolean }) {
   return (
     <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
@@ -119,12 +114,14 @@ function Flame({ dim = false }: { dim?: boolean }) {
     </Svg>
   );
 }
+*/
 
 export default function LearnScreen() {
   const navigation = useNavigation<Nav>();
   const { gateToLesson } = useLessonGate();
   const [completed, setCompleted] = useState<string[]>([]);
-  const [streak, setStreak] = useState(0);
+  // PARKED FOR v-NEXT, with the pill in the header.
+  // const [streak, setStreak] = useState(0);
   // Distinguishes "nothing finished yet" from "not read from disk yet". Without
   // it both look like `completed === []`, and the screen renders a day-one rail
   // for one frame before snapping to the real position — which for a parent
@@ -149,11 +146,11 @@ export default function LearnScreen() {
       let alive = true;
       setFocusCount((n) => n + 1);
       void (async () => {
-        // Settled, not all: one rejected read must not blank the whole rail.
-        const [keys, days] = await Promise.allSettled([getCompletedPathKeys(), getStreak()]);
+        // Settled, not thrown: a failed read must not blank the whole rail.
+        // (Parked: this read the streak alongside progress. See the header.)
+        const keys = await Promise.allSettled([getCompletedPathKeys()]);
         if (!alive) return;
-        if (keys.status === 'fulfilled') setCompleted(keys.value);
-        if (days.status === 'fulfilled') setStreak(days.value);
+        if (keys[0].status === 'fulfilled') setCompleted(keys[0].value);
         setLoaded(true);
       })();
       return () => {
@@ -239,10 +236,18 @@ export default function LearnScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.wordmark}>Kinderwell</Text>
-        {/* Always shown, zero included. The pill used to hide below two days so
-            a lapse read as absence rather than as a zero held up to a parent
-            who had a hard week; the owner's call is that the count is the habit
-            mechanic and hiding it removes the stake that brings people back. */}
+        {/* PARKED FOR v-NEXT — the streak pill.
+
+            Not a bug and not abandoned: how the streak should behave is still
+            an open design question, specifically what zero shows to a parent
+            who had a hard week. Shipping a habit mechanic that has not been
+            decided is worse than shipping none.
+
+            Active days are STILL RECORDED while this is dark (see
+            LessonController -> recordActiveDay), so whenever the pill comes
+            back it has real history to show instead of starting everyone at
+            zero. Restore by uncommenting this and the `streak` state below.
+
         {loaded ? (
           <View style={[styles.streakPill, streak === 0 ? styles.streakPillZero : null]}>
             <Flame dim={streak === 0} />
@@ -251,6 +256,7 @@ export default function LearnScreen() {
             </Text>
           </View>
         ) : null}
+        */}
       </View>
 
       {/* Reading progress is one AsyncStorage round-trip. Holding the rail back
@@ -439,6 +445,7 @@ const styles = StyleSheet.create({
   },
   // Serif, sentence case — the masthead of a book rather than a product label.
   wordmark: { fontFamily: F.serif, fontSize: 26, letterSpacing: -0.4, color: C.ink },
+  /* PARKED FOR v-NEXT — the streak pill's styles.
   streakPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -449,10 +456,9 @@ const styles = StyleSheet.create({
     backgroundColor: oClay(0.12),
   },
   streakCount: { fontFamily: F.sansSemi, fontSize: 14, color: C.clayDeep },
-  // Zero keeps the pill's shape and position — it is the same element, not a
-  // different one — but drops out of the warm accent into neutral ink.
   streakPillZero: { backgroundColor: oInk(0.07) },
   streakCountZero: { color: oInk(0.45) },
+  */
 
   scroll: { flex: 1 },
   // flexGrow + centred: on day one the rail is a handful of rows and pinning

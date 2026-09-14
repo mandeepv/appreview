@@ -6,14 +6,16 @@
  * be derived from what is already persisted. This keeps a small array of local
  * dates instead.
  *
- * HOW IT IS SHOWN. The count is always visible on the Learn header, zero
- * included: the number is the habit mechanic, and hiding it removes the stake
- * that brings people back. (It hid below two days for a while, on the argument
- * that a zero reads as a verdict on a hard week rather than as a nudge. The
- * owner's call was that visible stakes matter more; the flame dims at zero as
- * the compromise.)
+ * NOTHING SHOWS THIS YET — the pill is PARKED for a later version while how a
+ * streak should behave gets decided, particularly what zero says to a parent
+ * who had a hard week. `recordActiveDay` deliberately KEEPS RUNNING while it is
+ * dark: days cost nothing to store, and whenever the pill returns it will have
+ * real history behind it instead of resetting everyone to zero on upgrade.
  *
- * What it still never does:
+ * So this module is write-only for now. `getStreak` has no caller in the app;
+ * that is expected, not dead code.
+ *
+ * What a streak here must never do, whenever it does come back:
  *
  *   - it counts UP and is never shown as broken, lost, or at risk
  *   - there is no "don't lose your streak" prompt, anywhere

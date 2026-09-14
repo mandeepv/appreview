@@ -11,7 +11,10 @@ import { PATH_NODES } from '../lessons/units';
 import { getLesson } from '../lessons/registry';
 import { createProgressStore } from '../lessons/progressStore';
 import { markLessonCompleted, clearCompletedLessons } from '../lessons/lessonCompletion';
-import { clearStreak, recordActiveDay, seedStreakForDev } from '../lessons/streak';
+// seedStreakForDev is parked with the streak UI. recordActiveDay and
+// clearStreak stay: days keep being recorded while the pill is dark, so the
+// reset button still has to be able to wipe them.
+import { clearStreak, recordActiveDay } from '../lessons/streak';
 
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
@@ -156,7 +159,8 @@ export const DevMenuScreen: React.FC = () => {
     );
   };
 
-  /** Seed a streak so the header pill can actually be seen. */
+  /* PARKED FOR v-NEXT — streak seeding, with the pill itself.
+
   const seedStreak = async (days: number) => {
     await seedStreakForDev(days);
     Alert.alert('Streak seeded', `${days} consecutive days. The pill should show ${days}.`, [
@@ -164,13 +168,6 @@ export const DevMenuScreen: React.FC = () => {
     ]);
   };
 
-  /**
-   * A broken streak — active days exist, but none recent enough to count.
-   *
-   * Distinct from a new user: this is the parent who had a run going and then
-   * had a hard week, which is the state the zero pill was argued over. Seeds
-   * days 5-7 back so getStreak returns 0 rather than there being no record.
-   */
   const seedLapsedStreak = async () => {
     await seedStreakForDev(3, 5);
     Alert.alert(
@@ -179,10 +176,14 @@ export const DevMenuScreen: React.FC = () => {
       [{ text: 'OK', onPress: () => navigation.navigate('Root') }],
     );
   };
+  */
 
   /** Back to a brand-new user: nothing finished, locked at node 1. */
   const resetPath = async () => {
     await resetPathStores();
+    // Active days are still recorded while the streak UI is parked, so they
+    // have to be cleared here too — otherwise "brand-new user" leaves a day
+    // history behind that would reappear the moment the pill comes back.
     await clearStreak();
     Alert.alert('Path reset', 'Every section is unfinished again.', [
       { text: 'OK', onPress: () => navigation.navigate('Root') },
@@ -352,6 +353,7 @@ export const DevMenuScreen: React.FC = () => {
           <TouchableOpacity style={styles.variantBtn} onPress={unlockOutOfOrder}>
             <Text style={styles.variantBtnText}>Out-of-order (1, 9, 21) — card must be at 2</Text>
           </TouchableOpacity>
+          {/* PARKED FOR v-NEXT — the three streak buttons, with the pill.
           <TouchableOpacity style={styles.variantBtn} onPress={() => seedStreak(1)}>
             <Text style={styles.variantBtnText}>Streak 1 day — pill must show 1</Text>
           </TouchableOpacity>
@@ -361,6 +363,7 @@ export const DevMenuScreen: React.FC = () => {
           <TouchableOpacity style={styles.variantBtn} onPress={seedLapsedStreak}>
             <Text style={styles.variantBtnText}>Lapsed streak — pill must show 0, flame dim</Text>
           </TouchableOpacity>
+          */}
         </View>
 
         <View style={styles.variantSection}>
