@@ -11,7 +11,7 @@ import { PATH_NODES } from '../lessons/units';
 import { getLesson } from '../lessons/registry';
 import { createProgressStore } from '../lessons/progressStore';
 import { markLessonCompleted, clearCompletedLessons } from '../lessons/lessonCompletion';
-import { clearStreak, recordActiveDay } from '../lessons/streak';
+import { clearStreak, recordActiveDay, seedStreakForDev } from '../lessons/streak';
 
 export const DevMenuScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<OnboardingStackParamList>>();
@@ -81,7 +81,11 @@ export const DevMenuScreen: React.FC = () => {
    * same per-lesson stores the app reads, rather than a dev-only bypass — what
    * you see afterwards is exactly what a parent at that point would see.
    */
-  const unlockPathTo = async (count: number) => {
+  const unlockPathTo = async (count: number, opts?: { silent?: boolean }) => {
+    // Start from a clean slate. Unlocking to 3 after having unlocked to 25 used
+    // to leave the earlier 25 written, so the card stayed at 26 and the button
+    // looked broken — completion is a SET, and these writes only ever added.
+    await resetPathStores();
     const nodes = PATH_NODES.slice(0, count);
     for (const node of nodes) {
       const lesson = getLesson(node.lessonSlug);
@@ -93,6 +97,7 @@ export const DevMenuScreen: React.FC = () => {
       }
     }
     await recordActiveDay();
+    if (opts?.silent) return;
     Alert.alert(
       'Path unlocked',
       `${count} of ${PATH_NODES.length} sections marked complete. Open Learn to see it.`,
@@ -100,8 +105,8 @@ export const DevMenuScreen: React.FC = () => {
     );
   };
 
-  /** Back to a brand-new user: nothing finished, locked at node 1. */
-  const resetPath = async () => {
+  /** Clear every completion store. Shared by reset and by each unlock. */
+  const resetPathStores = async () => {
     for (const slug of new Set(PATH_NODES.map((n) => n.lessonSlug))) {
       const lesson = getLesson(slug);
       if (lesson?.storageKey) {
@@ -109,30 +114,67 @@ export const DevMenuScreen: React.FC = () => {
       }
     }
     await clearCompletedLessons();
+  };
+
+  /**
+   * Leave exactly one section unfinished, mid-path.
+   *
+   * This is the setup for the bug that made the card stick: finish the lesson
+   * this drops you on, come back, and the card must have MOVED to the next
+   * section. Reaching this state by hand meant walking twenty sections.
+   */
+  const unlockToPenultimate = async (count: number) => {
+    await unlockPathTo(count - 1, { silent: true });
+    Alert.alert(
+      'Ready',
+      `Sections 1-${count - 1} done. Open Learn, finish the card, come back — it must advance to section ${count + 1}.`,
+      [{ text: 'OK', onPress: () => navigation.navigate('Root') }],
+    );
+  };
+
+  /**
+   * Completion with GAPS in it — node 1, 9 and 21 done, nothing between.
+   *
+   * Reachable in the wild through a deep link or an older build. The card must
+   * land on the earliest gap (section 2), NOT after the highest finished node,
+   * and the rail must still render it.
+   */
+  const unlockOutOfOrder = async () => {
+    await resetPathStores();
+    for (const node of [PATH_NODES[0], PATH_NODES[8], PATH_NODES[20]]) {
+      const lesson = getLesson(node.lessonSlug);
+      if (lesson?.storageKey) {
+        await createProgressStore(lesson.storageKey).markSectionComplete(node.sectionId);
+      } else {
+        await markLessonCompleted(node.lessonSlug);
+      }
+    }
+    Alert.alert(
+      'Out-of-order progress written',
+      'Sections 1, 9 and 21 are done with gaps between. Learn must offer section 2 — the earliest gap.',
+      [{ text: 'OK', onPress: () => navigation.navigate('Root') }],
+    );
+  };
+
+  /** Seed a streak so the header pill can actually be seen. */
+  const seedStreak = async (days: number) => {
+    await seedStreakForDev(days);
+    Alert.alert(
+      'Streak seeded',
+      days >= 2
+        ? `${days} consecutive days. The pill should show ${days}.`
+        : `${days} day — the pill stays HIDDEN below two days, by design.`,
+      [{ text: 'OK', onPress: () => navigation.navigate('Root') }],
+    );
+  };
+
+  /** Back to a brand-new user: nothing finished, locked at node 1. */
+  const resetPath = async () => {
+    await resetPathStores();
     await clearStreak();
     Alert.alert('Path reset', 'Every section is unfinished again.', [
       { text: 'OK', onPress: () => navigation.navigate('Root') },
     ]);
-  };
-
-  /**
-   * Open a lesson section directly.
-   *
-   * DevMenu sits in the ONBOARDING stack; LessonScreen lives in RootNavigator,
-   * so this cannot `navigate('LessonScreen')` the way LearnScreen does — that
-   * route is not in scope here. It has to go through 'Root' and name the
-   * nested screen, which is the wiring the older preview buttons were missing.
-   */
-  const openSection = (lessonSlug: string, sectionIndex: number) => {
-    navigation.navigate('Root', {
-      screen: 'LessonScreen',
-      params: {
-        lessonId: lessonSlug,
-        sectionIndex,
-        screenIndex: 0,
-        returnTo: 'MainTabs',
-      },
-    } as never);
   };
 
   /**
@@ -282,6 +324,27 @@ export const DevMenuScreen: React.FC = () => {
             onPress={() => unlockPathTo(PATH_NODES.length)}
           >
             <Text style={styles.variantBtnText}>Finish the whole path</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* The states that broke. Each one is a specific regression: the card
+            not advancing, the card landing in the wrong place, and the pill
+            that could not be seen at all. */}
+        <View style={styles.variantSection}>
+          <Text style={styles.variantHeader}>Learn path — edge cases</Text>
+          <TouchableOpacity style={styles.variantBtn} onPress={() => unlockToPenultimate(20)}>
+            <Text style={styles.variantBtnText}>
+              One section from 20 — finish it, card must advance
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.variantBtn} onPress={unlockOutOfOrder}>
+            <Text style={styles.variantBtnText}>Out-of-order (1, 9, 21) — card must be at 2</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.variantBtn} onPress={() => seedStreak(1)}>
+            <Text style={styles.variantBtnText}>Streak 1 day — pill must stay HIDDEN</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.variantBtn} onPress={() => seedStreak(7)}>
+            <Text style={styles.variantBtnText}>Streak 7 days — pill must show 7</Text>
           </TouchableOpacity>
         </View>
 

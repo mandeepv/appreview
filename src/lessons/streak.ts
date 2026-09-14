@@ -89,6 +89,23 @@ export async function getStreak(): Promise<number> {
   return count;
 }
 
+/**
+ * DEV ONLY — seed a run of consecutive days ending today.
+ *
+ * The pill hides below two days and `recordActiveDay` can only ever add today,
+ * so a real streak takes a real week to produce. Without this the pill cannot
+ * be seen on device at all.
+ */
+export async function seedStreakForDev(days: number): Promise<void> {
+  const keys: string[] = [];
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    keys.push(localDayKey(d));
+  }
+  await AsyncStorage.setItem(KEY, JSON.stringify(keys));
+}
+
 export async function clearStreak(): Promise<void> {
   try {
     await AsyncStorage.removeItem(KEY);
