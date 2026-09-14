@@ -9,9 +9,17 @@
  *
  *   identity   name + "Mom to two children", when we have them (profileSummary
  *              decides; a failed fetch simply renders nothing)
- *   utility    subscription, support, legal — grouped on one wash panel so the
- *              admin half recedes
- *   account    Log out as a real button; Delete account as quiet text below it
+ *   utility    subscription, support, legal — under mono eyebrows, each
+ *              destination its own card
+ *   account    Log out as a card; Delete account as quiet text below it
+ *
+ * DENSITY IS DELIBERATE. These four destinations were first compressed onto a
+ * single wash panel, which is right for artboard A — but A balances that panel
+ * against a large personal half, and ours is two lines after progress, goals
+ * and the email address were cut. Without that counterweight the panel read as
+ * one thin stripe adrift in whitespace. Carding each row and restoring the
+ * section eyebrows gives the screen back the vertical rhythm the old teal
+ * version had, without inventing content to fill it.
  *
  * CUT — progress ("31 of 49 sections"). The canvas led with it, but every
  * denominator in this app grows: adding lessons would silently move a parent
@@ -66,27 +74,39 @@ function Chevron() {
   );
 }
 
-/** A full-weight row on the utility panel. */
+/** A section heading. Mono, uppercase — the eyebrow voice from the Path card. */
+function Eyebrow({ children }: { children: string }) {
+  return <Text style={styles.eyebrow}>{children}</Text>;
+}
+
+/**
+ * One destination, as its own card.
+ *
+ * Deliberately NOT rows sharing a single panel. Compressed into one block
+ * these four reduce to a stripe floating in whitespace — the screen has no
+ * large personal half above them to balance against, so each needs to hold
+ * its own space the way the old teal cards did.
+ */
 function Row({
   label,
+  detail,
   onPress,
-  last = false,
+  disabled = false,
 }: {
   label: string;
+  detail?: string;
   onPress: () => void;
-  last?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.row,
-        last ? styles.rowLast : null,
-        pressed ? { opacity: 0.6 } : null,
-      ]}
+      style={({ pressed }) => [styles.card, pressed ? { opacity: 0.7 } : null]}
     >
-      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.cardLabel}>{label}</Text>
+      {detail ? <Text style={styles.cardDetail}>{detail}</Text> : null}
       <Chevron />
     </Pressable>
   );
@@ -407,26 +427,25 @@ export const SettingsScreen: React.FC = () => {
         </View>
         */}
 
-        <View style={styles.panel}>
-          <Row label="Manage subscription" onPress={handleManageSubscription} />
-          <Row label="Contact support" onPress={handleContactSupport} />
-          <Row label="Privacy policy" onPress={handlePrivacyPolicy} />
-          <Row label="Terms of service" onPress={handleTermsOfService} last />
+        <Eyebrow>SUBSCRIPTION</Eyebrow>
+        <Row
+          label="Manage subscription"
+          detail={isSubscribed ? 'Active' : undefined}
+          onPress={handleManageSubscription}
+          disabled={isLoading}
+        />
+        <Row
+          label={isRestoring ? 'Restoring…' : 'Restore purchases'}
+          onPress={handleRestorePurchases}
+          disabled={isLoading || isRestoring}
+        />
 
-          {/* Restore is App Store plumbing, not a feature: it matters
-              intensely for ten seconds and never again. No chevron, no row of
-              its own weight. */}
-          <Pressable
-            onPress={handleRestorePurchases}
-            disabled={isLoading || isRestoring}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.restore, pressed ? { opacity: 0.6 } : null]}
-          >
-            <Text style={styles.restoreLabel}>
-              {isRestoring ? 'Restoring…' : 'Restore purchases'}
-            </Text>
-          </Pressable>
-        </View>
+        <Eyebrow>SUPPORT</Eyebrow>
+        <Row label="Contact support" onPress={handleContactSupport} />
+
+        <Eyebrow>LEGAL</Eyebrow>
+        <Row label="Privacy policy" onPress={handlePrivacyPolicy} />
+        <Row label="Terms of service" onPress={handleTermsOfService} />
 
         <View style={styles.spacer} />
 
@@ -482,37 +501,41 @@ const styles = StyleSheet.create({
   },
   demoNote: { fontFamily: F.sans, fontSize: 14, color: oInk(0.62), marginTop: 9 },
 
-  // The utility half, grouped on one wash panel so it recedes as a block
-  // rather than competing row by row with the name above it.
-  panel: {
-    backgroundColor: C.wash,
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    marginTop: 22,
+  eyebrow: {
+    fontFamily: F.monoMed,
+    fontSize: 12,
+    letterSpacing: 12 * 0.06,
+    color: oInk(0.62),
+    marginTop: 26,
+    marginBottom: 12,
   },
-  row: {
+
+  // Each destination is its own card on the wash, with a real gap after it.
+  // The whole screen is four rows and two buttons; compressed into a single
+  // panel that reads as one thin stripe adrift in whitespace.
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: oInk(0.1),
+    backgroundColor: C.wash,
+    borderRadius: 18,
+    paddingHorizontal: 20,
+    paddingVertical: 19,
+    marginBottom: 10,
   },
-  rowLast: { borderBottomWidth: 0 },
-  rowLabel: { flex: 1, fontFamily: F.sansMed, fontSize: 16, color: C.ink },
-
-  restore: { paddingVertical: 13, borderTopWidth: 1, borderTopColor: oInk(0.1) },
-  restoreLabel: { fontFamily: F.sans, fontSize: 14, color: oInk(0.66) },
+  cardLabel: { flex: 1, fontFamily: F.sansMed, fontSize: 16, color: C.ink },
+  cardDetail: { fontFamily: F.sans, fontSize: 14, color: oInk(0.6) },
 
   // Pushes the account actions to the bottom on a tall screen, and simply
   // scrolls on a short one.
-  spacer: { flex: 1, minHeight: 28 },
+  spacer: { flex: 1, minHeight: 34 },
 
+  // Matches the card rhythm above rather than introducing a pill: this is the
+  // last item in the same list, not a call to action.
   logout: {
-    height: 54,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: oInk(0.28),
+    backgroundColor: C.wash,
+    borderRadius: 18,
+    paddingVertical: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
