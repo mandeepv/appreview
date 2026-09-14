@@ -1,28 +1,138 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  Linking,
-  ActivityIndicator,
-} from 'react-native';
+/**
+ * The You tab — canvas "Kinderwell You", artboard A.
+ *
+ * Restyled onto the cream/forest system. Every handler below is v1.2.0's,
+ * unchanged: restore, manage, delete, log out and the legal links keep their
+ * exact logic, analytics and Alert copy. Only presentation moved.
+ *
+ * WHAT THE SCREEN SHOWS, and what was deliberately cut from the canvas:
+ *
+ *   identity   name + "Mom to two children", when we have them (profileSummary
+ *              decides; a failed fetch simply renders nothing)
+ *   utility    subscription, support, legal — grouped on one wash panel so the
+ *              admin half recedes
+ *   account    Log out as a real button; Delete account as quiet text below it
+ *
+ * CUT — progress ("31 of 49 sections"). The canvas led with it, but every
+ * denominator in this app grows: adding lessons would silently move a parent
+ * further from "done" than they were yesterday, which punishes them for our
+ * content shipping. A streak may take this slot later; the placeholder below
+ * marks where.
+ *
+ * CUT — the email address. With Apple's Hide My Email it is a relay alias
+ * (a1b2c3@privaterelay.appleid.com) that identifies nobody, and even a real
+ * address is a login credential rather than an identity.
+ *
+ * CUT — the goal chips ("What you're working on"). Read-only chips with no way
+ * to edit them are half a feature; they wait for a screen that can change them.
+ *
+ * Delete account is findable but deliberately NOT the weight of Log out. Apple
+ * requires it reachable, not prominent, and giving it equal weight quietly
+ * frames deleting your account as a normal thing to do.
+ */
+
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import Svg, { Path } from 'react-native-svg';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/authStore';
 import { restorePurchases } from '../services/purchaseService';
 import { deleteAccount } from '../services/authService';
+import { getUserOnboardingData } from '../services/onboardingService';
 import { resetPostHog } from '../config/posthog';
 import { safeCapture } from '../lib/analytics';
-import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
+import {
+  displayName,
+  familyLine,
+  hasIdentity,
+  type ProfileSummaryInput,
+} from '../lib/profileSummary';
+import { OnboardingColors as C, OnboardingFonts as F, oInk } from '../constants/theme';
+
+/** The row chevron. Drawn rather than an icon font, matching the Path screen. */
+function Chevron() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M9 6l6 6-6 6"
+        stroke={oInk(0.5)}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+/** A full-weight row on the utility panel. */
+function Row({
+  label,
+  onPress,
+  last = false,
+}: {
+  label: string;
+  onPress: () => void;
+  last?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.row,
+        last ? styles.rowLast : null,
+        pressed ? { opacity: 0.6 } : null,
+      ]}
+    >
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Chevron />
+    </Pressable>
+  );
+}
 
 export const SettingsScreen: React.FC = () => {
   const { user, signOut, isDemoUser, isSubscribed } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [profile, setProfile] = useState<ProfileSummaryInput>({});
+
+  /**
+   * The identity lines come from Supabase, not the onboarding store.
+   *
+   * AuthScreen calls clearState() once onboarding finishes, so the local store
+   * is empty by the time anyone reaches this tab — the profile row written
+   * during onboarding is the only surviving copy.
+   *
+   * Fails silently by design: an empty profile and a failed fetch both render
+   * no header, so there is no error state and nothing to retry.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      const userId = user?.id;
+      // Demo reviewers have no profile row to fetch; they get a fixed header.
+      if (userId && !isDemoUser) {
+        void (async () => {
+          try {
+            const data = await getUserOnboardingData(userId);
+            if (!alive || !data) return;
+            setProfile({
+              name: data.name,
+              userType: data.user_type,
+              childrenCount: data.children_count,
+            });
+          } catch {
+            // Leave the header unrendered. See the note above.
+          }
+        })();
+      }
+      return () => {
+        alive = false;
+      };
+    }, [user?.id, isDemoUser]),
+  );
 
   const handleRestorePurchases = async () => {
     // Guard re-entry — tapping twice while restore is in flight must not
@@ -263,219 +373,162 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
+  // Demo reviewers get a fixed, honest header rather than a Supabase lookup
+  // they have no row for.
+  const identity: ProfileSummaryInput = isDemoUser
+    ? { name: 'App Reviewer' }
+    : profile;
+  const name = displayName(identity);
+  const family = familyLine(identity);
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Profile Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
-          <View style={styles.profileCard}>
-            <View style={styles.profileIcon}>
-              <Ionicons name="person" size={32} color={Colors.primary} />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>
-                {isDemoUser ? 'App Reviewer' : (user?.email || 'User')}
-              </Text>
-              <Text style={styles.profileEmail}>
-                {isDemoUser ? 'Demo Mode - Full Access' : user?.email}
-              </Text>
-            </View>
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Rendered only when there is something true to say. An empty profile
+            and a failed fetch look identical here, on purpose. */}
+        {hasIdentity(identity) ? (
+          <View style={styles.identity}>
+            {name ? <Text style={styles.name}>{name}</Text> : null}
+            {family ? <Text style={styles.family}>{family}</Text> : null}
+            {isDemoUser ? <Text style={styles.demoNote}>Demo mode · full access</Text> : null}
           </View>
+        ) : null}
+
+        {/* PARKED — the streak slot. The canvas put progress counts here and
+            they were cut: every denominator in this app grows, so "31 of 49"
+            moves backwards each time content ships. A streak counts up and
+            does not have that problem, which is why it is the likelier tenant.
+            Active days are already being recorded (src/lessons/streak.ts), so
+            whatever lands here will have real history behind it.
+
+        <View style={styles.record}>
+          <Text style={styles.recordEyebrow}>YOUR STREAK</Text>
+          ...
         </View>
+        */}
 
-        {/* Subscription Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Subscription</Text>
+        <View style={styles.panel}>
+          <Row label="Manage subscription" onPress={handleManageSubscription} />
+          <Row label="Contact support" onPress={handleContactSupport} />
+          <Row label="Privacy policy" onPress={handlePrivacyPolicy} />
+          <Row label="Terms of service" onPress={handleTermsOfService} last />
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={handleManageSubscription}
-            disabled={isLoading}
-          >
-            <Ionicons name="card-outline" size={24} color={Colors.textSecondary} />
-            <Text style={styles.menuItemText}>Manage Subscription</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
+          {/* Restore is App Store plumbing, not a feature: it matters
+              intensely for ten seconds and never again. No chevron, no row of
+              its own weight. */}
+          <Pressable
             onPress={handleRestorePurchases}
             disabled={isLoading || isRestoring}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.restore, pressed ? { opacity: 0.6 } : null]}
           >
-            {isRestoring ? (
-              <ActivityIndicator size="small" color={Colors.primary} />
-            ) : (
-              <Ionicons name="refresh-outline" size={24} color={Colors.textSecondary} />
-            )}
-            <Text style={styles.menuItemText}>
-              {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+            <Text style={styles.restoreLabel}>
+              {isRestoring ? 'Restoring…' : 'Restore purchases'}
             </Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
-        {/* Support Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
+        <View style={styles.spacer} />
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={handleContactSupport}
-          >
-            <Ionicons name="mail-outline" size={24} color={Colors.textSecondary} />
-            <Text style={styles.menuItemText}>Contact Support</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
-          </TouchableOpacity>
-        </View>
+        <Pressable
+          onPress={handleLogout}
+          disabled={isLoading}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.logout, pressed ? { opacity: 0.85 } : null]}
+        >
+          <Text style={styles.logoutLabel}>Log out</Text>
+        </Pressable>
 
-        {/* Legal Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Legal</Text>
+        {/* Findable, deliberately not the weight of Log out. */}
+        <Pressable
+          onPress={handleDeleteAccount}
+          disabled={isLoading}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.delete, pressed ? { opacity: 0.6 } : null]}
+        >
+          <Text style={styles.deleteLabel}>Delete account</Text>
+        </Pressable>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={handlePrivacyPolicy}
-          >
-            <Ionicons name="shield-checkmark-outline" size={24} color={Colors.textSecondary} />
-            <Text style={styles.menuItemText}>Privacy Policy</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={handleTermsOfService}
-          >
-            <Ionicons name="document-text-outline" size={24} color={Colors.textSecondary} />
-            <Text style={styles.menuItemText}>Terms of Service</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Account Actions */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={[styles.menuItem, styles.logoutItem]}
-            onPress={handleLogout}
-            disabled={isLoading}
-          >
-            <Ionicons name="log-out-outline" size={24} color={Colors.error} />
-            <Text style={[styles.menuItemText, styles.logoutText]}>Log Out</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.menuItem, styles.deleteItem]}
-            onPress={handleDeleteAccount}
-            disabled={isLoading}
-          >
-            <Ionicons name="trash-outline" size={24} color={Colors.error} />
-            <Text style={[styles.menuItemText, styles.deleteText]}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* App Info */}
-        <View style={styles.appInfo}>
-          {/* Read from Constants so this stays in sync with app.json — no
-              more hardcoded "v1.0.0" while the app actually shipped 1.1.0
-              (Fable review #14). Copyright year derived from Date so we
-              stop needing to remember to bump it. */}
-          <Text style={styles.appInfoText}>
-            Kinderwell v{Constants.expoConfig?.version ?? '?'}
-            {Constants.expoConfig?.ios?.buildNumber ? ` (${Constants.expoConfig.ios.buildNumber})` : ''}
-          </Text>
-          <Text style={styles.appInfoText}>© {new Date().getFullYear()} Kinderwell</Text>
-        </View>
+        {/* Read from Constants so this stays in sync with app.json — no
+            more hardcoded "v1.0.0" while the app actually shipped 1.1.0
+            (Fable review #14). Copyright year derived from Date so we
+            stop needing to remember to bump it. */}
+        <Text style={styles.version}>
+          Kinderwell v{Constants.expoConfig?.version ?? '?'}
+          {Constants.expoConfig?.ios?.buildNumber
+            ? ` (${Constants.expoConfig.ios.buildNumber})`
+            : ''}
+          {' · © '}
+          {new Date().getFullYear()} Kinderwell
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
+  screen: { flex: 1, backgroundColor: C.paper },
+  scroll: { flexGrow: 1, paddingHorizontal: 30, paddingTop: 20, paddingBottom: 34 },
+
+  identity: { paddingBottom: 22, borderBottomWidth: 1, borderBottomColor: oInk(0.12) },
+  // Light serif at display size — the masthead voice from the Path screen.
+  name: { fontFamily: F.serifLight, fontSize: 38, lineHeight: 38 * 1.1, color: C.ink },
+  family: {
+    fontFamily: F.serif,
+    fontSize: 18,
+    lineHeight: 18 * 1.45,
+    color: oInk(0.82),
+    marginTop: 8,
   },
-  scrollContent: {
-    padding: Spacing.lg,
+  demoNote: { fontFamily: F.sans, fontSize: 14, color: oInk(0.62), marginTop: 9 },
+
+  // The utility half, grouped on one wash panel so it recedes as a block
+  // rather than competing row by row with the name above it.
+  panel: {
+    backgroundColor: C.wash,
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    marginTop: 22,
   },
-  section: {
-    marginBottom: Spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-  },
-  profileCard: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    gap: 12,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: oInk(0.1),
   },
-  profileIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.primaryBg,
+  rowLast: { borderBottomWidth: 0 },
+  rowLabel: { flex: 1, fontFamily: F.sansMed, fontSize: 16, color: C.ink },
+
+  restore: { paddingVertical: 13, borderTopWidth: 1, borderTopColor: oInk(0.1) },
+  restoreLabel: { fontFamily: F.sans, fontSize: 14, color: oInk(0.66) },
+
+  // Pushes the account actions to the bottom on a tall screen, and simply
+  // scrolls on a short one.
+  spacer: { flex: 1, minHeight: 28 },
+
+  logout: {
+    height: 54,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: oInk(0.28),
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.md,
   },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  profileEmail: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.textSecondary,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.sm,
-  },
-  menuItemText: {
-    flex: 1,
-    fontSize: Typography.sizes.base,
-    color: Colors.textPrimary,
-    fontWeight: Typography.weights.medium,
-    marginLeft: Spacing.md,
-  },
-  logoutItem: {
-    borderWidth: 1,
-    borderColor: Colors.error + '30',
-  },
-  logoutText: {
-    color: Colors.error,
-  },
-  deleteItem: {
-    backgroundColor: Colors.error + '10',
-    borderWidth: 1,
-    borderColor: Colors.error + '30',
-  },
-  deleteText: {
-    color: Colors.error,
-  },
-  appInfo: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-  },
-  appInfoText: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.textTertiary,
-    marginBottom: 4,
+  logoutLabel: { fontFamily: F.sansSemi, fontSize: 16, color: C.ink },
+
+  // No red exists in this palette, so "destructive" is expressed as the palest
+  // ink on the screen: findable, clearly not routine, never alarming.
+  delete: { alignItems: 'center', paddingVertical: 16 },
+  deleteLabel: { fontFamily: F.sans, fontSize: 14, color: oInk(0.48) },
+
+  version: {
+    fontFamily: F.sans,
+    fontSize: 12,
+    lineHeight: 12 * 1.5,
+    color: oInk(0.42),
+    textAlign: 'center',
+    paddingTop: 4,
   },
 });
