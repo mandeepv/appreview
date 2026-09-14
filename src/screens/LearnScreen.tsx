@@ -22,17 +22,15 @@
  * LOCKED, SEQUENTIALLY. Only a finished node or tonight's opens. Finishing
  * tonight's immediately opens the next — there is no daily drip, so a parent
  * with a free evening can keep going.
+ *
+ * WHERE IT OPENS. Always at tonight's card, with a little finished rail showing
+ * above it. The screen answers "what do I do tonight?" every time it is opened,
+ * so scrolling back through history does not persist across a tab switch — that
+ * excursion ends when the screen is left.
  */
 
-import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  type LayoutChangeEvent,
-} from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -129,12 +127,18 @@ export default function LearnScreen() {
   // mid-path flashes the wrong lesson as tonight's.
   const [loaded, setLoaded] = useState(false);
 
+  // Set on focus, cleared once the rail has been positioned. The scroll cannot
+  // happen here — the rows do not exist until the freshly-read progress has
+  // rendered — so this defers it to the list's own layout.
+  const [needsScroll, setNeedsScroll] = useState(true);
+
   // Re-read on every focus, not just on mount. The screen stays mounted under
   // the tab navigator, so returning from a finished lesson would otherwise show
   // the same card still waiting to be started.
   useFocusEffect(
     useCallback(() => {
       let alive = true;
+      setNeedsScroll(true);
       void (async () => {
         // Settled, not all: one rejected read must not blank the whole rail.
         const [keys, days] = await Promise.allSettled([getCompletedPathKeys(), getStreak()]);
@@ -153,34 +157,42 @@ export default function LearnScreen() {
   const progress = pathProgress(completed);
   const allDone = loaded && progress.done >= PATH_NODES.length;
 
-  // Where the rail opens.
+  // Where the rail sits when the screen is opened.
   //
-  // The whole history renders, so by section ten the card sits well below the
-  // fold. Rather than scroll to it after layout — which failed repeatedly,
-  // because onContentSizeChange and onLayout fire in no fixed order — the card
-  // reports its own y and the ScrollView is given a `contentOffset`. That is an
-  // INITIAL position, applied before first paint, so there is no callback race
-  // and no visible jump.
+  // The Path tab answers one question — "what do I do tonight?" — and it has to
+  // answer it every time it is opened, not just the first time. Scrolling up
+  // through finished sections is a deliberate excursion with an end; leaving the
+  // screen ends it. Preserving that scroll would mean a parent who browsed their
+  // history on Tuesday opens the app on Wednesday looking at section 3 of 40,
+  // with nothing explaining why. (Same convention as Instagram Home, App Store
+  // Today, Mail: re-entering a tab returns to its job.)
   //
-  // Held in state (not a ref) because contentOffset is a prop: the value has to
-  // cause a re-render to take effect. Stored WITH the key of the card it was
-  // measured from, so finishing a lesson opens at the new card rather than at
-  // the stale offset of the old one — without an effect resetting it, which
-  // would render twice.
-  const currentKey = nodes.find((n) => nodeState(n, completed) === 'current')?.key ?? null;
-  const [measured, setMeasured] = useState<{ key: string; y: number } | null>(null);
+  // LearnScreen stays MOUNTED under the tab navigator, so this cannot be left to
+  // an initial-position prop — those apply once and never again. It has to be an
+  // explicit scroll on focus.
+  const listRef = useRef<FlatList<PathNode>>(null);
+  const currentPos = nodes.findIndex((n) => nodeState(n, completed) === 'current');
 
-  // The row reports its own key alongside its y, so this closes over nothing
-  // and stays stable across renders.
-  const onCardLayout = useCallback((key: string, y: number) => {
-    // Measure once per card. A re-layout — a title rewrapping on rotation, say
-    // — must not yank a parent back down while they read their history.
-    setMeasured((prev) => (prev?.key === key ? prev : { key, y }));
+  const scrollToCard = useCallback((pos: number, total: number) => {
+    // A finished path has no card at all. Land at the END, on the closing line
+    // — that is where the parent's attention belongs, and leaving the rail
+    // wherever it happened to be would be the one case that ignores the focus.
+    if (pos < 0) {
+      if (total > 0) listRef.current?.scrollToEnd({ animated: false });
+      return;
+    }
+    // Day one: the card is already the first thing on screen.
+    if (pos === 0) return;
+    // viewPosition 0 puts the card at the top of the viewport; the offset backs
+    // it off so finished rail still shows above it. Without that peek the
+    // history is invisible, and a parent who cannot see it will not reach for it.
+    listRef.current?.scrollToIndex({
+      index: pos,
+      animated: false,
+      viewPosition: 0,
+      viewOffset: HISTORY_PEEK,
+    });
   }, []);
-
-  const cardY = measured !== null && measured.key === currentKey ? measured.y : null;
-  const contentOffset =
-    cardY !== null && cardY > HISTORY_PEEK ? { x: 0, y: cardY - HISTORY_PEEK } : undefined;
 
   const openNode = (node: PathNode) => {
     if (!canOpen(node, completed)) return;
@@ -222,48 +234,72 @@ export default function LearnScreen() {
         ) : null}
       </View>
 
-      <ScrollView
+      {/* Reading progress is one AsyncStorage round-trip. Holding the rail back
+          for it shows an empty cream screen for a frame, which beats drawing the
+          wrong lesson as tonight's and then swapping it.
+
+          A FlatList rather than a mapped ScrollView because history is
+          UNBOUNDED: it grows for as long as a parent keeps the app, and every
+          finished row was previously a mounted, measured view. At forty sections
+          that is forty views laid out on every focus. Virtualised, only the
+          handful on screen exist. */}
+      <FlatList
+        ref={listRef}
         style={styles.scroll}
+        data={loaded ? nodes : []}
+        keyExtractor={(node) => node.key}
+        renderItem={({ item }) => (
+          <PathRow node={item} state={nodeState(item, completed)} onOpen={openNode} />
+        )}
+        // Re-render rows when progress changes; `completed` is closed over by
+        // renderItem and FlatList cannot see inside it.
+        extraData={completed}
         contentContainerStyle={[
           styles.scrollInner,
           // Centring is right for a short day-one rail, but once the rail is
           // long it must sit from the top or the first rows hang off screen.
           nodes.length > 5 ? styles.scrollInnerTop : null,
         ]}
-        contentOffset={contentOffset}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Reading progress is one AsyncStorage round-trip. Holding the rail
-            back for it shows an empty cream screen for a frame, which beats
-            drawing the wrong lesson as tonight's and then swapping it. */}
-        {!loaded
-          ? null
-          : nodes.map((node) => {
-              const state = nodeState(node, completed);
-              return (
-                <PathRow
-                  key={node.key}
-                  node={node}
-                  state={state}
-                  onOpen={openNode}
-                  onMeasure={state === 'current' ? onCardLayout : undefined}
-                />
-              );
-            })}
-
-        {/* The rail arriving somewhere — 30c. Not a dashed panel, not a
-            numbered future; both read as unfinished. */}
-        {loaded ? (
-          <View style={styles.endRow}>
-            <View style={styles.gutter} />
-            <View style={styles.end}>
-              <Text style={styles.endText}>
-                {allDone ? "You've finished every one." : 'The rest gets written as you go.'}
-              </Text>
+        // The rail is positioned here rather than in the focus effect: on focus
+        // the rows for the newly-read progress do not exist yet, and
+        // scrollToIndex into a list that has not laid out does nothing.
+        onLayout={() => {
+          if (needsScroll && loaded) {
+            scrollToCard(currentPos, nodes.length);
+            setNeedsScroll(false);
+          }
+        }}
+        onContentSizeChange={() => {
+          if (needsScroll && loaded) {
+            scrollToCard(currentPos, nodes.length);
+            setNeedsScroll(false);
+          }
+        }}
+        // Rows are variable height (titles wrap to one or two lines), so there
+        // is no getItemLayout to give. That makes scrollToIndex fallible on a
+        // row that has not been measured yet; this is the documented recovery.
+        onScrollToIndexFailed={({ index, averageItemLength }) => {
+          listRef.current?.scrollToOffset({
+            offset: Math.max(0, index * averageItemLength - HISTORY_PEEK),
+            animated: false,
+          });
+        }}
+        ListFooterComponent={
+          loaded ? (
+            // The rail arriving somewhere — 30c. Not a dashed panel, not a
+            // numbered future; both read as unfinished.
+            <View style={styles.endRow}>
+              <View style={styles.gutter} />
+              <View style={styles.end}>
+                <Text style={styles.endText}>
+                  {allDone ? "You've finished every one." : 'The rest gets written as you go.'}
+                </Text>
+              </View>
             </View>
-          </View>
-        ) : null}
-      </ScrollView>
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -273,22 +309,14 @@ function PathRow({
   node,
   state,
   onOpen,
-  onMeasure,
 }: {
   node: PathNode;
   state: ReturnType<typeof nodeState>;
   onOpen: (node: PathNode) => void;
-  /** Set only on the current row — reports the card's y for the open offset. */
-  onMeasure?: (key: string, y: number) => void;
 }) {
   if (state === 'current') {
     return (
-      <View
-        style={styles.row}
-        onLayout={
-          onMeasure ? (e: LayoutChangeEvent) => onMeasure(node.key, e.nativeEvent.layout.y) : undefined
-        }
-      >
+      <View style={styles.row}>
         <View style={styles.gutter}>
           <View style={styles.railLine} />
           <View style={styles.dotCurrent} />
@@ -387,7 +415,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   // Once the rail is long enough to fill the screen, centring would push its
-  // first rows above the top edge where they cannot be scrolled back to.
+  // first rows above the top edge where they cannot be scrolled back to — and
+  // in a virtualised list it also fights scrollToIndex, which computes offsets
+  // against a top-aligned content origin.
   scrollInnerTop: { justifyContent: 'flex-start', paddingTop: 22 },
 
   row: { flexDirection: 'row' },

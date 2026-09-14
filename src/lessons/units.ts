@@ -135,12 +135,14 @@ export function visibleNodes(completedKeys: string[], tailBeyondHorizon = 3): Pa
 }
 
 /**
- * How much finished rail peeks above the card when the screen opens, in points.
+ * How much finished rail shows above the card, in points.
  *
  * The card must be visible without scrolling, AND the rail above it must look
- * like it continues — opening flush to the card makes a long history invisible,
+ * like it continues — landing flush on the card makes a long history invisible,
  * and a parent who cannot see it will not think to reach for it. A partial row
- * showing above the fold is the affordance that invites the scroll.
+ * above the fold is the affordance that invites the scroll.
+ *
+ * Applied as `viewOffset` when the screen scrolls to the card on focus.
  */
 export const HISTORY_PEEK = 96;
 
