@@ -123,28 +123,16 @@ export function visibleNodes(completedKeys: string[], tailBeyondHorizon = 3): Pa
   const end = Math.min(PATH_NODES.length, current + VISIBLE_AHEAD + tailBeyondHorizon + 1);
   // History is rendered IN FULL, from node one.
   //
-  // It was capped for a while, because rendering every finished
-  // node above the card pushed the card below the fold by section ten. That
-  // fixed the card and broke something worth more: a parent scrolling up to
-  // re-read what they have already done. The finished rail is the record of
-  // their work, and it is the one part of this screen that accumulates.
+  // It was capped for a while, because rendering every finished node above the
+  // card pushed the card below the fold by section ten. That fixed the card and
+  // broke something worth more: a parent scrolling up to re-read what they have
+  // already done. The finished rail is the record of their work, and it is the
+  // one part of this screen that accumulates.
   //
-  // The card is kept on screen by `initialCardOffset` instead — the screen opens
-  // already scrolled to it, with the history sitting above, reachable.
+  // The card is kept on screen by the list opening AT it instead — fixed row
+  // heights make that an exact index, with the history above it, reachable.
   return PATH_NODES.slice(0, end);
 }
-
-/**
- * How much finished rail shows above the card, in points.
- *
- * The card must be visible without scrolling, AND the rail above it must look
- * like it continues — landing flush on the card makes a long history invisible,
- * and a parent who cannot see it will not think to reach for it. A partial row
- * above the fold is the affordance that invites the scroll.
- *
- * Applied as `viewOffset` when the screen scrolls to the card on focus.
- */
-export const HISTORY_PEEK = 96;
 
 /** Completed / total, for the header. */
 export function pathProgress(completedKeys: string[]): { done: number; total: number } {

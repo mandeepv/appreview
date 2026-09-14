@@ -29,7 +29,7 @@
  * excursion ends when the screen is left.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -46,7 +46,6 @@ import {
   nodeState,
   canOpen,
   pathProgress,
-  HISTORY_PEEK,
   PATH_NODES,
   type PathNode,
 } from '../lessons/units';
@@ -127,10 +126,15 @@ export default function LearnScreen() {
   // mid-path flashes the wrong lesson as tonight's.
   const [loaded, setLoaded] = useState(false);
 
-  // Set on focus, cleared once the rail has been positioned. The scroll cannot
-  // happen here — the rows do not exist until the freshly-read progress has
-  // rendered — so this defers it to the list's own layout.
-  const [needsScroll, setNeedsScroll] = useState(true);
+  // Bumped on every focus, and used as the list's `key`.
+  //
+  // `initialScrollIndex` is applied when the list MOUNTS, and LearnScreen stays
+  // mounted under the tab navigator — so without this, the rail would be
+  // positioned once on first open and never again. Changing the key remounts
+  // the list, which re-applies the initial position. That is the whole
+  // reset-on-focus behaviour: no scrolling, no timing, just a fresh list that
+  // starts in the right place.
+  const [focusCount, setFocusCount] = useState(0);
 
   // Re-read on every focus, not just on mount. The screen stays mounted under
   // the tab navigator, so returning from a finished lesson would otherwise show
@@ -138,7 +142,7 @@ export default function LearnScreen() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      setNeedsScroll(true);
+      setFocusCount((n) => n + 1);
       void (async () => {
         // Settled, not all: one rejected read must not blank the whole rail.
         const [keys, days] = await Promise.allSettled([getCompletedPathKeys(), getStreak()]);
@@ -166,33 +170,40 @@ export default function LearnScreen() {
   // history on Tuesday opens the app on Wednesday looking at section 3 of 40,
   // with nothing explaining why. (Same convention as Instagram Home, App Store
   // Today, Mail: re-entering a tab returns to its job.)
-  //
-  // LearnScreen stays MOUNTED under the tab navigator, so this cannot be left to
-  // an initial-position prop — those apply once and never again. It has to be an
-  // explicit scroll on focus.
   const listRef = useRef<FlatList<PathNode>>(null);
   const currentPos = nodes.findIndex((n) => nodeState(n, completed) === 'current');
 
-  const scrollToCard = useCallback((pos: number, total: number) => {
-    // A finished path has no card at all. Land at the END, on the closing line
-    // — that is where the parent's attention belongs, and leaving the rail
-    // wherever it happened to be would be the one case that ignores the focus.
-    if (pos < 0) {
-      if (total > 0) listRef.current?.scrollToEnd({ animated: false });
-      return;
+  // Every row's height is KNOWN, so the open position is arithmetic.
+  //
+  // This screen went through three failed attempts at scrolling to the card —
+  // after layout, on contentSizeChange, via contentOffset — and every one of
+  // them failed for the same underlying reason: row heights were unknown, so
+  // the correct offset could not be computed until the rows had been measured,
+  // and none of the callbacks that report measurement fire in a dependable
+  // order relative to the progress read.
+  //
+  // The fix is to stop needing the measurement. Row heights are fixed (titles
+  // clamp to a line count rather than wrapping freely — see ROW_H), which makes
+  // `getItemLayout` exact, `initialScrollIndex` land on the first frame, and
+  // the whole class of timing bugs go away.
+  // Row offsets, summed once per render. getItemLayout is called per row, so
+  // summing inside it would be quadratic over a rail that only gets longer.
+  const layout = useMemo(() => {
+    const heights = nodes.map((node) => rowHeight(nodeState(node, completed)));
+    // Each row's offset is the sum of the heights before it.
+    const rows: { length: number; offset: number }[] = [];
+    for (const length of heights) {
+      const prev = rows[rows.length - 1];
+      rows.push({ length, offset: prev ? prev.offset + prev.length : 0 });
     }
-    // Day one: the card is already the first thing on screen.
-    if (pos === 0) return;
-    // viewPosition 0 puts the card at the top of the viewport; the offset backs
-    // it off so finished rail still shows above it. Without that peek the
-    // history is invisible, and a parent who cannot see it will not reach for it.
-    listRef.current?.scrollToIndex({
-      index: pos,
-      animated: false,
-      viewPosition: 0,
-      viewOffset: HISTORY_PEEK,
-    });
-  }, []);
+    return rows;
+  }, [nodes, completed]);
+
+  // One row earlier than the card, so a finished row sits above it as the
+  // affordance to scroll up. Clamped at 0 — on day one the card is already the
+  // top of the rail and there is nothing to show above it.
+  const initialScrollIndex =
+    loaded && nodes.length > 0 && currentPos > 0 ? Math.max(0, currentPos - 1) : undefined;
 
   const openNode = (node: PathNode) => {
     if (!canOpen(node, completed)) return;
@@ -244,6 +255,8 @@ export default function LearnScreen() {
           that is forty views laid out on every focus. Virtualised, only the
           handful on screen exist. */}
       <FlatList
+        // Remounts on focus so initialScrollIndex re-applies — see focusCount.
+        key={`rail-${focusCount}`}
         ref={listRef}
         style={styles.scroll}
         data={loaded ? nodes : []}
@@ -254,37 +267,29 @@ export default function LearnScreen() {
         // Re-render rows when progress changes; `completed` is closed over by
         // renderItem and FlatList cannot see inside it.
         extraData={completed}
-        contentContainerStyle={[
-          styles.scrollInner,
-          // Centring is right for a short day-one rail, but once the rail is
-          // long it must sit from the top or the first rows hang off screen.
-          nodes.length > 5 ? styles.scrollInnerTop : null,
-        ]}
+        // Centring is right for a short day-one rail — pinned to the top it
+        // leaves the card stranded under the masthead. But centring shifts
+        // content away from the offsets getItemLayout reports, so it is only
+        // safe when there is nothing to scroll to.
+        contentContainerStyle={
+          initialScrollIndex === undefined ? styles.scrollInnerCentred : styles.scrollInner
+        }
         showsVerticalScrollIndicator={false}
-        // The rail is positioned here rather than in the focus effect: on focus
-        // the rows for the newly-read progress do not exist yet, and
-        // scrollToIndex into a list that has not laid out does nothing.
-        onLayout={() => {
-          if (needsScroll && loaded) {
-            scrollToCard(currentPos, nodes.length);
-            setNeedsScroll(false);
-          }
-        }}
-        onContentSizeChange={() => {
-          if (needsScroll && loaded) {
-            scrollToCard(currentPos, nodes.length);
-            setNeedsScroll(false);
-          }
-        }}
-        // Rows are variable height (titles wrap to one or two lines), so there
-        // is no getItemLayout to give. That makes scrollToIndex fallible on a
-        // row that has not been measured yet; this is the documented recovery.
-        onScrollToIndexFailed={({ index, averageItemLength }) => {
-          listRef.current?.scrollToOffset({
-            offset: Math.max(0, index * averageItemLength - HISTORY_PEEK),
-            animated: false,
-          });
-        }}
+        // Heights are fixed, so every row's offset is known without measuring
+        // it. This is what lets the list open in the right place on the FIRST
+        // frame instead of scrolling there afterwards.
+        getItemLayout={(_data, index) => ({
+          length: layout[index]?.length ?? ROW_H.ahead,
+          offset: layout[index]?.offset ?? 0,
+          index,
+        })}
+        // Opens AT the card, on the first frame, with no scroll involved.
+        //
+        // The index is one row EARLIER than the card so a finished row shows
+        // above it: the history has to be visibly there or a parent will not
+        // think to scroll up for it. Done this way rather than with a header
+        // spacer, which would shift every offset getItemLayout returns.
+        initialScrollIndex={initialScrollIndex}
         ListFooterComponent={
           loaded ? (
             // The rail arriving somewhere — 30c. Not a dashed panel, not a
@@ -329,8 +334,12 @@ function PathRow({
             style={({ pressed }) => [styles.card, pressed ? { opacity: 0.92 } : null]}
           >
             <Text style={styles.cardEyebrow}>TONIGHT · FIVE MINUTES</Text>
-            <Text style={styles.cardTitle}>{node.title}</Text>
-            <Text style={styles.cardBody}>{describeSection(node)}</Text>
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {node.title}
+            </Text>
+            <Text style={styles.cardBody} numberOfLines={2}>
+              {describeSection(node)}
+            </Text>
             <View style={styles.cardButton}>
               <Text style={styles.cardButtonLabel}>Start</Text>
             </View>
@@ -353,7 +362,9 @@ function PathRow({
           <View style={styles.dotDone} />
         </View>
         <View style={styles.doneRow}>
-          <Text style={styles.doneTitle}>{node.title}</Text>
+          <Text style={styles.doneTitle} numberOfLines={2}>
+            {node.title}
+          </Text>
           <Check />
         </View>
       </Pressable>
@@ -370,13 +381,41 @@ function PathRow({
         <View style={styles.dotAhead} />
       </View>
       <View style={styles.aheadRow}>
-        {state === 'ahead' ? <Text style={styles.aheadTitle}>{node.title}</Text> : null}
+        {state === 'ahead' ? (
+          <Text style={styles.aheadTitle} numberOfLines={2}>
+            {node.title}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
 }
 
 const GUTTER = 22;
+
+/**
+ * Fixed row heights, in points. These are what make the rail's open position
+ * computable rather than measured — see `getItemLayout` in the list.
+ *
+ * Each is its content at the clamped number of lines plus its own padding, so
+ * a title that would have wrapped to three lines is truncated instead of
+ * silently changing the row's height and breaking every offset below it.
+ */
+const ROW_H = {
+  /** 2 lines of 17pt serif at 1.4 + 32 vertical padding. */
+  done: Math.round(17 * 1.4 * 2) + 32,
+  /** Same type, same clamp, slightly looser padding. */
+  ahead: Math.round(17 * 1.4 * 2) + 38,
+  /** Eyebrow + 2-line title + 2-line body + button + card and wrap padding. */
+  current: 16 + Math.round(25 * 1.22 * 2) + 9 + Math.round(16 * 1.55 * 2) + 18 + 50 + 42 + 16,
+} as const;
+
+/** The height of one row, by the state it renders in. */
+function rowHeight(state: ReturnType<typeof nodeState>): number {
+  if (state === 'current') return ROW_H.current;
+  if (state === 'done') return ROW_H.done;
+  return ROW_H.ahead;
+}
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
@@ -408,17 +447,22 @@ const styles = StyleSheet.create({
   // it to the top left the card stranded under the masthead with the screen
   // empty beneath. Once the rail outgrows the viewport this has no effect and
   // it scrolls normally from the top.
+  // Top-aligned, and the default: row offsets must match what getItemLayout
+  // reports or initialScrollIndex lands in the wrong place.
   scrollInner: {
+    flexGrow: 1,
+    paddingHorizontal: 26,
+    paddingTop: 22,
+    paddingBottom: 40,
+  },
+  // Day one only, when nothing is being scrolled to. A handful of rows pinned
+  // to the top leaves the card stranded under the masthead.
+  scrollInnerCentred: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 26,
     paddingBottom: 40,
   },
-  // Once the rail is long enough to fill the screen, centring would push its
-  // first rows above the top edge where they cannot be scrolled back to — and
-  // in a virtualised list it also fights scrollToIndex, which computes offsets
-  // against a top-aligned content origin.
-  scrollInnerTop: { justifyContent: 'flex-start', paddingTop: 22 },
 
   row: { flexDirection: 'row' },
   gutter: { width: GUTTER, flexShrink: 0, position: 'relative' },
@@ -471,6 +515,7 @@ const styles = StyleSheet.create({
 
   doneRow: {
     flex: 1,
+    height: ROW_H.done,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -480,10 +525,10 @@ const styles = StyleSheet.create({
   },
   doneTitle: { flex: 1, fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.7) },
 
-  aheadRow: { flex: 1, paddingVertical: 19, paddingLeft: 14, minHeight: 20 },
+  aheadRow: { flex: 1, height: ROW_H.ahead, paddingVertical: 19, paddingLeft: 14 },
   aheadTitle: { fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.62) },
 
-  cardWrap: { flex: 1, paddingVertical: 8, paddingLeft: 14 },
+  cardWrap: { flex: 1, height: ROW_H.current, paddingVertical: 8, paddingLeft: 14 },
   card: {
     backgroundColor: C.forest,
     borderRadius: R.card,
