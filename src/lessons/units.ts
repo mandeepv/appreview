@@ -40,9 +40,6 @@ export const LESSON_ORDER = [
 /** How many unnamed-but-visible nodes sit past the current one. */
 export const VISIBLE_AHEAD = 3;
 
-/** How many finished nodes stay on screen above the current card. */
-export const HISTORY_SHOWN = 3;
-
 export interface PathNode {
   /** Stable identity across renders: "<lessonSlug>#<sectionId>". */
   key: string;
@@ -121,26 +118,31 @@ export function canOpen(node: PathNode, completedKeys: string[]): boolean {
  * than stopping dead. Rendering all 49 would be a wall, which is the problem
  * this screen exists to solve.
  */
-export function visibleNodes(
-  completedKeys: string[],
-  tailBeyondHorizon = 3,
-  historyShown = HISTORY_SHOWN,
-): PathNode[] {
+export function visibleNodes(completedKeys: string[], tailBeyondHorizon = 3): PathNode[] {
   const current = currentIndex(completedKeys);
   const end = Math.min(PATH_NODES.length, current + VISIBLE_AHEAD + tailBeyondHorizon + 1);
-  // Only the last few finished nodes are rendered.
+  // History is rendered IN FULL, from node one.
   //
-  // This is what keeps the card ON SCREEN. Rendering all of a parent's history
-  // above it pushes the card below the fold by section ten, and an auto-scroll
-  // to correct that proved unreliable — it depends on layout callbacks that
-  // fire in no fixed order, and on a centred container where a measured y does
-  // not map to a scroll offset. Capping the history means there is nothing to
-  // scroll past: the card sits near the top by construction.
+  // It was capped for a while, because rendering every finished
+  // node above the card pushed the card below the fold by section ten. That
+  // fixed the card and broke something worth more: a parent scrolling up to
+  // re-read what they have already done. The finished rail is the record of
+  // their work, and it is the one part of this screen that accumulates.
   //
-  // The full history is not lost, it is simply not the point of this screen.
-  const start = Math.max(0, current - historyShown);
-  return PATH_NODES.slice(start, end);
+  // The card is kept on screen by `initialCardOffset` instead — the screen opens
+  // already scrolled to it, with the history sitting above, reachable.
+  return PATH_NODES.slice(0, end);
 }
+
+/**
+ * How much finished rail peeks above the card when the screen opens, in points.
+ *
+ * The card must be visible without scrolling, AND the rail above it must look
+ * like it continues — opening flush to the card makes a long history invisible,
+ * and a parent who cannot see it will not think to reach for it. A partial row
+ * showing above the fold is the affordance that invites the scroll.
+ */
+export const HISTORY_PEEK = 96;
 
 /** Completed / total, for the header. */
 export function pathProgress(completedKeys: string[]): { done: number; total: number } {

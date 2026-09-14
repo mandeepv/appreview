@@ -10,7 +10,7 @@
  * ahead. No left-hand number gutter — the rail is the only left edge.
  *
  * WHAT THE RAIL SHOWS
- *   finished   title + check, scroll back to re-read
+ *   finished   title + check, every one of them — scroll up to re-read
  *   tonight    a forest card: eyebrow, title, description, Start
  *   ahead      the next three, named but not openable
  *   beyond     dots only — the rail continues, the titles do not
@@ -25,7 +25,14 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -41,6 +48,7 @@ import {
   nodeState,
   canOpen,
   pathProgress,
+  HISTORY_PEEK,
   PATH_NODES,
   type PathNode,
 } from '../lessons/units';
@@ -145,6 +153,35 @@ export default function LearnScreen() {
   const progress = pathProgress(completed);
   const allDone = loaded && progress.done >= PATH_NODES.length;
 
+  // Where the rail opens.
+  //
+  // The whole history renders, so by section ten the card sits well below the
+  // fold. Rather than scroll to it after layout — which failed repeatedly,
+  // because onContentSizeChange and onLayout fire in no fixed order — the card
+  // reports its own y and the ScrollView is given a `contentOffset`. That is an
+  // INITIAL position, applied before first paint, so there is no callback race
+  // and no visible jump.
+  //
+  // Held in state (not a ref) because contentOffset is a prop: the value has to
+  // cause a re-render to take effect. Stored WITH the key of the card it was
+  // measured from, so finishing a lesson opens at the new card rather than at
+  // the stale offset of the old one — without an effect resetting it, which
+  // would render twice.
+  const currentKey = nodes.find((n) => nodeState(n, completed) === 'current')?.key ?? null;
+  const [measured, setMeasured] = useState<{ key: string; y: number } | null>(null);
+
+  // The row reports its own key alongside its y, so this closes over nothing
+  // and stays stable across renders.
+  const onCardLayout = useCallback((key: string, y: number) => {
+    // Measure once per card. A re-layout — a title rewrapping on rotation, say
+    // — must not yank a parent back down while they read their history.
+    setMeasured((prev) => (prev?.key === key ? prev : { key, y }));
+  }, []);
+
+  const cardY = measured !== null && measured.key === currentKey ? measured.y : null;
+  const contentOffset =
+    cardY !== null && cardY > HISTORY_PEEK ? { x: 0, y: cardY - HISTORY_PEEK } : undefined;
+
   const openNode = (node: PathNode) => {
     if (!canOpen(node, completed)) return;
 
@@ -193,6 +230,7 @@ export default function LearnScreen() {
           // long it must sit from the top or the first rows hang off screen.
           nodes.length > 5 ? styles.scrollInnerTop : null,
         ]}
+        contentOffset={contentOffset}
         showsVerticalScrollIndicator={false}
       >
         {/* Reading progress is one AsyncStorage round-trip. Holding the rail
@@ -202,7 +240,15 @@ export default function LearnScreen() {
           ? null
           : nodes.map((node) => {
               const state = nodeState(node, completed);
-              return <PathRow key={node.key} node={node} state={state} onOpen={openNode} />;
+              return (
+                <PathRow
+                  key={node.key}
+                  node={node}
+                  state={state}
+                  onOpen={openNode}
+                  onMeasure={state === 'current' ? onCardLayout : undefined}
+                />
+              );
             })}
 
         {/* The rail arriving somewhere — 30c. Not a dashed panel, not a
@@ -227,14 +273,22 @@ function PathRow({
   node,
   state,
   onOpen,
+  onMeasure,
 }: {
   node: PathNode;
   state: ReturnType<typeof nodeState>;
   onOpen: (node: PathNode) => void;
+  /** Set only on the current row — reports the card's y for the open offset. */
+  onMeasure?: (key: string, y: number) => void;
 }) {
   if (state === 'current') {
     return (
-      <View style={styles.row}>
+      <View
+        style={styles.row}
+        onLayout={
+          onMeasure ? (e: LayoutChangeEvent) => onMeasure(node.key, e.nativeEvent.layout.y) : undefined
+        }
+      >
         <View style={styles.gutter}>
           <View style={styles.railLine} />
           <View style={styles.dotCurrent} />

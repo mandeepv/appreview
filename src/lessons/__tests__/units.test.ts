@@ -2,7 +2,6 @@ import {
   PATH_NODES,
   LESSON_ORDER,
   VISIBLE_AHEAD,
-  HISTORY_SHOWN,
   PATH_COVERS_ALL_LESSONS,
   currentIndex,
   nodeState,
@@ -118,20 +117,21 @@ describe('visibleNodes — what actually renders', () => {
     expect(visible.some((n) => n.index === currentIndex(done))).toBe(true);
   });
 
-  // History is CAPPED, not shown in full. Rendering every finished node above
-  // the card is what pushed it below the fold on a long path.
-  it('shows only the last few finished nodes', () => {
+  // History renders IN FULL. It was capped for a while to keep the card on
+  // screen; that traded away a parent's ability to scroll back through what
+  // they have finished, which is the part of this screen that accumulates. The
+  // card is kept in view by the open scroll offset instead.
+  it('shows every finished node, back to the first', () => {
     const done = PATH_NODES.slice(0, 10).map((n) => n.key);
     const visible = visibleNodes(done);
     const shownDone = visible.filter((n) => done.includes(n.key));
-    expect(shownDone.length).toBeLessThanOrEqual(HISTORY_SHOWN);
+    expect(shownDone).toHaveLength(done.length);
+    expect(visible[0].index).toBe(0);
   });
 
-  it('keeps the most RECENT finished nodes, not the oldest', () => {
-    const done = PATH_NODES.slice(0, 10).map((n) => n.key);
-    const visible = visibleNodes(done);
-    expect(visible[0].index).toBeGreaterThan(0);
-    expect(visible.some((n) => n.key === PATH_NODES[9].key)).toBe(true);
+  it('starts at node one however deep the parent is', () => {
+    const done = PATH_NODES.slice(0, 30).map((n) => n.key);
+    expect(visibleNodes(done)[0].index).toBe(0);
   });
 
   it('never runs past the end of the path', () => {
@@ -147,12 +147,14 @@ describe('visibleNodes — what actually renders', () => {
     expect(visibleNodes(done).length).toBeGreaterThan(0);
   });
 
-  // The screen centres a short rail and top-aligns a long one. Both branches
-  // need the current node on screen, so the slice must stay small throughout.
-  it('stays a short list at every point on the path', () => {
+  // The future stays bounded even though the past does not: a parent must never
+  // see the whole remaining course written out in advance.
+  it('never reveals more than the horizon ahead of the current node', () => {
     for (let i = 0; i <= PATH_NODES.length; i += 1) {
       const done = PATH_NODES.slice(0, i).map((n) => n.key);
-      expect(visibleNodes(done).length).toBeLessThanOrEqual(HISTORY_SHOWN + VISIBLE_AHEAD + 4);
+      const current = currentIndex(done);
+      const beyond = visibleNodes(done).filter((n) => n.index > current + VISIBLE_AHEAD);
+      expect(beyond.length).toBeLessThanOrEqual(3);
     }
   });
 
