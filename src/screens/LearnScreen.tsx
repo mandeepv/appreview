@@ -100,13 +100,18 @@ function describeSection(node: PathNode): string {
   return lesson?.title ?? '';
 }
 
-/** The streak pill's flame. Clay, the one warm accent in the system. */
-function Flame() {
+/**
+ * The streak pill's flame. Clay, the one warm accent in the system.
+ *
+ * Dimmed at zero: the count is always shown, but an unlit flame reads as "not
+ * going yet" rather than putting the system's warmest colour on a bad week.
+ */
+function Flame({ dim = false }: { dim?: boolean }) {
   return (
     <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
       <Path
         d="M12 3c.6 3-1.8 4.2-2.6 6.3-.8 2.2.5 3.7.5 3.7s-2-.4-2.4-2.4C6.2 12.9 5.5 14.6 5.5 16a6.5 6.5 0 0013 0c0-4.6-4-6.8-6.5-13z"
-        stroke={C.clay}
+        stroke={dim ? oInk(0.34) : C.clay}
         strokeWidth={1.9}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -234,13 +239,16 @@ export default function LearnScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.wordmark}>Kinderwell</Text>
-        {/* The pill appears only from two days. At 0 or 1 there is no streak to
-            speak of, and showing "1" or "0" to a parent who missed a night
-            turns a neutral screen into a scoreboard. */}
-        {streak >= 2 ? (
-          <View style={styles.streakPill}>
-            <Flame />
-            <Text style={styles.streakCount}>{streak}</Text>
+        {/* Always shown, zero included. The pill used to hide below two days so
+            a lapse read as absence rather than as a zero held up to a parent
+            who had a hard week; the owner's call is that the count is the habit
+            mechanic and hiding it removes the stake that brings people back. */}
+        {loaded ? (
+          <View style={[styles.streakPill, streak === 0 ? styles.streakPillZero : null]}>
+            <Flame dim={streak === 0} />
+            <Text style={[styles.streakCount, streak === 0 ? styles.streakCountZero : null]}>
+              {streak}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -441,6 +449,10 @@ const styles = StyleSheet.create({
     backgroundColor: oClay(0.12),
   },
   streakCount: { fontFamily: F.sansSemi, fontSize: 14, color: C.clayDeep },
+  // Zero keeps the pill's shape and position — it is the same element, not a
+  // different one — but drops out of the warm accent into neutral ink.
+  streakPillZero: { backgroundColor: oInk(0.07) },
+  streakCountZero: { color: oInk(0.45) },
 
   scroll: { flex: 1 },
   // flexGrow + centred: on day one the rail is a handful of rows and pinning

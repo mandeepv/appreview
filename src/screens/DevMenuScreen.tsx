@@ -159,11 +159,23 @@ export const DevMenuScreen: React.FC = () => {
   /** Seed a streak so the header pill can actually be seen. */
   const seedStreak = async (days: number) => {
     await seedStreakForDev(days);
+    Alert.alert('Streak seeded', `${days} consecutive days. The pill should show ${days}.`, [
+      { text: 'OK', onPress: () => navigation.navigate('Root') },
+    ]);
+  };
+
+  /**
+   * A broken streak — active days exist, but none recent enough to count.
+   *
+   * Distinct from a new user: this is the parent who had a run going and then
+   * had a hard week, which is the state the zero pill was argued over. Seeds
+   * days 5-7 back so getStreak returns 0 rather than there being no record.
+   */
+  const seedLapsedStreak = async () => {
+    await seedStreakForDev(3, 5);
     Alert.alert(
-      'Streak seeded',
-      days >= 2
-        ? `${days} consecutive days. The pill should show ${days}.`
-        : `${days} day — the pill stays HIDDEN below two days, by design.`,
+      'Lapsed streak',
+      'Three days finished, then five missed. The pill should show 0 with the flame dimmed.',
       [{ text: 'OK', onPress: () => navigation.navigate('Root') }],
     );
   };
@@ -341,10 +353,13 @@ export const DevMenuScreen: React.FC = () => {
             <Text style={styles.variantBtnText}>Out-of-order (1, 9, 21) — card must be at 2</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.variantBtn} onPress={() => seedStreak(1)}>
-            <Text style={styles.variantBtnText}>Streak 1 day — pill must stay HIDDEN</Text>
+            <Text style={styles.variantBtnText}>Streak 1 day — pill must show 1</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.variantBtn} onPress={() => seedStreak(7)}>
             <Text style={styles.variantBtnText}>Streak 7 days — pill must show 7</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.variantBtn} onPress={seedLapsedStreak}>
+            <Text style={styles.variantBtnText}>Lapsed streak — pill must show 0, flame dim</Text>
           </TouchableOpacity>
         </View>
 

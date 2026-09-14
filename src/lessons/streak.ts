@@ -6,14 +6,18 @@
  * be derived from what is already persisted. This keeps a small array of local
  * dates instead.
  *
- * WHY IT IS DELIBERATELY GENTLE. A streak is the one mechanic that can make a
- * parenting app tell a tired parent they have failed at parenting. So:
+ * HOW IT IS SHOWN. The count is always visible on the Learn header, zero
+ * included: the number is the habit mechanic, and hiding it removes the stake
+ * that brings people back. (It hid below two days for a while, on the argument
+ * that a zero reads as a verdict on a hard week rather than as a nudge. The
+ * owner's call was that visible stakes matter more; the flame dims at zero as
+ * the compromise.)
+ *
+ * What it still never does:
  *
  *   - it counts UP and is never shown as broken, lost, or at risk
  *   - there is no "don't lose your streak" prompt, anywhere
  *   - missing days simply restarts the count; nothing announces it
- *   - the pill hides entirely below two days, so a lapse reads as absence
- *     rather than as a zero being held up to them
  *
  * Dates are LOCAL calendar days, not UTC: a lesson finished at 11pm belongs to
  * that evening in the parent's own timezone, which is the only reading that
@@ -90,17 +94,21 @@ export async function getStreak(): Promise<number> {
 }
 
 /**
- * DEV ONLY — seed a run of consecutive days ending today.
+ * DEV ONLY — seed a run of consecutive days.
  *
- * The pill hides below two days and `recordActiveDay` can only ever add today,
- * so a real streak takes a real week to produce. Without this the pill cannot
- * be seen on device at all.
+ * `recordActiveDay` can only ever add today, so a real streak takes a real week
+ * to produce and the pill's states cannot otherwise be seen on device.
+ *
+ * `endingDaysAgo` backdates the run: 0 is a live streak ending today, and
+ * anything above 1 is a LAPSED one — days on record, none recent enough to
+ * count, so getStreak returns 0. That is a different state from a new user with
+ * no record at all, and it is the one the zero pill is really for.
  */
-export async function seedStreakForDev(days: number): Promise<void> {
+export async function seedStreakForDev(days: number, endingDaysAgo = 0): Promise<void> {
   const keys: string[] = [];
   for (let i = days - 1; i >= 0; i -= 1) {
     const d = new Date();
-    d.setDate(d.getDate() - i);
+    d.setDate(d.getDate() - (i + endingDaysAgo));
     keys.push(localDayKey(d));
   }
   await AsyncStorage.setItem(KEY, JSON.stringify(keys));

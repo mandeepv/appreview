@@ -98,4 +98,18 @@ describe('getStreak', () => {
     mockStore[STORAGE_KEYS.ACTIVE_DAYS] = 'not json';
     await expect(getStreak()).resolves.toBe(0);
   });
+
+  // The Learn header shows the count always, zero included, so zero is a state
+  // the UI renders rather than a state it hides. A parent with a real history
+  // who lapsed must read as 0 — not as their old streak, and not as an error.
+  it('is zero after a lapse, however long the run before it was', async () => {
+    seedDays(12, 11, 10, 9, 8, 7, 6);
+    await expect(getStreak()).resolves.toBe(0);
+  });
+
+  it('restarts from one when a lapsed parent comes back', async () => {
+    seedDays(12, 11, 10);
+    await recordActiveDay();
+    await expect(getStreak()).resolves.toBe(1);
+  });
 });
