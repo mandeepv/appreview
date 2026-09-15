@@ -8,6 +8,8 @@ import { supabase } from '../lib/supabase';
 import { Platform } from 'react-native';
 import { reportError } from '../config/sentry';
 import { useOnboardingStore } from '../store/onboardingStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS, LESSON_PROGRESS_KEYS } from '../constants/storageKeys';
 
 // Required for web browser authentication
 WebBrowser.maybeCompleteAuthSession();
@@ -287,13 +289,38 @@ export const deleteAccount = async () => {
     //
     // Lesson progress: since SPEC-13 it is ACCOUNT-SCOPED (DB-backed) — the
     // `lesson_progress` rows are deleted server-side by the delete-account edge
-    // function (it deletes the user's rows before deleting the auth user). The
-    // device-local AsyncStorage mirror is NOT cleared here, so on the same
-    // device that local progress survives (and the sign-in union-merge would
-    // even push it back for the next account). Wiping it on delete is a possible
-    // future refinement (BACKLOG #23 territory). NOTE: the old per-device
-    // `src/utils/*Progress.ts` files this comment used to list were removed in
-    // SPEC-13 R3 — progress now flows through the createProgressStore factory.
+    // function (it deletes the user's rows before deleting the auth user).
+    //
+    // The device-local AsyncStorage mirror is now cleared here too. It used to
+    // survive, which broke the promise the confirmation dialog makes in so many
+    // words — "permanently deletes your Kinderwell account and all your data
+    // (progress, preferences, children)". Progress visibly came back, and to
+    // someone deleting for privacy, deletion plainly had not done what it said.
+    // Worse, the sign-in union-merge would then push the deleted account's
+    // progress up into whichever account signed in next on this device.
+    //
+    // This is the copy-contract half of the shared-device finding. The broader
+    // posture question — keying the merge by user, or clearing progress on
+    // ordinary sign-out — is deliberately NOT settled here; see
+    // docs/archive/USER_JOURNEY_REVIEW_RESPONSE_2026-09-15.md.
+    // NOTE: the old per-device `src/utils/*Progress.ts` files this comment used
+    // to list were removed in SPEC-13 R3 — progress now flows through the
+    // createProgressStore factory.
+    try {
+      await AsyncStorage.multiRemove([
+        ...LESSON_PROGRESS_KEYS,
+        STORAGE_KEYS.LESSONS_COMPLETED,
+        STORAGE_KEYS.ACTIVE_DAYS,
+        STORAGE_KEYS.FLOW_BACKFILL_DONE,
+      ]);
+    } catch (e) {
+      // Non-fatal — the account is already gone server-side. Report it so a
+      // systematic failure to honour the deletion promise is visible.
+      reportError(e instanceof Error ? e : new Error(String(e)), {
+        context: 'delete_account_clear_lesson_progress',
+      });
+    }
+
     try {
       await useOnboardingStore.getState().clearState();
     } catch (e) {

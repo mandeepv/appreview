@@ -54,9 +54,12 @@ export const STORAGE_KEYS = {
   // who has deliberately reset their progress.
   FLOW_BACKFILL_DONE: '@kinderwell_flow_backfill_done',
 
-  // Per-lesson section-completion progress. Keyed per device, not per
-  // user — so they survive account deletion. See the comment in
-  // authService.deleteAccount for rationale.
+  // Per-lesson section-completion progress. Keyed per device, not per user.
+  // They are cleared on account deletion (authService.deleteAccount wipes
+  // LESSON_PROGRESS_KEYS) so the delete-account promise holds, but they still
+  // survive an ordinary sign-out — so progress made by one account can still
+  // merge into the next account signed in on the same device. See
+  // docs/archive/USER_JOURNEY_REVIEW_RESPONSE_2026-09-15.md.
   LESSON5_COMPLETED_SECTIONS: '@lesson5_completed_sections',
   NAMING_EMOTIONS_COMPLETED_SUBLESSONS: '@naming_emotions_completed_sublessons',
   HELPING_PROCESS_EMOTIONS_COMPLETED_SECTIONS: '@helping_process_emotions_completed_sections',
@@ -68,10 +71,10 @@ export const STORAGE_KEYS = {
   RECORDING_DEEP_BOND_MOMENTS_COMPLETED_SECTIONS: '@recording_deep_bond_moments_completed_sections',
 } as const;
 
-// The subset of keys that hold lesson progress. Used nowhere yet, but
-// referenced by the "not cleared on account deletion" comment in
-// authService — if we ever start clearing lesson progress on delete,
-// this is the list to pass to AsyncStorage.multiRemove.
+// The subset of keys that hold lesson progress. Passed to
+// AsyncStorage.multiRemove by authService.deleteAccount, so a deleted account
+// leaves no progress behind on the device. Add every new lesson-progress key
+// here or deletion will silently start missing it.
 export const LESSON_PROGRESS_KEYS: readonly string[] = [
   STORAGE_KEYS.LESSON5_COMPLETED_SECTIONS,
   STORAGE_KEYS.NAMING_EMOTIONS_COMPLETED_SUBLESSONS,
