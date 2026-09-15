@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, Typography } from '../constants/theme';
 
@@ -38,47 +38,56 @@ export const LessonContainer: React.FC<LessonContainerProps> = ({
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Top Bar with Progress */}
-      <View style={styles.topBar}>
-        {/* Back Arrow - Subtle */}
-        {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
-            <View style={styles.arrowContainer}>
-              <View style={styles.arrowHead} />
-              <View style={styles.arrowLine} />
+    // Journaling and reflection screens put a multiline TextInput inside this
+    // container, and the Next button sits below it — so the keyboard covered
+    // the control the parent needed next. Same fix as the onboarding shell.
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {/* Top Bar with Progress */}
+        <View style={styles.topBar}>
+          {/* Back Arrow - Subtle */}
+          {onBack && (
+            <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+              <View style={styles.arrowContainer}>
+                <View style={styles.arrowHead} />
+                <View style={styles.arrowLine} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Label (if provided) */}
+          {label && (
+            <Text style={styles.label}>{label}</Text>
+          )}
+
+          {/* Progress Indicator */}
+          <View style={[styles.progressContainer, label && styles.progressContainerWithLabel]}>
+            <View style={styles.progressBackground}>
+              <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
             </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Label (if provided) */}
-        {label && (
-          <Text style={styles.label}>{label}</Text>
-        )}
-
-        {/* Progress Indicator */}
-        <View style={[styles.progressContainer, label && styles.progressContainerWithLabel]}>
-          <View style={styles.progressBackground}>
-            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+            <Text style={styles.progressText}>{progressDisplay}</Text>
           </View>
-          <Text style={styles.progressText}>{progressDisplay}</Text>
         </View>
-      </View>
 
-      {/* Main Content - Scrollable */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-      >
-        {children}
-      </ScrollView>
-    </SafeAreaView>
+        {/* Main Content - Scrollable */}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
+          {children}
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: {
     flex: 1,
     backgroundColor: Colors.background,

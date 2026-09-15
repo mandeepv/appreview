@@ -27,6 +27,8 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
@@ -255,62 +257,78 @@ export function OnboardingScreen({
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.content}>
-        {step !== undefined ? (
-          // The chevron rides inside the rail so it holds one fixed position
-          // across every question screen.
-          <ProgressRail
-            step={step}
-            total={totalSteps}
-            onBack={showBack && onBack ? onBack : undefined}
-          />
-        ) : showBack && onBack ? (
-          // Screens without a step (Auth, "Why this works") still need a way
-          // back; they get the bare chevron in the same slot.
-          <View style={styles.railRow}>
-            <View style={styles.railBackSlot}>
-              <BackChevron onPress={onBack} />
-            </View>
-          </View>
-        ) : null}
+      {/* The Continue pill lives in the footer at the bottom of the screen, so
+          on any screen with a text field the keyboard covered it: the parent
+          typed their name on NameAge — screen 3, which nearly everyone sees —
+          and the button they needed was underneath the keyboard, with nothing
+          indicating they had to dismiss it first.
 
-        {headline !== undefined ? (
-          onHeadlinePress ? (
-            <Pressable onPress={onHeadlinePress} accessible={false}>
-              <RichHeadline style={styles.headline}>{headline}</RichHeadline>
-            </Pressable>
-          ) : (
-            <RichHeadline style={styles.headline}>{headline}</RichHeadline>
-          )
-        ) : null}
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-
-        {/* `styles.body` carries flex:1 on both paths, so the body takes the
-            space between header and footer: a short View leaves the footer at
-            the bottom, and a long list scrolls inside its own bounds instead
-            of growing over the header. */}
-        <Body style={styles.body} {...bodyProps}>
-          {children}
-        </Body>
-
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-          {footerNote ? <View style={styles.footerNote}>{footerNote}</View> : null}
-          {onContinue ? (
-            <ContinuePill
-              label={continueLabel}
-              onPress={onContinue}
-              disabled={continueDisabled}
+          Lifting here rather than per-screen fixes every text-entry screen in
+          the flow at once, because they all render through this component.
+          `padding` is the correct behaviour on iOS (height misbehaves with a
+          flex:1 body); the Android default is fine as-is. */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.content}>
+          {step !== undefined ? (
+            // The chevron rides inside the rail so it holds one fixed position
+            // across every question screen.
+            <ProgressRail
+              step={step}
+              total={totalSteps}
+              onBack={showBack && onBack ? onBack : undefined}
             />
+          ) : showBack && onBack ? (
+            // Screens without a step (Auth, "Why this works") still need a way
+            // back; they get the bare chevron in the same slot.
+            <View style={styles.railRow}>
+              <View style={styles.railBackSlot}>
+                <BackChevron onPress={onBack} />
+              </View>
+            </View>
           ) : null}
-          {footerAction ? <View style={styles.footerAction}>{footerAction}</View> : null}
+
+          {headline !== undefined ? (
+            onHeadlinePress ? (
+              <Pressable onPress={onHeadlinePress} accessible={false}>
+                <RichHeadline style={styles.headline}>{headline}</RichHeadline>
+              </Pressable>
+            ) : (
+              <RichHeadline style={styles.headline}>{headline}</RichHeadline>
+            )
+          ) : null}
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+
+          {/* `styles.body` carries flex:1 on both paths, so the body takes the
+              space between header and footer: a short View leaves the footer at
+              the bottom, and a long list scrolls inside its own bounds instead
+              of growing over the header. */}
+          <Body style={styles.body} {...bodyProps}>
+            {children}
+          </Body>
+
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            {footerNote ? <View style={styles.footerNote}>{footerNote}</View> : null}
+            {onContinue ? (
+              <ContinuePill
+                label={continueLabel}
+                onPress={onContinue}
+                disabled={continueDisabled}
+              />
+            ) : null}
+            {footerAction ? <View style={styles.footerAction}>{footerAction}</View> : null}
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
+  flex: { flex: 1 },
   content: { flex: 1, paddingHorizontal: L.screenPad },
   railRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 4 },
   // 44px is the iOS minimum touch target; the negative margin pulls the chevron

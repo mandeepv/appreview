@@ -138,6 +138,13 @@ export default function LearnScreen() {
   // starts in the right place.
   const [focusCount, setFocusCount] = useState(0);
 
+  // Transient explanation for a tap on a section that isn't open yet. Tapping
+  // a locked row used to do NOTHING — no movement, no message — so the rail
+  // read as broken rather than sequential, and nothing anywhere explained the
+  // lock rule. Held here (not per-row) so only one hint is ever on screen.
+  const [lockedHint, setLockedHint] = useState<string | null>(null);
+  const lockedHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Re-read on every focus, not just on mount. The screen stays mounted under
   // the tab navigator, so returning from a finished lesson would otherwise show
   // the same card still waiting to be started.
@@ -166,6 +173,9 @@ export default function LearnScreen() {
       })();
       return () => {
         alive = false;
+        // Don't leave a hint (or its timer) behind on a screen we've left.
+        if (lockedHintTimer.current) clearTimeout(lockedHintTimer.current);
+        setLockedHint(null);
       };
     }, []),
   );
@@ -219,7 +229,14 @@ export default function LearnScreen() {
     loaded && nodes.length > 0 && currentPos > 0 ? Math.max(0, currentPos - 1) : undefined;
 
   const openNode = (node: PathNode) => {
-    if (!canOpen(node, completed)) return;
+    if (!canOpen(node, completed)) {
+      // Say why. The path is deliberately sequential — one section at a time,
+      // in order — but that rule was invisible: the tap simply did nothing.
+      if (lockedHintTimer.current) clearTimeout(lockedHintTimer.current);
+      setLockedHint('Finish the section you’re on to unlock this one.');
+      lockedHintTimer.current = setTimeout(() => setLockedHint(null), 2600);
+      return;
+    }
 
     // Analytics keep the established shape: slug as lesson_id so the tapped →
     // started funnel joins the engine's events. `lesson_started` is fired by
@@ -335,6 +352,14 @@ export default function LearnScreen() {
           ) : null
         }
       />
+
+      {/* Floats over the rail rather than sitting in it, so showing it never
+          shifts the rows under the parent's finger. */}
+      {lockedHint ? (
+        <View pointerEvents="none" style={styles.lockedHint}>
+          <Text style={styles.lockedHintText}>{lockedHint}</Text>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -454,6 +479,26 @@ function rowHeight(state: ReturnType<typeof nodeState>): number {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.paper },
+
+  // Sits just above the tab bar, inverted so it reads as a transient message
+  // rather than another row on the rail.
+  lockedHint: {
+    position: 'absolute',
+    left: 26,
+    right: 26,
+    bottom: 24,
+    backgroundColor: C.forestDeep,
+    borderRadius: R.callout,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  lockedHintText: {
+    fontFamily: F.sans,
+    fontSize: 14,
+    lineHeight: 14 * 1.45,
+    color: oCream(0.92),
+    textAlign: 'center',
+  },
 
   header: {
     flexDirection: 'row',

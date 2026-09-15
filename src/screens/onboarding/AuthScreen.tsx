@@ -223,8 +223,20 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const handleGoogleSignIn = () => runProviderSignIn('google', signInWithGoogle, 'Google');
-  const handleAppleSignIn = () => runProviderSignIn('apple', signInWithApple, 'Apple');
+  // Both entry points refuse to start a second flow while one is running.
+  // AppleAuthenticationButton is a native view with no `disabled` prop — it
+  // stays tappable while a Google sign-in is in flight — so the guard lives in
+  // the handler where it covers both providers regardless of what the UI can
+  // express. Two concurrent flows meant two provider sheets and a race over
+  // which session landed.
+  const handleGoogleSignIn = () => {
+    if (isLoading) return;
+    runProviderSignIn('google', signInWithGoogle, 'Google');
+  };
+  const handleAppleSignIn = () => {
+    if (isLoading) return;
+    runProviderSignIn('apple', signInWithApple, 'Apple');
+  };
 
   const handleTitlePress = () => {
     // Clear existing timer
@@ -288,7 +300,14 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       // left, so centring the buttons left the title stranded at the top with
       // a void between. v1.2.0 kept title, blurb and buttons in one centred
       // group — this reproduces that.
-      onBack={mode === 'signin' ? () => navigation.goBack() : undefined}
+      // Back in BOTH modes. It used to be signin-only, so a user who had just
+      // walked eight question screens could not step back to change an answer —
+      // despite this shell's own comment promising a back affordance. The
+      // navigator still disables the swipe GESTURE in signup mode (so the flow
+      // can't be re-entered by accident); this is the deliberate, explicit tap.
+      // The shell only renders it when navigation.canGoBack() is true, so the
+      // resumed-at-Auth case still correctly shows nothing.
+      onBack={() => navigation.goBack()}
     >
       <View style={styles.container}>
         <Pressable onPress={handleTitlePress} style={styles.heading}>
@@ -318,18 +337,24 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
               <ActivityIndicator color="#FFFFFF" />
             </View>
           ) : (
-            <AppleAuthentication.AppleAuthenticationButton
-              // CONTINUE, not SIGN_IN: this screen serves both a first-time
-              // signup and a returning sign-in, so the verb has to be true in
-              // both. It also matches "Continue with Google" beside it —
-              // SIGN_IN rendered "Sign in with Apple" next to a Continue
-              // button, which read as two different actions.
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-              cornerRadius={12}
-              style={styles.appleButton}
-              onPress={handleAppleSignIn}
-            />
+            // Dimmed while the OTHER provider is signing in, matching the
+            // Google button's disabled state. The handler refuses the tap
+            // either way; this just makes the refusal visible rather than
+            // leaving the button looking live but inert.
+            <View style={isLoading ? styles.buttonDisabled : undefined}>
+              <AppleAuthentication.AppleAuthenticationButton
+                // CONTINUE, not SIGN_IN: this screen serves both a first-time
+                // signup and a returning sign-in, so the verb has to be true in
+                // both. It also matches "Continue with Google" beside it —
+                // SIGN_IN rendered "Sign in with Apple" next to a Continue
+                // button, which read as two different actions.
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={12}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            </View>
           )}
         </View>
 

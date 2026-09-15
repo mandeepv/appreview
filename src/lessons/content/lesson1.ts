@@ -17,11 +17,11 @@ import type { Lesson } from '../schema';
 
 export const lesson1: Lesson = {
   slug: 'lesson1',
-  title: 'What changed parenting Science?',
+  title: 'What changed in parenting science?',
   sections: [
     {
       id: '1',
-      title: 'What changed parenting Science?',
+      title: 'What changed in parenting science?',
       screens: [
         // Screen 1
         {
