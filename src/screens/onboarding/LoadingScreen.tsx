@@ -25,6 +25,7 @@ import { restorePurchases } from '../../services/purchaseService';
 import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { safeCapture } from '../../lib/analytics';
+import { resetPostHog } from '../../config/posthog';
 import { reportError, addGateBreadcrumb } from '../../config/sentry';
 
 // Support address for the escape-hatch "Contact support" action. Matches
@@ -752,6 +753,18 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     setEscapeError(null);
     safeCapture("gate_escape_sign_out_tapped");
     try {
+      // Close out the analytics identity BEFORE the auth session goes, exactly
+      // as SettingsScreen's logout does. This path used to skip it despite the
+      // comment above claiming it mirrored that one: PostHog kept the previous
+      // distinct_id, so if a different person signed in on the same device
+      // their events were attributed to whoever signed out here. PostHog's own
+      // guidance is to reset "right after the user logs out" — it clears the
+      // distinct id, the anonymous id and the super properties in one call.
+      //
+      // resetPostHog, not raw posthog.reset(): the raw call also wipes the
+      // `environment` super-property, so post-logout events lose their env tag
+      // and vanish from env-filtered dashboards (Fable review #8).
+      resetPostHog();
       await signOut();
       navigation.reset({ index: 0, routes: [{ name: "Welcome" }] });
     } catch (error) {

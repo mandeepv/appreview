@@ -124,6 +124,25 @@ residual case is only a parent who genuinely jumped around.
 upgrade. Deliberately not built: an explainer for a state most users will
 never see is its own kind of noise.
 
+### R6. Free-text error strings go to PostHog as event properties 🟢
+
+**Problem**: several `safeCapture` calls send the raw error MESSAGE as a
+property (e.g. `error: error.message` in the account-delete and restore
+paths). Usually that is something inert like "Network request failed", but
+error text is not a controlled vocabulary — a message can embed a URL with an
+id in it, or a fragment of a server response. That brushes against
+INVARIANTS #8 (no free-text PII to PostHog).
+
+Pre-existing, not introduced by the redesign, and no actual leak has been
+found — it is the SHAPE that is risky rather than any known value.
+
+**Fix**: send a stable error CODE (or a small enum of classified reasons)
+instead of the message, and keep the full text in Sentry, which is the tool
+that is supposed to hold it. `grep -rn "error:" src/ | grep safeCapture` finds
+the call sites.
+
+**Effort**: ~2h including deciding the code vocabulary.
+
 ### R3. The in-lesson player is still on the old teal palette 🟡
 
 **Problem**: onboarding, the Learn path, the tab bar and the You screen
