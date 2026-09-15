@@ -49,5 +49,23 @@ You're storing these in Drive (no password manager). **These are sensitive** (pr
 - EAS: distribution cert + provisioning profile + submit API key + push key all on new team; `eas.json` updated. Transfer config committed (`c98f2b6`).
 - Docs updated: APPLE_JWT_ROTATION, OPS_STATE, DEV_PROD_ENVIRONMENTS, RELEASE_CHECKLIST, v1.3.0/v1.4.0.
 
-## 📌 Not migration — your normal v1.3.0 release gates (only when you next ship)
-Handled via `docs/RELEASE_CHECKLIST.md`, listed here only so they're not forgotten: prod migration `add_onboarding_variant_columns` (via `db-push-prod.sh`); flip PostHog onboarding `variant_b` to 0%; create a Sandbox tester under the account holder's ASC + recreate TestFlight internal testing + re-check demo-mode review creds.
+## 📌 Release gates carried over from the abandoned v1.3.0–v1.6.0 train
+**Reconciled 2026-09-15.** This list was written for a release train that was
+abandoned; the redesign ships in its place as v1.3.0 (build 12). Each item
+checked against the code and the repo, so none of it silently carries forward
+as "not applicable":
+
+- ~~prod migration `add_onboarding_variant_columns`~~ — **not applicable.** The
+  migration exists only on the abandoned branches; `supabase/migrations/` ends
+  at `20260710010000`, which OPS_STATE records as the prod state. Nothing
+  pending.
+- ~~flip PostHog onboarding `variant_b` to 0%~~ — **inert.** No code on this
+  branch reads any feature flag (`grep -rn getFeatureFlag src/` → nothing), so
+  whatever the flag is set to changes nothing in the shipping build. Worth
+  turning off in the dashboard for tidiness, but it is not a release gate.
+- ~~recreate TestFlight internal testing~~ — **done/void.** The transfer moved
+  the app to team `APPLETEAMID`; TestFlight groups were deleted with it and the
+  build history under the new account is intact through build 11.
+- **Still live:** create a Sandbox tester under the post-transfer ASC account,
+  and re-check the demo-mode review credentials before submitting. These are
+  genuine prerequisites for this release — see `docs/DEMO_MODE.md`.
