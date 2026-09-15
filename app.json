@@ -43,8 +43,7 @@
           ]
         }
       ],
-      "expo-web-browser",
-      "@posthog/react-native-plugin"
+      "expo-web-browser"
     ],
     "privacy": "public",
     "extra": {

@@ -56,41 +56,41 @@ chips with no edit path are half a feature.
 
 **Effort**: as #9m.
 
-### R0. Three owner actions before session replay can be switched on 🔴
+### R0. Session replay — built, reverted, parked 🟢
 
-**Status**: the CODE is built (2026-09-15) — `@posthog/react-native-plugin`
-2.9.0 installed and registered in `app.json`, `enableSessionReplay` +
-`sessionReplayConfig` wired in `src/config/posthog.ts`, masking on
-(`maskAllTextInputs`, `maskAllImages`; console + network telemetry ON, for debugging context). It is
-`ENABLE_SESSION_REPLAY = environment === 'dev'` — capturing in DEV for
-testing, and structurally incapable of capturing in PROD, since the shared
-dev+prod PostHog project means a plain `true` would record live App Store
-users. The dashboard toggle is the second, independent switch.
+**Status**: NOT in the codebase. It was fully wired on 2026-09-15
+(`@posthog/react-native-plugin` 2.9.0, `enableSessionReplay` +
+`sessionReplayConfig` with masking, gated to dev) and **reverted the same
+day** — it needs a native rebuild to test at all, and the policy questions
+below were not worth settling mid-redesign.
 
-**Problem**: RN session replay is screenshot-based — PostHog's docs say the
-React Native SDK "always record[s] in screenshot mode", not configurable —
-so it is a screen recording, not an event stream. That puts it under App
-Review **2.5.14**: *"Apps must request explicit user consent and provide a
-clear visual and/or audible indication when recording, logging, or
-otherwise making a record of user activity. This includes ... screen
-recordings"*, and **5.1.1(ii)**, which requires consent for usage data
-*"even if such data is considered to be anonymous."* Enabling without the
-below risks rejection of a LIVE app.
+**To bring it back**: revert the reverts — commits `7f6f3e0` (wiring +
+plugin), `4dcf5a0` (dev-only gate), `03c1de0` (console + network capture).
+Then `pod install` and one native rebuild; after that Metro reload works
+normally.
 
-**The three, all owner-only:**
-1. A consent flow plus a visible recording indicator (2.5.14).
-2. Privacy-policy update disclosing the recording and naming PostHog as a
-   recipient (5.1.1(i) / 5.1.2). `legal/` is owner-only per CLAUDE.md.
-3. App Privacy label: Name is declared AppFunctionality / Personalization,
-   not Analytics (`app.config.js` privacyManifests).
+**What to know before enabling it for REAL users** (none of this blocks dev
+testing):
 
-Then: native rebuild, flip both switches, and watch a DEV replay to confirm
-masking before prod. Note the single PostHog project covers dev+prod —
-enabling records both; filter on the `environment` super-property.
+- RN replay is screenshot-based — PostHog's docs say the React Native SDK
+  "always record[s] in screenshot mode", not configurable. It is a screen
+  recording, not an event stream.
+- The PostHog project is SHARED dev+prod, so any enable must stay bound to
+  `environment === 'dev'` until the items below are settled, or it records
+  live App Store users.
+- **Privacy policy** should disclose the recording and name PostHog as a
+  recipient (App Review 5.1.1(i) / 5.1.2). `legal/` is owner-only. This is
+  the one genuinely worth doing.
+- **App Privacy label**: Name is declared AppFunctionality / Personalization,
+  not Analytics (`app.config.js` privacyManifests). Worth a look.
+- 2.5.14 ("explicit user consent and a clear visual indication when
+  recording... user activity") is aimed at camera/mic/screen capture. An
+  earlier version of this item read it as requiring a consent modal for
+  analytics replay; that was an overreach — apps in this category
+  overwhelmingly disclose in the policy instead, and there is no evidence of
+  App Review rejecting PostHog-style replay over it.
 
-**Blocks**: enabling session replay, at all.
-
-**Effort**: code is done; the three items are the work.
+**Effort**: ~30 min to restore + one native rebuild.
 
 ### R3. The in-lesson player is still on the old teal palette 🟡
 
