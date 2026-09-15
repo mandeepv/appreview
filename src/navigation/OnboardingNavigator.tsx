@@ -62,8 +62,28 @@ export const OnboardingNavigator: React.FC = () => {
           headerBackVisible: false,
         })}
       />
-      <Stack.Screen name="Loading" component={LoadingScreen} />
-      <Stack.Screen name="Root" component={RootNavigator} />
+      {/* Loading and Root are the far side of the gate, and every route into
+          them is a `replace` — which swaps only the TOP stack entry. The nine
+          screens beneath (Welcome + the eight questions) are pushed, so they
+          survive the replace and stay in the history. A parent who had just
+          paid could swipe right from the home screen and land back in
+          "How have you been feeling lately?". The demo path was worse: it
+          *navigates* to Loading rather than replacing, leaving Auth on the
+          stack too — exposure precisely during App Review sessions.
+
+          Disabling the gesture here fixes it once at the navigator level, so
+          all five replace('Root') sites inherit it, rather than per-call-site.
+          Neither screen has anything legitimate to go back TO. */}
+      <Stack.Screen
+        name="Loading"
+        component={LoadingScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="Root"
+        component={RootNavigator}
+        options={{ gestureEnabled: false }}
+      />
     </Stack.Navigator>
   );
 };
