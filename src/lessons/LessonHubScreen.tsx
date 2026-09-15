@@ -65,11 +65,17 @@ export const LessonHubScreen: React.FC<LessonHubScreenProps> = ({
     [lesson.storageKey],
   );
 
-  // SPEC-13 R4/R5 — for hub lessons, landing on the hub IS the "opened" moment,
-  // so the hub owns the single lesson_started fire (the controller skips hub
-  // lessons to avoid double-counting). Same event name + same-or-richer props
-  // (id + title + label) that LearnScreen used to send — PostHog continuity.
-  // Fires once per hub mount.
+  // SPEC-13 R4/R5 — when a parent reaches a lesson THROUGH this hub, landing
+  // here IS the "opened" moment, so the hub fires lesson_started.
+  //
+  // No double-count with the controller: the controller fires only when its
+  // route carries `entry: true`, and the hub's navigate into LessonScreen
+  // deliberately omits that flag (see the wrapper screens). The controller used
+  // to skip hub lessons by inspecting `storageKey`; that broke when the path
+  // started opening hub lessons directly, bypassing this screen entirely.
+  //
+  // Same event name + same-or-richer props (id + title + label) that
+  // LearnScreen used to send — PostHog continuity. Fires once per hub mount.
   React.useEffect(() => {
     safeCapture('lesson_started', {
       lesson_id: lesson.slug,
