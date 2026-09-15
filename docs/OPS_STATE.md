@@ -42,7 +42,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Sentry | spike-regression rule | "Spike / regression (prod)" — escalation + resolved→unresolved → owner email — **CREATED** | 2026-07-10 | Sentry → Alerts |
 | Sentry | spike protection | **ON** — VERIFIED | 2026-07-10 | Sentry → Settings → Quotas |
 | Sentry | client-key rate limit | 100 events per 1 hour — SET | 2026-07-10 | Sentry → Settings → Client Keys |
-| Sentry | sourcemaps for live build | 3 uploads present for release 1.1.0 (dist 9) — VERIFIED | 2026-07-10 | Sentry → Releases → artifacts |
+| Sentry | sourcemaps for live build | **STALE — last verified for 1.1.0 (dist 9), two releases ago.** v1.2.0 (build 11) shipped without this row being re-checked. Verify for 1.3.0 (build 12) at release: invariant 21 makes sourcemap upload release evidence, and without it a prod stack trace is unreadable. | **unverified (1.1.0 evidence only)** | Sentry → Releases → artifacts |
 
 ## PostHog
 

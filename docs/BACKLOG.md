@@ -138,12 +138,24 @@ the most visible inconsistency left.
 
 ---
 
-## v1.1.1 — onboarding polish sprint
+## v1.1.1 — onboarding polish sprint (LARGELY SUPERSEDED)
+
+> **⚠️ Reconciled 2026-09-15.** v1.1.1 was never shipped, and the 2026-09
+> redesign rebuilt every onboarding screen these items describe — so most of
+> this section is history, not open work. Verified as resolved by the redesign:
+> **#4c / #9n** (name is now required; the `'Parent'` fallback is filtered on
+> both write and display — `lib/profileSummary.ts`), **#8** (the phantom-child
+> default is gone; `updateChildrenCount` no longer fabricates a gender),
+> **#6 / #7** (the scroll-hidden Continue button — the new shell pins the
+> footer), and **#3 / #5** (copy and the age control, both rewritten).
+>
+> Still open and NOT fixed by the redesign: **#1** (native splash flash — the
+> launch image is still the old teal brand) and **#2** (Splash vs Get Started
+> looking alike). Read the rest as background on decisions already made.
 
 **Scope**: UX polish + one data-corruption bug from the owner's
 prod-app testing on iPhone XR (2026-07-04).
-**Not shipping until**: v1.1.0 is on the App Store and stable.
-**Estimated total**: ~10-15 hours of focused work; ~1 week end-to-end.
+**Original plan**: ship after v1.1.0 — overtaken by the redesign.
 
 Testing before merging v1.1.1:
 - Fresh install on iPhone XR with a brand-new Apple ID

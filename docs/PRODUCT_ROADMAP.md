@@ -2,7 +2,15 @@
 
 **Purpose:** rolling backlog of product ideas with prioritization rationale. Not a fixed plan — a place to think out loud and see what's next.
 
-**Last updated:** 2026-07-01
+**Last updated:** 2026-07-01 — ⚠️ **two product generations stale as of 2026-09-15.**
+
+> This is listed as a *living* tracker but predates both the onboarding A/B
+> experiment (v1.3.0–v1.6.0, since abandoned) and the 2026-09 onboarding /
+> Learn / You redesign shipping as v1.3.0. Its "three problems" framing still
+> reads true, but the ordering and the "this month" language do not describe
+> current work. Treat it as background thinking until it is rewritten; the live
+> queue is `BACKLOG.md`.
+
 **Current state (2026-07-01):** ~decent TikTok traffic driving App Store visits and downloads. Conversions happening. No visibility into funnel metrics. First-version app shipped fast with minimal polish.
 
 ## The three problems in front of us

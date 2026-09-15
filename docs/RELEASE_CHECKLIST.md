@@ -772,7 +772,7 @@ Do this immediately after each release, before context fades. Docs are AI-sessio
 - [ ] **Strip per-release blocks** from this checklist — any step that was specific to the version just shipped (e.g. "for v1.1.0, redeploy delete-account") is a one-time carrying instruction, not a permanent step. Delete it (INVARIANTS #22: stale instructions are treated as bugs).
 - [ ] **Archive what's now dated** — any doc whose content stopped being maintained (a shipped release's test plan, a completed review's findings) → `git mv` into `docs/archive/`, add a `SNAPSHOT` banner at the top, add an `archive/README.md` entry, and remove it from `docs/README.md`.
 - [ ] **Spot-check the evergreen core against the code** — pick 1–2 evergreen docs and confirm they still match reality (`INVARIANTS.md`, `PAYWALL_MODEL.md`, `DEV_PROD_ENVIRONMENTS.md` are the highest-stakes). If one drifted, fix it here or downgrade it to a snapshot.
-- [ ] **After 1.1.1 ships:** extract the reusable regression sections from `IPHONE_TEST_PLAN_V1.1.0.md` into an evergreen `TEST_PLAN_TEMPLATE.md`, then archive the V1.1.0 plan — so the next release's plan starts from structure, not scratch.
+- [ ] **Before the NEXT release after 1.3.0:** extract the reusable regression sections from `IPHONE_TEST_PLAN_V1.1.0.md` into an evergreen `TEST_PLAN_TEMPLATE.md`, then archive the V1.1.0 plan — so the next release's plan starts from structure, not scratch. *(Trigger was "after 1.1.1 ships"; 1.1.1 was never shipped, so the condition could never fire — re-anchored 2026-09-15.)*
 
 ---
 
