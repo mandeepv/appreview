@@ -80,11 +80,17 @@ export const posthog = new PostHog(apiKey || 'placeholder_key', {
     // Masks the name field on NameAgeScreen, and any future free-text input.
     maskAllTextInputs: true,
     maskAllImages: true,
-    // Console logs and network metadata are the two channels most likely to
-    // carry an email or a token into a replay by accident. Off until someone
-    // has a specific reason and has checked what they contain.
-    captureLog: false,
-    captureNetworkTelemetry: false,
+    // On, because a replay without them is just a silent film: the console
+    // trail and request timings are what turn "they tapped here and left"
+    // into a reason. The masking above is the PII control, not these.
+    //
+    // The one thing to watch: these are the channels that could carry a token
+    // or an email into a replay if something ever logs one. Nothing does today
+    // (errors go to Sentry via reportError, and analytics events are typed),
+    // so the rule to keep is the existing one — never console.log a token or
+    // an email — rather than blinding the replay.
+    captureLog: true,
+    captureNetworkTelemetry: true,
   },
   flushAt: 20,
   flushInterval: 10000,
