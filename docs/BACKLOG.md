@@ -56,6 +56,29 @@ chips with no edit path are half a feature.
 
 **Effort**: as #9m.
 
+### R0. Build the session-replay PII masking before enabling replay 🔴
+
+**Problem**: `OPS_STATE` claimed since 2026-07-21 that `<PostHogMaskView>`
+wrappers were "built" on the name-bearing titles and the child-count/age
+values. They are not in the codebase — `grep -rn PostHogMaskView src/`
+returns nothing, and they are absent from `main` and from the shipped
+`v1.2.0-build-11` tag, so they were never shipped (the 2026-09 redesign
+did not remove them). Only the config flags in `src/config/posthog.ts`
+exist. RN session replay is SCREENSHOT-based, so if the dashboard toggle
+is flipped as-is, replays capture the parent's name and their children's
+ages as images — a direct breach of the no-PII invariant.
+
+Currently harmless ONLY because the dashboard toggle is off.
+
+**Fix**: wrap the name/child-data renders before anyone enables replay.
+Surfaces that now show it: the You screen header (name, "Mom to two
+children"), NameAgeScreen, ChildrenCountScreen. Then verify on a dev
+replay before touching prod.
+
+**Blocks**: enabling session replay, at all.
+
+**Effort**: ~2h including the dev-replay verification.
+
 ### R3. The in-lesson player is still on the old teal palette 🟡
 
 **Problem**: onboarding, the Learn path, the tab bar and the You screen

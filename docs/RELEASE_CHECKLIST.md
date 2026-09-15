@@ -512,9 +512,18 @@ hard-paywall app on a free test, use option 1 and skip the paid steps):
 - [ ] Landing screen is LearnScreen (not onboarding, not paywall)
 - [ ] Lesson progress is intact — the specific sections you completed
       pre-upgrade still show as completed post-upgrade
-- [ ] Tap a lesson section that was previously reachable — content
-      opens with no paywall flash. `useLessonGate` sees the sandbox
-      subscription and passes through.
+- [ ] **The path resumes where they left off** (new in the 2026-09
+      redesign — Learn is now one flat, sequentially-locked rail of every
+      section). Tonight's card must be the earliest UNFINISHED section,
+      with the finished ones above it and a check on each. A parent
+      landing back at section 1 means the progress read regressed, and
+      every later section is now LOCKED behind it — content they had
+      already reached becomes unreachable. This is the highest-risk
+      upgrade regression in the redesign; check it before anything else.
+- [ ] Tap tonight's card — content opens with no paywall flash.
+      `useLessonGate` sees the sandbox subscription and passes through.
+- [ ] Scroll UP from the card — every finished section is still listed
+      and re-openable.
 - [ ] **Cold start in airplane mode** — turn on airplane mode,
       force-quit, reopen. Tap a lesson. Content opens (this exercises
       the fail-open fallback in `useLessonGate` for confirmed
