@@ -54,7 +54,7 @@ export const DevMenuScreen: React.FC = () => {
    * signal that the user just finished onboarding this session. Reaching the
    * screen any other way starts at 100 and goes straight to the gate, which is
    * deliberate: a signed-in user hits this screen on EVERY launch, and a
-   * four-second bar each time would be maddening.
+   * ten-second bar each time would be maddening.
    *
    * So this seeds a plausible family first, which also exercises the
    * personalised task copy ("a 4- and 7-year-old", "tantrums and sibling
@@ -318,7 +318,7 @@ export const DevMenuScreen: React.FC = () => {
             <Text style={styles.variantBtnText}>Restart onboarding from screen 1</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.variantBtn} onPress={handleRunPlanTheater}>
-            <Text style={styles.variantBtnText}>Play &quot;building your plan&quot; (4s)</Text>
+            <Text style={styles.variantBtnText}>Play &quot;building your plan&quot; (10s)</Text>
           </TouchableOpacity>
         </View>
 

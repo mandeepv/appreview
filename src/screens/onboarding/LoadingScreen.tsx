@@ -131,7 +131,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // SPEC-FIX-01 R1: the two-scheduler trap.
   //
   // Two effects can schedule runGate: the mount effect (200ms cold-launch
-  // timer, or the ~4.6s post-onboarding theater) AND the config-status effect
+  // timer, or the ~10.6s post-onboarding theater) AND the config-status effect
   // (fires when app_config resolves to 'ok'). On the common cold launch,
   // config is ALREADY 'ok' at mount, so the config effect fired immediately
   // WHILE the mount timer was also pending — running the gate twice (double

@@ -422,8 +422,13 @@ const ROW_H = {
   done: Math.round(17 * 1.4 * 2) + 32,
   /** Same type, same clamp, slightly looser padding. */
   ahead: Math.round(17 * 1.4 * 2) + 38,
-  /** Eyebrow + 2-line title + 2-line body + button + card and wrap padding. */
-  current: 16 + Math.round(25 * 1.22 * 2) + 9 + Math.round(16 * 1.55 * 2) + 18 + 50 + 42 + 16,
+  /**
+   * Eyebrow + title's own marginTop + 2-line title + 2-line body + button +
+   * card and wrap padding. The 12 is cardTitle's marginTop, which this
+   * omitted — the card rendered ~12pt taller than declared, so every offset
+   * below it drifted by that much (2026-09 review).
+   */
+  current: 16 + 12 + Math.round(25 * 1.22 * 2) + 9 + Math.round(16 * 1.55 * 2) + 18 + 50 + 42 + 16,
 } as const;
 
 /** The height of one row, by the state it renders in. */

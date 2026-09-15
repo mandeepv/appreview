@@ -41,9 +41,13 @@ export const saveUserOnboardingData = async (userId: string, onboardingData: Par
       notifications_enabled: onboardingData.notificationsEnabled,
       partner_involvement: onboardingData.partnerInvolvement,
       partner_invited: onboardingData.partnerInvited,
-      learning_goal: onboardingData.learningGoal,
+      // learning_goal and familiar_parenting_styles are NOT written any more.
+      // The redesign deleted GoalSelectionScreen and ParentingStylesScreen (they
+      // were unreachable), so nothing sets them — they would upsert a null and
+      // an empty array over whatever an existing user already has. Same rule as
+      // `name` above: omit rather than write a fallback (INVARIANTS #7). The
+      // columns stay for the existing rows.
       experience_level: onboardingData.experienceLevel,
-      familiar_parenting_styles: onboardingData.familiarParentingStyles,
       emotional_challenges: onboardingData.emotionalChallenges,
       updated_at: new Date().toISOString(),
     };

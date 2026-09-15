@@ -143,6 +143,19 @@ export function pathProgress(completedKeys: string[]): { done: number; total: nu
   };
 }
 
-/** Guard: the path must describe the same lessons the registry holds. */
+/**
+ * Guard: the path must describe the same lessons the registry holds.
+ *
+ * Checks IDENTITY, not just count. A length-only comparison passes when a slug
+ * in LESSON_ORDER is misspelled or renamed — the counts still match, every test
+ * still goes green, and the lesson silently vanishes from the app because
+ * getLesson() returns undefined and PATH_NODES skips it. Since the path is the
+ * only lesson navigation, that is content becoming unreachable with no error
+ * anywhere. (Caught in the 2026-09 pre-release review.)
+ */
 export const PATH_COVERS_ALL_LESSONS =
-  LESSON_ORDER.length === Object.keys(LESSON_REGISTRY).length;
+  LESSON_ORDER.length === Object.keys(LESSON_REGISTRY).length &&
+  LESSON_ORDER.every((slug) => slug in LESSON_REGISTRY) &&
+  Object.keys(LESSON_REGISTRY).every((slug) =>
+    (LESSON_ORDER as readonly string[]).includes(slug),
+  );

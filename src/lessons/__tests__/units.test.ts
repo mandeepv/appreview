@@ -20,6 +20,22 @@ describe('the path covers every section of every lesson', () => {
     expect(PATH_COVERS_ALL_LESSONS).toBe(true);
   });
 
+  // The guard checks identity, not just count. A misspelled slug keeps the
+  // counts equal while dropping a whole lesson from the app — and because the
+  // path is the only lesson navigation, that content becomes unreachable with
+  // no error anywhere.
+  it('names a real lesson for every slug on the path', () => {
+    for (const slug of LESSON_ORDER) {
+      expect(getLesson(slug)).toBeDefined();
+    }
+  });
+
+  it('leaves no registry lesson off the path', () => {
+    const ordered = new Set<string>(LESSON_ORDER);
+    for (const node of PATH_NODES) expect(ordered.has(node.lessonSlug)).toBe(true);
+    expect(ordered.size).toBe(LESSON_ORDER.length);
+  });
+
   it('has one node per section, in lesson order', () => {
     const expected = LESSON_ORDER.reduce(
       (n, slug) => n + (getLesson(slug)?.sections.length ?? 0),
