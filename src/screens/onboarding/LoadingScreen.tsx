@@ -788,6 +788,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // being done for them rather than a spinner. Every part degrades to a
   // truthful generic phrase when an answer is missing (cold launch, resumed
   // session, or a signed-in user whose local store was cleared).
+  //
+  // COMPUTED ONCE, AT MOUNT — the empty dependency array is deliberate.
+  // Partway through this screen the onboarding payload is saved to Supabase and
+  // the local store is cleared (see the save effect below). With the store
+  // values as dependencies this recomputed at that moment, so a parent watched
+  // their own subtitle — "For a 4- and 7-year-old, in a house where tantrums is
+  // the hard part" — revert to the generic fallback mid-run, in the middle of
+  // the screen whose whole job is to feel personal.
   const { buildTasks, buildSubtitle } = React.useMemo(() => {
     const goalLabels: Record<string, string> = {
       "behavior-issues": "behaviour",
@@ -858,7 +866,8 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         { at: 100, headline: "Building your *plan*", label: "Your plan" },
       ],
     };
-  }, [onboardingStore.improvementGoals, onboardingStore.children]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The task currently running drives the headline. Past 100 the last one
   // stays, so the finished screen reads "Building your plan" rather than blank.

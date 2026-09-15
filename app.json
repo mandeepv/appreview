@@ -8,7 +8,8 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4F8F8B"
+      "_comment": "Cream (OnboardingColors.paper). Was #4F8F8B teal, which is the pre-2026-09 brand: iOS paints this BEFORE React starts, so every cold launch flashed teal and then jumped to a cream app.",
+      "backgroundColor": "#eee9dc"
     },
     "icon": "./assets/icon.png",
     "adaptiveIcon": {

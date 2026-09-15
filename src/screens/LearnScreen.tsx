@@ -144,6 +144,17 @@ export default function LearnScreen() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
+      // Hold the rail back until the re-read lands.
+      //
+      // Without this, returning from a finished lesson renders the PREVIOUS
+      // progress for a frame or two: the section just completed still sits
+      // there as tonight's card, marked TONIGHT, and then snaps to the next
+      // one. The stale frame shows the parent the exact thing they have
+      // already done, at the moment they are looking for what is next.
+      //
+      // The read is one AsyncStorage round-trip, so this is a blank rail for a
+      // few frames rather than a spinner — the header stays put throughout.
+      setLoaded(false);
       setFocusCount((n) => n + 1);
       void (async () => {
         // Settled, not thrown: a failed read must not blank the whole rail.
