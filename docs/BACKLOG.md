@@ -56,28 +56,39 @@ chips with no edit path are half a feature.
 
 **Effort**: as #9m.
 
-### R0. Build the session-replay PII masking before enabling replay 🔴
+### R0. Three owner actions before session replay can be switched on 🔴
 
-**Problem**: `OPS_STATE` claimed since 2026-07-21 that `<PostHogMaskView>`
-wrappers were "built" on the name-bearing titles and the child-count/age
-values. They are not in the codebase — `grep -rn PostHogMaskView src/`
-returns nothing, and they are absent from `main` and from the shipped
-`v1.2.0-build-11` tag, so they were never shipped (the 2026-09 redesign
-did not remove them). Only the config flags in `src/config/posthog.ts`
-exist. RN session replay is SCREENSHOT-based, so if the dashboard toggle
-is flipped as-is, replays capture the parent's name and their children's
-ages as images — a direct breach of the no-PII invariant.
+**Status**: the CODE is built (2026-09-15) — `@posthog/react-native-plugin`
+2.9.0 installed and registered in `app.json`, `enableSessionReplay` +
+`sessionReplayConfig` wired in `src/config/posthog.ts`, masking on
+(`maskAllTextInputs`, `maskAllImages`; log + network telemetry off). It is
+switched OFF at `ENABLE_SESSION_REPLAY = false`, and the PostHog dashboard
+toggle is independently off. Nothing records.
 
-Currently harmless ONLY because the dashboard toggle is off.
+**Problem**: RN session replay is screenshot-based — PostHog's docs say the
+React Native SDK "always record[s] in screenshot mode", not configurable —
+so it is a screen recording, not an event stream. That puts it under App
+Review **2.5.14**: *"Apps must request explicit user consent and provide a
+clear visual and/or audible indication when recording, logging, or
+otherwise making a record of user activity. This includes ... screen
+recordings"*, and **5.1.1(ii)**, which requires consent for usage data
+*"even if such data is considered to be anonymous."* Enabling without the
+below risks rejection of a LIVE app.
 
-**Fix**: wrap the name/child-data renders before anyone enables replay.
-Surfaces that now show it: the You screen header (name, "Mom to two
-children"), NameAgeScreen, ChildrenCountScreen. Then verify on a dev
-replay before touching prod.
+**The three, all owner-only:**
+1. A consent flow plus a visible recording indicator (2.5.14).
+2. Privacy-policy update disclosing the recording and naming PostHog as a
+   recipient (5.1.1(i) / 5.1.2). `legal/` is owner-only per CLAUDE.md.
+3. App Privacy label: Name is declared AppFunctionality / Personalization,
+   not Analytics (`app.config.js` privacyManifests).
+
+Then: native rebuild, flip both switches, and watch a DEV replay to confirm
+masking before prod. Note the single PostHog project covers dev+prod —
+enabling records both; filter on the `environment` super-property.
 
 **Blocks**: enabling session replay, at all.
 
-**Effort**: ~2h including the dev-replay verification.
+**Effort**: code is done; the three items are the work.
 
 ### R3. The in-lesson player is still on the old teal palette 🟡
 
