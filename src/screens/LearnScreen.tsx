@@ -211,17 +211,19 @@ export default function LearnScreen() {
     if (!canOpen(node, completed)) return;
 
     // Analytics keep the established shape: slug as lesson_id so the tapped →
-    // started funnel joins the engine's events. `lesson_started` is still fired
-    // by the engine, never here — firing it on tap counted paywall bounces as
-    // lesson starts (Fable review #8, SPEC-13 R5).
+    // started funnel joins the engine's events. `lesson_started` is fired by
+    // LessonController, never here — firing it on tap counted paywall bounces
+    // as lesson starts (Fable review #8, SPEC-13 R5).
     safeCapture('lesson_tapped', {
       lesson_id: node.lessonSlug,
       section_id: node.sectionId,
       path_index: node.index,
     });
 
-    // The gate placement key stays `learn_module_<lessonSlug>` — a Superwall
-    // dashboard identifier, not a local string.
+    // gateToLesson is a SEAM, not a check: it ignores this string and calls
+    // through immediately (see useLessonGate, INVARIANTS #13). Entitlement is
+    // enforced once, at the Loading gate. The key is kept in the shape a future
+    // freemium tier would want, and is not a live Superwall placement.
     gateToLesson(`learn_module_${node.lessonSlug}`, () => {
       navigation.navigate('LessonScreen', {
         lessonId: node.lessonSlug,

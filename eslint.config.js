@@ -16,6 +16,12 @@ module.exports = [
       'android/',
       'coverage/',
       'scripts/',
+      // Frozen snapshots, not maintained code (CLAUDE.md: "Do not follow them;
+      // do not 'fix' code to match them"). The archived 2026-08 app-transfer
+      // scripts are Node CLI tools, so they trip no-undef on __dirname and the
+      // expo env-var rule — 13 errors that turned the blocking CI lint gate red
+      // on a branch that never touched them.
+      'docs/archive/',
       // Supabase Edge Functions run on Deno with a different runtime;
       // their imports (e.g. `from "https://..."`) confuse Node-oriented
       // resolvers. Lint them separately once we take on a Deno lint job.

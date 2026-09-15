@@ -16,7 +16,7 @@
 import { PATH_NODES } from './units';
 import { getLesson } from './registry';
 import { createProgressStore } from './progressStore';
-import { getCompletedLessons } from './lessonCompletion';
+import { getCompletedLessons, backfillFlowLessonsForUpgraders } from './lessonCompletion';
 
 /**
  * Completed path-node keys, read across every lesson.
@@ -42,6 +42,16 @@ export async function getCompletedPathKeys(): Promise<string[]> {
       }
     }),
   );
+
+  // Upgrade fix, once per install: v1.2.0 recorded nothing for flow lessons
+  // 1-4, so without this every existing parent is pointed back at Lesson 1 with
+  // the rest re-locked. Hub progress is already in hand here, which is exactly
+  // the signal the backfill needs. See lessonCompletion.ts for the reasoning.
+  const hasAnyHubProgress = Array.from(bySlug.values()).some((s) => s.size > 0);
+  const flowSlugs = Array.from(
+    new Set(PATH_NODES.filter((n) => !getLesson(n.lessonSlug)?.storageKey).map((n) => n.lessonSlug)),
+  );
+  await backfillFlowLessonsForUpgraders(hasAnyHubProgress, flowSlugs);
 
   // Flow lessons: one section each, so whole-lesson completion IS section
   // completion.

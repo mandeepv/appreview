@@ -43,6 +43,7 @@ export const PartnerInvolvementScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingScreen
+      screenName="PartnerInvolvement"
       step={5}
       headline="How involved is your *partner*?"
       subtitle="So we can tailor advice that fits your family dynamic."

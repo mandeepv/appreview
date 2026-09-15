@@ -89,6 +89,7 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingScreen
+      screenName="ChildrenCount"
       step={3}
       headline="Now about your *children*."
       onBack={() => navigation.goBack()}

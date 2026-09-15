@@ -140,6 +140,7 @@ export const EducationalScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingScreen
+      screenName="Educational"
       headline="Parenting advice you'll *actually* use."
       onBack={() => navigation.goBack()}
       onContinue={handleContinue}

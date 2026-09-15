@@ -35,30 +35,37 @@ import {
 function AppContent() {
   // Onboarding fonts (Newsreader / Figtree / IBM Plex Mono).
   //
-  // These are EMBEDDED AT BUILD TIME by the expo-font config plugin (see
-  // app.json), so in any native build they are present on the very first
-  // frame and this call resolves instantly.
+  // REGISTERED UNDER THEIR POSTSCRIPT NAMES, deliberately — and this is the
+  // whole point of the exercise.
   //
-  // It stays for one reason: Expo Go and the JS-only dev client have no
-  // native build to embed into, so without it the fonts never register there
-  // at all. In a production build it is a no-op.
+  // The expo-font config plugin (app.json) embeds each TTF natively under the
+  // name inside the file: "Newsreader-Regular", "Figtree-SemiBold", and so on.
+  // These keys must match, because expo-font checks whether a family is already
+  // registered before doing anything: key them by the @expo-google-fonts alias
+  // ("Newsreader_400Regular") and that check misses on every single face, the
+  // full async runtime registration runs anyway, and the first-frame
+  // system-font flash the embedding was meant to remove comes straight back.
+  // That was the state of this file until the redesign review caught it.
+  //
+  // So: styles reference the PostScript names (see OnboardingFonts in
+  // theme.ts), the plugin embeds those names, and this call finds them already
+  // present in a native build and resolves instantly.
+  //
+  // It stays for one reason: Expo Go and the JS-only dev client have no native
+  // build to embed into, so without it the fonts never register there at all.
   //
   // Deliberately NOT a render gate either way. Blocking the tree would put a
   // blank frame in front of the brand splash and change launch timing on the
   // paywall path (INVARIANT #1, SPEC-16).
-  //
-  // Runtime registration was what caused the visible reflow on the plan
-  // screen: every screen drew once in the system face and re-laid-out when
-  // the fonts landed. Embedding removes the gap rather than hiding it.
   useFonts({
-    Newsreader_300Light,
-    Newsreader_400Regular,
-    Newsreader_400Regular_Italic,
-    Figtree_400Regular,
-    Figtree_500Medium,
-    Figtree_600SemiBold,
-    IBMPlexMono_400Regular,
-    IBMPlexMono_500Medium,
+    'Newsreader-Light': Newsreader_300Light,
+    'Newsreader-Regular': Newsreader_400Regular,
+    'Newsreader-Italic': Newsreader_400Regular_Italic,
+    'Figtree-Regular': Figtree_400Regular,
+    'Figtree-Medium': Figtree_500Medium,
+    'Figtree-SemiBold': Figtree_600SemiBold,
+    'IBMPlexMono-Regular': IBMPlexMono_400Regular,
+    'IBMPlexMono-Medium': IBMPlexMono_500Medium,
   });
 
   const initialize = useAuthStore(state => state.initialize);

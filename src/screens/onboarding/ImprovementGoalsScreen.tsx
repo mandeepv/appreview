@@ -52,6 +52,7 @@ export const ImprovementGoalsScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingScreen
+      screenName="ImprovementGoals"
       step={4}
       headline="What do you want to *work on*?"
       subtitle="Select all that apply."

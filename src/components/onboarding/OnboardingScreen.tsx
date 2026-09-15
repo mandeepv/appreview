@@ -30,7 +30,8 @@ import {
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useOnboardingStore } from '../../store/onboardingStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import {
@@ -183,6 +184,11 @@ type Props = {
    * because a discoverable bypass is a rejection risk.
    */
   onHeadlinePress?: () => void;
+  /**
+   * The route name, for resume-after-interruption. Pass it on every question
+   * screen — see the persistence note in the component body.
+   */
+  screenName?: string;
 };
 
 export function OnboardingScreen({
@@ -199,9 +205,36 @@ export function OnboardingScreen({
   continueDisabled = false,
   scrollable = false,
   onHeadlinePress,
+  screenName,
 }: Props) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { saveState, setLastScreen } = useOnboardingStore();
+
+  /**
+   * Persist answers and position when the screen loses focus.
+   *
+   * This is the behaviour OnboardingContainer provided on the old screens. The
+   * redesign replaced that wrapper (see the note at the top of this file) and
+   * did NOT carry this across — so for a while nothing wrote onboarding state
+   * at all: a parent whose app was killed mid-signup restarted at Welcome with
+   * every answer gone, and SplashScreen's resume path had nothing fresh to
+   * restore. resolveResumeStack, built on this same branch, could never see
+   * current data.
+   *
+   * On blur rather than on change: the store is the live copy, and writing on
+   * every keystroke or tap would mean an AsyncStorage round-trip per
+   * interaction for a value only ever read at launch.
+   */
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        if (!screenName) return;
+        void saveState();
+        void setLastScreen(screenName);
+      };
+    }, [screenName, saveState, setLastScreen]),
+  );
 
   // Only draw the back affordance when there is somewhere to go.
   //

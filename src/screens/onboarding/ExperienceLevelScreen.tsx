@@ -42,6 +42,7 @@ export const ExperienceLevelScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingScreen
+      screenName="ExperienceLevel"
       step={6}
       headline="How familiar are you with modern parenting *ideas*?"
       onBack={() => navigation.goBack()}

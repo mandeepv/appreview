@@ -106,6 +106,7 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingScreen
+      screenName="NameAge"
       step={2}
       // Emphasis sits on who this is for, not on the machinery of
       // personalising. The canvas's subtitle ("So examples feel relevant to

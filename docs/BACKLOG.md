@@ -92,6 +92,38 @@ testing):
 
 **Effort**: ~30 min to restore + one native rebuild.
 
+### R4. Learn rail breaks under iOS Dynamic Type 🟡
+
+**Problem**: the rail opens at tonight's card by computing exact row offsets
+from hand-written constants (`ROW_H` in `LearnScreen.tsx`), and rows are
+pinned to those heights. RN `Text` scales with the system font size and the
+repo sets no `allowFontScaling` / `maxFontSizeMultiplier` anywhere, so at the
+larger accessibility text sizes the text outgrows its pinned container and
+overlaps the next row. Scroll positioning still lands correctly — the heights
+are hard-pinned — so this is visual overflow, not offset drift.
+
+Deprioritised 2026-09-15: real, but it only bites users who have raised their
+system text size, and the redesign is not blocked on it.
+
+**Fix**: cap scaling on the rail rows (`maxFontSizeMultiplier`), or derive
+`ROW_H` from `PixelRatio.getFontScale()`.
+
+**Effort**: ~1h.
+
+### R5. Upgraders are not told why the path locked 🟢
+
+**Problem**: v1.2.0 let a parent open any lesson in any order; the path admits
+only the current node or finished ones. Someone who was working out of order
+finds the next section of the lesson they were in locked, with no explanation.
+
+Largely mitigated by the flow-lesson backfill (`lessonCompletion.ts`), which
+puts upgraders back at their real position rather than at Lesson 1 — so the
+residual case is only a parent who genuinely jumped around.
+
+**Fix (if it turns out to matter)**: a one-time note on first launch after
+upgrade. Deliberately not built: an explainer for a state most users will
+never see is its own kind of noise.
+
 ### R3. The in-lesson player is still on the old teal palette 🟡
 
 **Problem**: onboarding, the Learn path, the tab bar and the You screen

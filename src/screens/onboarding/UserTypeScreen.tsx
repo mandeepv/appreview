@@ -39,6 +39,7 @@ export const UserTypeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingScreen
+      screenName="UserType"
       step={1}
       headline="Welcome to Kinderwell"
       subtitle="Who are you parenting as?"

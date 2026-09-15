@@ -54,6 +54,54 @@ export async function markLessonCompleted(slug: string): Promise<void> {
   }
 }
 
+/**
+ * ONE-TIME UPGRADE FIX — reconstruct flow-lesson completion for existing users.
+ *
+ * THE PROBLEM. The path treats "current" as the earliest unfinished node, and
+ * lessons 1-4 sit first in LESSON_ORDER. Their completion is read from this
+ * module's record — a key v1.2.0 never wrote, because v1.2.0 deliberately
+ * persisted nothing for flow lessons (no `storageKey`, nothing in Supabase's
+ * lesson_progress either; verified in both). So on first launch after the
+ * upgrade, a parent who had finished all thirteen lessons would be pointed
+ * back at Lesson 1, with everything past it re-locked behind the new
+ * sequential rule.
+ *
+ * THE INFERENCE. Nothing recorded whether they did lessons 1-4, so this
+ * reconstructs it: v1.2.0's Learn list ordered those four FIRST, so progress in
+ * any later (hub) lesson means the parent walked past them. Any hub progress at
+ * all therefore implies 1-4 are done.
+ *
+ * WHERE IT IS WRONG, and why that is acceptable: someone who did only lessons
+ * 1-3 and never opened a hub lesson has left no trace anywhere, so they redo
+ * those. That is a few minutes of re-reading for a small group, against every
+ * engaged upgrader otherwise being told to start over.
+ *
+ * Runs once, guarded by its own key — a parent who later resets progress must
+ * not have these silently re-granted.
+ */
+export async function backfillFlowLessonsForUpgraders(
+  hasAnyHubProgress: boolean,
+  flowSlugs: readonly string[],
+): Promise<void> {
+  try {
+    const done = await AsyncStorage.getItem(STORAGE_KEYS.FLOW_BACKFILL_DONE);
+    if (done) return;
+    // Mark it attempted FIRST. If the writes below fail we do not want this
+    // retrying on every launch and re-granting lessons a parent has since
+    // cleared.
+    await AsyncStorage.setItem(STORAGE_KEYS.FLOW_BACKFILL_DONE, '1');
+
+    if (!hasAnyHubProgress) return;
+
+    const current = await getCompletedLessons();
+    const merged = Array.from(new Set([...current, ...flowSlugs]));
+    await AsyncStorage.setItem(KEY, JSON.stringify(merged));
+  } catch {
+    // Non-fatal: worst case the parent starts at lesson 1, which is the
+    // behaviour this exists to improve, not a break.
+  }
+}
+
 export async function clearCompletedLessons(): Promise<void> {
   try {
     await AsyncStorage.removeItem(KEY);

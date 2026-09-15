@@ -260,19 +260,31 @@ export const oForest = (a: number) => `rgba(47,107,74,${a})`;
 export const oClay = (a: number) => `rgba(192,101,60,${a})`;
 
 /**
- * Font families as registered by `useFonts` in App.tsx. Newsreader carries
- * every headline (with one italic phrase — the signature move), Figtree does
- * UI/labels, and IBM Plex Mono is reserved for the step label.
+ * Font families. Newsreader carries every headline (with one italic phrase —
+ * the signature move), Figtree does UI/labels, and IBM Plex Mono is reserved
+ * for the step label.
+ *
+ * THESE ARE POSTSCRIPT NAMES, not the @expo-google-fonts package aliases, and
+ * the difference is load-bearing. The expo-font config plugin embeds each TTF
+ * natively under the name stored inside the file — "Newsreader-Regular", not
+ * "Newsreader_400Regular". Referencing the alias here means iOS never finds the
+ * embedded face, expo-font's already-registered check misses, and the async
+ * runtime registration runs on every launch — which is exactly the first-frame
+ * font flash that embedding was added to remove.
+ *
+ * App.tsx registers the same names for Expo Go / the JS dev client, where there
+ * is no native build to embed into. Change one of these and you must change
+ * both, or the flash returns silently.
  */
 export const OnboardingFonts = {
-  serif: 'Newsreader_400Regular',
-  serifItalic: 'Newsreader_400Regular_Italic',
-  serifLight: 'Newsreader_300Light', // the 104px weekends numeral only
-  sans: 'Figtree_400Regular',
-  sansMed: 'Figtree_500Medium',
-  sansSemi: 'Figtree_600SemiBold',
-  mono: 'IBMPlexMono_400Regular',
-  monoMed: 'IBMPlexMono_500Medium',
+  serif: 'Newsreader-Regular',
+  serifItalic: 'Newsreader-Italic',
+  serifLight: 'Newsreader-Light', // the 104px weekends numeral only
+  sans: 'Figtree-Regular',
+  sansMed: 'Figtree-Medium',
+  sansSemi: 'Figtree-SemiBold',
+  mono: 'IBMPlexMono-Regular',
+  monoMed: 'IBMPlexMono-Medium',
 } as const;
 
 /**

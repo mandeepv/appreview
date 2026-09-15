@@ -49,6 +49,10 @@ export const STORAGE_KEYS = {
   // `lesson_started` fires and demands a HUB_META entry — so flow lessons 1-4
   // cannot simply be given one. See src/lessons/lessonCompletion.ts.
   LESSONS_COMPLETED: '@kinderwell_lessons_completed',
+  // Marks the one-time v1.2.0 -> path upgrade fix as attempted. Without it the
+  // backfill would re-grant lessons 1-4 on every launch, including to a parent
+  // who has deliberately reset their progress.
+  FLOW_BACKFILL_DONE: '@kinderwell_flow_backfill_done',
 
   // Per-lesson section-completion progress. Keyed per device, not per
   // user — so they survive account deletion. See the comment in

@@ -74,24 +74,33 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     : true;
 
   // SPEC-13 R4/R5 — lesson analytics. `lesson_started` fires at the true
-  // "opened" moment, ONCE per lesson visit. That moment differs by lesson kind:
-  //   - Flow lessons (no storageKey): the controller mount IS the opening, so
-  //     the controller fires it (below).
-  //   - Hub lessons (have a storageKey): the user lands on the hub first, so
-  //     LessonHubScreen owns the fire (see there). Firing here too would
-  //     double-count, so the controller SKIPS hub lessons.
+  // "opened" moment, ONCE per lesson visit.
+  //
+  // WHO FIRES IT, and why this changed. It used to be split: flow lessons here,
+  // hub lessons in LessonHubScreen, because the hub was where a parent landed
+  // first. The path redesign navigates every node straight to LessonScreen, so
+  // the hub is off the happy path — and `lesson_started` silently stopped
+  // firing for the nine hub lessons while `lesson_tapped` kept flowing and hid
+  // the gap. The controller now owns the fire for BOTH kinds.
+  //
+  // LessonHubScreen still fires its own when reached directly (dev menu, a
+  // legacy deep link). It is not double-counting on the path: nothing on the
+  // path routes through the hub.
+  //
+  // ONCE PER LESSON, not per section: hub lessons have many sections and the
+  // controller remounts on each, so this keys off the lesson slug and fires
+  // only when the slug changes.
   // Static registry IDs only (slug + title), no content text (INVARIANTS #8).
+  const startedForSlug = React.useRef<string | null>(null);
   React.useEffect(() => {
-    const isFlowLesson = !lesson.storageKey;
-    if (isFlowLesson && sectionIndex === 0 && screenIndex === 0) {
-      safeCapture('lesson_started', {
-        lesson_id: lesson.slug,
-        lesson_title: lesson.title,
-        lesson_label: FLOW_LESSON_LABELS[lesson.slug] ?? null,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (startedForSlug.current === lesson.slug) return;
+    startedForSlug.current = lesson.slug;
+    safeCapture('lesson_started', {
+      lesson_id: lesson.slug,
+      lesson_title: lesson.title,
+      lesson_label: FLOW_LESSON_LABELS[lesson.slug] ?? null,
+    });
+  }, [lesson.slug, lesson.title]);
 
   // SPEC-13 R4/R5 — `lesson_section_started` fires at the entry (screen 0) of
   // EVERY section, for ALL lessons (generalizes the old Sprinklers-hub-only

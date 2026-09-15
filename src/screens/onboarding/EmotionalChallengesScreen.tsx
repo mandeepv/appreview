@@ -80,6 +80,7 @@ export const EmotionalChallengesScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <OnboardingScreen
+      screenName="EmotionalChallenges"
       step={7}
       headline="How have you been *feeling* lately?"
       subtitle="Select all that apply."
