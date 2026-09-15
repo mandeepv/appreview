@@ -53,7 +53,23 @@ if (!isPostHogConfigured) {
  * replay at all. Tightening further is done per-component at the call site,
  * not by loosening these.
  */
-const ENABLE_SESSION_REPLAY = false
+/**
+ * ON IN DEV, OFF IN PROD — testing state as of 2026-09-15.
+ *
+ * Deliberately NOT a plain `true`. The PostHog project is SHARED between dev
+ * and prod, so an unconditional flag plus the dashboard toggle would start
+ * recording live App Store users — before the consent flow, the privacy-policy
+ * update and the App Privacy label change above exist. Those users have agreed
+ * to none of it.
+ *
+ * Binding it to `environment` means the prod binary cannot record no matter
+ * what the dashboard says. Flip THIS line (to a plain true) only once the three
+ * owner items are done; until then dev is the only thing that captures.
+ *
+ * `environment` comes from the Supabase project ref baked in at build time, so
+ * this is decided by which backend the build points at, not by __DEV__.
+ */
+const ENABLE_SESSION_REPLAY = environment === 'dev'
 
 export const posthog = new PostHog(apiKey || 'placeholder_key', {
   host,

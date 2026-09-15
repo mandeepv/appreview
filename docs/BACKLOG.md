@@ -62,8 +62,10 @@ chips with no edit path are half a feature.
 2.9.0 installed and registered in `app.json`, `enableSessionReplay` +
 `sessionReplayConfig` wired in `src/config/posthog.ts`, masking on
 (`maskAllTextInputs`, `maskAllImages`; log + network telemetry off). It is
-switched OFF at `ENABLE_SESSION_REPLAY = false`, and the PostHog dashboard
-toggle is independently off. Nothing records.
+`ENABLE_SESSION_REPLAY = environment === 'dev'` — capturing in DEV for
+testing, and structurally incapable of capturing in PROD, since the shared
+dev+prod PostHog project means a plain `true` would record live App Store
+users. The dashboard toggle is the second, independent switch.
 
 **Problem**: RN session replay is screenshot-based — PostHog's docs say the
 React Native SDK "always record[s] in screenshot mode", not configurable —
