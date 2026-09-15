@@ -104,7 +104,18 @@ export const ChildrenCountScreen: React.FC<Props> = ({ navigation }) => {
             onPress={() => {
               if (count > 0) {
                 animate();
-                updateChildrenCount(count - 1);
+                const next = count - 1;
+                updateChildrenCount(next);
+                // Drop any bands the smaller count can no longer hold.
+                //
+                // toggleAge caps selections at `count`, but stepping DOWN
+                // afterwards left them behind: pick three bands for three
+                // children, step to two, and three chips stayed lit while
+                // handleContinue assigned only the first two cyclically. The
+                // extra chip read as chosen and silently did nothing.
+                setSelectedAges((prev) =>
+                  prev.size <= next ? prev : new Set(Array.from(prev).slice(0, next)),
+                );
               }
             }}
             hitSlop={8}

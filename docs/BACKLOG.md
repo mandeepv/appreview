@@ -97,8 +97,9 @@ testing):
 **Owner**: the owner. **Checkpoint**: 2 weeks after 1.3.0 reaches ~200 new
 signups, or 2026-10-31, whichever comes first.
 
-**What changed**: commit `f70b8cb` took the post-onboarding "building your
-plan" screen from ~4.6s to ~10.6s — more than doubling the dead time every
+**What changed**: the commit `experiment(onboarding): plan theater runs 10s
+instead of 4.6s` took the post-onboarding "building your plan" screen from
+~4.6s to ~10.6s — more than doubling the dead time every
 new user sits through *immediately before the hard paywall*. The intent is
 that visible effort makes the plan feel earned and the subscription easier to
 justify.
@@ -119,6 +120,38 @@ back to ~5s — the longer wait only earns its place by paying for itself.
 `LoadingScreen.tsx` line ~588: `200 ticks x 50ms`.
 
 **Effort**: minutes to revert; the checkpoint is the work.
+
+### R8. Reinstalling the app resets the path position 🟢
+
+**Problem**: hub-lesson progress is mirrored to Supabase and survives a
+reinstall; flow lessons 1-4 live only in device-local `LESSONS_COMPLETED`, so
+a delete-and-reinstall points the path back at Lesson 1 even though the 9 hub
+lessons come back as done. Same gap existed in v1.2.0 — it only becomes
+visible now because the path is sequentially locked.
+
+Accepted for 1.3.0 (owner, 2026-09-15). Worth revisiting if it generates
+support questions, which it eventually will.
+
+**Fix**: mirror flow-lesson completion into `lesson_progress` alongside the
+hub lessons, so the backfill has a remote source instead of inferring.
+
+**Effort**: ~2h.
+
+### R9. Notes consciously left as-is 🟢
+
+Recorded so they are decisions rather than oversights (2026-09-15 review):
+
+- **Welcome-back hold** adds ~1s to every signed-in cold launch, subscribers
+  included. Deliberate — it exists so a returning user reads a greeting
+  instead of a flash of finished progress bar.
+- **Demo-mode 7-tap target** grew from the title to the whole heading block
+  (`AuthScreen`). Larger target, still invisible; the rejection risk the
+  original note worried about is about DISCOVERABILITY, which is unchanged.
+- **Two always-empty fields** (`learning_goal`, `familiar_parenting_styles`)
+  still go to PostHog as person properties. Removing the keys stops updating
+  them but does not delete them from existing people — you would freeze a
+  stale value rather than clear it, which is worse. They are already removed
+  from the Supabase write.
 
 ### R4. Learn rail breaks under iOS Dynamic Type 🟡
 

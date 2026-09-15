@@ -8,4 +8,5 @@ For **every** release, copy `docs/RELEASE_CHECKLIST.md` → `docs/releases/v<X.Y
 
 ## Instances
 
-- `v1.2.0.md` — seeded (unticked), scope: paywall fixes + lesson engine + progress sync. Owner fills as v1.2.0 ships.
+- `v1.2.0.md` — **SHIPPED 2026-07-19** (build 11), frozen. Scope: paywall fixes + lesson engine + progress sync. Marker tag `appstore-live-v1.2.0`. (This entry said "seeded (unticked) — owner fills as v1.2.0 ships" for two months after it shipped.)
+- `v1.3.0.md` — **not yet seeded.** Copy `RELEASE_CHECKLIST.md` here before building 1.3.0 (build 12): the onboarding / Learn / You redesign.

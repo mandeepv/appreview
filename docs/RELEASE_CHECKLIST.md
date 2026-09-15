@@ -6,7 +6,7 @@
 
 **Related docs:**
 - [`DEV_PROD_ENVIRONMENTS.md`](./DEV_PROD_ENVIRONMENTS.md) — dev/prod switching, kill switch, migrations
-- [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) — where the 3 version files live
+- [`VERSION_MANAGEMENT.md`](./VERSION_MANAGEMENT.md) — where the 2 version files live (`app.json` + `package.json`; it was three until the `app.config.js` consolidation around 2026-07-03, and this line never caught up)
 - [`BACKLOG.md`](./BACKLOG.md) — the living work tracker (open hardening items)
 
 _(The git tagging convention, formerly `RELEASE_PROCESS.md`, is now folded into the "Tag the release" step below — one doc for one activity.)_
