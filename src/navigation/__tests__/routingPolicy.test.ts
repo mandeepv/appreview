@@ -6,6 +6,7 @@ import {
   type OnboardingStatus,
   type AuthMode,
   type GateResult,
+  resolveSignedInLaunch,
 } from '../routingPolicy';
 
 // Full truth tables for the two routing-kernel functions. These are the
@@ -182,5 +183,61 @@ describe('resolveResumeStack — restores the full path, not just the screen', (
 
   it('returns null when nothing was persisted', () => {
     expect(resolveResumeStack(null)).toBeNull();
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// resolveSignedInLaunch — the signed-in-but-unfinished cohort
+// ---------------------------------------------------------------------------
+describe('resolveSignedInLaunch', () => {
+  // THE BUG: a signed-in user who quit partway through the questions was
+  // gated as though onboarded. Loading read the empty store as "already
+  // saved", skipped the upsert, and let them subscribe with no profile row.
+  it('resumes a signed-in user who quit partway through the questions', () => {
+    const launch = resolveSignedInLaunch({
+      lastScreen: 'ImprovementGoals',
+      hasReachedAuth: false,
+    });
+    expect(launch.action).toBe('resume');
+    expect(launch).toHaveProperty('stack');
+    if (launch.action === 'resume') {
+      // Lands on the screen they left, with the earlier answers behind it.
+      expect(launch.stack[launch.stack.length - 1]).toBe('ImprovementGoals');
+      expect(launch.stack[0]).toBe('Welcome');
+    }
+  });
+
+  // hasReachedAuth is what separates "finished the questions" from "quit
+  // partway" — a user who reached Auth has nothing left to answer.
+  it('gates a user who finished the questions, even with a lastScreen on disk', () => {
+    expect(
+      resolveSignedInLaunch({ lastScreen: 'EmotionalChallenges', hasReachedAuth: true }),
+    ).toEqual({ action: 'gate' });
+  });
+
+  it('gates a returning user with nothing persisted', () => {
+    expect(
+      resolveSignedInLaunch({ lastScreen: null, hasReachedAuth: false }),
+    ).toEqual({ action: 'gate' });
+  });
+
+  // Same unvalidated-string boundary resolveResumeStack guards: an
+  // unrecognisable key must gate (the old behaviour), never crash or resume
+  // onto a screen that doesn't exist.
+  it.each([
+    ['a screen that no longer exists', 'ChildrenGender'],
+    ['a route outside the question flow', 'Auth'],
+    ['junk', 'not-a-screen'],
+    ['empty string', ''],
+  ])('gates on %s', (_label, value) => {
+    expect(
+      resolveSignedInLaunch({ lastScreen: value, hasReachedAuth: false }),
+    ).toEqual({ action: 'gate' });
+  });
+
+  it('resumes from the very first question', () => {
+    const launch = resolveSignedInLaunch({ lastScreen: 'Welcome', hasReachedAuth: false });
+    expect(launch).toEqual({ action: 'resume', stack: ['Welcome'] });
   });
 });

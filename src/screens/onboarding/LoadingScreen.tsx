@@ -99,6 +99,17 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     "idle" | "presenting" | "retry" | "blocked"
   >("idle");
 
+  // WHY we are retrying, which changes what we tell the user. 'network' is the
+  // default and the common case. 'misconfigured' is the PlacementNotFound
+  // branch: Superwall answered fine, but the `subscription_gate` placement is
+  // missing/renamed in the dashboard. That is our fault, not the parent's, and
+  // telling them to check their connection sends them chasing a problem they
+  // cannot fix. Latched once set — the retry loop keeps running and must not
+  // flip the message back to the network copy on a subsequent attempt.
+  const [retryCause, setRetryCause] = useState<"network" | "misconfigured">(
+    "network",
+  );
+
   // Is this screen actually BUILDING a plan, or just passing through the gate?
   //
   // Read once at mount from the same signal that sets the initial progress. A
@@ -228,6 +239,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         // Small delay so Superwall's own dismiss animation completes before we
         // ask it to present again. Without the delay, the re-present can
         // no-op silently.
+        //
+        // Deliberately the direct call, not latestRunGateRef: that ref is
+        // declared far below this function, so reading it here relies on the
+        // timeout firing after render — true today, but a trap for anyone who
+        // later moves this call out of the callback. applyGateOutcome is
+        // re-created every render, so the runGate it closes over is already
+        // the current one; the ref exists for the long-lived TIMERS (the
+        // theater and the mount wait), which genuinely do go stale.
         setTimeout(() => runGate(), 300);
         return;
       case "retry":
@@ -317,6 +336,7 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
             context: "paywall_placement_not_found",
           },
         );
+        setRetryCause("misconfigured");
       }
       applyGateOutcome(
         resolveGateOutcome({ kind: "skip", reason: reason.type }, isSubscribed),
@@ -355,6 +375,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // completes. The onboardingStore is cleared after a successful save, so
   // a null userType is the signal that "we've been through this before,
   // don't re-upsert an empty payload."
+  //
+  // That same property makes this effect the LAUNCH-TIME RE-SAVE: a non-empty
+  // store on a signed-in user's launch means the previous upsert never
+  // succeeded (clearState runs only after a successful save). SplashScreen now
+  // loadState()s before routing here, so a payload stranded by a failed save
+  // is rehydrated and re-sent on the next launch instead of sitting on disk
+  // unread forever. No extra branch is needed — "store is non-empty" already
+  // means "not yet persisted".
   useEffect(() => {
     const hasOnboardingPayload = onboardingStore.userType !== null;
     if (!hasOnboardingPayload) {
@@ -411,7 +439,24 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           await onboardingStore.clearState();
         } catch (error) {
           if (__DEV__) console.error("Error saving onboarding data:", error);
-          // Continue anyway - don't block user from entering app
+          // This is the money path: the upsert runs ONCE, and on failure
+          // (flaky wifi, timeout, outage) the user still watches the theater
+          // reach 100% and can pay — landing in Root with no onboarding row
+          // server-side. It used to fail entirely silently: no Sentry, no user
+          // feedback, no retry, and the answers stranded on disk forever
+          // because nothing re-read them.
+          //
+          // Report it (house pattern: money/auth paths get reportError) and
+          // DON'T clear the local store — clearState only runs on success
+          // above, so the payload survives for the retry below. SplashScreen
+          // now loadState()s for signed-in users, so the retry effect actually
+          // has something to re-send on the next launch.
+          reportError(
+            error instanceof Error ? error : new Error(String(error)),
+            { screen: "LoadingScreen", context: "onboarding_save" },
+          );
+          // Continue anyway - don't block user from entering app. A failed
+          // save must never trap a paying user at the gate.
         }
       }
     };
@@ -601,7 +646,10 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           if (prev >= 100) {
             clearInterval(interval);
             if (!THEATER_HOLD_AT_END) {
-              setTimeout(() => runGate(), 600);
+              // Through the ref, not the captured runGate: this closure is
+              // created once when the theater starts and would otherwise hold
+              // an isSubscribed from ~10s ago. See latestRunGateRef above.
+              setTimeout(() => latestRunGateRef.current(), 600);
             } else if (__DEV__) {
               console.log(
                 "[theater] holding at 100% — THEATER_HOLD_AT_END is on",
@@ -626,7 +674,9 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     //
     // Note this is a floor, not the total. Superwall usually takes longer than
     // this to present, so in practice the wait is dominated by the gate.
-    const timer = setTimeout(() => runGate(), 1200);
+    // Through the ref for the same reason as the theater path above — a
+    // mid-wait isSubscribed flip must be respected.
+    const timer = setTimeout(() => latestRunGateRef.current(), 1200);
     return () => clearTimeout(timer);
   }, [navigation]);
 
@@ -831,8 +881,24 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
           ? goals[0]
           : null;
 
-    // Age bands read as their lower bound ("a 4- and 7-year-old"). We hold a
-    // band, not a year, so this is the closest honest phrasing.
+    // We collect age BANDS, never exact ages. This used to render the band's
+    // lower bound as a fact — "5-7" became "a 5-year-old" — so a parent of a
+    // 7-year-old read their child's age back to them wrong, on the one screen
+    // whose entire job is to prove we were paying attention, immediately
+    // before the paywall. It also produced "a 8-year-old" and the outright
+    // broken "a 18+-year-old".
+    //
+    // So say only what the band actually tells us. Every phrase below is true
+    // for every age inside its band, and reads like a person wrote it.
+    const BAND_PHRASE: Record<string, string> = {
+      "0-1": "your baby",
+      "2-4": "your toddler",
+      "5-7": "your young child",
+      "8-12": "your school-age child",
+      "13-17": "your teenager",
+      "18+": "your grown child",
+    };
+
     const bands = Array.from(
       new Set(
         (onboardingStore.children ?? []).map((c) => c.ageRange).filter(Boolean),
@@ -840,19 +906,29 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     ) as string[];
     const ages = bands
       .slice(0, 2)
-      .map((b) => (b === "18+" ? "18+" : b.split("-")[0]));
+      .map((b) => BAND_PHRASE[b])
+      .filter(Boolean);
     const agePhrase =
       ages.length === 2
-        ? `a ${ages[0]}- and ${ages[1]}-year-old`
+        ? `${ages[0]} and ${ages[1]}`
         : ages.length === 1
-          ? `a ${ages[0]}-year-old`
+          ? ages[0]
           : null;
 
     // One line under the headline naming this family back to them. Degrades to
     // a true generic when the store is empty (cold launch, resumed session).
+    // "where tantrums IS the hard part" — the verb has to agree with the goal
+    // phrase. Two goals joined with "and" are always plural; a single goal may
+    // still be plural on its own ("tantrums", "sibling fights"), so the label
+    // itself decides. PLURAL_GOALS lists the labels above that take "are".
+    const PLURAL_GOALS = new Set(["sibling fights", "tantrums"]);
+    const goalVerb =
+      goals.length === 2 || (goals.length === 1 && PLURAL_GOALS.has(goals[0]))
+        ? "are"
+        : "is";
     const subtitle =
       agePhrase && goalPhrase
-        ? `For ${agePhrase}, in a house where ${goalPhrase} is the hard part.`
+        ? `For ${agePhrase}, in a house where ${goalPhrase} ${goalVerb} the hard part.`
         : agePhrase
           ? `For ${agePhrase}, built around what you told us.`
           : goalPhrase
@@ -899,9 +975,13 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
    * finished bar has not moved on.
    */
   const statusMessage =
-    gateStatus === "retry"
-      ? "Checking your subscription — please make sure you're online..."
-      : null;
+    gateStatus !== "retry"
+      ? null
+      : retryCause === "misconfigured"
+        ? // Our misconfiguration, not their network. Says what is true without
+          // blaming their connection or exposing the dashboard detail.
+          "We're having trouble loading your subscription options. We're on it — please try again in a moment."
+        : "Checking your subscription — please make sure you're online...";
 
   return (
     <SafeAreaView style={styles.container}>

@@ -196,3 +196,54 @@ export function resolveResumeStack(lastScreen: string | null): OnboardingFlowScr
   // already the root, so this correctly yields just ['Welcome'].
   return ONBOARDING_FLOW.slice(0, index + 1) as unknown as OnboardingFlowScreen[];
 }
+
+// ---------------------------------------------------------------------------
+// resolveSignedInLaunch — what does a signed-in user's cold launch mean?
+// ---------------------------------------------------------------------------
+
+export interface SignedInLaunchInput {
+  /** Deepest onboarding screen persisted to disk, or null if none. */
+  lastScreen: string | null;
+  /** Whether the user ever reached Auth (i.e. finished the question flow). */
+  hasReachedAuth: boolean;
+}
+
+/**
+ * Where a signed-in user goes on launch.
+ *
+ *   - 'gate'   → straight to Loading. Either they finished onboarding, or
+ *     there is no local evidence they ever started it.
+ *   - 'resume' → they have a half-finished onboarding on disk. Rebuild the
+ *     question stack and put them back in it.
+ *
+ * THE BUG THIS CLOSES: SplashScreen sent every signed-in user straight to
+ * Loading without loading the persisted onboarding state. Loading reads a null
+ * `userType` as "we've saved before, skip the upsert", so a user who signed in
+ * and then quit PARTWAY through the questions (an iOS background kill is
+ * enough) was silently reclassified as onboarded. They hit the hard paywall,
+ * could subscribe, and landed in Root with no profile row ever written —
+ * their half-given answers sitting unread in AsyncStorage forever. Because
+ * Supabase OAuth mints an account on first sign-in, even a brand-new user who
+ * mistapped "I already have an account" fell into this cohort.
+ *
+ * `hasReachedAuth` is what separates "finished the questions" from "quit
+ * partway": it is set when the user actually arrives at Auth, so a user with a
+ * lastScreen but no auth-reached flag has unfinished business. Resuming is
+ * safe for an already-onboarded user too — the Supabase profile is the source
+ * of truth and Loading skips the upsert when the store is empty.
+ */
+export function resolveSignedInLaunch(
+  input: SignedInLaunchInput,
+): { action: 'gate' } | { action: 'resume'; stack: OnboardingFlowScreen[] } {
+  const { lastScreen, hasReachedAuth } = input;
+
+  // Finished the question flow → the profile save already ran (or will be
+  // retried by the launch-time re-save). Nothing to resume.
+  if (hasReachedAuth) return { action: 'gate' };
+
+  const stack = resolveResumeStack(lastScreen);
+  // No recognisable progress on disk → nothing to resume; gate as before.
+  if (!stack) return { action: 'gate' };
+
+  return { action: 'resume', stack };
+}

@@ -12,7 +12,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { trackOnboardingStarted } from '../../lib/analytics';
-import { resolveResumeStack } from '../../navigation/routingPolicy';
+import { resolveResumeStack, resolveSignedInLaunch } from '../../navigation/routingPolicy';
 
 /**
  * SplashScreen is the mandatory first-launch surface. It fires the entrance
@@ -68,6 +68,44 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
           // to Root, which bypassed the gate and let unsubscribed users
           // reach LearnScreen after a force-quit / cold launch — the
           // exact scenario the hard-paywall model closes.
+          //
+          // But "signed in" is NOT the same as "onboarded". A user can sign in
+          // (Supabase OAuth mints the account on first sign-in) and then quit
+          // partway through the questions — an iOS background kill suffices.
+          // This branch used to gate them unconditionally without ever calling
+          // loadState(), so Loading saw a null userType, read it as "already
+          // saved, skip the upsert", and let them pay their way into Root with
+          // no profile row ever written. Their answers then sat unread in
+          // AsyncStorage forever, because nothing downstream re-reads them.
+          //
+          // So consult the persisted onboarding state first and resume the
+          // questions when they are genuinely unfinished.
+          const [lastScreen, hasReachedAuthScreen] = await Promise.all([
+            getLastScreen(),
+            hasReachedAuth(),
+          ]);
+          const launch = resolveSignedInLaunch({
+            lastScreen,
+            hasReachedAuth: hasReachedAuthScreen,
+          });
+
+          if (launch.action === 'resume') {
+            if (__DEV__) console.log('Signed-in user with unfinished onboarding, resuming at:', lastScreen);
+            await loadState(); // Their half-given answers, back into the store
+            trackOnboardingStarted('resumed', lastScreen ?? undefined);
+            navigation.reset({
+              index: launch.stack.length - 1,
+              routes: launch.stack.map((name) => ({ name })),
+            });
+            return;
+          }
+
+          // Onboarding is finished (or there is no local evidence of it).
+          // Load any persisted answers before gating: if a previous save
+          // failed, LoadingScreen's launch-time re-save needs them in the
+          // store to retry the upsert. A successful save clears the store, so
+          // for the common returning user this is a no-op read.
+          await loadState();
           if (__DEV__) console.log('User already authenticated, navigating to Loading (gate)');
           navigation.replace('Loading');
         } else {

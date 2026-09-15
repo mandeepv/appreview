@@ -103,6 +103,23 @@ export function createProgressStore(storageKey: string): ProgressStore {
         }
       } catch (error) {
         if (__DEV__) console.error('Error marking section complete:', error);
+        // The LOCAL write is what drives the rail. If it fails, the caller has
+        // already fired `lesson_section_completed` (and possibly
+        // `lesson_completed`) — so analytics say the parent finished the
+        // section while the rail still shows it waiting, and they are asked to
+        // do it again. That contradiction is invisible without a report, and
+        // unlike the remote sync below there is no retry that can heal it.
+        //
+        // Reported unconditionally (no failure-streak threshold): a local
+        // AsyncStorage write failing is rare and already anomalous, where a
+        // remote sync failing is routinely just "offline".
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { reportError } = require('../config/sentry') as typeof import('../config/sentry');
+        reportError(error instanceof Error ? error : new Error(String(error)), {
+          context: 'mark_section_complete_local_write',
+          storageKey,
+          sectionId,
+        });
       }
     },
 
