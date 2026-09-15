@@ -42,6 +42,7 @@ Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-educat
 - Errors: house pattern is try/catch + `__DEV__` log + rethrow (mutations) or safe default (reads) + `reportError` on money/auth paths.
 - DB: all access through `src/services/`, typed via `src/types/supabase.ts` (`npm run gen:supabase-types` after schema changes). Screens never import the Supabase client.
 - Lessons (post lesson-engine): content lives in `src/lessons/content/*.ts` validated by zod schemas — content edits are data edits; don't create new screen files for lessons.
+- The Learn path (`src/lessons/units.ts`) is the app's only lesson navigation: one flat, sequentially-locked rail of every *section*, so the lesson hub is off the happy path. A new lesson must be added to `LESSON_ORDER` or it is invisible — see INVARIANTS "Lessons / the path".
 
 ## Current state pointers
 

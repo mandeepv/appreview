@@ -58,4 +58,4 @@ The live process docs live here. **Everything in this folder (outside `archive/`
 
 - Evergreen process doc you'll maintain → add here **and** add it to the core table above.
 - A "what we shipped/found this week" snapshot → `archive/` with a `SNAPSHOT` banner + an `archive/README.md` entry (don't leave it "live").
-- **Post-release retro (standing 15-min step, per invariant 18):** archive what's dated, strip per-release blocks from `RELEASE_CHECKLIST.md`, and spot-check the evergreen core against the code. Pruning is part of shipping, not a someday task.
+- **Post-release retro (standing 15-min step, per invariant 22):** archive what's dated, strip per-release blocks from `RELEASE_CHECKLIST.md`, and spot-check the evergreen core against the code. Pruning is part of shipping, not a someday task.

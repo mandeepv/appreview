@@ -17,6 +17,59 @@ up being >1 day or blocks another item, promote it to its own doc.
 
 ---
 
+## Parked by the 2026-09 redesign
+
+Written while the onboarding / Learn / You redesign was in flight, so the
+reasoning is still fresh. None of these block the release.
+
+### R1. The streak, decided and turned back on 🟡
+
+**Problem**: the streak is built and works (`src/lessons/streak.ts`,
+tested), and active days ARE being recorded on every section completion —
+but the UI is commented out in `LearnScreen` and `DevMenuScreen`. It was
+parked because how it should behave is undecided, specifically what a
+zero shows a parent who had a hard week. The owner's position is that the
+number is the habit mechanic and hiding it removes the stake; the counter-
+argument is that a zero on a *parenting* app reads as a verdict rather
+than a nudge, and guilt drives avoidance of the app, not engagement.
+
+**Fix**: decide the zero state, then uncomment. Every block is marked
+`PARKED FOR v-NEXT`. The You screen has a placeholder slot for it too —
+it is the better home, since the Path screen is about what's next rather
+than what's behind. Because days kept recording while dark, it will show
+real history on day one instead of resetting everyone to zero.
+
+**Effort**: <1h to restore; the decision is the work.
+
+### R2. The You screen shows profile data it cannot edit 🟡
+
+**Problem**: the rebuilt You tab surfaces the parent's name and family
+("Mom to two children") read from the Supabase profile row. There is
+still no way to change any of it — which makes #9m below (in-app edit of
+onboarding answers) more pointed than when it was filed, because the data
+is now *visible* rather than merely stored. A parent whose children grow,
+or who mistyped their name, can see it and cannot fix it.
+
+**Fix**: #9m, scoped down — name and children count would cover most of
+it; the goal chips were cut from the screen precisely because read-only
+chips with no edit path are half a feature.
+
+**Effort**: as #9m.
+
+### R3. The in-lesson player is still on the old teal palette 🟡
+
+**Problem**: onboarding, the Learn path, the tab bar and the You screen
+are on the cream/forest system. `LessonController` / `BlockRenderer` and
+`Lesson5Complete` are not — so the journey is new onboarding → new Path →
+tap Start → *old teal lesson*. It is the most-seen surface in the app and
+the most visible inconsistency left.
+
+**Fix**: restyle onto the same tokens. No structural change.
+
+**Effort**: ~1 day.
+
+---
+
 ## v1.1.1 — onboarding polish sprint
 
 **Scope**: UX polish + one data-corruption bug from the owner's

@@ -755,12 +755,12 @@ Something's on fire post-release. In order of preference:
 
 ---
 
-## Post-release retro — docs pruning (standing 15-min step, per INVARIANTS #18)
+## Post-release retro — docs pruning (standing 15-min step, per INVARIANTS #22)
 
 Do this immediately after each release, before context fades. Docs are AI-session context — a stale snapshot read as truth poisons every future session, so curating what's "live" is real maintenance, not busywork.
 
-- [ ] **Verify the release was actually tagged** — `git tag | grep appstore-live` must show the version you just shipped as the current marker, on the exact built commit (INVARIANTS #17). This catches a skipped Phase-10 tag step: the v1.1.0 marker was missed once (marker sat at v1.0.0 while v1.1.0 was live) — that miss is what this check exists to prevent.
-- [ ] **Strip per-release blocks** from this checklist — any step that was specific to the version just shipped (e.g. "for v1.1.0, redeploy delete-account") is a one-time carrying instruction, not a permanent step. Delete it (INVARIANTS #18: stale instructions are treated as bugs).
+- [ ] **Verify the release was actually tagged** — `git tag | grep appstore-live` must show the version you just shipped as the current marker, on the exact built commit (INVARIANTS #21). This catches a skipped Phase-10 tag step: the v1.1.0 marker was missed once (marker sat at v1.0.0 while v1.1.0 was live) — that miss is what this check exists to prevent.
+- [ ] **Strip per-release blocks** from this checklist — any step that was specific to the version just shipped (e.g. "for v1.1.0, redeploy delete-account") is a one-time carrying instruction, not a permanent step. Delete it (INVARIANTS #22: stale instructions are treated as bugs).
 - [ ] **Archive what's now dated** — any doc whose content stopped being maintained (a shipped release's test plan, a completed review's findings) → `git mv` into `docs/archive/`, add a `SNAPSHOT` banner at the top, add an `archive/README.md` entry, and remove it from `docs/README.md`.
 - [ ] **Spot-check the evergreen core against the code** — pick 1–2 evergreen docs and confirm they still match reality (`INVARIANTS.md`, `PAYWALL_MODEL.md`, `DEV_PROD_ENVIRONMENTS.md` are the highest-stakes). If one drifted, fix it here or downgrade it to a snapshot.
 - [ ] **After 1.1.1 ships:** extract the reusable regression sections from `IPHONE_TEST_PLAN_V1.1.0.md` into an evergreen `TEST_PLAN_TEMPLATE.md`, then archive the V1.1.0 plan — so the next release's plan starts from structure, not scratch.

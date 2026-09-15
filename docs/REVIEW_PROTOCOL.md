@@ -21,4 +21,4 @@ Every finding needs `file:line` + severity + confidence; claims from the repo's 
 
 ## Cadence
 
-Full six-lens review before any release that touches money, auth, or data. Lenses 1–4 only for small releases. After each release, retro the checklist and prune (invariant 18).
+Full six-lens review before any release that touches money, auth, or data. Lenses 1–4 only for small releases. After each release, retro the checklist and prune (invariant 22).
