@@ -92,6 +92,34 @@ testing):
 
 **Effort**: ~30 min to restore + one native rebuild.
 
+### R7. The 10-second plan theater is an unrecorded experiment 🟡
+
+**Owner**: the owner. **Checkpoint**: 2 weeks after 1.3.0 reaches ~200 new
+signups, or 2026-10-31, whichever comes first.
+
+**What changed**: commit `f70b8cb` took the post-onboarding "building your
+plan" screen from ~4.6s to ~10.6s — more than doubling the dead time every
+new user sits through *immediately before the hard paywall*. The intent is
+that visible effort makes the plan feel earned and the subscription easier to
+justify.
+
+**Why this entry exists**: the code comment attached a monitoring obligation
+("watch onboarding_completed against subscription_purchased before keeping
+it") but that obligation lived nowhere else — no owner, no date, no revert
+criterion. An experiment with none of those is a permanent change by default,
+which is how a 10-second wait in front of a paywall becomes something nobody
+remembers choosing.
+
+**Measure**: `onboarding_completed` -> `subscription_purchased` conversion,
+compared against the v1.2.0 baseline (4.6s). Both events already flow; no new
+instrumentation needed.
+
+**Revert criterion**: if conversion is FLAT or DOWN versus baseline, cut it
+back to ~5s — the longer wait only earns its place by paying for itself.
+`LoadingScreen.tsx` line ~588: `200 ticks x 50ms`.
+
+**Effort**: minutes to revert; the checkpoint is the work.
+
 ### R4. Learn rail breaks under iOS Dynamic Type 🟡
 
 **Problem**: the rail opens at tonight's card by computing exact row offsets

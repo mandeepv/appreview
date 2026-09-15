@@ -241,6 +241,9 @@ export default function LearnScreen() {
         sectionIndex: node.sectionIndex,
         screenIndex: 0,
         returnTo: 'MainTabs',
+        // Marks this as an OPEN, so lesson_started fires once here rather than
+        // on every Next press (each of which pushes a fresh LessonScreen).
+        entry: true,
       });
     });
   };

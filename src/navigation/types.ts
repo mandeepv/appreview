@@ -40,6 +40,14 @@ export type RootStackParamList = {
     sectionIndex: number;
     screenIndex: number;
     returnTo?: keyof RootStackParamList;
+    /**
+     * Set ONLY by whatever opens a lesson from outside it (the path, the dev
+     * menu, a hub). This is what makes `lesson_started` fire once per visit:
+     * advancing a screen pushes a NEW LessonScreen, and those pushes
+     * deliberately omit this flag, so the controller can tell "the parent
+     * opened this lesson" from "the parent pressed Next".
+     */
+    entry?: boolean;
   };
   LabelingEmotionsLesson: undefined;
   // SPEC-09 Phase 4 — the one surviving old-lesson screen (Labeling

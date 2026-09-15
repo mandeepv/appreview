@@ -49,6 +49,12 @@ interface LessonControllerProps {
   // Called when the final screen of the last-in-section completes — returns to
   // the lesson hub. (In Phase 2/3 this is navigate back to the hub screen.)
   onSectionComplete: () => void;
+  /**
+   * True only when this mount is the parent OPENING the lesson, rather than
+   * advancing within it. Comes from the route's `entry` param. It is the whole
+   * basis for firing `lesson_started` once per visit — see the effect below.
+   */
+  isEntry?: boolean;
 }
 
 // SPEC-13 R1: progress writes go through the ONE chokepoint —
@@ -65,6 +71,7 @@ export const LessonController: React.FC<LessonControllerProps> = ({
   onAdvance,
   onBack,
   onSectionComplete,
+  isEntry = false,
 }) => {
   const section = lesson.sections[sectionIndex];
   const screen: LessonScreen | undefined = section?.screens[screenIndex];
@@ -87,20 +94,29 @@ export const LessonController: React.FC<LessonControllerProps> = ({
   // legacy deep link). It is not double-counting on the path: nothing on the
   // path routes through the hub.
   //
-  // ONCE PER LESSON, not per section: hub lessons have many sections and the
-  // controller remounts on each, so this keys off the lesson slug and fires
-  // only when the slug changes.
+  // ONCE PER VISIT, driven by the `entry` route param.
+  //
+  // This cannot be deduped inside the component. Every Next press does
+  // navigation.push('LessonScreen', ...) (see LessonScreen.onAdvance), which
+  // mounts a WHOLE NEW controller — so a ref or state guard starts empty each
+  // time and blocks nothing. A first attempt used a ref keyed on the slug and
+  // fired on every screen of every lesson, which is a worse number than the
+  // under-count it replaced.
+  //
+  // The honest signal is therefore who navigated here: only an opener (the
+  // path, the dev menu, a hub) passes `entry: true`; onAdvance's pushes
+  // deliberately omit it. That makes "opened the lesson" and "pressed Next"
+  // distinguishable without any cross-mount state.
   // Static registry IDs only (slug + title), no content text (INVARIANTS #8).
-  const startedForSlug = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (startedForSlug.current === lesson.slug) return;
-    startedForSlug.current = lesson.slug;
+    if (!isEntry) return;
     safeCapture('lesson_started', {
       lesson_id: lesson.slug,
       lesson_title: lesson.title,
       lesson_label: FLOW_LESSON_LABELS[lesson.slug] ?? null,
     });
-  }, [lesson.slug, lesson.title]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // SPEC-13 R4/R5 — `lesson_section_started` fires at the entry (screen 0) of
   // EVERY section, for ALL lessons (generalizes the old Sprinklers-hub-only

@@ -40,7 +40,10 @@ type LessonScreenRoute = RouteProp<RootStackParamList, 'LessonScreen'>;
 export const LessonScreen: React.FC = () => {
   const navigation = useNavigation<LessonScreenNav>();
   const route = useRoute<LessonScreenRoute>();
-  const { lessonId, sectionIndex, screenIndex, returnTo } = route.params;
+  // `entry` marks an OPEN of this lesson rather than an advance within it —
+  // onAdvance's pushes below deliberately omit it, which is what keeps
+  // lesson_started at once per visit. See LessonController.
+  const { lessonId, sectionIndex, screenIndex, returnTo, entry } = route.params;
 
   const lesson = getLesson(lessonId);
 
@@ -92,6 +95,7 @@ export const LessonScreen: React.FC = () => {
       lesson={lesson}
       sectionIndex={sectionIndex}
       screenIndex={screenIndex}
+      isEntry={entry === true}
       onAdvance={onAdvance}
       onBack={onBack}
       onSectionComplete={onSectionComplete}

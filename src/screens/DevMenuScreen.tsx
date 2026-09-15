@@ -205,7 +205,7 @@ export const DevMenuScreen: React.FC = () => {
   const openLesson = (slug: string) => {
     navigation.navigate('Root', {
       screen: 'LessonScreen',
-      params: { lessonId: slug, sectionIndex: 0, screenIndex: 0, returnTo: 'MainTabs' },
+      params: { lessonId: slug, sectionIndex: 0, screenIndex: 0, returnTo: 'MainTabs', entry: true },
     } as never);
   };
 
