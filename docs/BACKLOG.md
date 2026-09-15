@@ -1210,6 +1210,37 @@ extraction of the derivation or a render-test harness.
 **Blocks**: nothing shipping. Do NOT bundle with v1.2.0 — a runtime-dep bump
 just before a release is exactly the kind of change that adds review risk.
 
+### 26. Shared-device progress bleed — decide the posture 🟡
+
+**Problem**: (from the 2026-09-15 user-journey review, W5.) `mergeRemoteIntoLocal`
+fires on `SIGNED_IN` and unions whatever lesson progress is on disk into the
+newly signed-in user's `lesson_progress` rows. It is **not keyed by user**. So on
+a shared or handed-down device: user A's completed sections upload into user B's
+brand-new account (permanently mid-curriculum server-side, and A's history then
+propagates to B's other devices), and B's first session opens the rail partway
+down with early sections locked-skipped and no reset-progress affordance.
+
+Note this is NOT BACKLOG #23 — the `authService` comment says "#23 territory",
+but #23 is union-before-push on the per-completion sync, a different issue. The
+cross-user bleed had no entry until this one.
+
+**Already done** (2026-09-15): the copy-contract half — `deleteAccount` now
+clears `LESSON_PROGRESS_KEYS` + `LESSONS_COMPLETED` + `ACTIVE_DAYS` +
+`FLOW_BACKFILL_DONE`, so the delete-account promise holds. Progress still
+survives an ordinary sign-out.
+
+**Fix**: decide the posture, then implement one of — (a) key the per-lesson
+progress stores by user id, (b) clear progress on sign-out, or (c) skip the
+remote upsert when local progress has no owner. (a) is the correct long-term
+shape; (b) is the cheapest.
+
+**Effort**: ~half a day for (b); ~1-2 days for (a) incl. a migration for
+existing on-disk keys.
+
+**Blocks**: nothing today — exposure needs a shared/handed-down device. Do
+before shared-device usage grows. See
+`docs/archive/USER_JOURNEY_REVIEW_RESPONSE_2026-09-15.md`.
+
 ---
 
 ## Parked work (registry — persisted here because the planning folder is NOT backed up; this repo is the only durable store)

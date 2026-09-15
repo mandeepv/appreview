@@ -45,6 +45,11 @@ Docs that were once actively used but are now historical. **Nothing has been del
 - **Why archived:** Point-in-time review snapshots. The review *methodology* is now the evergreen `REVIEW_PROTOCOL.md`; the *findings* were addressed in code (see the status tracker below).
 - **Still useful for:** "What did the 2026-07 review find, and how did we respond?" Historical audit trail with commit references.
 
+### `USER_JOURNEY_REVIEW_RESPONSE_2026-09-15.md`
+- **Original purpose:** Our response to the 2026-09 "Onboarding, Paywall & Path Walkthrough" user-journey review of `design/onboarding-lesson-revamp` — every finding (7 majors, ~22 minors) with what we fixed, what we parked, and why.
+- **Why archived:** Point-in-time decision record for one review cycle, per the docs taxonomy (a response is a snapshot, not evergreen process).
+- **Still useful for:** "Why is this parked?" on W4 (escape hatch), W5 (cross-user progress merge), W6 (lesson exits/endings) and W7 — and two findings the review got wrong (the Learn-rail scroll, which already works as designed, and `notifications_enabled`, which is hardcoded `false` because onboarding never asks). Two code comments point here directly.
+
 ### `FABLE_LATEST_REVIEW_STATUS.md`
 - **Original purpose:** Live item tracker for the Fable review — every finding, its status, and the commit that closed it.
 - **Why archived:** Its state was migrated — every open item now lives in `BACKLOG.md` (items #9c–9k, #18, #21), which is the work queue. This tracker is the historical audit of what the review found.
