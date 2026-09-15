@@ -20,7 +20,22 @@
 
 import { LESSON_REGISTRY, getLesson } from './registry';
 
-/** Lesson order on the path. The same sequence the Learn list always used. */
+/**
+ * Lesson order on the path.
+ *
+ * NOT v1.2.0's order, despite what this comment used to claim. The live Learn
+ * list ran ... Communication Mistakes (9), Helping Process Emotions (10),
+ * Dissociation (11), Serve and Return (12), Recording Deep Bond Moments (13);
+ * this puts Serve and Return and Recording Deep Bond Moments earlier, so the
+ * bonding material lands before the harder emotional content. Lessons 1-8 are
+ * unchanged.
+ *
+ * It matters because the path is now sequentially locked: this array IS the
+ * curriculum, not a display order. Changing it re-orders what every parent
+ * meets next, and reordering it after release moves the "earliest gap" for
+ * users mid-path. Add new lessons at the END unless the re-ordering is the
+ * point.
+ */
 export const LESSON_ORDER = [
   'lesson1',
   'lesson2',

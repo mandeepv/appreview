@@ -60,6 +60,22 @@ export async function getCompletedPathKeys(): Promise<string[]> {
   return PATH_NODES.filter((node) => {
     const sections = bySlug.get(node.lessonSlug);
     if (sections) return sections.has(node.sectionId);
+
+    // No section store for this lesson. Two very different reasons, and they
+    // must not be conflated (they were, until the 2026-09 review):
+    //
+    //   - it is a FLOW lesson, which has no store by design — its single
+    //     section is complete iff the whole-lesson record says so.
+    //   - it is a HUB lesson whose store THREW above. Falling back to the
+    //     whole-lesson record there marks EVERY section of it done off one
+    //     flag, which is the opposite of failing soft: a transient read error
+    //     would silently skip a parent past a whole lesson, and the path's
+    //     sequential lock would then hand them the one after it.
+    //
+    // A hub lesson that could not be read reads as unfinished.
+    const isHubLesson = Boolean(getLesson(node.lessonSlug)?.storageKey);
+    if (isHubLesson) return false;
+
     return completedLessons.has(node.lessonSlug);
   }).map((node) => node.key);
 }
