@@ -3,6 +3,9 @@ import {
   LESSON_ORDER,
   VISIBLE_AHEAD,
   PATH_COVERS_ALL_LESSONS,
+  ALL_LESSONS_HAVE_SHORT_NAMES,
+  LESSON_SHORT_NAME,
+  shortLessonName,
   currentIndex,
   nodeState,
   canOpen,
@@ -195,5 +198,31 @@ describe('pathProgress', () => {
 
   it('ignores keys that are not on the path', () => {
     expect(pathProgress(['nope#1']).done).toBe(0);
+  });
+});
+
+
+// The active card's eyebrow reads "<LESSON> · FIVE MINUTES", so every lesson on
+// the path needs a short name. shortLessonName falls back to the raw slug
+// rather than throwing — which means a missing entry ships a card reading
+// "RECORDINGDEEPBONDMOMENTS" instead of failing loudly. These are what make it
+// fail loudly, here, instead.
+describe('lesson short names (the card eyebrow)', () => {
+  it('has a short name for every lesson on the path', () => {
+    expect(ALL_LESSONS_HAVE_SHORT_NAMES).toBe(true);
+  });
+
+  it('resolves a real name for every slug in LESSON_ORDER', () => {
+    for (const slug of LESSON_ORDER) {
+      expect(shortLessonName(slug)).not.toBe(slug);
+    }
+  });
+
+  // They sit in an eyebrow beside "· FIVE MINUTES", so a long one wraps or
+  // truncates the line that tells the parent this is a short commitment.
+  it('keeps every short name short enough for the eyebrow', () => {
+    for (const name of Object.values(LESSON_SHORT_NAME)) {
+      expect(name.length).toBeLessThanOrEqual(14);
+    }
   });
 });

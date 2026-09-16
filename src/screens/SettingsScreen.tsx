@@ -57,7 +57,12 @@ import {
   hasIdentity,
   type ProfileSummaryInput,
 } from '../lib/profileSummary';
-import { OnboardingColors as C, OnboardingFonts as F, oInk } from '../constants/theme';
+import {
+  OnboardingColors as C,
+  OnboardingFonts as F,
+  oInk,
+  oCream,
+} from '../constants/theme';
 
 /** The row chevron. Drawn rather than an icon font, matching the Path screen. */
 function Chevron() {
@@ -403,7 +408,17 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      {/* Matches LearnScreen's forest masthead so the two tabs are framed the
+          same way. This screen previously began straight into content, which
+          read as a different app once the other tab gained a bar. */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profile</Text>
+      </View>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Rendered only when there is something true to say. An empty profile
             and a failed fetch look identical here, on purpose. */}
         {hasIdentity(identity) ? (
@@ -486,8 +501,32 @@ export const SettingsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.paper },
-  scroll: { flexGrow: 1, paddingHorizontal: 30, paddingTop: 20, paddingBottom: 34 },
+  // forestDeep so the safe-area inset above the header matches the bar; the
+  // ScrollView carries the page's cream. Same arrangement as LearnScreen, and
+  // the same shade — the masthead is one surface across the app.
+  screen: { flex: 1, backgroundColor: C.forestDeep },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 26,
+    paddingVertical: 16,
+    backgroundColor: C.forestDeep,
+    borderBottomWidth: 1,
+    borderBottomColor: oCream(0.14),
+  },
+  headerTitle: { fontFamily: F.serif, fontSize: 26, letterSpacing: -0.4, color: C.cream },
+  // The cream has to be on the ScrollView itself, not only its content
+  // container: a short page would otherwise leave forest showing below the
+  // content instead of cream to the bottom of the screen.
+  scrollView: { flex: 1, backgroundColor: C.paper },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 30,
+    paddingTop: 20,
+    paddingBottom: 34,
+    backgroundColor: C.paper,
+  },
 
   identity: { paddingBottom: 22, borderBottomWidth: 1, borderBottomColor: oInk(0.12) },
   // Light serif at display size — the masthead voice from the Path screen.

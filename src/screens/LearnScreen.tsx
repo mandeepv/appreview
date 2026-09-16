@@ -30,10 +30,10 @@
  */
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, Animated } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useLessonGate } from '../hooks/useLessonGate';
@@ -45,19 +45,50 @@ import {
   nodeState,
   canOpen,
   pathProgress,
+  shortLessonName,
   PATH_NODES,
   type PathNode,
 } from '../lessons/units';
 import {
+  Animation,
   OnboardingColors as C,
   OnboardingFonts as F,
   OnboardingRadius as R,
   oInk,
+  oForest,
   oCream,
   // oClay — used only by the parked streak pill; restore with it.
 } from '../constants/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+/**
+ * The padlock on rows that are not open yet.
+ *
+ * It replaces a copy-only explanation of the lock rule. A fading rail could not
+ * carry that meaning on its own — fading out and running out look identical, so
+ * a parent could read the end of the rail as the end of the product. A lock is
+ * unambiguous in a way no amount of tuned opacity is: it says "there is
+ * something here, and it is not yours yet" without naming a number, which
+ * matters because the catalogue is meant to grow and any total would state a
+ * ceiling.
+ *
+ * Shackle drawn as a stroked arc, body as a filled rect — at 13px a stroked
+ * body reads as mush.
+ */
+function Lock({ size = 13, tint }: { size?: number; tint?: string } = {}) {
+  // Defaults to the muted ink the rail's own secondary marks use; the closing
+  // block passes forest so the lock belongs to that block rather than reading
+  // as a generic system glyph dropped on top of it.
+  const stroke = tint ?? oInk(0.3);
+  const fill = tint ?? oInk(0.26);
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 10V7a4 4 0 118 0v3" stroke={stroke} strokeWidth={2.2} strokeLinecap="round" />
+      <Rect x={5} y={10} width={14} height={10} rx={2.4} fill={fill} />
+    </Svg>
+  );
+}
 
 function Check() {
   return (
@@ -144,6 +175,14 @@ export default function LearnScreen() {
   // lock rule. Held here (not per-row) so only one hint is ever on screen.
   const [lockedHint, setLockedHint] = useState<string | null>(null);
   const lockedHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Drives both opacity and a small rise. Snapping the hint in and out read as
+  // a glitch rather than an answer to the tap — the eye catches the appearance
+  // but not the meaning, and it vanished mid-sentence.
+  //
+  // useState's lazy initializer rather than useRef().current: the value is read
+  // during render (it is passed into a style), and react-hooks/refs flags a ref
+  // read there. Same single-instance guarantee, no warning.
+  const [lockedHintAnim] = useState(() => new Animated.Value(0));
 
   // Re-read on every focus, not just on mount. The screen stays mounted under
   // the tab navigator, so returning from a finished lesson would otherwise show
@@ -183,6 +222,21 @@ export default function LearnScreen() {
   const nodes = visibleNodes(completed);
   const progress = pathProgress(completed);
   const allDone = loaded && progress.done >= PATH_NODES.length;
+
+  // What the rail says when it runs out of rows to draw.
+  //
+  // It must convey "this keeps going" WITHOUT naming a number. A count states a
+  // ceiling: the catalogue is meant to grow, so any total is a promise about
+  // the size of the product that goes stale the moment a lesson is added — and
+  // until then reads as the limit of what the parent bought. The fade alone is
+  // not enough either, because fading out and running out look identical; the
+  // line below is what settles it in words.
+  //
+  // Phrased as an ongoing practice rather than a queue with an end, which is
+  // also the truer description of the thing.
+  const endNote = allDone
+    ? "You've finished every one — for now."
+    : 'Finish the lessons above and the next ones open up here.';
 
   // Where the rail sits when the screen is opened.
   //
@@ -234,7 +288,28 @@ export default function LearnScreen() {
       // in order — but that rule was invisible: the tap simply did nothing.
       if (lockedHintTimer.current) clearTimeout(lockedHintTimer.current);
       setLockedHint('Finish the section you’re on to unlock this one.');
-      lockedHintTimer.current = setTimeout(() => setLockedHint(null), 2600);
+      // Rise + fade in quickly (the tap should feel answered at once), hold
+      // long enough to read the sentence, then fade out rather than cut.
+      // Re-tapping restarts the hold, so a second tap re-reads instead of
+      // stacking timers.
+      lockedHintAnim.stopAnimation();
+      Animated.timing(lockedHintAnim, {
+        toValue: 1,
+        duration: Animation.duration.fast,
+        useNativeDriver: true,
+      }).start();
+      lockedHintTimer.current = setTimeout(() => {
+        Animated.timing(lockedHintAnim, {
+          toValue: 0,
+          duration: Animation.duration.normal,
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          // Only unmount if the fade actually completed — a tap during the
+          // fade restarts it, and clearing the text then would blank a hint
+          // that is on its way back in.
+          if (finished) setLockedHint(null);
+        });
+      }, 2600);
       return;
     }
 
@@ -269,6 +344,14 @@ export default function LearnScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.wordmark}>Kinderwell</Text>
+
+        {/* DELIBERATELY NO COUNT HERE.
+            A total ("3 of 49") states a ceiling, and the catalogue is meant to
+            grow — the number would be a promise about the size of the product
+            that goes stale the moment a lesson is added, and until then reads
+            as the limit of what was bought rather than where it happens to be
+            today. The rail conveys "there is more" without ever claiming how
+            much. See the tail note below. */}
         {/* PARKED FOR v-NEXT — the streak pill.
 
             Not a bug and not abandoned: how the streak should behave is still
@@ -339,16 +422,41 @@ export default function LearnScreen() {
         initialScrollIndex={initialScrollIndex}
         ListFooterComponent={
           loaded ? (
-            // The rail arriving somewhere — 30c. Not a dashed panel, not a
-            // numbered future; both read as unfinished.
-            <View style={styles.endRow}>
-              <View style={styles.gutter} />
-              <View style={styles.end}>
-                <Text style={styles.endText}>
-                  {allDone ? "You've finished every one." : 'The rest gets written as you go.'}
-                </Text>
+            allDone ? (
+              <View style={styles.endRow}>
+                <View style={styles.gutter} />
+                <View style={styles.end}>
+                  <Text style={styles.endText}>{endNote}</Text>
+                </View>
               </View>
-            </View>
+            ) : (
+              /* The rail's closing block.
+                 A deliberate, finished-looking panel rather than the rail
+                 trailing off. Placeholder ROWS were tried three ways here —
+                 blank, faded, locked — and each read as something having gone
+                 wrong, because a half-drawn row is indistinguishable from a
+                 broken one. A block reads as authored: it is clearly the end of
+                 the list and clearly not the end of the product.
+                 Says nothing about HOW MUCH is left, on purpose. */
+              <View style={styles.moreRow}>
+                <View style={styles.gutter}>
+                  {/* One last rail stub joining the block to the path above, so
+                      it belongs to the rail rather than floating after it. */}
+                  <View style={styles.moreStub} />
+                </View>
+                <View style={styles.moreWrap}>
+                  <View style={styles.moreCard}>
+                    {/* Lock and heading on ONE line: floating above the title it
+                        had nothing to anchor to and read as a stray glyph. */}
+                    <View style={styles.moreHeading}>
+                      <Lock size={15} tint={C.forest} />
+                      <Text style={styles.moreTitle}>More lessons ahead</Text>
+                    </View>
+                    <Text style={styles.moreBody}>{endNote}</Text>
+                  </View>
+                </View>
+              </View>
+            )
           ) : null
         }
       />
@@ -356,9 +464,28 @@ export default function LearnScreen() {
       {/* Floats over the rail rather than sitting in it, so showing it never
           shifts the rows under the parent's finger. */}
       {lockedHint ? (
-        <View pointerEvents="none" style={styles.lockedHint}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.lockedHint,
+            {
+              opacity: lockedHintAnim,
+              transform: [
+                {
+                  // A short rise, not a slide from off-screen: the hint belongs
+                  // to the row that was tapped, so it settles into place rather
+                  // than travelling in from somewhere else.
+                  translateY: lockedHintAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <Text style={styles.lockedHintText}>{lockedHint}</Text>
-        </View>
+        </Animated.View>
       ) : null}
     </SafeAreaView>
   );
@@ -385,10 +512,18 @@ function PathRow({
           <Pressable
             onPress={() => onOpen(node)}
             accessibilityRole="button"
-            accessibilityLabel={`Tonight: ${node.title}`}
+            accessibilityLabel={`${shortLessonName(node.lessonSlug)}: ${node.title}. Five minutes.`}
             style={({ pressed }) => [styles.card, pressed ? { opacity: 0.92 } : null]}
           >
-            <Text style={styles.cardEyebrow}>TONIGHT · FIVE MINUTES</Text>
+            {/* The lesson this section belongs to, not "TONIGHT".
+                "TONIGHT · FIVE MINUTES" said when to do it but never what it
+                was part of: a parent reading "What NOT to do when loved ones
+                are upset" had no way to tell it belonged to Bonding, or that
+                more of Bonding followed. The time estimate stays — it is the
+                half that was doing real work, promising a short commitment. */}
+            <Text style={styles.cardEyebrow}>
+              {shortLessonName(node.lessonSlug).toUpperCase()} · FIVE MINUTES
+            </Text>
             <Text style={styles.cardTitle} numberOfLines={2}>
               {node.title}
             </Text>
@@ -426,23 +561,49 @@ function PathRow({
     );
   }
 
-  // 'ahead' is named but inert; 'locked' is the rail continuing with no title
-  // at all. Neither is pressable — a locked node that swallows a tap is worse
-  // than one that plainly does not invite it.
+  // 'ahead' is named but not openable; 'locked' is the rail continuing with no
+  // title at all.
+  //
+  // These used to be a plain View on the reasoning that "a locked node that
+  // swallows a tap is worse than one that plainly does not invite it". In
+  // practice a parent DOES tap them — the rows look like the rest of the rail —
+  // and got no response at all, which read as the app being broken rather than
+  // the path being sequential. So they are pressable now, but only to explain
+  // themselves: onOpen refuses to navigate and shows the lock hint instead
+  // (see openNode). No pressed style — nothing is about to open, and a press
+  // highlight would promise otherwise.
   return (
-    <View style={styles.row}>
+    <Pressable
+      onPress={() => onOpen(node)}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: true }}
+      accessibilityLabel={
+        state === 'ahead'
+          ? `${node.title}. Locked until you finish the section you're on.`
+          : "Locked until you finish the section you're on."
+      }
+      style={styles.row}
+    >
       <View style={styles.gutter}>
         <View style={styles.railLineFaint} />
         <View style={styles.dotAhead} />
       </View>
       <View style={styles.aheadRow}>
         {state === 'ahead' ? (
-          <Text style={styles.aheadTitle} numberOfLines={2}>
-            {node.title}
-          </Text>
-        ) : null}
+          <>
+            <Text style={styles.aheadTitle} numberOfLines={2}>
+              {node.title}
+            </Text>
+            <Lock />
+          </>
+        ) : (
+          // Past the named horizon the title is withheld on purpose — the point
+          // is that the path continues, not what is in it. The lock alone says
+          // that, and says it without a count.
+          <Lock />
+        )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -478,7 +639,10 @@ function rowHeight(state: ReturnType<typeof nodeState>): number {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.paper },
+  // Matches the header (forestDeep): this view's background fills the
+  // safe-area inset above the bar, so any other colour leaves a mismatched
+  // strip across the notch. The rail's own cream comes from `scroll` below.
+  screen: { flex: 1, backgroundColor: C.forestDeep },
 
   // Sits just above the tab bar, inverted so it reads as a transient message
   // rather than another row on the rail.
@@ -486,11 +650,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 26,
     right: 26,
-    bottom: 24,
+    // Clear of the tab bar. This screen's SafeAreaView insets the TOP only, so
+    // a small bottom offset put the hint underneath the tabs — invisible, which
+    // looks exactly like the "tap does nothing" bug it exists to fix.
+    bottom: 96,
     backgroundColor: C.forestDeep,
     borderRadius: R.callout,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    // It floats above the rail, so it needs to read as lifted off it rather
+    // than painted onto it — without a shadow the dark block looks like a gap
+    // in the page.
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
   lockedHintText: {
     fontFamily: F.sans,
@@ -500,17 +675,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // A forest bar, not a cream one with a hairline under it.
+  //
+  // Cream-on-cream separated only by a 1px rule, the masthead read as the top
+  // of the scrolling page rather than a fixed chrome above it — nothing marked
+  // where the app's frame ended and the content began. Filling it with the
+  // palette's primary makes it plainly a separate surface, and pairs it with
+  // the tab bar so the screen is framed top and bottom.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 26,
-    paddingVertical: 14,
+    paddingVertical: 16,
+    // forestDeep, NOT forest — tonight's card is forest, and a forest masthead
+    // meant the card merged into the bar the moment it scrolled up under it:
+    // one continuous green mass with no edge anywhere. forestDeep is the
+    // palette's own takeover surface, which is what a masthead is, and it makes
+    // the card read as a lighter object sitting ON the chrome rather than part
+    // of it.
+    backgroundColor: C.forestDeep,
+    // Plus a hard edge, so the boundary holds even where the two greens are
+    // closest in value — under a card mid-scroll, or in dark/low-light viewing.
     borderBottomWidth: 1,
-    borderBottomColor: oInk(0.1),
+    borderBottomColor: oCream(0.14),
   },
   // Serif, sentence case — the masthead of a book rather than a product label.
-  wordmark: { fontFamily: F.serif, fontSize: 26, letterSpacing: -0.4, color: C.ink },
+  // Cream on forest now; ink would be unreadable on it.
+  wordmark: { fontFamily: F.serif, fontSize: 26, letterSpacing: -0.4, color: C.cream },
   /* PARKED FOR v-NEXT — the streak pill's styles.
   streakPill: {
     flexDirection: 'row',
@@ -526,7 +718,8 @@ const styles = StyleSheet.create({
   streakCountZero: { color: oInk(0.45) },
   */
 
-  scroll: { flex: 1 },
+  // Carries the page's cream now that `screen` is forest for the notch.
+  scroll: { flex: 1, backgroundColor: C.paper },
   // flexGrow + centred: on day one the rail is a handful of rows and pinning
   // it to the top left the card stranded under the masthead with the screen
   // empty beneath. Once the rail outgrows the viewport this has no effect and
@@ -609,8 +802,25 @@ const styles = StyleSheet.create({
   },
   doneTitle: { flex: 1, fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.7) },
 
-  aheadRow: { flex: 1, height: ROW_H.ahead, paddingVertical: 19, paddingLeft: 14 },
-  aheadTitle: { fontFamily: F.serif, fontSize: 17, lineHeight: 17 * 1.4, color: oInk(0.62) },
+  // Mirrors doneRow so the lock lands in the same column as the checkmark —
+  // one status gutter down the right edge, whatever the row's state.
+  aheadRow: {
+    flex: 1,
+    height: ROW_H.ahead,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 19,
+    paddingLeft: 14,
+  },
+  aheadTitle: {
+    flex: 1,
+    fontFamily: F.serif,
+    fontSize: 17,
+    lineHeight: 17 * 1.4,
+    color: oInk(0.62),
+  },
 
   cardWrap: { flex: 1, height: ROW_H.current, paddingVertical: 8, paddingLeft: 14 },
   card: {
@@ -651,7 +861,83 @@ const styles = StyleSheet.create({
   },
   cardButtonLabel: { fontFamily: F.sansSemi, fontSize: 16, color: C.forest },
 
-  endRow: { flexDirection: 'row' },
+  endRow: { flexDirection: 'row', paddingBottom: 28 },
+
+  // --- the closing block ---------------------------------------------------
+  // Deliberately NOT a row: rows here are lessons, and anything shaped like one
+  // invites a tap and implies a specific lesson behind it. This is a panel that
+  // ends the list.
+  moreRow: { flexDirection: 'row', marginBottom: 40 },
+  // A short stub of rail so the block hangs off the path rather than floating
+  // below it. Same 1px line, same left offset as every row's railLine.
+  // A short connector from the last row down to the box's top edge — the rail
+  // arriving at it. It stops AT the border rather than running alongside it:
+  // the box is a closed shape now, so a line down its flank would read as two
+  // parallel edges rather than a path meeting a destination.
+  moreStub: {
+    position: 'absolute',
+    left: 5,
+    top: 0,
+    height: 18,
+    width: 1,
+    backgroundColor: oForest(0.35),
+  },
+  // Zero left padding, and the card carries none either — see moreCard. The
+  // block's TEXT has to line up with the lesson titles above it (14pt from the
+  // gutter), not with tonight's card text (36pt). The card can sit further in
+  // because it is FILLED: its background is the visual left edge. A dashed
+  // outline is faint enough that the eye reads the text as the edge instead, so
+  // matching the card's inset left this text 23pt right of every title above
+  // it — which is the misalignment, and it is large, not subtle.
+  // No left padding of its own: the CARD's 14pt padding is the whole inset, so
+  // the border sits flush against the gutter (hard by the rail) and the text
+  // inside lands at 14pt — exactly where every lesson title above it starts.
+  // Splitting the inset between wrap and card is what put the text 23pt in.
+  //
+  // paddingTop is the gap the connector stub spans; it lives INSIDE the row so
+  // the stub (absolutely positioned in the row's gutter) starts at the last
+  // lesson row rather than being pushed down with a margin.
+  moreWrap: { flex: 1, paddingTop: 18 },
+  // A dashed FOREST outline on the paper ground, never filled. Filled would
+  // compete with tonight's card, which must stay the loudest thing here. Forest
+  // rather than grey ink because grey read as a disabled/empty state — the same
+  // colour as the live card says "more of this", where a neutral said "nothing".
+  //
+  // paddingHorizontal is 22 to match `card` exactly: at 20 the text inside sat
+  // 2pt left of every other block on the screen. Too small to name, big enough
+  // for the eye to catch as a wobble in the left edge.
+  // A CLOSED box — all four dashed sides. Dropping the left border to chase the
+  // text alignment left it hanging open on one side, which reads as a shape
+  // that failed to finish drawing rather than a deliberate panel.
+  //
+  // The alignment is solved by the padding instead: the card's own 14pt is the
+  // only inset, so the BORDER hugs the gutter beside the rail while the TEXT
+  // inside lands exactly on the lesson titles above. The box frames the column
+  // rather than sitting indented from it.
+  moreCard: {
+    borderWidth: 1.5,
+    borderColor: oForest(0.42),
+    borderStyle: 'dashed',
+    borderRadius: R.card,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 20,
+  },
+  moreHeading: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  moreTitle: {
+    fontFamily: F.serif,
+    fontSize: 20,
+    lineHeight: 20 * 1.3,
+    color: C.forest,
+  },
+  moreBody: {
+    fontFamily: F.sans,
+    fontSize: 14,
+    lineHeight: 14 * 1.5,
+    color: oInk(0.45),
+    marginTop: 8,
+  },
+
   end: { flex: 1, paddingLeft: 14, paddingTop: 14 },
   endText: { fontFamily: F.serifItalic, fontSize: 15, lineHeight: 15 * 1.5, color: oInk(0.5) },
 });
