@@ -8,14 +8,24 @@ import { SuperwallExpoModule } from 'expo-superwall';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { mergeRemoteIntoLocal } from '../lessons/progressStore';
 import {
+  parseSubRecord,
   resolveCachedEntitlement,
   type PersistedSubRecord as EntitlementRecord,
+  type SubSource,
 } from './entitlementCache';
+
+// Re-exported so App.tsx takes it through the import it already has: App.tsx
+// initialises Sentry before its imports, so each extra import line there is an
+// import/first lint warning.
+export { resolveSuperwallStatus } from './entitlementCache';
 
 // isSubscribed persists to disk so we don't paywall a paying user on every
 // cold launch while waiting for Superwall's onSubscriptionStatusChange to
-// fire. Superwall's event is authoritative — this cached value gets
-// overwritten as soon as Superwall reports ACTIVE or INACTIVE.
+// fire. For an Apple subscriber Superwall's event is authoritative — this
+// cached value gets overwritten as soon as Superwall reports ACTIVE or
+// INACTIVE. A web subscriber's flag ('web' source) is NOT Superwall's to
+// clear: Superwall reports every web buyer INACTIVE. See
+// resolveSuperwallStatus in ./entitlementCache.
 const IS_SUBSCRIBED_STORAGE_KEY = STORAGE_KEYS.IS_SUBSCRIBED;
 
 // SPEC-FIX-08 R1 — the cached flag is USER-BOUND. It is persisted as a JSON
@@ -51,12 +61,16 @@ type PersistedSubRecord = EntitlementRecord;
 // is harmless — it's only honored for its owner. Skip the write, keep the
 // prior owned record; setIsSubscribed will re-persist correctly once `user` is
 // set.
-function persistSubscription(userId: string | undefined, subscribed: boolean): Promise<void> {
+function persistSubscription(
+  userId: string | undefined,
+  subscribed: boolean,
+  source: SubSource,
+): Promise<void> {
   if (!userId) {
     // No owner to bind to — don't write, don't clear. Hydrate is the guard.
     return Promise.resolve();
   }
-  const record: PersistedSubRecord = { userId, subscribed };
+  const record: PersistedSubRecord = { userId, subscribed, source };
   return AsyncStorage.setItem(IS_SUBSCRIBED_STORAGE_KEY, JSON.stringify(record)).catch((err) => {
     if (__DEV__) console.warn('[authStore] failed to persist isSubscribed:', err);
   });
@@ -77,19 +91,26 @@ interface AuthState {
   //
   // Trust model: this flag is only flipped by Superwall's
   // onSubscriptionStatusChange listener in App.tsx (or by a
-  // just-completed purchase from LoadingScreen's paywall). It's a
-  // device-local memory of a Superwall-vouched fact, not an
-  // independent claim. If a subscription lapses, Superwall's next
-  // event will set it back to false and the next launch will
-  // paywall correctly.
+  // just-completed purchase from LoadingScreen's paywall), or — for web
+  // purchases — by the launch gate's read of the user's own `entitlements`
+  // row (set) and its background re-check (clear). It's a device-local
+  // memory of a fact vouched for by Superwall or by the server, not an
+  // independent claim. If a subscription lapses, the next Superwall event
+  // (Apple) or web re-check (web) sets it back to false and the next launch
+  // will paywall correctly.
   //
   // See docs/PAYWALL_MODEL.md for the full policy.
   isSubscribed: boolean;
+  // Who vouched for `isSubscribed` — 'superwall' (Apple) or 'web' (a
+  // kinderwell.app purchase found by the launch gate) — or null when not
+  // subscribed. Decides whether Superwall may clear the flag (App.tsx,
+  // resolveSuperwallStatus) and which management row Settings shows.
+  subscriptionSource: SubSource | null;
   isDemoUser: boolean;
   setUser: (user: User | null) => void;
   setSession: (session: Session | null) => void;
   setIsLoading: (loading: boolean) => void;
-  setIsSubscribed: (subscribed: boolean) => void;
+  setIsSubscribed: (subscribed: boolean, source?: SubSource) => void;
   setDemoUser: () => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -100,6 +121,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   isLoading: true,
   isSubscribed: false,
+  subscriptionSource: null,
   isDemoUser: false,
 
   setUser: (user) => set({ user }),
@@ -108,8 +130,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setIsLoading: (loading) => set({ isLoading: loading }),
 
-  setIsSubscribed: (subscribed) => {
-    set({ isSubscribed: subscribed });
+  // `source` defaults to 'superwall' because every caller before web
+  // purchases was Superwall-vouched; only the launch gate's web check passes
+  // 'web'.
+  setIsSubscribed: (subscribed, source = 'superwall') => {
+    set({ isSubscribed: subscribed, subscriptionSource: subscribed ? source : null });
     // Persist to disk so cold launches don't paywall paying users while
     // waiting for Superwall's onSubscriptionStatusChange to fire.
     // Fire-and-forget; a write failure just means the next launch may
@@ -124,7 +149,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // record that doesn't match the live session, so a leftover record is never
     // read by a different-or-absent user.
     const currentUserId = get().user?.id;
-    void persistSubscription(currentUserId, subscribed);
+    void persistSubscription(currentUserId, subscribed, source);
   },
 
   setDemoUser: () => {
@@ -181,6 +206,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user: null,
         session: null,
         isSubscribed: false,
+        subscriptionSource: null,
         isDemoUser: false,
       });
     } catch (error) {
@@ -216,7 +242,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const raw = await AsyncStorage.getItem(IS_SUBSCRIBED_STORAGE_KEY);
         const { honor, clearStale } = resolveCachedEntitlement(raw, session?.user?.id);
         if (honor) {
-          set({ isSubscribed: true });
+          // honor implies an owned record, so this parse cannot be null; the
+          // fallback only keeps the type honest.
+          set({ isSubscribed: true, subscriptionSource: parseSubRecord(raw)?.source ?? 'superwall' });
           if (__DEV__) console.log('[authStore] hydrated isSubscribed=true (owned) from disk');
         } else {
           // No session, a different user, or a legacy/unowned/malformed value →
@@ -295,6 +323,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               user: null,
               session: null,
               isSubscribed: false,
+              subscriptionSource: null,
               isDemoUser: false,
             });
           }

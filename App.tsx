@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Sentry from '@sentry/react-native';
 import { PostHogProvider } from 'posthog-react-native';
 import { OnboardingNavigator, OnboardingStackParamList } from './src/navigation/OnboardingNavigator';
-import { useAuthStore } from './src/store/authStore';
+import { useAuthStore, resolveSuperwallStatus } from './src/store/authStore';
 import { SuperwallProvider, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { posthog } from './src/config/posthog';
@@ -89,21 +89,26 @@ function AppContent() {
   // Actual paid-content gating is at the Loading gate on entry to Root (the
   // hard paywall) — see docs/PAYWALL_MODEL.md. `useLessonGate` is a no-op seam
   // (SPEC-13). Demo users are not flipped here, see docs/DEMO_MODE.md.
+  //
+  // The flag's SOURCE decides what Superwall may do to it (resolveSuperwallStatus,
+  // PAYWALL_MODEL "Web entitlements"): every web buyer is INACTIVE to Superwall,
+  // so an unconditional INACTIVE → false wiped their unlock on every launch.
   useSuperwallEvents({
     onSubscriptionStatusChange: (subscriptionStatus) => {
-      const { isDemoUser } = useAuthStore.getState();
+      const { isDemoUser, subscriptionSource } = useAuthStore.getState();
       if (isDemoUser) return;
 
       if (__DEV__) console.log('[Subscription]', subscriptionStatus.status);
 
-      if (subscriptionStatus.status === 'ACTIVE') {
-        setIsSubscribed(true);
-      } else if (subscriptionStatus.status === 'INACTIVE') {
+      // UNKNOWN resolves to 'keep': Superwall will send a definitive update
+      // once it resolves. Gating does not depend on this flag, so a stale UI
+      // mirror during a brief unknown window is harmless.
+      const action = resolveSuperwallStatus(subscriptionStatus.status, subscriptionSource);
+      if (action === 'subscribe') {
+        setIsSubscribed(true, 'superwall');
+      } else if (action === 'clear') {
         setIsSubscribed(false);
       }
-      // UNKNOWN: leave as-is. Superwall will send a definitive update once
-      // it resolves. Gating does not depend on this flag, so a stale UI mirror
-      // during a brief unknown window is harmless.
     },
   });
 

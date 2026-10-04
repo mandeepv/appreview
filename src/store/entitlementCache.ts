@@ -8,12 +8,22 @@
 // NEVER-PAID user reaching content. The old defense (clear-on-sign-out) was an
 // event race, not a guarantee.
 //
-// Fix: the flag is USER-BOUND — persisted as { userId, subscribed }. It may be
+// Fix: the flag is USER-BOUND — persisted as { userId, subscribed } (plus
+// `source` since 2026-10, which does not affect binding). It may be
 // honored ONLY when a session exists for that SAME userId. This module holds the
 // pure parse + decision so it's unit-testable at the kernel boundary without the
 // authStore's supabase/Superwall/PostHog/Sentry import graph.
 
-export type PersistedSubRecord = { userId: string; subscribed: boolean };
+// WHO vouched for the flag. 'superwall' = an Apple subscription Superwall
+// reported (or a purchase/restore on its paywall). 'web' = a kinderwell.app
+// purchase, read from the `entitlements` row by the launch gate (see
+// src/services/entitlementService.ts). The source decides who may CLEAR the
+// flag — see resolveSuperwallStatus below. Added for web purchases (2026-10);
+// an added field on the same key, not a rename (INVARIANTS: never rename a
+// shipped key without a migration).
+export type SubSource = 'web' | 'superwall';
+
+export type PersistedSubRecord = { userId: string; subscribed: boolean; source: SubSource };
 
 /**
  * Parse a raw AsyncStorage value into an owned record, or null.
@@ -32,7 +42,12 @@ export function parseSubRecord(raw: string | null | undefined): PersistedSubReco
       typeof parsed.userId === 'string' &&
       typeof parsed.subscribed === 'boolean'
     ) {
-      return parsed as PersistedSubRecord;
+      // Records written before web purchases existed carry no `source`; every
+      // one of them was vouched for by Superwall. Anything that is not exactly
+      // 'web' reads as 'superwall' too — the conservative misread, because a
+      // 'superwall' flag is the one Superwall is allowed to clear.
+      const source: SubSource = parsed.source === 'web' ? 'web' : 'superwall';
+      return { userId: parsed.userId, subscribed: parsed.subscribed, source };
     }
   } catch {
     // Not JSON → legacy bare value (unowned). Fall through to null.
@@ -73,4 +88,30 @@ export function resolveCachedEntitlement(
   // logic above is unchanged.
   const somethingOnDisk = raw != null && raw !== '';
   return { honor: false, clearStale: somethingOnDisk };
+}
+
+/**
+ * What a Superwall subscription-status event may do to the cached flag.
+ *
+ * Every web buyer is INACTIVE to Superwall — they have no Apple subscription —
+ * so an unconditional "INACTIVE → clear" (the rule before web purchases) wiped
+ * their unlock seconds after every launch: offline launches then stuck on the
+ * retry screen and Settings showed them as unsubscribed. So:
+ *
+ *   ACTIVE    → set subscribed, source 'superwall'. Apple wins when a user has
+ *               both, which also hands Settings the Apple management row.
+ *   INACTIVE  → clear ONLY a flag Superwall itself vouched for. A 'web' flag
+ *               is cleared only by the web re-check, sign-out or deletion.
+ *   UNKNOWN   → leave it; Superwall sends a definitive update once it resolves.
+ *
+ * `currentSource` is the source of the flag as it stands now, or null when
+ * the user is not subscribed (clearing is then a harmless no-op).
+ */
+export function resolveSuperwallStatus(
+  status: string,
+  currentSource: SubSource | null,
+): 'subscribe' | 'clear' | 'keep' {
+  if (status === 'ACTIVE') return 'subscribe';
+  if (status === 'INACTIVE') return currentSource === 'web' ? 'keep' : 'clear';
+  return 'keep';
 }
