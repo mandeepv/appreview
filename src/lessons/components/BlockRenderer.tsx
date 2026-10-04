@@ -1,21 +1,43 @@
-// SPEC-09 Phase 2 — block template components (extended for the Sprinklers
-// pilot). One renderer per block type from the schema. These reproduce the
-// EXISTING hand-built look (no visual redesign) using the shared components
-// and theme tokens; styles are lifted from the real survey/pilot screens so
-// the data-driven output is visually identical.
+// SPEC-09 block templates — one renderer per block type from the schema.
 //
-// Stateful blocks (interactiveQuiz) manage their own reveal state here, since
-// that state is local to the block. The screen-advance is handled by the
-// controller via the onAdvanceReady callback.
+// RESTYLED 2026-09 onto the cream/forest system (see LessonShell for the why).
+// The SPEC-09 brief was "reproduce the hand-built look byte for byte"; that
+// look was the old teal palette, and the lesson player was the last surface
+// still wearing it. Structure and behaviour are unchanged except where the
+// comments below say otherwise.
+//
+// LEGACY COLOUR OVERRIDES ARE IGNORED. The content files carry ~280 one-off
+// hex values (callout `bg`/`labelColor`/`textColor`/`accentColor`, card
+// `color`, chip `borderColor`/`textColor`, hero `bg`/`iconColor`). They exist
+// only because the conversion reproduced each hand-built screen's exact teal,
+// pink and sky-blue. Honouring them would paint the old palette back over the
+// new one, screen by screen. Variants carry the meaning now; the fields stay in
+// the schema so existing content still parses, and can be deleted from the
+// content files at leisure.
+//
+// Reading layout is LEFT-ALIGNED. The old screens centred every paragraph,
+// which is fine for a two-line title and hard work for a five-line explanation
+// read at the end of the day — the eye has to find a new left edge every line.
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { EmotionPicker } from '../../components/EmotionPicker';
-import { Colors, Typography, Shadows, BorderRadius } from '../../constants/theme';
+import { GradedQuestion } from './GradedQuestion';
+import {
+  OnboardingColors as C,
+  OnboardingFonts as F,
+  OnboardingType as T,
+  OnboardingRadius as R,
+  oInk,
+  oCream,
+} from '../../constants/theme';
 import type { Block, RichText, TextSpan } from '../schema';
 
 // --- Rich text --------------------------------------------------------------
+// Emphasis is the design system's one signature move — an italic phrase — in
+// forest, rather than the old bold teal.
 function renderRich(
   rich: RichText,
   baseStyle: object | object[],
@@ -37,27 +59,45 @@ function renderRich(
 
 interface BlockProps {
   block: Block;
-  // interactiveQuiz signals the controller that Next may be shown (after an
-  // answer is revealed). Non-interactive blocks ignore this.
+  // Question blocks signal the controller that Continue may be enabled (after
+  // the answer is revealed). Other blocks ignore this.
   onInteractiveAnswered?: () => void;
+  // Multi-select questions hand their "check" action up to the screen, whose
+  // pinned pill reads "Check answer" until it has been pressed.
+  registerCheck?: (check: (() => void) | null, canCheck: boolean) => void;
   // Input blocks (textInput, emotionPicker) report whether their required
-  // field is currently satisfied. The controller keeps Next disabled until
-  // every input block on the screen reports satisfied. Passive blocks ignore
-  // this. `blockKey` distinguishes multiple inputs on one screen.
+  // field is currently satisfied. The controller keeps Continue disabled until
+  // every input block on the screen reports satisfied. `blockKey`
+  // distinguishes multiple inputs on one screen.
   onInputValidityChange?: (blockKey: string, satisfied: boolean) => void;
   blockKey?: string;
+  /**
+   * False for every heading after a screen's first. Content uses `heading`
+   * for two jobs — the screen's title, and a punchline sentence further down
+   * ("This means punishment during emotional distress teaches very little —
+   * except fear."). At title size the punchline competed with the title and
+   * the screen had no top; set one step smaller it reads as the line the
+   * paragraphs were building to.
+   */
+  isTitle?: boolean;
 }
 
 export const BlockRenderer: React.FC<BlockProps> = ({
   block,
   onInteractiveAnswered,
+  registerCheck,
   onInputValidityChange,
   blockKey = '0',
+  isTitle = true,
 }) => {
+  const answered = onInteractiveAnswered ?? noop;
   switch (block.type) {
     case 'heading':
       return (
-        <Text style={[styles.heading, block.size === 'lg' && styles.headingLg]}>
+        <Text
+          style={!isTitle ? styles.statement : block.size === 'lg' ? styles.headingLg : styles.heading}
+          accessibilityRole={isTitle ? 'header' : undefined}
+        >
           {block.text}
         </Text>
       );
@@ -66,19 +106,19 @@ export const BlockRenderer: React.FC<BlockProps> = ({
       return renderRich(block.text, styles.body, styles.emphasis);
 
     case 'eyebrow':
-      return <Text style={styles.eyebrow}>{block.text}</Text>;
+      return <Text style={styles.eyebrow}>{block.text.toUpperCase()}</Text>;
 
     case 'footer':
       return <Text style={styles.footer}>{block.text}</Text>;
 
     case 'heroEmoji':
       return (
-        <View style={[styles.heroCircle, block.bg ? { backgroundColor: block.bg } : null]}>
+        <View style={styles.hero}>
           {block.icon ? (
             <Ionicons
               name={block.icon as keyof typeof Ionicons.glyphMap}
-              size={40}
-              color={block.iconColor ?? Colors.primary}
+              size={28}
+              color={C.forest}
             />
           ) : (
             <Text style={styles.heroEmoji}>{block.emoji ?? ''}</Text>
@@ -88,7 +128,7 @@ export const BlockRenderer: React.FC<BlockProps> = ({
 
     case 'pill':
       return (
-        <View style={styles.pillContainer}>
+        <View style={styles.pill}>
           <Text style={styles.pillText}>{block.text}</Text>
         </View>
       );
@@ -100,7 +140,40 @@ export const BlockRenderer: React.FC<BlockProps> = ({
       return <CardListView block={block} />;
 
     case 'interactiveQuiz':
-      return <InteractiveQuizView block={block} onAnswered={onInteractiveAnswered} />;
+      return (
+        <GradedQuestion
+          mode="single"
+          question={block.question}
+          options={block.options.map((o) => ({ label: o.text, isCorrect: o.isCorrect }))}
+          feedback={block.correctFeedback}
+          onAnswered={answered}
+        />
+      );
+
+    case 'quiz':
+      return (
+        <GradedQuestion
+          mode="single"
+          eyebrow={`QUESTION ${block.questionNumber} OF ${block.totalQuestions}`}
+          question={block.question}
+          options={block.options}
+          feedback={block.feedback}
+          onAnswered={answered}
+        />
+      );
+
+    case 'multiSelectQuiz':
+      return (
+        <GradedQuestion
+          mode="multi"
+          eyebrow={`QUESTION ${block.questionNumber} OF ${block.totalQuestions}`}
+          question={block.question}
+          options={block.options}
+          feedback={block.feedback}
+          onAnswered={answered}
+          registerCheck={registerCheck}
+        />
+      );
 
     case 'textInput':
       return (
@@ -118,16 +191,6 @@ export const BlockRenderer: React.FC<BlockProps> = ({
         />
       );
 
-    case 'quiz':
-      // The QuizQuestion-component quiz is rendered by the controller (needs the
-      // onCorrect advance). Returning null keeps this switch exhaustive.
-      return null;
-
-    case 'multiSelectQuiz':
-      // Same as `quiz`: rendered by the controller via QuizQuestionMultiSelect
-      // (needs the onCorrect advance). Null keeps the switch exhaustive.
-      return null;
-
     default: {
       const _never: never = block;
       return _never;
@@ -135,47 +198,54 @@ export const BlockRenderer: React.FC<BlockProps> = ({
   }
 };
 
-// --- callout ----------------------------------------------------------------
-const CalloutView: React.FC<{ block: Extract<Block, { type: 'callout' }> }> = ({ block }) => {
-  const defaults: Record<string, { bg: string; accent?: string; center: boolean; leftAccent: boolean }> = {
-    quote: { bg: '#FFE4ED', center: true, leftAccent: false },
-    summary: { bg: '#F5F9FF', accent: Colors.primary, center: false, leftAccent: true },
-    preview: { bg: '#F5F5F5', accent: Colors.primary, center: false, leftAccent: true },
-    insight: { bg: '#E8F5E9', center: true, leftAccent: false },
-    highlight: { bg: Colors.surface, center: true, leftAccent: false },
-  };
-  const d = defaults[block.variant];
-  const bg = block.bg ?? d.bg;
-  const leftAccent = block.leftAccent ?? d.leftAccent;
-  const accent = block.accentColor ?? d.accent ?? Colors.primary;
-  const center = block.center ?? d.center;
-  const isQuote = block.variant === 'quote';
+function noop() {}
 
+// --- callout ----------------------------------------------------------------
+// Five variants, each with ONE job now that colour no longer varies per screen:
+//   quote      someone's actual words — serif italic hung off a clay rule
+//   summary    a wash panel for a recap or a pair of contrasting lines
+//   preview    same panel; content uses it for "NEXT:" asides
+//   insight    THE idea of the screen — a forest card. The old screens put
+//              "Behavior is a signal, not a moral failure" in the smallest
+//              type on the page; the most important sentence is now the
+//              loudest object on it.
+//   highlight  an outlined panel, for lists of lines with dividers
+const CalloutView: React.FC<{ block: Extract<Block, { type: 'callout' }> }> = ({ block }) => {
+  const v = block.variant;
+
+  if (v === 'quote') {
+    return (
+      <View style={styles.quote}>
+        {block.label ? <Text style={styles.calloutLabel}>{block.label.toUpperCase()}</Text> : null}
+        {block.lines.map((line, i) =>
+          renderRich(line, styles.quoteText, styles.quoteEmphasis, i),
+        )}
+      </View>
+    );
+  }
+
+  const onForest = v === 'insight';
   return (
     <View
       style={[
         styles.callout,
-        { backgroundColor: bg },
-        leftAccent && { borderLeftWidth: 4, borderLeftColor: accent },
-        (isQuote || block.variant === 'insight' || block.variant === 'highlight') && Shadows.sm,
+        onForest ? styles.calloutInsight : v === 'highlight' ? styles.calloutOutline : styles.calloutWash,
       ]}
     >
-      {block.label && (
-        <Text style={[styles.calloutLabel, block.labelColor ? { color: block.labelColor } : null]}>
-          {block.label}
+      {block.label ? (
+        <Text style={[styles.calloutLabel, onForest && { color: C.mint }]}>
+          {block.label.toUpperCase()}
         </Text>
-      )}
+      ) : null}
       {block.lines.map((line, i) => (
         <React.Fragment key={i}>
-          {i > 0 && block.dividers && <View style={styles.divider} />}
+          {i > 0 && block.dividers ? (
+            <View style={[styles.divider, onForest && { backgroundColor: oCream(0.2) }]} />
+          ) : null}
           {renderRich(
             line,
-            [
-              isQuote ? styles.quoteText : styles.calloutText,
-              center ? styles.centerText : null,
-              block.textColor ? { color: block.textColor } : null,
-            ],
-            styles.emphasis,
+            onForest ? styles.insightText : styles.calloutText,
+            onForest ? styles.insightEmphasis : styles.emphasis,
           )}
         </React.Fragment>
       ))}
@@ -185,131 +255,83 @@ const CalloutView: React.FC<{ block: Extract<Block, { type: 'callout' }> }> = ({
 
 // --- cardList ---------------------------------------------------------------
 const CardListView: React.FC<{ block: Extract<Block, { type: 'cardList' }> }> = ({ block }) => {
-  const isChips = block.layout === 'chips';
-  return (
-    <View style={isChips ? styles.chipRow : styles.cardStack}>
-      {block.items.map((item, i) => {
-        const cardStyle =
-          block.cardStyle === 'chip'
-            ? styles.chip
-            : block.cardStyle === 'bordered'
-              ? styles.cardBordered
-              : block.cardStyle === 'plain'
-                ? styles.cardPlain
-                : styles.cardSurface;
-        return (
-          <View
-            key={i}
-            style={[
-              cardStyle,
-              item.color ? { backgroundColor: item.color } : null,
-              item.borderColor ? { borderColor: item.borderColor, borderWidth: 1 } : null,
-            ]}
-          >
-            {item.number !== undefined ? (
-              <View style={styles.numberCircle}>
-                <Text style={styles.numberText}>{item.number}</Text>
-              </View>
-            ) : item.icon ? (
-              item.iconKind === 'emoji' ? (
-                <Text style={styles.cardEmoji}>{item.icon}</Text>
-              ) : (
-                <Ionicons
-                  name={item.icon as keyof typeof Ionicons.glyphMap}
-                  size={20}
-                  color={item.iconColor ?? Colors.primary}
-                  style={styles.cardIcon}
-                />
-              )
+  if (block.layout === 'chips' || block.cardStyle === 'chip') {
+    return (
+      <View style={styles.chipRow}>
+        {block.items.map((item, i) => (
+          <View key={i} style={styles.chip}>
+            {/* Emoji chips keep their emoji. Ionicon chips drop the glyph: in
+                practice it was a red alert-circle on "Tears" and "Tantrums",
+                which framed a child's feelings as an error. */}
+            {item.icon && item.iconKind === 'emoji' ? (
+              <Text style={styles.chipEmoji}>{item.icon}</Text>
             ) : null}
-            <Text
-              style={[
-                block.cardStyle === 'chip' ? styles.chipText : styles.cardText,
-                item.textColor ? { color: item.textColor } : null,
-              ]}
-            >
-              {item.title}
-            </Text>
+            <Text style={styles.chipText}>{item.title}</Text>
           </View>
-        );
-      })}
-    </View>
-  );
-};
-
-// --- interactiveQuiz --------------------------------------------------------
-const InteractiveQuizView: React.FC<{
-  block: Extract<Block, { type: 'interactiveQuiz' }>;
-  onAnswered?: () => void;
-}> = ({ block, onAnswered }) => {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
-
-  const press = (i: number) => {
-    if (revealed) return;
-    setSelected(i);
-    setRevealed(true);
-    onAnswered?.();
-  };
-
-  const selectedCorrect = selected !== null ? block.options[selected].isCorrect : false;
-
-  return (
-    <View style={styles.iqContainer}>
-      <Text style={styles.question}>{block.question}</Text>
-      <View style={styles.optionsContainer}>
-        {block.options.map((opt, i) => {
-          let bg: string = Colors.surface;
-          let border: string = Colors.border;
-          if (revealed) {
-            if (opt.isCorrect) {
-              bg = '#E8F5E9';
-              border = '#4CAF50';
-            } else if (selected === i) {
-              bg = '#FFEBEE';
-              border = '#EF5350';
-            }
-          }
-          return (
-            <TouchableOpacity
-              key={i}
-              style={[styles.option, { backgroundColor: bg, borderColor: border }]}
-              onPress={() => press(i)}
-              activeOpacity={0.7}
-              disabled={revealed}
-            >
-              <Text style={styles.optionText}>{opt.text}</Text>
-              {revealed && opt.isCorrect && (
-                <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
-              )}
-              {revealed && selected === i && !opt.isCorrect && (
-                <Ionicons name="close-circle" size={24} color={Colors.error} />
-              )}
-            </TouchableOpacity>
-          );
-        })}
+        ))}
       </View>
-      {revealed && (
-        <View style={styles.feedbackContainer}>
-          <View style={styles.feedbackHeader}>
-            <Ionicons
-              name={selectedCorrect ? 'checkmark-circle' : 'information-circle'}
-              size={24}
-              color={selectedCorrect ? Colors.success : Colors.primary}
-            />
-            <Text style={styles.feedbackTitle}>{selectedCorrect ? 'Correct' : 'Not quite'}</Text>
+    );
+  }
+
+  // 'plain' is a reading list — the bullets under a paragraph. Everything
+  // else is a stack of rows.
+  const isList = block.cardStyle === 'plain';
+  return (
+    <View style={isList ? styles.list : styles.rows}>
+      {block.items.map((item, i) => (
+        <View key={i} style={isList ? styles.listItem : styles.rowItem}>
+          <Leading item={item} isList={isList} />
+          <View style={styles.itemText}>
+            <Text style={isList ? styles.listTitle : styles.rowTitle}>{item.title}</Text>
+            {/* Rendered at last. The schema always allowed a subtitle and the
+                old renderer never drew it — so Emotional Sandbags' four steps
+                showed "Radar / Ask / Imagine & Feel / Label" with the line
+                explaining each one silently missing, and Sprinklers' timeline
+                read "30 Years Ago / 20 Years Ago / Today" with no events. */}
+            {item.subtitle ? <Text style={styles.itemSubtitle}>{item.subtitle}</Text> : null}
           </View>
-          <Text style={styles.feedbackText}>{block.correctFeedback}</Text>
         </View>
-      )}
+      ))}
     </View>
   );
 };
+
+function Leading({
+  item,
+  isList,
+}: {
+  item: Extract<Block, { type: 'cardList' }>['items'][number];
+  isList: boolean;
+}) {
+  if (item.number !== undefined) {
+    return (
+      <View style={styles.numberDisc}>
+        <Text style={styles.numberText}>{item.number}</Text>
+      </View>
+    );
+  }
+  if (item.icon) {
+    return item.iconKind === 'emoji' ? (
+      <Text style={styles.itemEmoji}>{item.icon}</Text>
+    ) : (
+      <Ionicons
+        name={item.icon as keyof typeof Ionicons.glyphMap}
+        size={20}
+        color={C.forest}
+        style={styles.itemIcon}
+      />
+    );
+  }
+  return isList ? <View style={styles.bullet} /> : null;
+}
 
 // --- textInput --------------------------------------------------------------
-// A multiline reflective-journaling field. Ephemeral: the text is held in
-// local state and never persisted (matches the hand-built screens). Reports
-// validity so the controller can gate Next when `required`.
+// A reflective-journaling field. EPHEMERAL: held in local state and never
+// persisted, sent or logged (INVARIANTS: no free-text PII anywhere). The page
+// now SAYS so — the old screens asked a parent to write about the last time
+// they were angry at their child without a word about where that text went.
+const PRIVATE_NOTE = 'Just for you. This isn’t saved or sent anywhere.';
+
 const TextInputView: React.FC<{
   block: Extract<Block, { type: 'textInput' }>;
   onValidity: (satisfied: boolean) => void;
@@ -324,25 +346,29 @@ const TextInputView: React.FC<{
 
   return (
     <View style={styles.inputGroup}>
-      <Text style={styles.inputHeadline}>{block.headline}</Text>
-      {block.helper && <Text style={styles.inputHelper}>{block.helper}</Text>}
+      {/* Serve & Return's reflection field has an empty headline — the
+          question is the screen's paragraph above it. */}
+      {block.headline ? <Text style={styles.inputHeadline}>{block.headline}</Text> : null}
+      {block.helper ? <Text style={styles.inputHelper}>{block.helper}</Text> : null}
       <TextInput
         style={[styles.textInput, { minHeight: block.minHeight }]}
         placeholder={block.placeholder}
-        placeholderTextColor={Colors.textMuted}
+        placeholderTextColor={oInk(0.4)}
         value={value}
         onChangeText={setValue}
         multiline
         textAlignVertical="top"
+        accessibilityLabel={block.headline || block.placeholder}
       />
+      <Text style={styles.privateNote}>{PRIVATE_NOTE}</Text>
     </View>
   );
 };
 
 // --- emotionPicker ----------------------------------------------------------
-// Picker button → shared EmotionPicker modal; conditional "Why did you feel
-// {emotion}?" field revealed after selection. Next gated on emotion chosen AND
-// why non-blank. Reuses the global EmotionPicker component verbatim.
+// Picker row → the shared EmotionPicker sheet; the "Why did you feel
+// {emotion}?" field appears once an emotion is chosen. Continue is gated on
+// both. Ephemeral, like textInput.
 const EmotionPickerView: React.FC<{
   block: Extract<Block, { type: 'emotionPicker' }>;
   onValidity: (satisfied: boolean) => void;
@@ -350,7 +376,7 @@ const EmotionPickerView: React.FC<{
   const [showPicker, setShowPicker] = useState(false);
   const [selected, setSelected] = useState('');
   const [why, setWhy] = useState('');
-  const satisfied = selected.length > 0 && why.trim().length > 0;
+  const satisfied = !block.required || (selected.length > 0 && why.trim().length > 0);
   useEffect(() => {
     onValidity(satisfied);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -359,28 +385,37 @@ const EmotionPickerView: React.FC<{
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.inputHeadline}>{block.headline}</Text>
-      {block.helper && <Text style={styles.inputHelper}>{block.helper}</Text>}
+      {block.helper ? <Text style={styles.inputHelper}>{block.helper}</Text> : null}
 
-      <TouchableOpacity
-        style={styles.pickerButton}
+      <Pressable
+        style={({ pressed }) => [styles.pickerRow, pressed ? { opacity: 0.85 } : null]}
         onPress={() => setShowPicker(true)}
-        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={selected ? `Emotion: ${selected}. Change` : block.buttonPlaceholder}
       >
-        <Text style={[styles.pickerButtonText, selected ? styles.pickerButtonTextSelected : null]}>
+        <Text style={selected ? styles.pickerValue : styles.pickerPlaceholder}>
           {selected || block.buttonPlaceholder}
         </Text>
-        <Text style={styles.pickerButtonIcon}>▼</Text>
-      </TouchableOpacity>
+        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+          <Path
+            d="M6 9l6 6 6-6"
+            stroke={oInk(0.5)}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </Pressable>
 
       {selected ? (
-        <View style={styles.whyContainer}>
+        <View style={styles.whyGroup}>
           <Text style={styles.whyLabel}>
             {block.whyLabel.replace('{emotion}', selected.toLowerCase())}
           </Text>
           <TextInput
             style={[styles.textInput, { minHeight: 100 }]}
             placeholder={block.whyPlaceholder}
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={oInk(0.4)}
             value={why}
             onChangeText={setWhy}
             multiline
@@ -388,6 +423,7 @@ const EmotionPickerView: React.FC<{
           />
         </View>
       ) : null}
+      <Text style={styles.privateNote}>{PRIVATE_NOTE}</Text>
 
       <EmotionPicker
         visible={showPicker}
@@ -400,213 +436,203 @@ const EmotionPickerView: React.FC<{
 
 const styles = StyleSheet.create({
   heading: {
-    fontSize: 28,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-    lineHeight: 38,
-    letterSpacing: -0.6,
-    textAlign: 'center',
+    fontFamily: F.serif,
+    fontSize: T.h1,
+    lineHeight: T.h1 * 1.2,
+    letterSpacing: -0.45,
+    color: C.ink,
   },
-  headingLg: { fontSize: 22, lineHeight: 30, letterSpacing: 0 },
+  headingLg: {
+    fontFamily: F.serif,
+    fontSize: 25,
+    lineHeight: 25 * 1.25,
+    letterSpacing: -0.3,
+    color: C.ink,
+  },
+  statement: {
+    fontFamily: F.serif,
+    fontSize: 22,
+    lineHeight: 22 * 1.35,
+    letterSpacing: -0.2,
+    color: C.ink,
+  },
   body: {
+    fontFamily: F.serif,
     fontSize: 18,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textSecondary,
-    lineHeight: 28,
-    textAlign: 'center',
+    lineHeight: 18 * 1.6,
+    color: oInk(0.84),
   },
-  emphasis: { color: Colors.primary, fontWeight: Typography.weights.bold },
+  emphasis: { fontFamily: F.serifItalic, color: C.forest },
   eyebrow: {
-    fontSize: 16,
-    fontWeight: Typography.weights.bold,
-    color: Colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    textAlign: 'center',
+    fontFamily: F.monoMed,
+    fontSize: T.mono,
+    letterSpacing: T.mono * 0.08,
+    color: C.clayDeep,
   },
   footer: {
-    fontSize: 16,
-    fontStyle: 'italic',
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 20,
+    fontFamily: F.serifItalic,
+    fontSize: 17,
+    lineHeight: 17 * 1.55,
+    color: oInk(0.62),
   },
-  centerText: { textAlign: 'center' },
-  heroCircle: {
-    alignSelf: 'center',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#FFF3E0',
+
+  hero: {
+    width: 60,
+    height: 60,
+    borderRadius: 999,
+    backgroundColor: C.wash,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 10,
   },
-  heroEmoji: { fontSize: 50 },
-  pillContainer: {
-    alignSelf: 'center',
-    marginTop: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
+  heroEmoji: { fontSize: 28 },
+
+  pill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: R.pill,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: oInk(0.16),
   },
-  pillText: { fontSize: 14, color: Colors.textSecondary, fontWeight: Typography.weights.medium },
-  callout: { padding: 24, borderRadius: 16, marginTop: 10, gap: 12 },
-  calloutLabel: {
-    fontSize: 12,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textTertiary,
-    letterSpacing: 1,
-  },
-  calloutText: { fontSize: 16, color: Colors.textSecondary, lineHeight: 24 },
+  pillText: { fontFamily: F.sansMed, fontSize: 14, color: oInk(0.66) },
+
+  // callouts
+  quote: { borderLeftWidth: 2, borderLeftColor: C.clay, paddingLeft: 18, gap: 10 },
   quoteText: {
-    fontSize: 20,
-    fontWeight: Typography.weights.semibold,
-    color: '#C2185B',
-    lineHeight: 30,
-    textAlign: 'center',
-    fontStyle: 'italic',
+    fontFamily: F.serifItalic,
+    fontSize: 22,
+    lineHeight: 22 * 1.4,
+    color: C.ink,
   },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 16 },
-  cardStack: { gap: 16 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
-  cardSurface: {
+  quoteEmphasis: { color: C.forest },
+  callout: { borderRadius: R.callout, paddingVertical: 20, paddingHorizontal: 20, gap: 10 },
+  calloutWash: { backgroundColor: C.wash },
+  calloutOutline: { borderWidth: 1.5, borderColor: oInk(0.14) },
+  calloutInsight: { backgroundColor: C.forest, paddingVertical: 24, paddingHorizontal: 22 },
+  calloutLabel: {
+    fontFamily: F.monoMed,
+    fontSize: 11.5,
+    letterSpacing: 11.5 * 0.08,
+    color: C.clayDeep,
+  },
+  calloutText: {
+    fontFamily: F.serif,
+    fontSize: T.body,
+    lineHeight: T.body * 1.55,
+    color: oInk(0.84),
+  },
+  insightText: {
+    fontFamily: F.serif,
+    fontSize: 21,
+    lineHeight: 21 * 1.4,
+    color: C.cream,
+  },
+  insightEmphasis: { fontFamily: F.serifItalic, color: C.mint },
+  divider: { height: 1, backgroundColor: oInk(0.12), marginVertical: 6 },
+
+  // card lists
+  rows: { gap: 10 },
+  rowItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
-    ...Shadows.sm,
+    gap: 14,
+    backgroundColor: C.wash,
+    borderRadius: R.row,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
   },
-  cardBordered: {
-    flexDirection: 'row',
+  rowTitle: { fontFamily: F.sansMed, fontSize: T.ui, lineHeight: T.ui * 1.35, color: oInk(0.86) },
+  list: { gap: 14 },
+  listItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  listTitle: {
+    fontFamily: F.serif,
+    fontSize: 18,
+    lineHeight: 18 * 1.5,
+    color: oInk(0.84),
+  },
+  itemText: { flex: 1, gap: 3 },
+  itemSubtitle: {
+    fontFamily: F.serif,
+    fontSize: 15.5,
+    lineHeight: 15.5 * 1.5,
+    color: oInk(0.62),
+  },
+  // Sits on the first line's x-height rather than centred on a wrapped item.
+  bullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: C.forest,
+    marginTop: 11,
+  },
+  numberDisc: {
+    width: 26,
+    height: 26,
+    borderRadius: 999,
+    backgroundColor: C.forest,
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 12,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
-  cardPlain: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12 },
+  numberText: { fontFamily: F.sansSemi, fontSize: 14, color: C.cream },
+  itemEmoji: { fontSize: 20, lineHeight: 26 },
+  itemIcon: { marginTop: 1 },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF5F5',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#FFE0E0',
+    gap: 6,
+    backgroundColor: C.wash,
+    borderRadius: R.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  chipText: { fontSize: 15, fontWeight: Typography.weights.medium, color: Colors.textPrimary },
-  cardIcon: {},
-  cardEmoji: { fontSize: 20 },
-  cardText: {
-    fontSize: 16,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.textPrimary,
-    flex: 1,
-  },
-  numberCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  numberText: { fontSize: 14, fontWeight: Typography.weights.bold, color: Colors.textPrimary },
-  // interactiveQuiz
-  iqContainer: { gap: 24 },
-  question: {
-    fontSize: 22,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-    lineHeight: 32,
-  },
-  optionsContainer: { gap: 12 },
-  option: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 18,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-  },
-  optionText: {
-    fontSize: 16,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textPrimary,
-    flex: 1,
-    marginRight: 8,
-  },
-  feedbackContainer: {
-    backgroundColor: Colors.surface,
-    padding: 20,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.sm,
-  },
-  feedbackHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  feedbackTitle: { fontSize: 18, fontWeight: Typography.weights.bold, color: Colors.textPrimary },
-  feedbackText: { fontSize: 16, color: Colors.textSecondary, lineHeight: 24 },
-  // textInput / emotionPicker (styles lifted verbatim from the hand-built
-  // Naming-our-Emotions screens so the data-driven render is identical).
-  inputGroup: { gap: 16, width: '100%' },
+  chipEmoji: { fontSize: 15 },
+  chipText: { fontFamily: F.sansMed, fontSize: T.uiSm, color: oInk(0.84) },
+
+  // journaling
+  inputGroup: { gap: 12, width: '100%' },
   inputHeadline: {
-    fontSize: 28,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-    lineHeight: 36,
-    letterSpacing: -0.5,
+    fontFamily: F.serif,
+    fontSize: 25,
+    lineHeight: 25 * 1.25,
+    letterSpacing: -0.3,
+    color: C.ink,
   },
   inputHelper: {
-    fontSize: 15,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textTertiary,
-    lineHeight: 22,
+    fontFamily: F.serif,
+    fontSize: 16,
+    lineHeight: 16 * 1.5,
+    color: oInk(0.64),
   },
   textInput: {
-    backgroundColor: Colors.surface,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    padding: 16,
-    fontSize: 16,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textPrimary,
+    backgroundColor: C.cream,
+    borderWidth: 1.5,
+    borderColor: oInk(0.14),
+    borderRadius: R.row,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
+    fontFamily: F.serif,
+    fontSize: 18,
+    lineHeight: 18 * 1.45,
+    color: C.ink,
+    marginTop: 6,
   },
-  pickerButton: {
+  privateNote: { fontFamily: F.sans, fontSize: T.meta, color: oInk(0.5) },
+  pickerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    padding: 16,
+    justifyContent: 'space-between',
+    backgroundColor: C.wash,
+    borderRadius: R.row,
+    paddingVertical: 17,
+    paddingHorizontal: 18,
+    marginTop: 6,
   },
-  pickerButtonText: {
-    fontSize: 16,
-    fontWeight: Typography.weights.medium,
-    color: Colors.textMuted,
-  },
-  pickerButtonTextSelected: {
-    color: Colors.textPrimary,
-    fontWeight: Typography.weights.semibold,
-  },
-  pickerButtonIcon: { fontSize: 12, color: Colors.textMuted },
-  whyContainer: { gap: 12, marginTop: 4 },
-  whyLabel: {
-    fontSize: 16,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.textPrimary,
-  },
+  pickerPlaceholder: { fontFamily: F.sansMed, fontSize: T.ui, color: oInk(0.5) },
+  pickerValue: { fontFamily: F.sansSemi, fontSize: T.ui, color: C.ink },
+  whyGroup: { gap: 4, marginTop: 8 },
+  whyLabel: { fontFamily: F.sansSemi, fontSize: T.uiSm, color: oInk(0.78) },
 });

@@ -8,7 +8,9 @@
 // The block vocabulary here is derived from the empirical survey of Sprinklers
 // + Emotional Sandbags — see docs/spec-09/PHASE1_BLOCK_SURVEY.md. It is NOT a
 // guess; every block type maps to a visual pattern that exists in the current
-// hand-built screens. No new visual design — templates reproduce today's look.
+// hand-built screens. (The templates originally reproduced the old teal look;
+// since the 2026-09 restyle they render on the cream/forest system — see
+// components/BlockRenderer.tsx.)
 //
 // TS types are derived via z.infer (never hand-maintained in parallel).
 
@@ -34,8 +36,10 @@ export type RichText = z.infer<typeof RichTextSchema>;
 
 // --- Blocks -----------------------------------------------------------------
 // Each block is a discriminated union member keyed on `type`. Optional
-// color/bg overrides carry the one-off hex colours a few screens use, so the
-// data-driven render is byte-identical to the hand-built look (survey Q4).
+// color/bg overrides carry the one-off hex colours a few screens used (survey
+// Q4). The renderer IGNORES them since the 2026-09 restyle — they would paint
+// the old palette back in — and they remain here only so existing content
+// still parses.
 
 const HeadingBlock = z.object({
   type: z.literal('heading'),
@@ -142,8 +146,9 @@ const CardListBlock = z.object({
 
 // An interactive single-answer question that reveals per-option correct/wrong
 // colouring + an inline feedback panel, then shows Next (Sprinklers §1
-// Screen6/8). Distinct from `quiz` (the QuizQuestion component, which forces a
-// correct answer before advancing). Phase-2 addition.
+// Screen6/8). Phase-2 addition. All three question blocks (`interactiveQuiz`,
+// `quiz`, `multiSelectQuiz`) now render through one component,
+// components/GradedQuestion.tsx: answer once, then the answer is revealed.
 const InteractiveQuizBlock = z.object({
   type: z.literal('interactiveQuiz'),
   question: z.string(),
@@ -198,9 +203,16 @@ const EmotionPickerBlock = z.object({
   // lowercased, matching the source's `Why did you feel {emotion.toLowerCase()}?`.
   whyLabel: z.string(),
   whyPlaceholder: z.string(),
+  // Whether Continue is gated on choosing an emotion AND explaining why.
+  // Defaults to true. Added 2026-09: three "Was there another emotion
+  // present?" screens said "(optional)" in their helper line while the block
+  // hard-gated Continue — a parent with nothing more to add was stuck.
+  required: z.boolean().default(true),
 });
 
-// Maps 1:1 to the existing QuizQuestion component — no new UI.
+// A numbered single-answer question ("Question 1 of 3"). Rendered by
+// GradedQuestion; `feedback` is shown after the first answer, right or wrong,
+// so it should explain the answer rather than grade it.
 const QuizBlock = z.object({
   type: z.literal('quiz'),
   questionNumber: z.number(),
@@ -212,14 +224,12 @@ const QuizBlock = z.object({
   feedback: z.string(),
 });
 
-// Maps 1:1 to the existing QuizQuestionMultiSelect component — a "check all
-// that apply" graded question (checkboxes, a Check-Answer gate, retry-on-wrong,
-// Next on a fully-correct selection). Distinct from `quiz` (single answer).
-// Phase-3 addition: the flow-lesson quizzes (Lesson 3/4) use multi-select
-// questions; flattening them to single-answer would change the interaction, so
-// the block reuses the existing component verbatim. Same field shape as
-// QuizBlock (options carry per-option isCorrect; the component requires exactly
-// the correct set).
+// A "check all that apply" graded question. Distinct from `quiz` (single
+// answer). Phase-3 addition: the flow-lesson quizzes (Lesson 3/4) use
+// multi-select questions. Same field shape as QuizBlock (options carry
+// per-option isCorrect). Rendered by GradedQuestion: the parent checks once,
+// then sees which picks were right, which were not, and what they missed —
+// it used to wipe every box on a partial answer and demand a retry.
 const MultiSelectQuizBlock = z.object({
   type: z.literal('multiSelectQuiz'),
   questionNumber: z.number(),
@@ -310,6 +320,13 @@ export const LessonSchema = z.object({
   // progress write (see LessonController.completeSection). Section-based
   // lessons (5–13) always carry their key.
   storageKey: z.string().optional(),
+  // One concrete thing to try tonight, shown on the lesson-complete screen.
+  // Owner rule (2026-09): every lesson ends with one. A lesson that ends on
+  // understanding alone is forgotten by breakfast; a single small action is
+  // what makes it stick. One sentence, doable in the next few hours, no
+  // counts. Optional in the schema so a draft lesson still parses — the
+  // content test requires it on every registered lesson.
+  tonight: z.string().optional(),
   sections: z.array(SectionSchema).min(1),
 });
 export type Lesson = z.infer<typeof LessonSchema>;

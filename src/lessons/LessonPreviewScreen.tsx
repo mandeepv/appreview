@@ -68,6 +68,9 @@ export const LessonPreviewScreen: React.FC<LessonPreviewScreenProps> = ({
         }
       }}
       onSectionComplete={() => setView({ kind: 'hub' })}
+      // The harness has no path to continue along; "Continue" on the done
+      // screen returns to its hub like "Stop for tonight" does.
+      onOpenNode={() => setView({ kind: 'hub' })}
     />
   );
 };

@@ -1,37 +1,38 @@
 // SPEC-09 Phase 1 — the generic lesson screen + controller.
 //
 // ONE screen component drives every data-driven lesson. Given a lesson + a
-// (sectionIndex, screenIndex), it renders that screen (its blocks, a quiz, or
-// the section-complete card) and handles Next / Back / section-complete.
+// (sectionIndex, screenIndex), it renders that screen (its blocks, a question,
+// or the end-of-section view) and handles Continue / Back / Close.
 //
-// Phase 1 scope: the controller exists and type-checks against the schema and
-// the block templates. It is NOT yet registered in the navigator, and no
-// lesson content has been converted — that's the Phase 2 pilot (Sprinklers)
-// and Phase 3 mass conversion, each behind an owner checkpoint. No
-// gate/paywall code is touched here.
+// No gate/paywall code is touched here.
 //
 // Progress: writes the SAME AsyncStorage key + JSON format the lesson uses
 // today (an array of completed section-id strings), read from the lesson's
 // `storageKey`. No data migration; existing users' progress survives.
+//
+// THE DONE SCREEN (2026-09). Every section now ends on SectionDone, which
+// offers Continue (straight into the next node on the path) or Stop for
+// tonight. It sits at a VIRTUAL screen index — one past the section's last
+// content screen — unless the section's content already ends on an authored
+// `sectionComplete` screen, in which case that screen is the done screen and
+// its copy is used. Either way the section's progress is written on the Next
+// press that LEADS to the done screen, so by the time SectionDone reads the
+// path to decide what Continue opens, this section already counts as done.
 
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { LessonContainer } from '../components/LessonContainer';
-import { Button } from '../components/Button';
-import { QuizQuestion } from '../components/QuizQuestion';
-import { QuizQuestionMultiSelect } from '../components/QuizQuestionMultiSelect';
-import { BlockRenderer } from './components/BlockRenderer';
+import React, { useCallback, useRef } from 'react';
 import { createProgressStore } from './progressStore';
 import { markLessonCompleted } from './lessonCompletion';
 import { recordActiveDay } from './streak';
 import { safeCapture } from '../lib/analytics';
-import { Colors, Typography, Shadows } from '../constants/theme';
-import type { Lesson, LessonScreen } from './schema';
+import { LessonShell } from './components/LessonShell';
+import { BlockRenderer } from './components/BlockRenderer';
+import { SectionDone } from './components/SectionDone';
+import type { PathNode } from './units';
+import type { Lesson, LessonScreen, LessonSection } from './schema';
 
-// Route params for the generic lesson route (typed via SPEC-08 when wired into
-// the navigator in Phase 2/3). Kept as a plain interface in Phase 1 so the
-// controller is testable and reviewable before it's registered.
+// Route params for the generic lesson route (typed via SPEC-08 in
+// navigation/types.ts). Kept as a plain interface so the controller is
+// testable without a navigator.
 export interface LessonRouteParams {
   lessonId: string;
   sectionIndex: number;
@@ -43,12 +44,14 @@ interface LessonControllerProps {
   sectionIndex: number;
   screenIndex: number;
   // Navigation actions are injected so the controller has no direct dependency
-  // on a specific navigator (kept testable + wiring-agnostic in Phase 1).
+  // on a specific navigator.
   onAdvance: (next: { sectionIndex: number; screenIndex: number }) => void;
   onBack: () => void;
-  // Called when the final screen of the last-in-section completes — returns to
-  // the lesson hub. (In Phase 2/3 this is navigate back to the hub screen.)
+  // Leave the lesson: back to wherever it was opened from (the path). Used by
+  // the close button and by "Stop for tonight".
   onSectionComplete: () => void;
+  // Open another node on the path — "Continue" on the done screen.
+  onOpenNode: (node: PathNode) => void;
   /**
    * True only when this mount is the parent OPENING the lesson, rather than
    * advancing within it. Comes from the route's `entry` param. It is the whole
@@ -57,12 +60,21 @@ interface LessonControllerProps {
   isEntry?: boolean;
 }
 
+/**
+ * Where a section's done screen sits. An authored `sectionComplete` screen at
+ * the end IS the done screen; otherwise the done screen is virtual, one past
+ * the last content screen.
+ */
+export function doneScreenIndex(section: LessonSection): number {
+  const last = section.screens[section.screens.length - 1];
+  return last?.kind === 'sectionComplete' ? section.screens.length - 1 : section.screens.length;
+}
+
 // SPEC-13 R1: progress writes go through the ONE chokepoint —
-// createProgressStore. The controller no longer has its own inline
-// markSectionComplete; the factory is the single reader/writer (and, via
-// SPEC-13 R2, the seam where account-scoped DB sync is layered in behind it).
-// Byte-compatible key + JSON format is unchanged (progressStore.test.ts proves
-// the round-trip).
+// createProgressStore. The controller has no inline markSectionComplete; the
+// factory is the single reader/writer (and, via SPEC-13 R2, the seam where
+// account-scoped DB sync is layered in behind it). Byte-compatible key + JSON
+// format is unchanged (progressStore.test.ts proves the round-trip).
 
 export const LessonController: React.FC<LessonControllerProps> = ({
   lesson,
@@ -71,14 +83,12 @@ export const LessonController: React.FC<LessonControllerProps> = ({
   onAdvance,
   onBack,
   onSectionComplete,
+  onOpenNode,
   isEntry = false,
 }) => {
   const section = lesson.sections[sectionIndex];
+  const doneIndex = section ? doneScreenIndex(section) : 0;
   const screen: LessonScreen | undefined = section?.screens[screenIndex];
-
-  const isLastScreenInSection = section
-    ? screenIndex >= section.screens.length - 1
-    : true;
 
   // SPEC-13 R4/R5 — lesson analytics. `lesson_started` fires at the true
   // "opened" moment, ONCE per lesson visit.
@@ -104,9 +114,10 @@ export const LessonController: React.FC<LessonControllerProps> = ({
   // under-count it replaced.
   //
   // The honest signal is therefore who navigated here: only an opener (the
-  // path, the dev menu, a hub) passes `entry: true`; onAdvance's pushes
-  // deliberately omit it. That makes "opened the lesson" and "pressed Next"
-  // distinguishable without any cross-mount state.
+  // path, the done screen's Continue into a NEW lesson, the dev menu, a hub)
+  // passes `entry: true`; onAdvance's pushes deliberately omit it. That makes
+  // "opened the lesson" and "pressed Next" distinguishable without any
+  // cross-mount state.
   // Static registry IDs only (slug + title), no content text (INVARIANTS #8).
   React.useEffect(() => {
     if (!isEntry) return;
@@ -131,18 +142,19 @@ export const LessonController: React.FC<LessonControllerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionIndex]);
 
-  // Complete the current section: write its progress key, then return to the
-  // hub. Called from the LAST screen of a section regardless of screen kind —
-  // in the original hand-built lessons, every section's final screen writes
-  // the completed-sections key (verified: Sec{1..5} final screens each push
-  // their id), so the completion write must NOT be tied to the sparse
-  // `sectionComplete` visual (only §1 uses that; §2–5 end on rich `content`
-  // screens). Byte-compatible key/format; existing progress survives.
+  // One completion per mount. The write is async, and a second tap on the
+  // button before navigation lands used to run it twice concurrently: both
+  // runs read `before` ahead of either write, both saw the lesson as not yet
+  // complete, and both fired `lesson_completed`.
+  const completing = useRef(false);
+
+  // Complete the current section: write its progress key. Called from the
+  // Next press that leads to the done screen — in the original hand-built
+  // lessons every section's final screen wrote the completed-sections key, so
+  // the write must NOT be tied to the sparse `sectionComplete` visual (only
+  // Sprinklers §1 has one).
   const completeSection = useCallback(async () => {
-    if (!section) {
-      onSectionComplete();
-      return;
-    }
+    if (!section) return;
 
     // SPEC-FIX-03 R3 — lesson_completed must derive from the completed SET, not
     // the section's POSITION. Firing on `sectionIndex >= length-1` is wrong:
@@ -182,123 +194,78 @@ export const LessonController: React.FC<LessonControllerProps> = ({
       // Whole-lesson record for the Learn path. Deliberately NOT derived from
       // `storageKey`: flow lessons 1-4 cannot carry one without changing where
       // lesson_started fires. See src/lessons/lessonCompletion.ts.
-      // Fire-and-forget — a lost checkmark must never block finishing a lesson.
-      void markLessonCompleted(lesson.slug);
+      //
+      // AWAITED now, where it used to be fire-and-forget: the done screen reads
+      // the path straight after this to decide whether Continue can open the
+      // next lesson, and for flow lessons this record IS their completion. It
+      // cannot block finishing — markLessonCompleted swallows its own errors.
+      await markLessonCompleted(lesson.slug);
     }
+  }, [lesson, section, sectionIndex]);
 
-    onSectionComplete();
-  }, [lesson, section, sectionIndex, onSectionComplete]);
-
-  // Advance to the next screen, or complete the section on the last screen.
-  const goNext = useCallback(() => {
+  // Advance to the next screen; the press that reaches the done screen writes
+  // the section's progress first.
+  const goNext = useCallback(async () => {
     if (!section) return;
-    if (!isLastScreenInSection) {
-      onAdvance({ sectionIndex, screenIndex: screenIndex + 1 });
-    } else {
-      // Last screen of the section (content OR sectionComplete) → write
-      // progress + return to hub.
-      completeSection();
+    const nextIndex = screenIndex + 1;
+    if (nextIndex >= doneIndex) {
+      if (completing.current) return;
+      completing.current = true;
+      try {
+        await completeSection();
+      } catch (e) {
+        // The write failed (storage full, a store bug). Still move on: the
+        // parent finished the content, and stranding them on the last screen
+        // helps no one. The path will show the section as unfinished, which is
+        // the truthful state.
+        if (__DEV__) console.warn('[LessonController] completeSection failed', e);
+      } finally {
+        completing.current = false;
+      }
     }
-  }, [section, isLastScreenInSection, sectionIndex, screenIndex, onAdvance, completeSection]);
+    onAdvance({ sectionIndex, screenIndex: nextIndex });
+  }, [section, screenIndex, doneIndex, completeSection, onAdvance, sectionIndex]);
 
-  const handleSectionCompleteContinue = completeSection;
+  if (!section) return null;
 
-  if (!screen) return null;
-
-  // Progress chrome: step within the current section.
-  const totalSteps = section ? section.screens.length : 1;
-  const currentStep = screenIndex + 1;
-
-  // --- sectionComplete screen ---
-  if (screen.kind === 'sectionComplete') {
+  // --- the done screen ---
+  if (screenIndex >= doneIndex) {
+    const authored = screen?.kind === 'sectionComplete' ? screen : undefined;
     return (
-      <LessonContainer currentStep={currentStep} totalSteps={totalSteps} onBack={onBack}>
-        <View style={styles.container}>
-          <View style={styles.completeContent}>
-            <SectionCompleteBody title={screen.title} text={screen.text} nextPreview={screen.nextPreview} />
-          </View>
-          <View style={styles.buttonContainer}>
-            <Button title={screen.cta} onPress={handleSectionCompleteContinue} variant="gradient" />
-          </View>
-        </View>
-      </LessonContainer>
-    );
-  }
-
-  // --- content screen ---
-  // A quiz block owns its own advance (onCorrect), so if the screen is a single
-  // quiz we render the QuizQuestion directly (matches the hand-built quiz
-  // screens). Otherwise render the block list + a Next button.
-  const quizBlock = screen.blocks.find((b) => b.type === 'quiz');
-  const isQuizScreen = screen.blocks.length === 1 && quizBlock?.type === 'quiz';
-
-  if (isQuizScreen && quizBlock?.type === 'quiz') {
-    return (
-      <LessonContainer
-        currentStep={currentStep}
-        totalSteps={totalSteps}
-        label={screen.label}
+      <SectionDone
+        lesson={lesson}
+        sectionIndex={sectionIndex}
+        authored={
+          authored
+            ? { title: authored.title, text: authored.text, nextPreview: authored.nextPreview }
+            : undefined
+        }
         onBack={onBack}
-      >
-        <View style={styles.container}>
-          <QuizQuestion
-            questionNumber={quizBlock.questionNumber}
-            totalQuestions={quizBlock.totalQuestions}
-            question={quizBlock.question}
-            options={quizBlock.options}
-            feedback={quizBlock.feedback}
-            onCorrect={goNext}
-          />
-        </View>
-      </LessonContainer>
+        onClose={onSectionComplete}
+        onContinue={onOpenNode}
+        onStop={onSectionComplete}
+      />
     );
   }
 
-  // A lone multiSelectQuiz block renders the QuizQuestionMultiSelect component
-  // (check-all-that-apply), parallel to the single-answer quiz branch above.
-  const msqBlock = screen.blocks.find((b) => b.type === 'multiSelectQuiz');
-  const isMultiSelectScreen = screen.blocks.length === 1 && msqBlock?.type === 'multiSelectQuiz';
-  if (isMultiSelectScreen && msqBlock?.type === 'multiSelectQuiz') {
-    return (
-      <LessonContainer
-        currentStep={currentStep}
-        totalSteps={totalSteps}
-        label={screen.label}
-        onBack={onBack}
-      >
-        <View style={styles.container}>
-          <QuizQuestionMultiSelect
-            questionNumber={msqBlock.questionNumber}
-            totalQuestions={msqBlock.totalQuestions}
-            question={msqBlock.question}
-            options={msqBlock.options}
-            feedback={msqBlock.feedback}
-            onCorrect={goNext}
-          />
-        </View>
-      </LessonContainer>
-    );
-  }
+  if (!screen || screen.kind !== 'content') return null;
 
-  // interactiveQuiz screens hide the Next button until an answer is revealed
-  // (matches the hand-built screens). Any other screen shows Next immediately.
-  const hasInteractiveQuiz = screen.blocks.some((b) => b.type === 'interactiveQuiz');
   return (
     <ContentScreenView
       screen={screen}
-      currentStep={currentStep}
-      totalSteps={totalSteps}
+      progress={(screenIndex + 1) / Math.max(1, doneIndex)}
       onBack={onBack}
+      onClose={onSectionComplete}
       onNext={goNext}
-      gateNextOnInteractive={hasInteractiveQuiz}
     />
   );
 };
 
-// The block types that own a required input and must gate the Next button
-// (Next stays visible but disabled until satisfied — mirrors the hand-built
-// journaling screens' `disabled={value.trim().length === 0}`).
+// The block types that own a required input and must gate Continue (it stays
+// visible but disabled until satisfied).
 const INPUT_BLOCK_TYPES = ['textInput', 'emotionPicker'] as const;
+// Question blocks: Continue is disabled until the answer has been revealed.
+const QUESTION_BLOCK_TYPES = ['quiz', 'multiSelectQuiz', 'interactiveQuiz'] as const;
 
 // SPEC-FIX-03 R4 — flow lessons (1–4) have no hub, so their `lesson_label`
 // isn't carried by hub meta. Kept here (matching LearnScreen's learningModules)
@@ -311,23 +278,35 @@ const FLOW_LESSON_LABELS: Record<string, string> = {
   lesson4: 'WELLNESS',
 };
 
-// Content screen view — separated so it can hold the "interactive answered"
-// state that gates the Next button.
+// Content screen view — separated so it can hold the per-screen state that
+// gates Continue: an unanswered question, an unfilled journaling field, or a
+// multi-select waiting to be checked.
 const ContentScreenView: React.FC<{
   screen: Extract<LessonScreen, { kind: 'content' }>;
-  currentStep: number;
-  totalSteps: number;
+  progress: number;
   onBack: () => void;
+  onClose: () => void;
   onNext: () => void;
-  gateNextOnInteractive: boolean;
-}> = ({ screen, currentStep, totalSteps, onBack, onNext, gateNextOnInteractive }) => {
+}> = ({ screen, progress, onBack, onClose, onNext }) => {
+  const hasQuestion = screen.blocks.some((b) =>
+    (QUESTION_BLOCK_TYPES as readonly string[]).includes(b.type),
+  );
   const [answered, setAnswered] = React.useState(false);
+  // Stable, because a question's reveal callback depends on it and the
+  // multi-select re-publishes its check action whenever that changes — a
+  // fresh arrow per render would loop publish → setCheck → render → publish.
+  const onAnswered = React.useCallback(() => setAnswered(true), []);
 
-  // Input-block gating: Next is shown but DISABLED until every required input
-  // block on this screen reports satisfied. Track the unsatisfied set by block
-  // key (a block reports satisfied=false to add itself, true to remove). We
-  // seed the set with every input block's key so Next starts disabled until
-  // each reports in.
+  // A multi-select question's "check" action, published by the block. While
+  // one is registered the pill reads "Check answer".
+  const [check, setCheck] = React.useState<{ run: () => void; enabled: boolean } | null>(null);
+  const registerCheck = React.useCallback((run: (() => void) | null, enabled: boolean) => {
+    setCheck(run ? { run, enabled } : null);
+  }, []);
+
+  // Input-block gating: track the unsatisfied set by block key (a block
+  // reports satisfied=false to add itself, true to remove). Seeded with every
+  // input block's key so Continue starts disabled until each reports in.
   const inputKeys = React.useMemo(
     () =>
       screen.blocks
@@ -353,123 +332,61 @@ const ContentScreenView: React.FC<{
     });
   }, []);
 
-  const showNext = !gateNextOnInteractive || answered;
-  const nextDisabled = unsatisfied.size > 0;
+  // The label content chose, minus a trailing arrow: several screens say
+  // "Next →" or "This surprised me →", and an arrow inside a full-width pill
+  // is noise the onboarding pills never carry.
+  const label = (screen.cta ?? 'Continue').replace(/\s*→\s*$/, '');
+
+  let cta: { label: string; onPress: () => void; disabled?: boolean };
+  let footerNote: string | undefined;
+  let secondary: { label: string; onPress: () => void } | undefined;
+
+  if (check) {
+    cta = { label: 'Check answer', onPress: check.run, disabled: !check.enabled };
+  } else if (hasQuestion && !answered) {
+    cta = { label, onPress: onNext, disabled: true };
+    footerNote = 'Choose an answer to continue.';
+  } else if (unsatisfied.size > 0) {
+    cta = { label, onPress: onNext, disabled: true };
+    // Say what is actually missing: a picker screen asks for a feeling, not
+    // for "a line or two".
+    const waitingOnPicker = screen.blocks.some(
+      (b, i) => b.type === 'emotionPicker' && unsatisfied.has(String(i)),
+    );
+    footerNote = waitingOnPicker
+      ? 'Choose a feeling and say why to continue.'
+      : 'Write a line or two to continue.';
+    // Journaling is the heaviest ask in the app — write about the last time you
+    // were angry — and it used to be a hard wall. A parent who does not want to
+    // write tonight should still be able to finish the section.
+    secondary = { label: 'Skip this one', onPress: onNext };
+  } else {
+    cta = { label, onPress: onNext };
+  }
+
+  const firstHeading = screen.blocks.findIndex((b) => b.type === 'heading');
+
   return (
-    <LessonContainer
-      currentStep={currentStep}
-      totalSteps={totalSteps}
+    <LessonShell
+      progress={progress}
       label={screen.label}
       onBack={onBack}
+      onClose={onClose}
+      cta={cta}
+      footerNote={footerNote}
+      secondary={secondary}
     >
-      <View style={styles.container}>
-        <View style={styles.content}>
-          {screen.blocks.map((block, i) => (
-            <BlockRenderer
-              key={i}
-              block={block}
-              blockKey={String(i)}
-              onInteractiveAnswered={() => setAnswered(true)}
-              onInputValidityChange={onInputValidityChange}
-            />
-          ))}
-        </View>
-        {showNext && (
-          <View style={styles.buttonContainer}>
-            <Button
-              title={screen.cta ?? 'Next'}
-              onPress={onNext}
-              variant="gradient"
-              disabled={nextDisabled}
-            />
-          </View>
-        )}
-      </View>
-    </LessonContainer>
+      {screen.blocks.map((block, i) => (
+        <BlockRenderer
+          key={i}
+          block={block}
+          blockKey={String(i)}
+          onInteractiveAnswered={onAnswered}
+          registerCheck={registerCheck}
+          onInputValidityChange={onInputValidityChange}
+          isTitle={i === firstHeading}
+        />
+      ))}
+    </LessonShell>
   );
 };
-
-// The section-complete visual (checkmark card + preview) lives in the block
-// renderer family conceptually, but it's screen-level chrome so it's rendered
-// here. Kept as a small local component for clarity.
-const SectionCompleteBody: React.FC<{ title: string; text: string; nextPreview?: string }> = ({
-  title,
-  text,
-  nextPreview,
-}) => (
-  <>
-    <View style={styles.completionCard}>
-      <Ionicons name="checkmark-circle" size={64} color={Colors.success} />
-      <Text style={styles.completionTitle}>{title}</Text>
-      <Text style={styles.completionText}>{text}</Text>
-    </View>
-    {nextPreview && (
-      <View style={styles.previewCard}>
-        <Text style={styles.previewLabel}>NEXT:</Text>
-        <Text style={styles.previewTitle}>{nextPreview}</Text>
-      </View>
-    )}
-  </>
-);
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  content: {
-    flex: 1,
-    paddingTop: 10,
-    gap: 24,
-    justifyContent: 'center',
-  },
-  completeContent: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: 32,
-    paddingHorizontal: 10,
-  },
-  buttonContainer: {
-    paddingBottom: 20,
-    width: '100%',
-  },
-  completionCard: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: Colors.surface,
-    borderRadius: 24,
-    ...Shadows.md,
-    gap: 16,
-  },
-  completionTitle: {
-    fontSize: 24,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textPrimary,
-  },
-  completionText: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: Colors.textSecondary,
-    lineHeight: 24,
-  },
-  previewCard: {
-    backgroundColor: '#F5F5F5',
-    padding: 24,
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primary,
-  },
-  previewLabel: {
-    fontSize: 12,
-    fontWeight: Typography.weights.bold,
-    color: Colors.textTertiary,
-    marginBottom: 8,
-    letterSpacing: 1,
-  },
-  previewTitle: {
-    fontSize: 18,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.textPrimary,
-    lineHeight: 26,
-  },
-});
