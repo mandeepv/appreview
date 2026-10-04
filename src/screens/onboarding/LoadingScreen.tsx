@@ -19,7 +19,13 @@ import { ProgressRing } from '../../components/onboarding/ProgressRing';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useConfigStore } from '../../store/configStore';
-import { resolveGateOutcome } from '../../navigation/routingPolicy';
+import {
+  resolveGateOutcome,
+  resolveWebCheckOutcome,
+  resolveWebRecheck,
+  webCheckEventResult,
+} from '../../navigation/routingPolicy';
+import { checkWebEntitlement } from '../../services/entitlementService';
 import { saveUserOnboardingData } from '../../services/onboardingService';
 import { restorePurchases } from '../../services/purchaseService';
 import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
@@ -59,13 +65,33 @@ const PRESENT_WATCHDOG_MS = 5000;
 type Props = NativeStackScreenProps<OnboardingStackParamList, "Loading">;
 
 /**
+ * The background re-check for a launch that entered Root on a cached 'web'
+ * flag (see resolveWebRecheck). Fire-and-forget — it outlives this screen,
+ * which unmounts on the replace('Root') that precedes it, so it touches only
+ * the store. It clears the flag only if the same user is still signed in on
+ * a 'web' flag when the answer arrives: a sign-out, an account switch or an
+ * Apple purchase in the meantime makes the answer moot.
+ */
+async function recheckWebEntitlement(userId: string): Promise<void> {
+  const result = await checkWebEntitlement(userId);
+  if (resolveWebRecheck(result) !== "clear") return;
+  const { user, subscriptionSource, setIsSubscribed } = useAuthStore.getState();
+  if (user?.id !== userId || subscriptionSource !== "web") return;
+  if (__DEV__)
+    console.log("[LoadingScreen] web entitlement gone — next launch will gate");
+  setIsSubscribed(false);
+}
+
+/**
  * LoadingScreen is the subscription gate. Every route to Root passes through
  * this screen. It has two responsibilities:
  *
  *   1. Save onboarding data to Supabase (first-time flow, guarded by
  *      onboardingStore having non-null answers).
  *   2. Present the mandatory paywall unless the user is already entitled
- *      (`isSubscribed` in device-local memory, OR isDemoUser for App Review).
+ *      (`isSubscribed` in device-local memory, OR isDemoUser for App Review,
+ *      OR an active kinderwell.app purchase in `entitlements` — checked
+ *      after those two and before Superwall; see runGate).
  *
  * Hard-paywall model (2026-07-05):
  *   - Entitled users (subscribed or demo) → skip paywall, go straight to Root.
@@ -524,7 +550,15 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     if (isSubscribed) {
       if (__DEV__)
         console.log("⏩ Skipping paywall — user is a confirmed subscriber");
+      // Read before leaving: the source decides whether a re-check is owed.
+      const { subscriptionSource } = useAuthStore.getState();
       navigation.replace('Root');
+      // A web subscriber entering on the cache never meets the web step below,
+      // so a refund would otherwise never be noticed. Re-check in the
+      // background; it can only clear the flag, for the NEXT launch.
+      if (subscriptionSource === 'web' && user?.id) {
+        void recheckWebEntitlement(user.id);
+      }
       return;
     }
 
@@ -546,6 +580,31 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         console.log("⏩ Skipping paywall — SKIP_PAYWALL=true (dev only)");
       navigation.replace('Root');
       return;
+    }
+
+    // Web purchases (2026-10): a parent who bought on kinderwell.app has an
+    // `entitlements` row and no Apple subscription, so Superwall would paywall
+    // a paying customer. Check the row first. Placed AFTER the short-circuits
+    // above, so existing subscribers launch exactly as fast as before, and
+    // BEFORE the watchdog / identify() / registerPlacement below, so a web
+    // buyer never sees the paywall.
+    //
+    // Only a proven entitlement enters Root. not_entitled, error and timeout
+    // (4s cap, in the service) continue into the Superwall path UNCHANGED — an
+    // error is never entitlement, and never blocks the paywall. gateInFlightRef
+    // stays set across the await, so a duplicate scheduler firing is still a
+    // no-op while the check runs.
+    if (user?.id) {
+      const webResult = await checkWebEntitlement(user.id);
+      safeCapture("web_entitlement_checked", {
+        result: webCheckEventResult(webResult),
+      });
+      if (resolveWebCheckOutcome(webResult) === "enter_root") {
+        if (__DEV__) console.log("⏩ Skipping paywall — web entitlement");
+        setIsSubscribed(true, "web");
+        navigation.replace('Root');
+        return;
+      }
     }
 
     if (__DEV__) console.log("=== 🚀 RUNNING GATE (unsubscribed user) ===");

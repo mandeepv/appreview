@@ -7,7 +7,11 @@ import {
   type AuthMode,
   type GateResult,
   resolveSignedInLaunch,
+  resolveWebCheckOutcome,
+  resolveWebRecheck,
+  webCheckEventResult,
 } from '../routingPolicy';
+import type { WebCheckResult } from '../../store/webEntitlement';
 
 // Full truth tables for the two routing-kernel functions. These are the
 // regression tests for the app's two documented routing bugs (v1.0.0 paywall
@@ -239,5 +243,49 @@ describe('resolveSignedInLaunch', () => {
   it('resumes from the very first question', () => {
     const launch = resolveSignedInLaunch({ lastScreen: 'Welcome', hasReachedAuth: false });
     expect(launch).toEqual({ action: 'resume', stack: ['Welcome'] });
+  });
+});
+
+// Web purchases (2026-10). The launch gate's web step: only a proven web
+// entitlement enters Root; every other answer continues into Superwall, which
+// is the path that calls registerPlacement. An error is never entitlement.
+describe('resolveWebCheckOutcome — the web step of the gate', () => {
+  const entitled: WebCheckResult = { kind: 'entitled', periodEnd: '2026-11-04T00:00:00Z', productId: 'p' };
+  const notEntitled: WebCheckResult = { kind: 'not_entitled' };
+  const error: WebCheckResult = { kind: 'error', timedOut: false };
+  const timeout: WebCheckResult = { kind: 'error', timedOut: true };
+
+  it('entitled → enter_root (Superwall never runs)', () => {
+    expect(resolveWebCheckOutcome(entitled)).toBe('enter_root');
+  });
+
+  it.each([
+    ['not_entitled', notEntitled],
+    ['error', error],
+    ['timeout', timeout],
+  ])('%s → continue_to_superwall (registerPlacement runs)', (_name, result) => {
+    expect(resolveWebCheckOutcome(result)).toBe('continue_to_superwall');
+  });
+
+  it('labels the analytics result, separating timeout from error', () => {
+    expect(webCheckEventResult(entitled)).toBe('entitled');
+    expect(webCheckEventResult(notEntitled)).toBe('not_entitled');
+    expect(webCheckEventResult(error)).toBe('error');
+    expect(webCheckEventResult(timeout)).toBe('timeout');
+  });
+});
+
+describe('resolveWebRecheck — the background re-check only ever clears on a definite no', () => {
+  it('not_entitled → clear (refund, expiry, row gone)', () => {
+    expect(resolveWebRecheck({ kind: 'not_entitled' })).toBe('clear');
+  });
+
+  it('error or timeout → keep (offline leniency, same as Apple)', () => {
+    expect(resolveWebRecheck({ kind: 'error', timedOut: false })).toBe('keep');
+    expect(resolveWebRecheck({ kind: 'error', timedOut: true })).toBe('keep');
+  });
+
+  it('entitled → keep', () => {
+    expect(resolveWebRecheck({ kind: 'entitled', periodEnd: 'x', productId: 'p' })).toBe('keep');
   });
 });

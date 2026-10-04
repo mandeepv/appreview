@@ -13,6 +13,7 @@
 // input they always return the same decision.
 
 import type { OnboardingCheckResult } from '../services/onboardingService';
+import type { WebCheckResult } from '../store/webEntitlement';
 
 // ---------------------------------------------------------------------------
 // resolvePostAuthDestination — where does a just-signed-in user go?
@@ -246,4 +247,46 @@ export function resolveSignedInLaunch(
   if (!stack) return { action: 'gate' };
 
   return { action: 'resume', stack };
+}
+
+// ---------------------------------------------------------------------------
+// resolveWebCheckOutcome — does a web purchase let this launch skip Superwall?
+// ---------------------------------------------------------------------------
+
+/**
+ * The launch gate's web step (2026-10), run AFTER the demo / cached-subscriber
+ * / dev-skip short-circuits and BEFORE the present watchdog, identify() and
+ * registerPlacement. Only a proven web entitlement enters Root from here.
+ * not_entitled, error and timeout all CONTINUE into the existing Superwall
+ * path unchanged: an error is never treated as entitled, and never blocks the
+ * paywall either — the same rule as the onboarding check's `error` never
+ * being `no_onboarding`.
+ */
+export function resolveWebCheckOutcome(
+  result: WebCheckResult,
+): 'enter_root' | 'continue_to_superwall' {
+  return result.kind === 'entitled' ? 'enter_root' : 'continue_to_superwall';
+}
+
+/** The `result` property of the web_entitlement_checked event. No PII. */
+export function webCheckEventResult(
+  result: WebCheckResult,
+): 'entitled' | 'not_entitled' | 'error' | 'timeout' {
+  if (result.kind === 'error') return result.timedOut ? 'timeout' : 'error';
+  return result.kind;
+}
+
+/**
+ * The background re-check (2026-10). A launch on a cached 'web' flag skips the
+ * gate, so without this a refunded web buyer would stay in forever. The
+ * re-check runs once Root is entered and only ever CLEARS the flag, so the
+ * NEXT launch gates — the current session is never interrupted.
+ *
+ *   not_entitled → clear (revoked, expired, period over, row gone)
+ *   error        → keep: offline web subscribers get the same leniency Apple
+ *                  subscribers get when Superwall is unreachable
+ *   entitled     → keep
+ */
+export function resolveWebRecheck(result: WebCheckResult): 'clear' | 'keep' {
+  return result.kind === 'not_entitled' ? 'clear' : 'keep';
 }
