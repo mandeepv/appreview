@@ -204,7 +204,17 @@ the call sites.
 
 **Effort**: ~2h including deciding the code vocabulary.
 
-### R3. The in-lesson player is still on the old teal palette 🟡
+### R3. The in-lesson player is still on the old teal palette 🟡 — DONE (2026-09-28; committed 2026-10-04, `24d486f`)
+
+> Restyled onto the cream/forest tokens *with* behaviour fixes from a lesson
+> audit: pinned footer, close button, answer-once questions (no red, no
+> wipe-and-retry), a done screen after every section with Continue / Stop for
+> tonight, a lesson-complete takeover, card subtitles actually rendered,
+> journaling skippable and labelled private. Content changes that went in with
+> it: a `tonight` action on every lesson, no lesson counts in copy, the
+> Sprinklers Phase 2 answer fix, and Emotional Sandbags rewritten around the
+> child instead of a partner. The remaining copy changes are proposed
+> separately (the content review doc) and not applied.
 
 **Problem**: onboarding, the Learn path, the tab bar and the You screen
 are on the cream/forest system. `LessonController` / `BlockRenderer` and
