@@ -29,6 +29,7 @@ import {
   OnboardingFonts as F,
   OnboardingType as T,
   OnboardingLayout as L,
+  OnboardingRadius as R,
   oInk,
   oForest,
 } from '../../constants/theme';
@@ -90,14 +91,29 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => {
 
           <View style={styles.grow} />
 
+          {/* Sign in is a real (outline) button, not a text link (2026-10).
+              Parents who bought on kinderwell.app now arrive here on purpose,
+              told to tap Sign in — and a new buyer's thumb goes to the biggest
+              thing on the screen, which sent them through the whole
+              questionnaire again. Get started keeps the weight; Sign in is
+              unmissable beneath it.
+
+              The three labels "Get started", "Already have an account?" and
+              "Sign in" are quoted word for word by the website's /welcome
+              page, receipt and reminder emails (INVARIANTS) — change both in
+              the same release. And nothing here mentions the website, web
+              purchases or prices: every organic App Store user sees this
+              screen. */}
           <View>
             <ContinuePill label="Get started" onPress={handleGetStarted} />
-            <View style={styles.signInRow}>
-              <Text style={styles.signInLead}>Already have an account?</Text>
-              <Pressable onPress={handleSignIn} hitSlop={10}>
-                <Text style={styles.signInLink}>Sign in</Text>
-              </Pressable>
-            </View>
+            <Text style={styles.signInLead}>Already have an account?</Text>
+            <Pressable
+              onPress={handleSignIn}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.signInButton, pressed && styles.signInButtonPressed]}
+            >
+              <Text style={styles.signInLabel}>Sign in</Text>
+            </Pressable>
           </View>
         </Animated.View>
       </SafeAreaView>
@@ -144,20 +160,25 @@ const styles = StyleSheet.create({
     marginTop: 14,
     maxWidth: 310,
   },
-  signInRow: {
-    flexDirection: 'row',
+  signInLead: {
+    fontFamily: F.sans,
+    fontSize: 16,
+    color: oInk(0.74),
+    textAlign: 'center',
+    marginTop: 22,
+  },
+  // The Get started pill's geometry (ContinuePill: buttonHeight, full round),
+  // outlined in forest on the paper canvas: secondary by weight, not by size.
+  signInButton: {
+    width: '100%',
+    height: L.buttonHeight,
+    borderRadius: R.pill,
+    borderWidth: 1.5,
+    borderColor: C.forest,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 20,
+    marginTop: 10,
   },
-  signInLead: { fontFamily: F.sans, fontSize: 16, color: oInk(0.74) },
-  signInLink: {
-    fontFamily: F.sansSemi,
-    fontSize: 16,
-    color: C.forestDeep,
-    borderBottomWidth: 1.5,
-    borderBottomColor: oForest(0.5),
-    paddingBottom: 1,
-  },
+  signInButtonPressed: { backgroundColor: oForest(0.08) },
+  signInLabel: { fontFamily: F.sansSemi, fontSize: T.ui, color: C.forest },
 });
