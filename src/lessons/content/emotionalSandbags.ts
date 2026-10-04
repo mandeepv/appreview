@@ -470,7 +470,7 @@ export const emotionalSandbags: Lesson = {
             { type: 'heading', text: 'Step 1: Have a radar for unhappiness', size: 'lg' },
             {
               type: 'paragraph',
-              text: "When our partner is grumpy or withdrawn — especially when it isn't about us — it's often a sign they're carrying emotional weight.",
+              text: "When your child is grumpy or withdrawn — especially when it isn't about you — it's often a sign they're carrying emotional weight.",
             },
             {
               type: 'cardList',
@@ -502,7 +502,7 @@ export const emotionalSandbags: Lesson = {
               type: 'quiz',
               questionNumber: 1,
               totalQuestions: 4,
-              question: 'True or False: Research shows that most of us are naturally good at noticing when our partner is unhappy.',
+              question: 'True or False: Research shows that most of us are naturally good at noticing when someone we love is unhappy.',
               options: [
                 { label: 'True', isCorrect: false },
                 { label: 'False', isCorrect: true },
@@ -587,7 +587,7 @@ export const emotionalSandbags: Lesson = {
               label: 'For example:',
               labelColor: '#D97706',
               lines: [
-                'Your partner shares an idea at work — something they were excited about — and a colleague quickly dismisses it.',
+                'Your child shows the class a drawing they were proud of — and a few classmates laugh at it.',
               ],
             },
             { type: 'paragraph', text: 'Pause and ask yourself:' },
@@ -613,7 +613,7 @@ export const emotionalSandbags: Lesson = {
               type: 'quiz',
               questionNumber: 3,
               totalQuestions: 4,
-              question: "Why is it important to put yourself in your partner's shoes before responding?",
+              question: "Why is it important to put yourself in your child's shoes before responding?",
               options: [
                 { label: 'To better understand their emotions', isCorrect: false },
                 { label: 'To avoid minimizing their feelings', isCorrect: false },
@@ -649,7 +649,7 @@ export const emotionalSandbags: Lesson = {
                 [
                   { text: '"It sounds like you\'re ', emphasis: 'plain' },
                   { text: 'frustrated', emphasis: 'emphasis' },
-                  { text: ' because your idea wasn\'t heard."', emphasis: 'plain' },
+                  { text: ' because they laughed at something you worked hard on."', emphasis: 'plain' },
                 ],
                 [
                   { text: '"Maybe you\'re ', emphasis: 'plain' },
@@ -767,7 +767,7 @@ export const emotionalSandbags: Lesson = {
             { type: 'heroEmoji', emoji: '😟 👀' },
             {
               type: 'paragraph',
-              text: 'Notice when your partner seems grumpy or off.',
+              text: 'Notice when your child seems grumpy or off.',
             },
             {
               type: 'callout',
@@ -876,7 +876,7 @@ export const emotionalSandbags: Lesson = {
               type: 'callout',
               variant: 'highlight',
               lines: [
-                [{ text: '"Are you feeling frustrated that your coworker was so rude?"', emphasis: 'emphasis' }],
+                [{ text: '"Are you feeling embarrassed that they laughed at your drawing?"', emphasis: 'emphasis' }],
               ],
             },
             {
@@ -996,9 +996,9 @@ export const emotionalSandbags: Lesson = {
               variant: 'summary',
               center: true,
               lines: [
-                "You've had a long day at work.",
-                'You get home and your partner is already there. You ask how their day went.',
-                'They look down and say, "Good," then move on to something else.',
+                'You pick your 9-year-old up from school.',
+                'You ask how their day went.',
+                'They look out of the window and say, "Fine," then go quiet.',
               ],
             },
           ],
@@ -1013,11 +1013,11 @@ export const emotionalSandbags: Lesson = {
               totalQuestions: 5,
               question: 'What should you do first?',
               options: [
-                { label: 'Walk away — after all, they said "good"', isCorrect: false },
-                { label: 'Ask "what\'s wrong with you?" knowing your day was worse', isCorrect: false },
-                { label: 'Notice: your radar for unhappiness goes off and you notice your partner is upset', isCorrect: true },
+                { label: 'Leave it — after all, they said "fine"', isCorrect: false },
+                { label: 'Ask "what\'s wrong with you?" because you\'re tired too', isCorrect: false },
+                { label: 'Notice: your radar for unhappiness goes off and you notice your child is upset', isCorrect: true },
               ],
-              feedback: 'Noticing is powerful. It tells your partner: "I see you. You matter."',
+              feedback: 'Noticing is powerful. It tells your child: "I see you. You matter."',
             },
           ],
         },
@@ -1029,7 +1029,7 @@ export const emotionalSandbags: Lesson = {
               type: 'quiz',
               questionNumber: 2,
               totalQuestions: 5,
-              question: 'Next, what should you say to your partner?',
+              question: 'Next, what should you say to your child?',
               options: [
                 { label: '"What\'s wrong with you?"', isCorrect: false },
                 { label: '"What\'s your problem?!?!"', isCorrect: false },
@@ -1046,19 +1046,19 @@ export const emotionalSandbags: Lesson = {
           blocks: [
             {
               type: 'paragraph',
-              text: 'Your partner tells you that while you were at work:',
+              text: 'Your child tells you that today:',
             },
             {
               type: 'cardList',
               layout: 'stack',
               cardStyle: 'plain',
               items: [
-                { icon: '•', iconKind: 'emoji', title: 'Your daughter got in trouble at school' },
-                { icon: '•', iconKind: 'emoji', title: 'Your son got punched by a friend' },
-                { icon: '•', iconKind: 'emoji', title: 'The house is a disaster' },
+                { icon: '•', iconKind: 'emoji', title: 'Their best friend sat with someone else at lunch' },
+                { icon: '•', iconKind: 'emoji', title: 'They got an answer wrong in front of the class' },
+                { icon: '•', iconKind: 'emoji', title: 'Recess was cancelled because of rain' },
               ],
             },
-            { type: 'footer', text: 'They also mention they have a headache.' },
+            { type: 'footer', text: 'They also mention they\'re really tired.' },
           ],
         },
         // Screen 5 — QuizQuestion
@@ -1072,8 +1072,8 @@ export const emotionalSandbags: Lesson = {
               question: 'What should you do next?',
               options: [
                 { label: 'Start thinking of ways to solve the problems', isCorrect: false },
-                { label: "Try to put yourself in your partner's shoes and feel what they are feeling", isCorrect: true },
-                { label: 'Prepare to tell your partner about your bad day', isCorrect: false },
+                { label: "Try to put yourself in your child's shoes and feel what they are feeling", isCorrect: true },
+                { label: 'Prepare to tell them about your own day', isCorrect: false },
               ],
               feedback: 'Empathy comes before solutions.',
             },
@@ -1149,11 +1149,11 @@ export const emotionalSandbags: Lesson = {
               type: 'quiz',
               questionNumber: 4,
               totalQuestions: 5,
-              question: 'What are three feelings your partner might be feeling?',
+              question: 'What are three feelings your child might be feeling?',
               options: [
-                { label: 'Overwhelmed, Stressed, Worried', isCorrect: true },
-                { label: 'Guilty, Embarrassed, Small', isCorrect: false },
-                { label: 'Jealous, Betrayed, Confused', isCorrect: false },
+                { label: 'Left out, Embarrassed, Disappointed', isCorrect: true },
+                { label: 'Proud, Relieved, Content', isCorrect: false },
+                { label: 'Bored, Curious, Surprised', isCorrect: false },
               ],
               feedback: 'These emotions match the situation without exaggerating or mislabeling.',
             },
@@ -1167,7 +1167,7 @@ export const emotionalSandbags: Lesson = {
             { type: 'heroEmoji', emoji: '💙' },
             {
               type: 'paragraph',
-              text: 'You take a moment to feel what your partner might be feeling.',
+              text: 'You take a moment to feel what your child might be feeling.',
             },
             {
               type: 'callout',
@@ -1189,11 +1189,11 @@ export const emotionalSandbags: Lesson = {
               question: 'What do you do next?',
               options: [
                 { label: 'Start trying to fix problems', isCorrect: false },
-                { label: 'Tell your partner about your day', isCorrect: false },
-                { label: "Tell your partner it's time to move on", isCorrect: false },
-                { label: 'Help your partner label their feelings: "Are you feeling…?"', isCorrect: true },
+                { label: 'Tell them about your day', isCorrect: false },
+                { label: "Tell them it's time to move on", isCorrect: false },
+                { label: 'Help your child label their feelings: "Are you feeling…?"', isCorrect: true },
               ],
-              feedback: 'Helping your partner label their emotions — while avoiding common traps — builds deep bonds.',
+              feedback: 'Helping your child label their emotions — while avoiding common traps — builds deep bonds.',
             },
           ],
         },
@@ -1218,7 +1218,7 @@ export const emotionalSandbags: Lesson = {
               bg: '#E8F5E9',
               textColor: '#2E7D32',
               center: true,
-              lines: ['You helped your partner unload their emotional sandbags.'],
+              lines: ['You helped your child unload their emotional sandbags.'],
             },
           ],
         },
