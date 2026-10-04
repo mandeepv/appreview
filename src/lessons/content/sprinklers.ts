@@ -17,6 +17,8 @@ import type { Lesson } from '../schema';
 export const sprinklers: Lesson = {
   slug: 'sprinklers',
   title: 'Sprinklers: Building Deep Bonds',
+  tonight:
+    'The next time your child is “in the sprinklers”, hold back the advice. Stay close and say, “That’s really hard.”',
   storageKey: '@sprinklers_completed_sections',
   sections: [
     // =====================================================================

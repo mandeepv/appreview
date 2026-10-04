@@ -254,3 +254,13 @@ describe('no lesson counts or "x of y" numbering in lesson copy', () => {
     });
   }
 });
+
+describe('every lesson ends with one thing to try tonight', () => {
+  // Owner rule (2026-09). Shown on the lesson-complete takeover.
+  for (const [slug, lesson] of Object.entries(LESSON_REGISTRY)) {
+    it(`${slug} has a tonight action`, () => {
+      expect(typeof lesson.tonight).toBe('string');
+      expect((lesson.tonight ?? '').trim().length).toBeGreaterThan(20);
+    });
+  }
+});

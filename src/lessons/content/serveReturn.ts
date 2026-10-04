@@ -27,6 +27,8 @@ import type { Lesson } from '../schema';
 export const serveReturn: Lesson = {
   slug: 'serveReturn',
   title: 'Serve and Return',
+  tonight:
+    'Watch for your child’s serves tonight — a question, a look, “watch this!” — and return every one you can.',
   storageKey: '@serve_return_completed_sections',
   sections: [
     // =====================================================================

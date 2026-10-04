@@ -21,6 +21,8 @@ import type { Lesson } from '../schema';
 export const recordingDeepBondMoments: Lesson = {
   slug: 'recordingDeepBondMoments',
   title: 'Recording Deep Bond Moments',
+  tonight:
+    'Make an album on your phone called “Us” and move five one-on-one photos of you and your child into it.',
   storageKey: '@recording_deep_bond_moments_completed_sections',
   sections: [
     {

@@ -25,6 +25,8 @@ import type { Lesson } from '../schema';
 export const communicationMistakes: Lesson = {
   slug: 'communicationMistakes',
   title: 'Communication Mistakes',
+  tonight:
+    'Listen for the moment you’re about to say “it’s not a big deal” — and say “that really mattered to you” instead.',
   storageKey: '@communication_mistakes_completed_sections',
   sections: [
     // =====================================================================

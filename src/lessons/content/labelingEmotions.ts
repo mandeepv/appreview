@@ -25,6 +25,8 @@ import type { Lesson } from '../schema';
 export const labelingEmotions: Lesson = {
   slug: 'labelingEmotions',
   title: 'The Importance of\nLabeling Emotions',
+  tonight:
+    'The next time you feel “mad” or “bad”, pause and name the more specific feeling underneath — even just to yourself.',
   storageKey: '@lesson5_completed_sections',
   sections: [
     // =====================================================================

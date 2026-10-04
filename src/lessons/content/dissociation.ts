@@ -18,6 +18,8 @@ import type { Lesson } from '../schema';
 export const dissociation: Lesson = {
   slug: 'dissociation',
   title: 'Dissociation',
+  tonight:
+    'Notice one moment your mind goes blank on a hard topic. Say to yourself, “I’m avoiding this,” and pick a time tomorrow to come back to it.',
   storageKey: '@dissociation_completed_sections',
   sections: [
     // =====================================================================

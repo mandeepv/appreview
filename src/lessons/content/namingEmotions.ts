@@ -28,6 +28,8 @@ import type { Lesson } from '../schema';
 export const namingEmotions: Lesson = {
   slug: 'namingEmotions',
   title: 'Naming our Emotions',
+  tonight:
+    'When your child is upset tonight, name one feeling for them as a gentle guess: “You seem disappointed that…”',
   storageKey: '@naming_emotions_completed_sublessons',
   sections: [
     // =====================================================================

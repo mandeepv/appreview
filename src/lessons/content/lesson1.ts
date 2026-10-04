@@ -18,6 +18,8 @@ import type { Lesson } from '../schema';
 export const lesson1: Lesson = {
   slug: 'lesson1',
   title: 'What changed in parenting science?',
+  tonight:
+    'The next time your child melts down, say this before anything else: “I can see you’re overwhelmed. I’m right here.”',
   sections: [
     {
       id: '1',

@@ -22,6 +22,8 @@ import type { Lesson } from '../schema';
 export const lesson3: Lesson = {
   slug: 'lesson3',
   title: 'The Long-Term Unhappiness Chemical',
+  tonight:
+    'Catch one tease, sarcastic comment or comparison before it leaves your mouth, and let it go.',
   sections: [
     {
       id: '1',

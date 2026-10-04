@@ -16,6 +16,8 @@ import type { Lesson } from '../schema';
 export const lesson2: Lesson = {
   slug: 'lesson2',
   title: 'Happiness Chemicals',
+  tonight:
+    'Notice one moment tonight when you reach for a quick lift — your phone, a snack, something in your cart — and just name it: “that’s dopamine.”',
   sections: [
     {
       id: '1',

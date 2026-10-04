@@ -21,6 +21,8 @@ import type { Lesson } from '../schema';
 export const helpingProcessEmotions: Lesson = {
   slug: 'helpingProcessEmotions',
   title: 'Helping Someone Process Emotions',
+  tonight:
+    'The next time someone comes to you upset, guess one feeling as a question — “Does that make you worried?” — before offering any fix.',
   storageKey: '@helping_process_emotions_completed_sections',
   sections: [
     // =====================================================================

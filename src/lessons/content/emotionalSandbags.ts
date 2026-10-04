@@ -23,6 +23,8 @@ import type { Lesson } from '../schema';
 export const emotionalSandbags: Lesson = {
   slug: 'emotionalSandbags',
   title: 'Emotional Sandbags',
+  tonight:
+    'Turn your radar on tonight. If someone at home seems off, ask, “Rough day? Want to tell me about it?” — then just listen.',
   storageKey: '@emotional_sandbags_completed_sections',
   sections: [
     // =====================================================================

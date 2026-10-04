@@ -22,6 +22,8 @@ import type { Lesson } from '../schema';
 export const lesson4: Lesson = {
   slug: 'lesson4',
   title: 'The Long-Term Happiness Chemical',
+  tonight:
+    'At bedtime, sit close enough that your arms touch for one minute — no phone, no agenda.',
   sections: [
     {
       id: '1',
