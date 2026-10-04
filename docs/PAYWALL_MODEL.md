@@ -6,7 +6,9 @@
 Kinderwell ships a **hard paywall**: after onboarding, the paywall is
 mandatory and undismissable. Unsubscribed users cannot reach the
 LearnScreen. The only ways past the paywall are (1) a successful
-subscription purchase or (2) 7-tap demo mode for Apple reviewers.
+subscription purchase, (2) 7-tap demo mode for Apple reviewers, or
+(3) since v1.3.0, an active purchase made on kinderwell.app (see
+[Web entitlements](#web-entitlements)).
 
 This doc is the source of truth for the paywall model. Every code
 comment and other doc that describes gating should refer back here.
@@ -28,14 +30,20 @@ Is the user signed in?
               ↓
               Check isSubscribed (device-local, persisted) OR isDemoUser
               ├── TRUE  → Root (LearnScreen)
+              │           (cached 'web' flag → background web re-check)
               │
-              └── FALSE → Fire `subscription_gate` placement
+              └── FALSE → Web check: the user's own `entitlements` row (≤4s)
+                          ├── entitled                 → Root (flag set, source 'web')
+                          └── not entitled / error / timeout
+                                ↓
+                          Fire `subscription_gate` placement
                           ↓
                           Superwall's Gated check:
                           ├── User has active entitlement       → onSkip fires → Root
                           ├── User doesn't have active entitlement → paywall UI shows
                           │     ↓
                           │     ├── Purchase completes           → onDismiss(purchased) → Root
+                          │     ├── "Use a different account"   → sign out → Auth (sign-in)
                           │     ├── User dismisses somehow      → onDismiss(other) → runGate() again
                           │     └── Superwall SDK error        → isSubscribed? Root : retry every 3s
 ```
@@ -60,6 +68,8 @@ before, don't show it again" state.
 
 3. **isSubscribed is USER-BOUND, not merely "cleared on sign-out"
    (SPEC-FIX-08).** The persisted flag is `{ userId, subscribed }`
+   (plus `source: 'web' | 'superwall'` since v1.3.0 — it decides who may
+   clear the flag, never whether it is honored)
    (`src/store/entitlementCache.ts`), honored on hydrate ONLY when a
    session exists for the SAME user id (`session.user.id === record.userId`).
    ANY launch with no session, or a session for a different user, treats
@@ -85,13 +95,101 @@ before, don't show it again" state.
    Modal). If a dismiss slips through (older cached template, edge
    case), our `onDismiss` handler calls `runGate()` again after 300ms
    to re-present. The user cannot escape without purchasing or being
-   demo-mode.
+   demo-mode. One deliberate exception (v1.3.0): the paywall's "Use a
+   different account" button (custom action `switch_account`) dismisses
+   it, and the gate stands down for that one dismiss while the user is
+   signed out and sent to Auth. It changes WHICH account is gated, never
+   whether one is — the gate runs again for whoever signs in.
 
 6. **Demo mode short-circuits every paywall check.** 7 taps on the
    "Save your progress" title in AuthScreen → `setDemoUser()` →
    `isDemoUser = true` and `isSubscribed = true` for this session.
    Apple reviewers must be able to complete their review without a
    purchase. See `docs/DEMO_MODE.md`.
+
+7. **A web check that errors is never entitlement, and never blocks the
+   paywall (v1.3.0).** The launch gate's web step enters Root only on a
+   proven `entitled`; `not_entitled`, `error` and `timeout` all continue
+   into the Superwall path unchanged. Same shape as the onboarding check's
+   rule that `error` is never `no_onboarding`.
+
+---
+
+## Web entitlements
+
+Since v1.3.0 a parent can buy on **kinderwell.app** (Meta ads → web quiz
+→ Dodo Payments, the Merchant of Record) and then sign in to the app with
+the same email. The website and the app share one Supabase project; the
+shared **user id** is the link. Design: `~/kinderwell-web2app/`
+(`02-payments-entitlements.md`, `03-app-changes.md`).
+
+**The row.** Dodo's webhook writes one `public.entitlements` row per
+buyer (service role only; the app never writes it; RLS lets a user read
+their own). The app reads `status, current_period_end, product_id` for
+`source = 'dodo'` (`src/services/entitlementService.ts`) and decides
+with the pure `isWebEntitled(row, now)` (`src/store/webEntitlement.ts`):
+entitled only when `status` is `active`, `past_due` or `cancelled`
+**and** `current_period_end` is set and later than now. The app checks
+the date itself; the server only flips stale rows to `expired` hourly,
+with up to 5 days' grace.
+
+| Status | Meaning | Access |
+|---|---|---|
+| `active` | Paid, renewing | Yes, until `current_period_end` |
+| `past_due` | Renewal card failing, Dodo retrying | Yes, until `current_period_end` |
+| `cancelled` | Cancelled, will not renew | Yes, until `current_period_end` (same as Apple) |
+| `expired` | Period over | No |
+| `revoked` | Refunded or charged back | No, immediately |
+| no row / null date | Never bought on the web | No |
+
+**Where it is checked.** In `runGate`, after the demo, cached-subscriber
+and dev skip-paywall short-circuits (existing subscribers launch exactly
+as fast as before) and before the present watchdog, `identify()` and
+`registerPlacement` (a web buyer never sees the paywall). Capped at 4s.
+`entitled` → `setIsSubscribed(true, 'web')` → Root. Fires
+`web_entitlement_checked { result }`. Decision: `resolveWebCheckOutcome`
+in the routing kernel.
+
+**The Superwall source rule (load-bearing).** Every web buyer is
+`INACTIVE` to Superwall — they have no Apple subscription. The cached
+flag therefore records its source, and `App.tsx`'s
+`onSubscriptionStatusChange` applies `resolveSuperwallStatus`:
+
+- `ACTIVE` → subscribed, source `'superwall'`. Apple wins if a user has both.
+- `INACTIVE` → clears the flag **only when its source is `'superwall'`**.
+- `UNKNOWN` → leave it.
+
+A `'web'` flag is cleared only by the web re-check, sign-out or account
+deletion. Without this rule a web unlock was wiped seconds after every
+launch: offline launches stuck on the retry screen, and Settings showed a
+paying customer as unsubscribed. Records written before v1.3.0 carry no
+source and read as `'superwall'`.
+
+**Background re-check.** A launch on a cached `'web'` flag skips the gate,
+so it re-checks the row once Root is entered (`resolveWebRecheck`).
+`not_entitled` clears the flag and the NEXT launch gates — the session in
+progress is never interrupted. `error` keeps the flag: offline web
+subscribers get the same leniency Apple subscribers get.
+
+**The wrong account.** Sign in with Apple + Hide My Email mints a
+different Supabase user with no purchase, so a web buyer who signs in that
+way meets the paywall. Its "Use a different account" button (Superwall
+dashboard, custom action `switch_account`) signs them out and opens Auth
+in sign-in mode. Email (6-digit code) and Google with the same Gmail
+both reach the buyer's real user.
+
+**Management and deletion.** Settings shows a web subscriber "Your
+subscription is managed at kinderwell.app/manage" (Dodo's portal) — the
+only website link in the app, shown only to them. `delete-account`
+cancels a renewing Dodo subscription before deleting anything, and
+refuses to delete if the cancel fails.
+
+**App Store rules.** Signing in to an account bought elsewhere is allowed
+(guideline 3.1.3, the Netflix/Spotify pattern); pointing people to buy
+outside the app is not. Nowhere in the app mentions web prices, links to
+the funnel or says the app can be bought on the web. The Superwall
+paywall is unchanged for everyone without a purchase apart from the "Use
+a different account" button.
 
 ---
 
@@ -108,6 +206,11 @@ Policy:
   because we can't reach Superwall right now. Their `isSubscribed` was
   set to true by a prior authoritative Superwall event; we trust it
   until Superwall says otherwise.
+
+- **Web subscribers** (cached flag with source `'web'`) → the same: the
+  cache short-circuits before any network call, and the background
+  re-check keeps the flag on an error. Only a definite `not_entitled`
+  clears it, for the next launch.
 
 - **Everyone else** → fail-closed. Sit on the LoadingScreen with the
   "Checking your subscription — please make sure you're online..."
@@ -130,6 +233,11 @@ paying user's experience during an incident.
 |---|---|---|---|
 | `subscription_gate` | **Gated** | v1.1.0 code (`LoadingScreen`) | never (as long as we ship a paywall) |
 | `show_paywall` | Non-Gated | v1.0.0 code (already shipped to real users) | v1.0.0 usage < ~1% for 30d |
+
+**On the `subscription_gate` paywall (v1.3.0):** a small text button
+"Use a different account" wired to the custom action `switch_account`
+(handled by `LoadingScreen`'s `onCustomPaywallAction`). Owner-configured;
+see `docs/OPS_STATE.md`.
 
 **Not needed anymore — safe to delete:**
 
@@ -222,7 +330,9 @@ The gate. Runs on every path to Root. Two responsibilities:
    `onboardingStore.userType !== null`, i.e., there's a pending
    payload from just-completed onboarding).
 2. Present the `subscription_gate` paywall, or short-circuit for
-   entitled users.
+   entitled users — cached, demo, or (v1.3.0) a web purchase found by
+   `checkWebEntitlement` before Superwall runs. Also handles the
+   paywall's `switch_account` action.
 
 ### `SplashScreen.tsx`
 Routes based on auth state:
@@ -232,16 +342,18 @@ Routes based on auth state:
 - Brand new → `Welcome`
 
 ### `App.tsx` (`useSuperwallEvents.onSubscriptionStatusChange`)
-The authoritative source of `isSubscribed`. Superwall's event handler.
-When Superwall reports:
-- `ACTIVE` → `setIsSubscribed(true)` → persists to AsyncStorage
-- `INACTIVE` → `setIsSubscribed(false)` → persists to AsyncStorage
+The authoritative source of `isSubscribed` for Apple subscribers.
+Superwall's event handler, via `resolveSuperwallStatus`:
+- `ACTIVE` → `setIsSubscribed(true, 'superwall')` → persists to AsyncStorage
+- `INACTIVE` → `setIsSubscribed(false)` → persists — but ONLY when the
+  flag's source is `'superwall'`; a `'web'` flag is kept
 - `UNKNOWN` → leave as-is (Superwall will send a definitive update
   once it resolves)
 
 ### `authStore.ts`
-- `isSubscribed` field with `setIsSubscribed`, which persists a
-  USER-BOUND record `{ userId, subscribed }` to AsyncStorage
+- `isSubscribed` and `subscriptionSource` (`'web' | 'superwall' | null`)
+  with `setIsSubscribed(subscribed, source = 'superwall')`, which persists
+  a USER-BOUND record `{ userId, subscribed, source }` to AsyncStorage
   (SPEC-FIX-08). If there's no current user it does NOTHING (doesn't
   write an unowned value, doesn't clear the existing owned record —
   the startup-race fix; hydrate is the guard).

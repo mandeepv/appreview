@@ -24,6 +24,11 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Supabase | dev auth signing system | **asymmetric ES256** (new JWT Signing Keys) — JWKS advertises one ES256 key | 2026-07-11 | `/auth/v1/.well-known/jwks.json` |
 | Supabase | prod auth signing system | **asymmetric ES256** (same as dev) — so prod delete-account needs NO JWT_SECRET (verifies via JWKS) | 2026-07-11 | prod `/auth/v1/.well-known/jwks.json` |
 | Supabase | gateway `verify_jwt` | on (per `config.toml`); live-state unverified | unverified | `supabase/config.toml` + dashboard |
+| Supabase | email provider + OTP length (web purchases, v1.3.0) | **required, not yet confirmed** — Authentication → Providers → Email: enabled, Email OTP length **6**. Needed on dev before device testing and on prod before App Review: "Continue with Email" depends on it | unverified | Supabase → Authentication → Providers → Email |
+| Supabase | Magic Link email template shows the code | **required, not yet confirmed** — the template body must show `{{ .Token }}`. With only `{{ .ConfirmationURL }}` parents get a link instead of a 6-digit code and cannot sign in in-app. Dev + prod | unverified | Supabase → Authentication → Email Templates → Magic Link |
+| Supabase | custom SMTP (Resend) + email rate limit | **required, not yet confirmed** — `smtp.resend.com:465`, user `resend`, password = a Resend API key, sender `hello@kinderwell.app` (already verified in Resend). The built-in mailer only delivers to project team members, a few an hour: without this real customers never get their code (the app reports `email_address_not_authorized` to Sentry). Raise "emails sent per hour" for launch traffic (e.g. 100). Dev + prod | unverified | Supabase → Authentication → SMTP Settings / Rate Limits |
+| Supabase | web2app migrations | `20260918000000_web2app` applied to **dev** (per the web repo's OPS_RUNBOOK). `20260928000000_email_opt_outs` and `20260930000000_webhook_hardening` **not applied** to dev. **None applied to prod** — they go with the next owner-run `scripts/db-push-prod.sh`, before ads run. All three now live in this repo's `supabase/migrations/` | unverified | `supabase migration list --linked` |
+| Supabase | delete-account cancels Dodo (v1.3.0) | **code on `feat/web-purchase-unlock`, NOT deployed** to dev or prod. Deleting a web subscriber cancels their Dodo subscription first and refuses to delete if the cancel fails. Needs `DODO_API_KEY` + `DODO_ENV` secrets (the web side sets them on the same project) | unverified | Supabase → Edge Functions → delete-account |
 | Supabase | `JWT_SECRET` set | **dev: yes** (set 2026-07-11; now optional there — dev is ES256/JWKS) / prod: no | 2026-07-11 | `supabase secrets list` |
 
 ## Superwall
@@ -31,6 +36,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Area | Setting | Current value | Last verified | How to check |
 |---|---|---|---|---|
 | Superwall | `subscription_gate` | Gated, 100%, audience = "unsubscribed users / no active entitlements", no match-limit — **re-verified in dashboard 2026-07-11** (SPEC-FIX-10 F8) | 2026-07-11 | Superwall dashboard → Placements |
+| Superwall | "Use a different account" on the `subscription_gate` paywall (v1.3.0) | **required, not yet built** — a small text button wired to the custom action **`switch_account`**. Without it a web buyer signed in with Apple Hide My Email has no way off the paywall. Open question: is the label OK, and does the current template allow a free-text button? | unverified | Superwall dashboard → Paywalls → the `subscription_gate` paywall |
 | Superwall | `show_paywall` | kept for the v1.0.0 cohort | unverified | Superwall dashboard → Placements |
 | Superwall | dashboard-change habit | screenshot on every change (F5 pointer) | — | `docs/dashboard-snapshots/` |
 

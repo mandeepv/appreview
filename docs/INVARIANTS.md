@@ -4,9 +4,9 @@ These are the rules the app's correctness silently depends on. Every bug found i
 
 ## Revenue / paywall
 
-1. Every path into `Root` goes through the Loading gate. No screen may `navigation.replace('Root')` directly — grep for it in review; only LoadingScreen's purchase/restore/skip/subscriber paths qualify. *(The v1.1.0 sign-in bypass was a violation of exactly this.)*
+1. Every path into `Root` goes through the Loading gate. No screen may `navigation.replace('Root')` directly — grep for it in review; only LoadingScreen's purchase/restore/skip/subscriber/web-entitled paths qualify. *(The v1.1.0 sign-in bypass was a violation of exactly this.)*
 2. `onSkip` grants access — but the skip *reason* matters (SPEC-FIX-08 R2). `Holdout`/`NoAudienceMatch` are legitimate (entitled / experiment-excluded) → enter Root. `PlacementNotFound` is a dashboard misconfig, NOT "entitled" → `retry` (fail SAFE to the gate); it fires a distinct `paywall_placement_not_found` event. Therefore the `subscription_gate` audience must be exactly "unsubscribed users" and **the placement must EXIST — a missing placement now means "locked to paywall," not "open." Any future intentional paywall teardown MUST reconfigure the placement/audience; NEVER delete the placement (deleting it locks users out).** The `paywall_skipped_by_superwall` count (and the `paywall_placement_not_found` event) are the tripwires for dashboard misconfig. Check on every dashboard edit.
-3. `isSubscribed` (AsyncStorage) is a device-local memory of a Superwall-vouched fact. Only Superwall events (or a just-completed purchase) may set it true. **The cached flag is bound to a user id and is valid only while a session for that same user exists; ANY launch with no session, or a session for a different user, treats the flag as false. No account event may leave a `true` flag readable by a different or absent user.** (SPEC-FIX-08: persisted as `{ userId, subscribed }`, honored on hydrate only when `session.user.id === record.userId` — the old "clear-on-sign-out" rule was an event race; user-binding makes it structural. Lapsed-user grace window = SPEC-FIX-09.)
+3. `isSubscribed` (AsyncStorage) is a device-local memory of a Superwall-vouched fact — or, since v1.3.0, of a web purchase the gate read from the user's own `entitlements` row (source `'web'`, invariant 25). Only Superwall events, a just-completed purchase, or that gate read may set it true. **The cached flag is bound to a user id and is valid only while a session for that same user exists; ANY launch with no session, or a session for a different user, treats the flag as false. No account event may leave a `true` flag readable by a different or absent user.** (SPEC-FIX-08: persisted as `{ userId, subscribed }`, honored on hydrate only when `session.user.id === record.userId` — the old "clear-on-sign-out" rule was an event race; user-binding makes it structural. Lapsed-user grace window = SPEC-FIX-09.)
 4. The `show_paywall` placement must stay configured in the dashboard while any v1.0.0 installs exist — the kill switch cannot reach v1.0.0 binaries (`appConfig.ts` doesn't exist there), so that cohort can never be force-updated off it.
 5. `SKIP_PAYWALL=true` never reaches a prod build (`app.config.js` throw — keep it) and is `__DEV__`-gated at runtime (keep both layers).
 
@@ -35,6 +35,18 @@ merely ugly.)*
 16. `buildNumber` is a bare monotonic integer, forever (a non-integer defeats the kill-switch parse guard).
 17. A `__DEV__` build may never point at the prod DB (supabase.ts hard-throw — keep it).
 18. The kill-switch config fetch always fails open (missing table/row/network → defaults, never a block), and honored minimums respect `MIN_SUPPORTED_BUILD_CAP`.
+
+## Web purchases
+
+*(Added 2026-10 with v1.3.0 — parents can buy on kinderwell.app and sign in
+to the app. See PAYWALL_MODEL "Web entitlements".)*
+
+23. A web entitlement check that errors or times out is **never** treated as entitled and **never** blocks the Superwall path — only a proven `entitled` enters Root (`resolveWebCheckOutcome`). Same rule as invariant 6, for money.
+24. The client never writes `entitlements`. Only the Dodo webhook does, with the service role; the app reads its own row under RLS.
+25. Superwall `INACTIVE` clears the cached flag **only when its source is `'superwall'`** (`resolveSuperwallStatus`). Every web buyer is INACTIVE to Superwall; a `'web'` flag is cleared only by the web re-check, sign-out or account deletion. The source never affects user binding (invariant 3), web or Apple.
+26. App Store 3.1.3: nothing in the app mentions web prices, links to the funnel, or says the app can be bought on the web. The only website link is Settings' kinderwell.app/manage row, shown only to web subscribers. Sign in with Apple stays offered wherever Google or email sign-in is.
+27. The labels **'Get started'**, **'Already have an account?'**, **'Sign in'** and **'Continue with Email'** are quoted word for word by the website's /welcome page and emails. Change both in the same release.
+28. `delete-account` cancels a renewing Dodo subscription **before** deleting anything, and a failed cancel means nothing is deleted — deleting the user does not stop Dodo charging the card.
 
 ## Process
 
