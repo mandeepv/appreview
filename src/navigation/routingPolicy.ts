@@ -142,6 +142,26 @@ export function resolveGateOutcome(result: GateResult, isSubscribed: boolean): G
   }
 }
 
+/**
+ * The paywall's "Use a different account" button (custom action
+ * `switch_account`, 2026-10). Handling it dismisses the paywall, and the
+ * dismiss comes back as `declined` — which the hard gate normally answers by
+ * re-presenting after 300ms, putting the paywall straight back over the
+ * sign-out it was meant to make way for. While a switch is under way, the gate
+ * STANDS DOWN instead of re-presenting or retrying; the switch signs out and
+ * hands over to Auth, and the gate runs again for whichever account signs in.
+ * So it changes which account is gated, never whether one is.
+ *
+ * enter_root passes through untouched: an entitlement is an entitlement.
+ */
+export function resolveGateOutcomeWhileSwitching(
+  outcome: GateOutcome,
+  switchingAccount: boolean,
+): GateOutcome | 'stand_down' {
+  if (switchingAccount && outcome !== 'enter_root') return 'stand_down';
+  return outcome;
+}
+
 // ---------------------------------------------------------------------------
 // resolveResumeStack — rebuilding history when onboarding resumes
 // ---------------------------------------------------------------------------

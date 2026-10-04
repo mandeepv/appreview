@@ -8,6 +8,7 @@ import {
   type GateResult,
   resolveSignedInLaunch,
   resolveWebCheckOutcome,
+  resolveGateOutcomeWhileSwitching,
   resolveWebRecheck,
   webCheckEventResult,
 } from '../routingPolicy';
@@ -287,5 +288,27 @@ describe('resolveWebRecheck — the background re-check only ever clears on a de
 
   it('entitled → keep', () => {
     expect(resolveWebRecheck({ kind: 'entitled', periodEnd: 'x', productId: 'p' })).toBe('keep');
+  });
+});
+
+describe('resolveGateOutcomeWhileSwitching — "Use a different account"', () => {
+  it('the declined dismiss that follows switch_account does NOT re-present', () => {
+    const outcome = resolveGateOutcome({ kind: 'dismiss', type: 'declined' }, false);
+    expect(outcome).toBe('re_present');
+    expect(resolveGateOutcomeWhileSwitching(outcome, true)).toBe('stand_down');
+  });
+
+  it('nor does a retry while switching', () => {
+    expect(resolveGateOutcomeWhileSwitching('retry', true)).toBe('stand_down');
+  });
+
+  it('an entitlement still enters Root while switching', () => {
+    expect(resolveGateOutcomeWhileSwitching('enter_root', true)).toBe('enter_root');
+  });
+
+  it('with no switch under way, every outcome passes through unchanged', () => {
+    expect(resolveGateOutcomeWhileSwitching('re_present', false)).toBe('re_present');
+    expect(resolveGateOutcomeWhileSwitching('retry', false)).toBe('retry');
+    expect(resolveGateOutcomeWhileSwitching('enter_root', false)).toBe('enter_root');
   });
 });

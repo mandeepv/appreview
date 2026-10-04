@@ -21,6 +21,7 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 import { useConfigStore } from '../../store/configStore';
 import {
   resolveGateOutcome,
+  resolveGateOutcomeWhileSwitching,
   resolveWebCheckOutcome,
   resolveWebRecheck,
   webCheckEventResult,
@@ -28,7 +29,7 @@ import {
 import { checkWebEntitlement } from '../../services/entitlementService';
 import { saveUserOnboardingData } from '../../services/onboardingService';
 import { restorePurchases } from '../../services/purchaseService';
-import { usePlacement, useUser, useSuperwallEvents } from 'expo-superwall';
+import { usePlacement, useUser, useSuperwall, useSuperwallEvents } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { safeCapture } from '../../lib/analytics';
 import { resetPostHog } from '../../config/posthog';
@@ -209,6 +210,14 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   const [escapeError, setEscapeError] = useState<string | null>(null);
   const [isRestoringHatch, setIsRestoringHatch] = useState(false);
 
+  // Set while the paywall's "Use a different account" action is signing the
+  // current user out. The paywall dismiss it causes reports `declined`, and the
+  // gate must stand down rather than re-present over the sign-out — see
+  // resolveGateOutcomeWhileSwitching. Never reset on success: the screen
+  // unmounts when the stack is reset to Auth.
+  const switchingAccountRef = useRef(false);
+  const dismissPaywall = useSuperwall((state) => state.dismiss);
+
   const clearPresentWatchdog = () => {
     if (presentWatchdogRef.current) {
       clearTimeout(presentWatchdogRef.current);
@@ -220,6 +229,12 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // so it survives across screen mounts / unmounts. LoadingScreen only listens
   // to paywall-flow analytics events here.
   useSuperwallEvents({
+    // The paywall's "Use a different account" text button (Superwall
+    // dashboard, subscription_gate paywall) fires the custom action
+    // `switch_account`. See handleSwitchAccount.
+    onCustomPaywallAction: (name) => {
+      if (name === "switch_account") void handleSwitchAccount();
+    },
     onSuperwallEvent: (eventInfo) => {
       // Fires when user taps a plan on the paywall (before App Store sheet appears).
       // safeCapture swallows any error — analytics must never break the paywall flow.
@@ -247,13 +262,21 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
   // SPEC-04 R1). This is the single place the three gate callbacks below turn
   // a decision into navigation/state side effects — the callbacks themselves
   // no longer contain routing conditionals, only analytics + the compute call.
-  const applyGateOutcome = (outcome: ReturnType<typeof resolveGateOutcome>) => {
+  const applyGateOutcome = (gateOutcome: ReturnType<typeof resolveGateOutcome>) => {
     // SPEC-FIX-01 R1: this outcome is the end of the current gate attempt —
     // release the in-flight flag so the legitimate next attempt (re-present /
     // retry) isn't blocked by the idempotence guard. (enter_root unmounts the
     // screen, so clearing is moot but harmless.)
     gateInFlightRef.current = false;
+    const outcome = resolveGateOutcomeWhileSwitching(
+      gateOutcome,
+      switchingAccountRef.current,
+    );
     switch (outcome) {
+      case "stand_down":
+        if (__DEV__)
+          console.log("🔀 Switching account — not re-presenting the paywall");
+        return;
       case "enter_root":
         navigation.replace('Root');
         return;
@@ -883,6 +906,53 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
         context: "gate_escape_sign_out",
       });
       setEscapeError("Could not sign out. Please try again.");
+    }
+  };
+
+  // The paywall's "Use a different account" (custom action `switch_account`).
+  //
+  // WHO NEEDS IT: a parent who bought on kinderwell.app but signed in here a
+  // different way — typically Sign in with Apple with Hide My Email, which mints
+  // a separate Supabase user with no purchase. That user is signed in and
+  // unentitled, so they get the paywall, and the paywall re-presents on every
+  // dismiss: before this there was no way out short of deleting the app. The
+  // retry screen's escape hatch has Sign out, but they only see that screen
+  // when Superwall is unreachable.
+  //
+  // Same steps as the escape hatch's Sign out (resetPostHog → signOut), but
+  // landing on Auth in sign-in mode, with Welcome beneath it for Back. The gate
+  // still runs for the account that signs in next, so this is not a bypass.
+  const handleSwitchAccount = async () => {
+    if (switchingAccountRef.current) return;
+    switchingAccountRef.current = true;
+    safeCapture("gate_switch_account_tapped");
+    clearPresentWatchdog();
+    try {
+      await dismissPaywall();
+    } catch (error) {
+      // Keep going: the sign-out below matters more than a clean dismiss, and
+      // the reset to Auth replaces this screen either way.
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        screen: "LoadingScreen",
+        context: "gate_switch_account_dismiss",
+      });
+    }
+    try {
+      resetPostHog();
+      await signOut();
+      navigation.reset({
+        index: 1,
+        routes: [{ name: "Welcome" }, { name: "Auth", params: { mode: "signin" } }],
+      });
+    } catch (error) {
+      if (__DEV__) console.error("Switch-account sign-out failed:", error);
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        screen: "LoadingScreen",
+        context: "gate_switch_account_sign_out",
+      });
+      // Still signed in as the unentitled account: put the gate back up.
+      switchingAccountRef.current = false;
+      setTimeout(() => latestRunGateRef.current(), 300);
     }
   };
 
