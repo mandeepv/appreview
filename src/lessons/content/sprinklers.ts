@@ -732,12 +732,15 @@ export const sprinklers: Lesson = {
               question: 'What should we do in phase 2, the cooling down period?',
               options: [
                 { text: 'Give firm consequences for the behavior', isCorrect: false },
-                { text: 'Listen, help label emotions, give advice sparingly', isCorrect: true },
+                // Was "Listen, help label emotions, give advice sparingly" —
+                // the PHASE 3 actions (source video 3, and this lesson's own
+                // Phase 3 question two screens later). Phase 2 is time.
+                { text: 'Give it time and stay close — if they flare up again, go back to sympathy', isCorrect: true },
                 { text: 'Tell them they need to stop being upset immediately', isCorrect: false },
                 { text: 'Force them to apologize', isCorrect: false },
               ],
               correctFeedback:
-                'Correct. Once the brain begins to calm, gentle listening and naming emotions becomes possible.',
+                'The primitive brain needs time to switch off — two minutes or two days. Stay available, and if emotions flare again, go back to Phase 1 support.',
             },
           ],
         },
