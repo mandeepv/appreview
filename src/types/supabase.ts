@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -29,6 +54,81 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      entitlements: {
+        Row: {
+          current_period_end: string | null
+          dodo_customer_id: string | null
+          dodo_subscription_id: string | null
+          nudge_stage: number
+          product_id: string
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_period_end?: string | null
+          dodo_customer_id?: string | null
+          dodo_subscription_id?: string | null
+          nudge_stage?: number
+          product_id: string
+          source: string
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_period_end?: string | null
+          dodo_customer_id?: string | null
+          dodo_subscription_id?: string | null
+          nudge_stage?: number
+          product_id?: string
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      funnel_sessions: {
+        Row: {
+          answers: Json
+          capi: Json | null
+          created_at: string
+          id: string
+          landing_variant: string | null
+          purchased_at: string | null
+          updated_at: string
+          user_id: string | null
+          utm: Json | null
+          winback_stage: number
+        }
+        Insert: {
+          answers?: Json
+          capi?: Json | null
+          created_at?: string
+          id: string
+          landing_variant?: string | null
+          purchased_at?: string | null
+          updated_at?: string
+          user_id?: string | null
+          utm?: Json | null
+          winback_stage?: number
+        }
+        Update: {
+          answers?: Json
+          capi?: Json | null
+          created_at?: string
+          id?: string
+          landing_variant?: string | null
+          purchased_at?: string | null
+          updated_at?: string
+          user_id?: string | null
+          utm?: Json | null
+          winback_stage?: number
         }
         Relationships: []
       }
@@ -65,6 +165,33 @@ export type Database = {
         }
         Relationships: []
       }
+      unlinked_purchases: {
+        Row: {
+          created_at: string
+          dodo_subscription_id: string | null
+          id: number
+          payload: Json
+          reason: string
+          resolved: boolean
+        }
+        Insert: {
+          created_at?: string
+          dodo_subscription_id?: string | null
+          id?: never
+          payload: Json
+          reason: string
+          resolved?: boolean
+        }
+        Update: {
+          created_at?: string
+          dodo_subscription_id?: string | null
+          id?: never
+          payload?: Json
+          reason?: string
+          resolved?: boolean
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           age: number | null
@@ -79,10 +206,12 @@ export type Database = {
           learning_goal: string | null
           name: string | null
           notifications_enabled: boolean | null
+          onboarding_variant: string | null
           partner_invited: boolean | null
           partner_involvement: string | null
           updated_at: string | null
           user_type: string | null
+          variant_b_answers: Json | null
         }
         Insert: {
           age?: number | null
@@ -97,10 +226,12 @@ export type Database = {
           learning_goal?: string | null
           name?: string | null
           notifications_enabled?: boolean | null
+          onboarding_variant?: string | null
           partner_invited?: boolean | null
           partner_involvement?: string | null
           updated_at?: string | null
           user_type?: string | null
+          variant_b_answers?: Json | null
         }
         Update: {
           age?: number | null
@@ -115,10 +246,51 @@ export type Database = {
           learning_goal?: string | null
           name?: string | null
           notifications_enabled?: boolean | null
+          onboarding_variant?: string | null
           partner_invited?: boolean | null
           partner_involvement?: string | null
           updated_at?: string | null
           user_type?: string | null
+          variant_b_answers?: Json | null
+        }
+        Relationships: []
+      }
+      waitlist: {
+        Row: {
+          answers: Json | null
+          created_at: string
+          email: string
+          reason: string | null
+        }
+        Insert: {
+          answers?: Json | null
+          created_at?: string
+          email: string
+          reason?: string | null
+        }
+        Update: {
+          answers?: Json | null
+          created_at?: string
+          email?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      webhook_events: {
+        Row: {
+          event_type: string | null
+          id: string
+          received_at: string
+        }
+        Insert: {
+          event_type?: string | null
+          id: string
+          received_at?: string
+        }
+        Update: {
+          event_type?: string | null
+          id?: string
+          received_at?: string
         }
         Relationships: []
       }
@@ -127,7 +299,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      expire_stale_entitlements: { Args: never; Returns: number }
+      get_user_id_by_email: { Args: { p_email: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -146,12 +319,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -175,11 +348,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -200,11 +373,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -225,11 +398,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -242,11 +415,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -256,6 +429,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
