@@ -42,6 +42,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import Constants from 'expo-constants';
@@ -408,6 +409,8 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
+      {/* Light glyphs for the forestDeep masthead — see LearnScreen. */}
+      <StatusBar style="light" />
       {/* Matches LearnScreen's forest masthead so the two tabs are framed the
           same way. This screen previously began straight into content, which
           read as a different app once the other tab gained a bar. */}

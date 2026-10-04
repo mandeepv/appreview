@@ -32,6 +32,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, Animated } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -342,6 +343,12 @@ export default function LearnScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
+      {/* App.tsx sets `dark` globally, which is right for the cream screens but
+          renders black glyphs on this screen's forestDeep masthead — the clock
+          and battery were nearly invisible against it. expo-status-bar applies
+          the last mounted value, so declaring `light` here flips it on focus
+          and the global default returns when this screen unmounts. */}
+      <StatusBar style="light" />
       <View style={styles.header}>
         <Text style={styles.wordmark}>Kinderwell</Text>
 
