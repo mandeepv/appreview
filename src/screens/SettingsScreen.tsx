@@ -48,7 +48,7 @@ import Svg, { Path } from 'react-native-svg';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/authStore';
 import { restorePurchases } from '../services/purchaseService';
-import { deleteAccount } from '../services/authService';
+import { deleteAccount, SubscriptionCancelError } from '../services/authService';
 import { getUserOnboardingData } from '../services/onboardingService';
 import { resetPostHog } from '../config/posthog';
 import { safeCapture } from '../lib/analytics';
@@ -93,14 +93,21 @@ function Eyebrow({ children }: { children: string }) {
  * large personal half above them to balance against, so each needs to hold
  * its own space the way the old teal cards did.
  */
+// Where a kinderwell.app (web) subscriber manages their subscription: Dodo's
+// customer portal, behind the website. Shown only to web subscribers.
+const WEB_MANAGE_URL = 'https://kinderwell.app/manage';
+
 function Row({
   label,
   detail,
+  note,
   onPress,
   disabled = false,
 }: {
   label: string;
   detail?: string;
+  // A second line under the label, for a row that needs to say where it goes.
+  note?: string;
   onPress: () => void;
   disabled?: boolean;
 }) {
@@ -111,7 +118,14 @@ function Row({
       accessibilityRole="button"
       style={({ pressed }) => [styles.card, pressed ? { opacity: 0.7 } : null]}
     >
-      <Text style={styles.cardLabel}>{label}</Text>
+      {note ? (
+        <View style={styles.cardText}>
+          <Text style={styles.cardLabel}>{label}</Text>
+          <Text style={styles.cardNote}>{note}</Text>
+        </View>
+      ) : (
+        <Text style={styles.cardLabel}>{label}</Text>
+      )}
       {detail ? <Text style={styles.cardDetail}>{detail}</Text> : null}
       <Chevron />
     </Pressable>
@@ -119,7 +133,10 @@ function Row({
 }
 
 export const SettingsScreen: React.FC = () => {
-  const { user, signOut, isDemoUser, isSubscribed } = useAuthStore();
+  const { user, signOut, isDemoUser, isSubscribed, subscriptionSource } = useAuthStore();
+  // A kinderwell.app (web) subscriber. Only they ever see the website's
+  // management link — see handleManageSubscription.
+  const isWebSubscriber = isSubscribed && subscriptionSource === 'web';
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [profile, setProfile] = useState<ProfileSummaryInput>({});
@@ -222,8 +239,17 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleManageSubscription = async () => {
-    safeCapture('subscription_managed');
+    safeCapture('subscription_managed', { source: isWebSubscriber ? 'web' : 'superwall' });
     try {
+      // A web subscription is managed where it was bought: kinderwell.app/manage
+      // opens Dodo's customer portal (sign-in there is by email). Managing an
+      // EXISTING subscription is allowed under App Store guideline 3.1.3; this
+      // is the ONLY link to the website anywhere in the app, and it is shown
+      // only to web subscribers — never to anyone who could buy.
+      if (isWebSubscriber) {
+        await Linking.openURL(WEB_MANAGE_URL);
+        return;
+      }
       // Open iOS subscription management
       const url = 'https://apps.apple.com/account/subscriptions';
       const supported = await Linking.canOpenURL(url);
@@ -304,9 +330,15 @@ export const SettingsScreen: React.FC = () => {
     // lists actual consequences and, if the user is subscribed, warns
     // them that Apple will keep billing until they cancel in App Store
     // Settings. Required by App Store guideline 5.1.1(v).
-    const subscriptionWarning = isSubscribed
-      ? '\n\n⚠️ Your Kinderwell subscription is billed by Apple and will continue after account deletion. To stop billing, cancel your subscription in Settings → Apple ID → Subscriptions BEFORE deleting.'
-      : '';
+    //
+    // The Apple warning is shown only to Apple ('superwall') subscribers. A
+    // web subscriber's subscription is cancelled by the delete itself
+    // (supabase/functions/delete-account), so they are told that instead.
+    const subscriptionWarning = !isSubscribed
+      ? ''
+      : isWebSubscriber
+        ? "\n\nDeleting your account also cancels your Kinderwell subscription. You won't be charged again."
+        : '\n\n⚠️ Your Kinderwell subscription is billed by Apple and will continue after account deletion. To stop billing, cancel your subscription in Settings → Apple ID → Subscriptions BEFORE deleting.';
 
     Alert.alert(
       'Delete your account?',
@@ -366,7 +398,9 @@ export const SettingsScreen: React.FC = () => {
               });
               Alert.alert(
                 'Delete Failed',
-                'Could not delete account. Please try again or contact support.',
+                error instanceof SubscriptionCancelError
+                  ? "We couldn't cancel your subscription, so nothing was deleted. Please try again, or contact support."
+                  : 'Could not delete account. Please try again or contact support.',
                 [{ text: 'OK' }]
               );
             } finally {
@@ -449,6 +483,7 @@ export const SettingsScreen: React.FC = () => {
         <Row
           label="Manage subscription"
           detail={isSubscribed ? 'Active' : undefined}
+          note={isWebSubscriber ? 'Your subscription is managed at kinderwell.app/manage' : undefined}
           onPress={handleManageSubscription}
           disabled={isLoading}
         />
@@ -567,6 +602,8 @@ const styles = StyleSheet.create({
   },
   cardLabel: { flex: 1, fontFamily: F.sansMed, fontSize: 16, color: C.ink },
   cardDetail: { fontFamily: F.sans, fontSize: 14, color: oInk(0.6) },
+  cardText: { flex: 1 },
+  cardNote: { fontFamily: F.sans, fontSize: 13, lineHeight: 13 * 1.4, color: oInk(0.6), marginTop: 3 },
 
   // Pushes the account actions to the bottom on a tall screen, and simply
   // scrolls on a short one.

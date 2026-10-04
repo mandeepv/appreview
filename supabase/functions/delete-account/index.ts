@@ -70,6 +70,47 @@ function getServiceRoleKey(): string {
   return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 }
 
+// --- Web subscriptions (2026-10) -------------------------------------------
+//
+// Deleting the Supabase user does NOT stop Dodo (the website's Merchant of
+// Record) from charging the card: the renewal goes through for an account
+// that no longer exists, and the customer files a chargeback. So a web
+// subscription that will renew is cancelled BEFORE anything is deleted, and a
+// failed cancel stops the deletion outright — see the cancel step below.
+//
+// Copied from the web repo's supabase/functions/_shared/dodo.ts
+// (cancelDodoSubscription), minus its owner-alert email: here the caller is
+// told the cancel failed and nothing was deleted, so there is nothing to chase.
+// DODO_API_KEY and DODO_ENV are already secrets on this (shared) project.
+const DODO_BASE =
+  (Deno.env.get('DODO_ENV') ?? 'test') === 'live'
+    ? 'https://live.dodopayments.com'
+    : 'https://test.dodopayments.com';
+
+/** True only when Dodo confirmed the cancel. Never throws. */
+async function cancelDodoSubscription(subscriptionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${DODO_BASE}/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${Deno.env.get('DODO_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status: 'cancelled' }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.ok) return true;
+    console.error('dodo cancel failed', subscriptionId, res.status, await res.text().catch(() => ''));
+  } catch (err) {
+    console.error('dodo cancel failed', subscriptionId, err instanceof Error ? err.message : String(err));
+  }
+  return false;
+}
+
+// The machine-readable code the app keys its "nothing was deleted" message
+// on (authService.deleteAccount → SubscriptionCancelError).
+const SUBSCRIPTION_CANCEL_FAILED = 'subscription_cancel_failed';
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -245,6 +286,47 @@ serve(async (req) => {
         },
       }
     );
+
+    // Cancel a renewing web subscription FIRST — before any row is deleted —
+    // so a failed cancel leaves the account exactly as it was. Only `active`
+    // and `past_due` renew; a `cancelled` row is already ending, and expired /
+    // revoked rows will not bill again. If the read itself fails we cannot
+    // tell whether a card will be charged, so that also stops the deletion.
+    step = 'cancel_web_subscription';
+    const { data: entitlement, error: entitlementError } = await supabaseAdmin
+      .from('entitlements')
+      .select('status, dodo_subscription_id')
+      .eq('user_id', userId)
+      .eq('source', 'dodo')
+      .maybeSingle();
+
+    if (entitlementError) {
+      throw new Error(`entitlements read failed: ${entitlementError.message}`);
+    }
+
+    if (
+      entitlement &&
+      (entitlement.status === 'active' || entitlement.status === 'past_due') &&
+      entitlement.dodo_subscription_id
+    ) {
+      console.log('Cancelling web subscription before deletion...');
+      const cancelled = await cancelDodoSubscription(entitlement.dodo_subscription_id);
+      if (!cancelled) {
+        // STOP. Do not delete the user: deleting now would leave a live
+        // subscription billing a deleted account.
+        return new Response(
+          JSON.stringify({
+            error: 'Could not cancel the web subscription; nothing was deleted.',
+            step,
+            code: SUBSCRIPTION_CANCEL_FAILED,
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 409,
+          },
+        );
+      }
+    }
 
     // Delete user data in the correct order (foreign key constraints)
     step = 'delete_lesson_progress';

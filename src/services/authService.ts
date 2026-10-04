@@ -295,6 +295,32 @@ export const signOut = async () => {
 };
 
 /**
+ * The delete-account function refused because it could not cancel the user's
+ * renewing web (Dodo) subscription — and therefore deleted NOTHING (2026-10).
+ * Settings tells the parent exactly that, instead of the generic failure.
+ */
+export class SubscriptionCancelError extends Error {
+  constructor() {
+    super('Web subscription could not be cancelled; account not deleted');
+    this.name = 'SubscriptionCancelError';
+  }
+}
+
+// functions.invoke wraps a non-2xx response in a FunctionsHttpError whose
+// `context` is the raw Response. Read the body's `code` without trusting its
+// shape; any failure to read it is just "no code".
+async function readFunctionErrorCode(error: unknown): Promise<string | null> {
+  try {
+    const response = (error as { context?: unknown })?.context;
+    if (!response || typeof (response as Response).json !== 'function') return null;
+    const body = await (response as Response).clone().json();
+    return typeof body?.code === 'string' ? body.code : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Delete user account and all associated data
  * This calls a Supabase Edge Function that uses the service role key
  * to completely delete the user account (GDPR/CCPA compliant)
@@ -321,6 +347,15 @@ export const deleteAccount = async () => {
 
     if (error) {
       if (__DEV__) console.error('Edge Function error:', error);
+      // A web subscriber whose Dodo subscription could not be cancelled: the
+      // server stopped before deleting anything (supabase/functions/
+      // delete-account). Surface that distinctly so Settings can say so.
+      const code = await readFunctionErrorCode(error);
+      if (code === 'subscription_cancel_failed') {
+        const cancelError = new SubscriptionCancelError();
+        reportError(cancelError, { context: 'delete_account_cancel_web_subscription' });
+        throw cancelError;
+      }
       reportError(error instanceof Error ? error : new Error(String(error)), {
         context: 'delete_account_invoke',
       });
@@ -364,6 +399,10 @@ export const deleteAccount = async () => {
         STORAGE_KEYS.LESSONS_COMPLETED,
         STORAGE_KEYS.ACTIVE_DAYS,
         STORAGE_KEYS.FLOW_BACKFILL_DONE,
+        // The cached subscription flag (and its web/superwall source). The
+        // auth-change listener also clears it when the session goes null, but
+        // a deleted account's flag should not depend on that event landing.
+        STORAGE_KEYS.IS_SUBSCRIBED,
       ]);
     } catch (e) {
       // Non-fatal — the account is already gone server-side. Report it so a
