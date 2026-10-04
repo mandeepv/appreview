@@ -99,7 +99,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
         : [...state.emotionalChallenges, challenge],
     })),
 
-  setAuthMethod: (method: 'google' | 'apple' | 'demo') => set({ authMethod: method }),
+  setAuthMethod: (method: 'google' | 'apple' | 'email' | 'demo') => set({ authMethod: method }),
 
   setSelectedPlan: (plan: 'free-trial' | 'monthly') => set({ selectedPlan: plan }),
 

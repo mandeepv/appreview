@@ -1,14 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Pressable, Alert, ActivityIndicator, Linking } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
-import { OnboardingScreen, RichHeadline } from '../../components/onboarding/OnboardingScreen';
+import { OnboardingScreen, RichHeadline, ContinuePill } from '../../components/onboarding/OnboardingScreen';
 import { GoogleMark } from '../../components/onboarding/GoogleMark';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { useAuthStore } from '../../store/authStore';
 import type { Session } from '@supabase/supabase-js';
-import { signInWithGoogle, signInWithApple } from '../../services/authService';
+import { signInWithGoogle, signInWithApple, sendEmailOtp, verifyEmailOtp } from '../../services/authService';
+import {
+  OTP_LENGTH,
+  RESEND_COOLDOWN_SECONDS,
+  classifyEmailOtpError,
+  emailOtpErrorMessage,
+  isPlausibleEmail,
+  normalizeEmail,
+  sanitizeOtpInput,
+} from '../../lib/emailOtp';
 import { hasUserCompletedOnboarding } from '../../services/onboardingService';
 import { resolvePostAuthDestination } from '../../navigation/routingPolicy';
 import {
@@ -22,12 +31,29 @@ import { reportError } from '../../config/sentry';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Auth'>;
 
+type AuthProvider = 'google' | 'apple' | 'email';
+
+// The email sign-in flow is two steps on this same screen, swapped in for the
+// provider buttons: enter the address, then enter the code it was sent.
+type EmailStep = 'providers' | 'email' | 'code';
+
 export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   const onboardingStore = useOnboardingStore();
   const { setAuthMethod, markAuthReached } = onboardingStore;
   const { setUser, setSession, setDemoUser, signOut } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingProvider, setLoadingProvider] = useState<'google' | 'apple' | null>(null);
+  const [loadingProvider, setLoadingProvider] = useState<AuthProvider | null>(null);
+  const [emailStep, setEmailStep] = useState<EmailStep>('providers');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  // When Resend becomes available again (epoch ms), and a 1s tick to redraw
+  // the countdown while it is pending.
+  const [resendAt, setResendAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  // auth_attempted fires once per visit to the email flow (on the first Send
+  // code), so auth_abandoned on backing out pairs with exactly one attempt.
+  const emailAttemptedRef = useRef(false);
   const [tapCount, setTapCount] = useState(0);
   const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -169,15 +195,37 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
     navigation.replace('Loading');
   };
 
+  const attemptedContext = userTypeAnalytics === 'new' ? 'new_user' : 'returning_user';
+
+  // What every provider does once it holds a session — Google, Apple and
+  // email alike. ONE route out of this screen: handlePostSignin, which only
+  // ever goes to Loading (the gate) or UserType, never Root.
+  const completeSignIn = async (provider: AuthProvider, session: Session) => {
+    setUser(session.user);
+    setSession(session);
+    identifyUserWithOnboarding(session.user.id, onboardingStore, mode);
+    // R5 (SPEC-06): auth_succeeded at the point a provider sign-in
+    // returns a valid session — mirrors trackAuthAttempted's
+    // provider + context so attempted → succeeded | abandoned forms a
+    // clean funnel.
+    trackAuthSucceeded(provider, attemptedContext);
+    safeCapture('user_signed_in', {
+      auth_method: provider,
+      user_type: userTypeAnalytics,
+    });
+    await handlePostSignin(session.user.id);
+  };
+
   // Shared provider sign-in body. Google and Apple flows were identical
   // apart from the provider tag and which signIn* service to call —
-  // extracted to a single helper (Fable review 🟡 dedupe).
+  // extracted to a single helper (Fable review 🟡 dedupe). Email has two
+  // steps and inline errors, so it has its own handlers below and shares
+  // only completeSignIn.
   const runProviderSignIn = async (
     provider: 'google' | 'apple',
     doSignIn: () => Promise<Session | null>,
     userLabel: 'Google' | 'Apple',
   ) => {
-    const attemptedContext = userTypeAnalytics === 'new' ? 'new_user' : 'returning_user';
     try {
       setIsLoading(true);
       setLoadingProvider(provider);
@@ -187,19 +235,7 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       const session = await doSignIn();
 
       if (session) {
-        setUser(session.user);
-        setSession(session);
-        identifyUserWithOnboarding(session.user.id, onboardingStore, mode);
-        // R5 (SPEC-06): auth_succeeded at the point a provider sign-in
-        // returns a valid session — mirrors trackAuthAttempted's
-        // provider + context so attempted → succeeded | abandoned forms a
-        // clean funnel.
-        trackAuthSucceeded(provider, attemptedContext);
-        safeCapture('user_signed_in', {
-          auth_method: provider,
-          user_type: userTypeAnalytics,
-        });
-        await handlePostSignin(session.user.id);
+        await completeSignIn(provider, session);
       } else {
         trackAuthAbandoned(provider, attemptedContext, 'no_session_returned');
         setIsLoading(false);
@@ -236,6 +272,99 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleAppleSignIn = () => {
     if (isLoading) return;
     runProviderSignIn('apple', signInWithApple, 'Apple');
+  };
+
+  // --- Continue with Email -------------------------------------------------
+  //
+  // A 6-digit code, never a magic link (src/lib/emailOtp.ts says why). The
+  // label "Continue with Email" is quoted word for word by kinderwell.app's
+  // /welcome page and receipt email (INVARIANTS) — and nothing on this screen
+  // mentions buying on the web (App Store 3.1.3; see PAYWALL_MODEL).
+
+  // Tick the Resend countdown once a second while it is pending.
+  useEffect(() => {
+    if (emailStep !== 'code' || now >= resendAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [emailStep, resendAt, now]);
+  const resendSecondsLeft = Math.max(0, Math.ceil((resendAt - now) / 1000));
+
+  const openEmailFlow = () => {
+    if (isLoading) return;
+    setEmailError(null);
+    setEmailStep('email');
+  };
+
+  // Back to the provider buttons. An attempt that got as far as sending a
+  // code and is now being walked away from is an abandonment.
+  const closeEmailFlow = () => {
+    if (isLoading) return;
+    if (emailAttemptedRef.current) {
+      trackAuthAbandoned('email', attemptedContext, 'backed_out');
+      emailAttemptedRef.current = false;
+    }
+    setEmailError(null);
+    setCode('');
+    setEmailStep('providers');
+  };
+
+  const handleSendCode = async () => {
+    if (isLoading || !isPlausibleEmail(email)) return;
+    if (!emailAttemptedRef.current) {
+      emailAttemptedRef.current = true;
+      setAuthMethod('email');
+      trackAuthAttempted('email', attemptedContext);
+    }
+    setEmailError(null);
+    setIsLoading(true);
+    setLoadingProvider('email');
+    try {
+      await sendEmailOtp(email);
+      setEmail(normalizeEmail(email));
+      setCode('');
+      setResendAt(Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
+      setNow(Date.now());
+      setEmailStep('code');
+    } catch (error) {
+      setEmailError(emailOtpErrorMessage(classifyEmailOtpError(error), 'send'));
+    } finally {
+      setIsLoading(false);
+      setLoadingProvider(null);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (isLoading || code.length !== OTP_LENGTH) return;
+    setEmailError(null);
+    setIsLoading(true);
+    setLoadingProvider('email');
+    let session: Session;
+    try {
+      session = await verifyEmailOtp(email, code);
+    } catch (error) {
+      setEmailError(emailOtpErrorMessage(classifyEmailOtpError(error), 'verify'));
+      setIsLoading(false);
+      setLoadingProvider(null);
+      return;
+    }
+    try {
+      await completeSignIn('email', session);
+    } catch (error) {
+      // Same treatment as a provider failure after its session landed.
+      if (__DEV__) console.error('Email sign-in error:', error);
+      trackAuthAbandoned('email', attemptedContext, 'error');
+      reportError(error, { auth_method: 'email', screen: 'AuthScreen' });
+      setEmailError(emailOtpErrorMessage('unknown', 'verify'));
+      setIsLoading(false);
+      setLoadingProvider(null);
+    }
+  };
+
+  const handleUseDifferentEmail = () => {
+    if (isLoading) return;
+    setEmailError(null);
+    setCode('');
+    setEmailStep('email');
   };
 
   const handleTitlePress = () => {
@@ -315,6 +444,96 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.blurb}>{blurb}</Text>
         </Pressable>
 
+        {emailStep === 'email' ? (
+          <View>
+            <Text style={styles.fieldLabel}>Your email</Text>
+            <View style={styles.fieldRule}>
+              <TextInput
+                value={email}
+                onChangeText={(t) => {
+                  setEmail(t);
+                  if (emailError) setEmailError(null);
+                }}
+                placeholder="you@example.com"
+                placeholderTextColor={oInk(0.45)}
+                style={styles.input}
+                keyboardType="email-address"
+                autoComplete="email"
+                textContentType="emailAddress"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+                returnKeyType="send"
+                onSubmitEditing={handleSendCode}
+                editable={!isLoading}
+                accessibilityLabel="Your email"
+              />
+            </View>
+            {emailError ? <Text style={styles.inlineError}>{emailError}</Text> : null}
+            <ContinuePill
+              label={loadingProvider === 'email' ? 'Sending…' : 'Send code'}
+              onPress={handleSendCode}
+              disabled={isLoading || !isPlausibleEmail(email)}
+              style={styles.emailPill}
+            />
+            <Pressable onPress={closeEmailFlow} style={styles.quietAction} accessibilityRole="button">
+              <Text style={styles.quietActionText}>Use another way to sign in</Text>
+            </Pressable>
+          </View>
+        ) : emailStep === 'code' ? (
+          <View>
+            <Text style={styles.codeLead}>
+              We sent a 6-digit code to <Text style={styles.codeEmail}>{email}</Text>
+            </Text>
+            <View style={styles.fieldRule}>
+              <TextInput
+                value={code}
+                onChangeText={(t) => {
+                  setCode(sanitizeOtpInput(t));
+                  if (emailError) setEmailError(null);
+                }}
+                placeholder="••••••"
+                placeholderTextColor={oInk(0.3)}
+                style={[styles.input, styles.codeInput]}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={OTP_LENGTH}
+                autoFocus
+                editable={!isLoading}
+                accessibilityLabel="6-digit code"
+              />
+            </View>
+            {emailError ? <Text style={styles.inlineError}>{emailError}</Text> : null}
+            <ContinuePill
+              label={loadingProvider === 'email' ? 'Verifying…' : 'Verify'}
+              onPress={handleVerifyCode}
+              disabled={isLoading || code.length !== OTP_LENGTH}
+              style={styles.emailPill}
+            />
+            <View style={styles.codeActions}>
+              <Pressable
+                onPress={handleSendCode}
+                disabled={isLoading || resendSecondsLeft > 0}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLoading || resendSecondsLeft > 0 }}
+              >
+                <Text
+                  style={[
+                    styles.quietActionText,
+                    (isLoading || resendSecondsLeft > 0) && styles.quietActionDisabled,
+                  ]}
+                >
+                  {resendSecondsLeft > 0 ? `Resend code in ${resendSecondsLeft}s` : 'Resend code'}
+                </Text>
+              </Pressable>
+              <Pressable onPress={handleUseDifferentEmail} disabled={isLoading} accessibilityRole="button">
+                <Text style={styles.quietActionText}>Use a different email</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+        <>
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.googleButton, isLoading && styles.buttonDisabled]}
@@ -356,6 +575,18 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
               />
             </View>
           )}
+
+          {/* Third, under Google and Apple, in both modes. Same geometry and
+              system-font label as the Google button, so the three read as one
+              set. Apple stays offered beside it (guideline 4.8). */}
+          <TouchableOpacity
+            style={[styles.googleButton, isLoading && styles.buttonDisabled]}
+            onPress={openEmailFlow}
+            activeOpacity={0.7}
+            disabled={isLoading}
+          >
+            <Text style={styles.emailButtonText}>Continue with Email</Text>
+          </TouchableOpacity>
         </View>
 
         {mode === 'signin' && (
@@ -371,6 +602,8 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.providerHint}>
             💡 Use the same option you signed up with to keep your progress.
           </Text>
+        )}
+        </>
         )}
 
         <Text style={styles.terms}>
@@ -487,5 +720,65 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  // Same calibration as googleButtonText — the three buttons are one set —
+  // with no mark, because there is no brand to show.
+  emailButtonText: {
+    fontSize: 21,
+    fontWeight: '500',
+    color: '#1F1F1F',
+  },
+  // The email and code fields borrow NameAgeScreen's ruled field, the one
+  // text-input pattern the onboarding system already has.
+  fieldLabel: { fontFamily: F.sansSemi, fontSize: 19, color: C.ink, letterSpacing: 0.2 },
+  fieldRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1.5,
+    borderBottomColor: C.forest,
+  },
+  input: {
+    flex: 1,
+    fontFamily: F.sansMed,
+    fontSize: 18,
+    color: C.ink,
+    padding: 0,
+  },
+  codeInput: {
+    fontSize: 28,
+    letterSpacing: 8,
+  },
+  codeLead: {
+    fontFamily: F.sans,
+    fontSize: T.uiSm,
+    lineHeight: T.uiSm * 1.5,
+    color: oInk(0.76),
+  },
+  codeEmail: { fontFamily: F.sansSemi, color: C.ink },
+  // Clay, as the gate's escape-hatch error is — the onboarding system's one
+  // warm accent, not a red.
+  inlineError: {
+    fontFamily: F.sans,
+    fontSize: T.uiSm,
+    lineHeight: T.uiSm * 1.45,
+    color: C.clayDeep,
+    marginTop: 12,
+  },
+  emailPill: { marginTop: 28 },
+  quietAction: { alignSelf: 'center', marginTop: 18, paddingVertical: 6 },
+  quietActionText: {
+    fontFamily: F.sansMed,
+    fontSize: T.uiSm,
+    color: C.forest,
+    textDecorationLine: 'underline',
+  },
+  quietActionDisabled: { color: oInk(0.45), textDecorationLine: 'none' },
+  codeActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 18,
+    paddingVertical: 6,
   },
 });

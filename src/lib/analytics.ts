@@ -39,7 +39,7 @@ export const trackWelcomeCtaTapped = (cta: 'get_started' | 'sign_in') => {
   captureWithProps('welcome_cta_tapped', { cta });
 };
 
-export const trackAuthAttempted = (method: 'google' | 'apple', context: 'new_user' | 'returning_user') => {
+export const trackAuthAttempted = (method: 'google' | 'apple' | 'email', context: 'new_user' | 'returning_user') => {
   captureWithProps('auth_attempted', { auth_method: method, context });
 };
 
@@ -47,7 +47,7 @@ export const trackAuthAttempted = (method: 'google' | 'apple', context: 'new_use
 // runs inside AuthScreen's catch block; if a raw posthog.capture threw here, it
 // would swallow the REAL auth error and strand the user on a spinner. safeCapture
 // swallows analytics failures so analytics can never mask an auth failure.
-export const trackAuthAbandoned = (method: 'google' | 'apple', context: 'new_user' | 'returning_user', reason?: string) => {
+export const trackAuthAbandoned = (method: 'google' | 'apple' | 'email', context: 'new_user' | 'returning_user', reason?: string) => {
   safeCapture('auth_abandoned', { auth_method: method, context, reason: reason ?? null });
 };
 
@@ -56,7 +56,7 @@ export const trackAuthAbandoned = (method: 'google' | 'apple', context: 'new_use
 // method + context shape so the three form a clean funnel
 // (attempted → succeeded | abandoned). Uses safeCapture per the SPEC-06
 // house-pattern constraint (analytics must never throw into the auth flow).
-export const trackAuthSucceeded = (method: 'google' | 'apple', context: 'new_user' | 'returning_user') => {
+export const trackAuthSucceeded = (method: 'google' | 'apple' | 'email', context: 'new_user' | 'returning_user') => {
   safeCapture('auth_succeeded', { auth_method: method, context });
 };
 

@@ -10,6 +10,8 @@ import { reportError } from '../config/sentry';
 import { useOnboardingStore } from '../store/onboardingStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, LESSON_PROGRESS_KEYS } from '../constants/storageKeys';
+import { classifyEmailOtpError, normalizeEmail } from '../lib/emailOtp';
+import type { Session } from '@supabase/supabase-js';
 
 // Required for web browser authentication
 WebBrowser.maybeCompleteAuthSession();
@@ -211,6 +213,56 @@ export const signInWithApple = async () => {
       return null;
     }
     if (__DEV__) console.error('Error signing in with Apple:', error);
+    throw error;
+  }
+};
+
+/**
+ * Email sign-in, step 1: send a 6-digit code (2026-10).
+ *
+ * A CODE, never a magic link — see src/lib/emailOtp.ts. Which one Supabase
+ * sends is decided by the dashboard's Magic Link email template: it must show
+ * {{ .Token }}, or parents get a link instead of a code (OPS_STATE).
+ *
+ * `shouldCreateUser` stays at its default (true): email is also an ordinary
+ * sign-up method for organic users. A kinderwell.app buyer already has a user
+ * for this address (the website created it, confirmed), so they sign into it.
+ *
+ * Rethrows for AuthScreen to show inline. Only `unknown` failures go to
+ * Sentry — a rate limit or no connection is not a bug. No email in the report.
+ */
+export const sendEmailOtp = async (email: string): Promise<void> => {
+  try {
+    const { error } = await supabase.auth.signInWithOtp({ email: normalizeEmail(email) });
+    if (error) throw error;
+  } catch (error) {
+    if (__DEV__) console.error('Error sending email code:', error);
+    if (classifyEmailOtpError(error) === 'unknown') {
+      reportError(error, { context: 'email_otp_send' });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Email sign-in, step 2: exchange the code for a session. Rethrows (wrong or
+ * expired code, rate limit, offline) for AuthScreen to show inline.
+ */
+export const verifyEmailOtp = async (email: string, token: string): Promise<Session> => {
+  try {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: normalizeEmail(email),
+      token,
+      type: 'email',
+    });
+    if (error) throw error;
+    if (!data.session) throw new Error('verifyOtp returned no session');
+    return data.session;
+  } catch (error) {
+    if (__DEV__) console.error('Error verifying email code:', error);
+    if (classifyEmailOtpError(error) === 'unknown') {
+      reportError(error, { context: 'email_otp_verify' });
+    }
     throw error;
   }
 };
