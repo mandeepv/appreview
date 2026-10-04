@@ -209,6 +209,56 @@ export const DevMenuScreen: React.FC = () => {
     } as never);
   };
 
+  // Open an EXACT screen — for the screenshot shortcuts below, where the point
+  // is to land on one specific frame rather than at the top of a lesson.
+  const openExact = (slug: string, sectionIndex: number, screenIndex: number) => {
+    navigation.navigate('Root', {
+      screen: 'LessonScreen',
+      params: { lessonId: slug, sectionIndex, screenIndex, returnTo: 'MainTabs', entry: true },
+    } as never);
+  };
+
+  // Marketing screenshots. Each entry is one frame someone has asked for by
+  // name, with the coordinates verified against the content files — a lesson
+  // that gains or loses a screen will move these, so check the frame is the one
+  // you meant before shipping the shot.
+  const SHOTS: { label: string; note: string; go: () => void | Promise<void> }[] = [
+    {
+      label: '1 · The situation (sleepover)',
+      note: 'Older-kid scenario, in the child\u2019s own words',
+      go: () => openExact('communicationMistakes', 0, 1),
+    },
+    {
+      label: '2 · Learn rail',
+      note: 'FIVE MINUTES label + checked-off path. Unlocks 6 first',
+      go: async () => {
+        await unlockPathTo(6, { silent: true });
+        navigation.navigate('Root', { screen: 'MainTabs' } as never);
+      },
+    },
+    {
+      label: '3 · Dad/Daughter conversation',
+      note: 'The exact words to say \u2014 the strongest screen',
+      go: () => openExact('helpingProcessEmotions', 1, 0),
+    },
+    {
+      label: '4 · Brain quiz',
+      note: '"Which part of the brain is least available?"',
+      go: () => openExact('lesson1', 0, 12),
+    },
+    {
+      label: '5 · A Key Discovery About the Brain',
+      note: 'Why "just calm down" doesn\u2019t work',
+      go: () => openExact('lesson1', 0, 4),
+    },
+    {
+      label: '5b · Chronic cortisol (backup)',
+      note: '"not a personality flaw" \u2014 fallback for slot 5',
+      go: () => openExact('lesson3', 0, 8),
+    },
+  ];
+
+
   const handleThrowTestError = () => {
     reportError(new Error(`Sentry test error @ ${new Date().toISOString()}`), {
       source: 'DevMenu',
@@ -310,6 +360,23 @@ export const DevMenuScreen: React.FC = () => {
             </View>
             <Ionicons name="chevron-forward" size={24} color={Colors.textTertiary} />
           </TouchableOpacity>
+        </View>
+
+        {/* Marketing screenshots — jump straight to one named frame.
+            Tapping through five lessons to reach the shot you want is the slow
+            part of a capture session, not the capturing. */}
+        <View style={styles.variantSection}>
+          <Text style={styles.variantHeader}>Screenshots</Text>
+          {SHOTS.map((shot) => (
+            <TouchableOpacity
+              key={shot.label}
+              style={styles.variantBtn}
+              onPress={() => void shot.go()}
+            >
+              <Text style={styles.variantBtnText}>{shot.label}</Text>
+              <Text style={styles.shotNote}>{shot.note}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <View style={styles.variantSection}>
@@ -482,6 +549,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.textTertiary,
     alignItems: 'center',
+  },
+  shotNote: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 3,
   },
   variantBtnText: {
     fontSize: 14,
