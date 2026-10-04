@@ -402,25 +402,6 @@ export const lesson2: Lesson = {
             },
           ],
         },
-        // Complete
-        {
-          kind: 'content',
-          cta: 'Start Next Lesson →',
-          blocks: [
-            { type: 'heroEmoji', icon: 'checkmark' },
-            { type: 'heading', text: 'Quest Complete!', size: 'xl' },
-            {
-              type: 'paragraph',
-              text: 'You\'ve mastered happiness chemicals',
-            },
-            {
-              type: 'callout',
-              variant: 'summary',
-              label: 'YOUR PROGRESS',
-              lines: ['2/8', 'lessons completed'],
-            },
-          ],
-        },
       ],
     },
   ],

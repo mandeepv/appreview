@@ -255,7 +255,6 @@ export const sprinklers: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'SECTION 2 OF 5',
           cta: 'Next →',
           blocks: [
             { type: 'heading', text: 'What NOT to do when loved ones are upset', size: 'xl' },
@@ -354,7 +353,7 @@ export const sprinklers: Lesson = {
           kind: 'content',
           cta: 'Next →',
           blocks: [
-            { type: 'heading', text: 'Mistake #1: Problem solving too soon', size: 'lg' },
+            { type: 'heading', text: 'Mistake: Problem solving too soon', size: 'lg' },
             { type: 'paragraph', text: 'Let’s go back to the park.' },
             {
               type: 'callout',
@@ -409,7 +408,7 @@ export const sprinklers: Lesson = {
           kind: 'content',
           cta: 'Next →',
           blocks: [
-            { type: 'heading', text: 'Mistake #2: Minimizing', size: 'lg' },
+            { type: 'heading', text: 'Mistake: Minimizing', size: 'lg' },
             { type: 'paragraph', text: 'Back in the park.' },
             {
               type: 'callout',
@@ -464,7 +463,7 @@ export const sprinklers: Lesson = {
           kind: 'content',
           cta: 'Next →',
           blocks: [
-            { type: 'heading', text: 'Mistake #3: Not being on their team', size: 'lg' },
+            { type: 'heading', text: 'Mistake: Not being on their team', size: 'lg' },
             { type: 'paragraph', text: 'Imagine the sprinklers turn on and your friend says:' },
             {
               type: 'callout',
@@ -856,7 +855,7 @@ export const sprinklers: Lesson = {
         // Screen 14 — journey summary (writes progress at runtime)
         {
           kind: 'content',
-          cta: 'Next sublesson',
+          cta: 'Continue',
           blocks: [
             {
               type: 'heading',
@@ -887,7 +886,6 @@ export const sprinklers: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'Section 4 of 5',
           cta: 'Continue',
           blocks: [
             { type: 'heading', text: 'Three Things to Remember', size: 'xl' },
@@ -1074,7 +1072,6 @@ export const sprinklers: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'Section 5 of 5',
           cta: 'Continue',
           blocks: [
             { type: 'heading', text: 'Summary', size: 'xl' },

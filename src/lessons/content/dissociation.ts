@@ -199,7 +199,7 @@ export const dissociation: Lesson = {
               type: 'callout',
               variant: 'highlight',
               lines: [
-                'In the next sublesson, you\'ll learn how to notice dissociation in real time — and what to do instead.',
+                'In the next part, you\'ll learn how to notice dissociation in real time — and what to do instead.',
               ],
             },
           ],

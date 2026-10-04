@@ -84,7 +84,6 @@ export const helpingProcessEmotions: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'SECTION 2 OF 2',
           cta: 'Next',
           blocks: [
             {

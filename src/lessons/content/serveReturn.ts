@@ -392,7 +392,6 @@ export const serveReturn: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'Section 4 of 6',
           cta: 'Next',
           blocks: [
             { type: 'heading', text: 'What does a "serve" look like?', size: 'lg' },
@@ -483,7 +482,6 @@ export const serveReturn: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'Section 5 of 6',
           cta: 'Next',
           blocks: [
             { type: 'heading', text: 'Serve & return builds safety', size: 'lg' },
@@ -589,7 +587,6 @@ export const serveReturn: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'Section 6 of 6',
           cta: 'Next',
           blocks: [
             { type: 'heading', text: 'Notice serves today', size: 'lg' },

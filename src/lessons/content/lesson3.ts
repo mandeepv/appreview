@@ -32,7 +32,6 @@ export const lesson3: Lesson = {
           kind: 'content',
           cta: 'Next →',
           blocks: [
-            { type: 'eyebrow', text: 'DAY 4 · FOUNDATIONS' },
             { type: 'heading', text: 'The Long-Term Unhappiness Chemical', size: 'xl' },
             { type: 'paragraph', text: 'Some chemicals give short bursts of pleasure.' },
             { type: 'paragraph', text: 'Others quietly shape who we become over years.' },
@@ -437,7 +436,7 @@ export const lesson3: Lesson = {
         // Complete
         {
           kind: 'content',
-          cta: 'Start Next Lesson →',
+          cta: 'Continue',
           blocks: [
             { type: 'heroEmoji', emoji: '🌿' },
             { type: 'heading', text: 'Lesson Complete', size: 'xl' },
@@ -454,12 +453,6 @@ export const lesson3: Lesson = {
                 'Why anticipation is more damaging than events',
                 'How common and reversible this problem is',
               ],
-            },
-            {
-              type: 'callout',
-              variant: 'summary',
-              label: 'YOUR PROGRESS',
-              lines: ['3/8', 'lessons completed'],
             },
             {
               type: 'callout',

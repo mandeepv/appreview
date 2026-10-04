@@ -189,8 +189,11 @@ describe('flow lessons 1-4', () => {
   // Flow lessons are single-section, linear, and DO NOT persist progress —
   // storageKey must be absent so the controller skips the progress write.
   const cases: Array<[string, ReturnType<typeof parseLesson> extends never ? never : any, number]> = [
-    ['lesson1', lesson1, 16],
-    ['lesson2', lesson2, 17],
+    // 1 and 2 each lost their old end screen ("Day 1 complete", "Quest
+    // Complete! 2/8 lessons") in 2026-09: the engine's own lesson-complete
+    // takeover replaces them, and the app shows no lesson counts anywhere.
+    ['lesson1', lesson1, 15],
+    ['lesson2', lesson2, 16],
     ['lesson3', lesson3, 20],
     ['lesson4', lesson4, 19],
   ];
@@ -211,4 +214,43 @@ describe('flow lessons 1-4', () => {
     // Lesson3 has 1 multiSelectQuiz, Lesson4 has 3.
     expect(types.filter((t) => t === 'multiSelectQuiz')).toHaveLength(4);
   });
+});
+
+describe('no lesson counts or "x of y" numbering in lesson copy', () => {
+  // Owner rule (2026-09): the catalogue keeps growing and being restructured,
+  // so the app never states how many lessons, sections or days there are, or
+  // how far through them a parent is. Every such string went stale — "2/8
+  // lessons completed" shipped when there were 13, "Day 2 · …" pointed at a
+  // lesson that did not exist, "Section 3 of 13" was about to become "of 6".
+  // Progress is shown by the rail and the in-lesson bar, never by a number.
+  //
+  // Question numbering ("Question 1 of 3") is structured quiz data, not copy,
+  // and is untouched by this rule. Steps and phases ("Step 1: Radar",
+  // "Phase 2") are the method itself, not a count of the catalogue.
+  const FORBIDDEN: [string, RegExp][] = [
+    ['x/y count', /\b\d+\s*\/\s*\d+\b/],
+    ['"… N of M"', /\b(lesson|section|part|day|module|unit|chapter)s?\s+\d+\s+(of|\/)\s+\d+/i],
+    ['"Day N"', /\bday\s+\d+\b/i],
+    ['"Lesson N"', /\blesson\s+#?\d+\b/i],
+    // Numbered labels only. A bare "#" would match the legacy hex colours
+    // still in the content's style fields, and "the #1 way" is a claim, not a
+    // count (it is on the content review's claims list instead).
+    ['"Mistake #N"', /\b(mistake|step|part|lesson|section|day)\s*#\d+/i],
+    ['a completion count', /\b(lessons?|sections?)\s+(completed|done|left|to go)\b/i],
+  ];
+
+  const strings = (value: unknown, out: string[] = []): string[] => {
+    if (typeof value === 'string') out.push(value);
+    else if (Array.isArray(value)) value.forEach((v) => strings(v, out));
+    else if (value && typeof value === 'object') Object.values(value).forEach((v) => strings(v, out));
+    return out;
+  };
+
+  for (const [slug, lesson] of Object.entries(LESSON_REGISTRY)) {
+    it(`${slug} states no counts`, () => {
+      const offending = strings(lesson)
+        .flatMap((s) => FORBIDDEN.filter(([, re]) => re.test(s)).map(([name]) => `${name}: "${s}"`));
+      expect(offending).toEqual([]);
+    });
+  }
 });

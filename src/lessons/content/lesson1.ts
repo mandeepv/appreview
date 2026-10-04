@@ -28,7 +28,6 @@ export const lesson1: Lesson = {
           kind: 'content',
           cta: 'Next →',
           blocks: [
-            { type: 'eyebrow', text: 'DAY 1 · FOUNDATIONS' },
             { type: 'heading', text: 'What Changed in How We Understand Parenting', size: 'xl' },
             {
               type: 'paragraph',
@@ -405,29 +404,6 @@ export const lesson1: Lesson = {
                 { label: 'Give in to stop the tantrum', isCorrect: false },
               ],
               feedback: 'Acknowledging feelings while maintaining boundaries helps children learn emotional regulation.',
-            },
-          ],
-        },
-        // Complete
-        {
-          kind: 'content',
-          cta: 'Continue to Learn →',
-          blocks: [
-            { type: 'heroEmoji', emoji: '✓' },
-            { type: 'heading', text: 'Day 1 complete 🌱', size: 'xl' },
-            {
-              type: 'paragraph',
-              text: 'You\'ve learned how parenting science changed — and why many old methods failed.',
-            },
-            { type: 'eyebrow', text: 'Up next:' },
-            {
-              type: 'paragraph',
-              text: 'Day 2 · Why children struggle with self-control — and what actually helps',
-            },
-            {
-              type: 'callout',
-              variant: 'summary',
-              lines: ['Lesson completed'],
             },
           ],
         },

@@ -170,7 +170,7 @@ export const communicationMistakes: Lesson = {
           cta: 'Next',
           blocks: [
             { type: 'heroEmoji', emoji: '⚠️' },
-            { type: 'heading', text: 'Mistake #2: Siding With the Enemy', size: 'lg' },
+            { type: 'heading', text: 'Siding With the Enemy', size: 'lg' },
             {
               type: 'paragraph',
               text: 'Sometimes, when someone we love is upset, we try to be fair.',
@@ -397,7 +397,6 @@ export const communicationMistakes: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'Section 3 of 13',
           cta: 'Next',
           blocks: [
             { type: 'heroEmoji', emoji: '💬' },
@@ -1309,7 +1308,6 @@ export const communicationMistakes: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'Section 12 of 13',
           cta: 'Next',
           blocks: [
             { type: 'heading', text: 'Dad tries one more way to help', size: 'lg' },
@@ -1454,7 +1452,6 @@ export const communicationMistakes: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'Section 13 of 13',
           cta: 'Next',
           blocks: [
             { type: 'heading', text: 'Looking on the bright side', size: 'lg' },

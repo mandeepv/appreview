@@ -37,7 +37,6 @@ export const labelingEmotions: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'SECTION 1 OF 4',
           cta: 'Next →',
           blocks: [
             { type: 'heading', text: 'Why Naming Emotions Matters', size: 'xl' },
@@ -236,7 +235,6 @@ export const labelingEmotions: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'SECTION 2 OF 4',
           cta: 'Next →',
           blocks: [
             { type: 'heading', text: 'The Power of Giving Something a Name', size: 'xl' },
@@ -316,7 +314,6 @@ export const labelingEmotions: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'SECTION 3 OF 4',
           cta: 'Next →',
           blocks: [
             { type: 'heading', text: 'How to Name Emotions Correctly', size: 'xl' },
@@ -523,7 +520,6 @@ export const labelingEmotions: Lesson = {
         // Screen 1
         {
           kind: 'content',
-          label: 'SECTION 4 OF 4',
           cta: 'Next →',
           blocks: [
             { type: 'heading', text: 'Practice Makes This a Skill', size: 'xl' },

@@ -32,7 +32,6 @@ export const lesson4: Lesson = {
           kind: 'content',
           cta: 'Next →',
           blocks: [
-            { type: 'eyebrow', text: 'DAY 6 · FOUNDATIONS' },
             { type: 'heading', text: 'The Long-Term Happiness Chemical', size: 'xl' },
             { type: 'paragraph', text: 'So far, we\'ve learned:' },
             {
@@ -440,18 +439,6 @@ export const lesson4: Lesson = {
                 'What to reduce (cortisol)',
                 'What to build (oxytocin)',
               ],
-            },
-            {
-              type: 'callout',
-              variant: 'summary',
-              label: 'YOUR PROGRESS',
-              lines: ['4/8', 'lessons completed'],
-            },
-            {
-              type: 'callout',
-              variant: 'preview',
-              label: 'NEXT:',
-              lines: ['Creating emotional safety in everyday moments.'],
             },
           ],
         },
