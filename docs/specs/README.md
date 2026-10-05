@@ -9,5 +9,6 @@ Taxonomy (see `../README.md`): these are **snapshots** of a plan at a point in t
 - `SPEC-11-notifications.md` — local reminders (Phase 1). Parked until owner go + a reminder-shape decision.
 - `SPEC-12-android-readiness.md` — Android readiness (code-side). Parked on product demand.
 - `NEW_APP_CHECKLIST.md` — the second-app playbook: turn this scaffolding into a new app. Parked until a second app is on the horizon.
+- `SPEC-17-production-testing.md` — production-grade testing: seam tests for the gate/auth/money paths, edge-function and RLS tests, simulator E2E, and an automated release gate. Starts on owner go.
 
 Related: `../ANALYTICS_DASHBOARDS.md` (PostHog dashboard spec, post-v1.2.0) is the same kind of parked artifact but lives at the `docs/` top level, not here.
