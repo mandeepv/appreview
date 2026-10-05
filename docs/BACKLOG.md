@@ -1251,6 +1251,32 @@ existing on-disk keys.
 before shared-device usage grows. See
 `docs/archive/USER_JOURNEY_REVIEW_RESPONSE_2026-09-15.md`.
 
+### 27. A signed-in user without a profile has to sign in twice 🟡
+
+**Problem**: when sign-in mode finds no `user_profiles` row, AuthScreen sends
+the user to `UserType` to answer the questions — but they are still signed
+in, and the last question (`EmotionalChallengesScreen`) navigates to `Auth`
+unconditionally. So they meet the sign-in screen again and must authenticate
+a second time; with Continue with Email that means a second code. Google and
+Apple have always behaved this way (rare: "already have an account" tapped
+by mistake). It is no longer rare once web purchases launch (v1.3.0): every
+kinderwell.app buyer who signs in before the website creates their profile
+hits it. The spec accepts it ("a web buyer who taps Sign in is sent through
+the app questions first. They still unlock at the gate").
+
+**Fix**: two independent options. (a) Web side: the Dodo webhook creates the
+buyer's `user_profiles` row from their quiz answers at first payment (planned
+— see the web OPS_RUNBOOK); the app then sees `has_onboarding` and goes
+straight to the gate. (b) App side: at the end of the questions, skip `Auth`
+when a session already exists and go to `Loading` (which saves the answers
+and runs the gate) — a routing change, so it belongs in `routingPolicy` with
+tests, and it must keep invariant 1.
+
+**Effort**: (b) ~2h incl. tests. (a) is web-repo work.
+
+**Blocks**: nothing — buyers still unlock. But it is friction at the most
+fragile moment of the funnel, so do (a) or (b) before ad spend scales.
+
 ---
 
 ## Parked work (registry — persisted here because the planning folder is NOT backed up; this repo is the only durable store)
