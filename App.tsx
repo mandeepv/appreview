@@ -10,8 +10,8 @@ import { StatusBar } from 'expo-status-bar';
 import * as Sentry from '@sentry/react-native';
 import { PostHogProvider } from 'posthog-react-native';
 import { OnboardingNavigator, OnboardingStackParamList } from './src/navigation/OnboardingNavigator';
-import { useAuthStore, resolveSuperwallStatus } from './src/store/authStore';
-import { SuperwallProvider, useSuperwallEvents } from 'expo-superwall';
+import { useAuthStore, useSubscriptionStatusSync } from './src/store/authStore';
+import { SuperwallProvider } from 'expo-superwall';
 import Constants from 'expo-constants';
 import { posthog } from './src/config/posthog';
 import { useConfigStore } from './src/store/configStore';
@@ -70,7 +70,6 @@ function AppContent() {
 
   const initialize = useAuthStore(state => state.initialize);
   const user = useAuthStore(state => state.user);
-  const setIsSubscribed = useAuthStore(state => state.setIsSubscribed);
   const navigationRef = useRef<NavigationContainerRef<OnboardingStackParamList>>(null);
   const routeNameRef = useRef<string | undefined>(undefined);
   const prevUserRef = useRef(user);
@@ -84,33 +83,10 @@ function AppContent() {
     initialize();
   }, []);
 
-  // App-level Superwall subscription-status listener. Keeps `isSubscribed` in
-  // sync for UI display only (e.g., hide "Subscribe" button in Settings).
-  // Actual paid-content gating is at the Loading gate on entry to Root (the
-  // hard paywall) — see docs/PAYWALL_MODEL.md. `useLessonGate` is a no-op seam
-  // (SPEC-13). Demo users are not flipped here, see docs/DEMO_MODE.md.
-  //
-  // The flag's SOURCE decides what Superwall may do to it (resolveSuperwallStatus,
-  // PAYWALL_MODEL "Web entitlements"): every web buyer is INACTIVE to Superwall,
-  // so an unconditional INACTIVE → false wiped their unlock on every launch.
-  useSuperwallEvents({
-    onSubscriptionStatusChange: (subscriptionStatus) => {
-      const { isDemoUser, subscriptionSource } = useAuthStore.getState();
-      if (isDemoUser) return;
-
-      if (__DEV__) console.log('[Subscription]', subscriptionStatus.status);
-
-      // UNKNOWN resolves to 'keep': Superwall will send a definitive update
-      // once it resolves. Gating does not depend on this flag, so a stale UI
-      // mirror during a brief unknown window is harmless.
-      const action = resolveSuperwallStatus(subscriptionStatus.status, subscriptionSource);
-      if (action === 'subscribe') {
-        setIsSubscribed(true, 'superwall');
-      } else if (action === 'clear') {
-        setIsSubscribed(false);
-      }
-    },
-  });
+  // App-level Superwall subscription-status listener — keeps `isSubscribed`
+  // in step with Superwall, never clearing a web buyer's flag. Defined in
+  // authStore (useSubscriptionStatusSync), where it is tested.
+  useSubscriptionStatusSync();
 
   // Kill switch — fetch app_config on launch, force-upgrade users on bad builds.
   // The check now lives in configStore so LoadingScreen can gate the paywall

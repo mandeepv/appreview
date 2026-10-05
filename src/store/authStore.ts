@@ -4,20 +4,16 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase, signOut as supabaseSignOut } from '../lib/supabase';
 import { posthog } from '../config/posthog';
 import { setSentryUser, reportError } from '../config/sentry';
-import { SuperwallExpoModule } from 'expo-superwall';
+import { SuperwallExpoModule, useSuperwallEvents } from 'expo-superwall';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { mergeRemoteIntoLocal } from '../lessons/progressStore';
 import {
   parseSubRecord,
   resolveCachedEntitlement,
+  resolveSuperwallStatus,
   type PersistedSubRecord as EntitlementRecord,
   type SubSource,
 } from './entitlementCache';
-
-// Re-exported so App.tsx takes it through the import it already has: App.tsx
-// initialises Sentry before its imports, so each extra import line there is an
-// import/first lint warning.
-export { resolveSuperwallStatus } from './entitlementCache';
 
 // isSubscribed persists to disk so we don't paywall a paying user on every
 // cold launch while waiting for Superwall's onSubscriptionStatusChange to
@@ -336,3 +332,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
+
+// App-level Superwall subscription-status listener, mounted once by App.tsx.
+// Moved here unchanged from App.tsx (SPEC-20 R4) so it can be tested without
+// rendering the whole app. It lives in this module rather than src/hooks/
+// because App.tsx initialises Sentry before its imports, so every extra import
+// line there is an import/first lint warning; App.tsx already imports this file.
+//
+// Keeps `isSubscribed` in sync for UI display only (e.g., hide "Subscribe"
+// button in Settings). Actual paid-content gating is at the Loading gate on
+// entry to Root (the hard paywall) — see docs/PAYWALL_MODEL.md. `useLessonGate`
+// is a no-op seam (SPEC-13). Demo users are not flipped here, see
+// docs/DEMO_MODE.md.
+//
+// The flag's SOURCE decides what Superwall may do to it (resolveSuperwallStatus,
+// PAYWALL_MODEL "Web entitlements"): every web buyer is INACTIVE to Superwall,
+// so an unconditional INACTIVE → false wiped their unlock on every launch.
+export function useSubscriptionStatusSync(): void {
+  const setIsSubscribed = useAuthStore((state) => state.setIsSubscribed);
+
+  useSuperwallEvents({
+    onSubscriptionStatusChange: (subscriptionStatus) => {
+      const { isDemoUser, subscriptionSource } = useAuthStore.getState();
+      if (isDemoUser) return;
+
+      if (__DEV__) console.log('[Subscription]', subscriptionStatus.status);
+
+      // UNKNOWN resolves to 'keep': Superwall will send a definitive update
+      // once it resolves. Gating does not depend on this flag, so a stale UI
+      // mirror during a brief unknown window is harmless.
+      const action = resolveSuperwallStatus(subscriptionStatus.status, subscriptionSource);
+      if (action === 'subscribe') {
+        setIsSubscribed(true, 'superwall');
+      } else if (action === 'clear') {
+        setIsSubscribed(false);
+      }
+    },
+  });
+}
