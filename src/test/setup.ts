@@ -9,6 +9,7 @@
 //    that touches analytics, not just analytics.test.ts.
 
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock';
+import mockSafeAreaContext from 'react-native-safe-area-context/jest/mock';
 import * as mockAnalytics from './analytics';
 import * as mockSupabase from './supabase';
 import * as mockSuperwall from './superwall';
@@ -20,6 +21,8 @@ import { FIXTURE_NAME } from './factories';
 // test file's module registry, so a test importing src/test/* gets the very
 // same fake objects the app code sees.
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
+// The library's own mock: insets of zero, no <SafeAreaProvider> needed.
+jest.mock('react-native-safe-area-context', () => mockSafeAreaContext);
 jest.mock('../config/posthog', () => mockAnalytics.posthogModule);
 jest.mock('../config/sentry', () => mockAnalytics.sentryModule);
 jest.mock('@sentry/react-native', () => mockAnalytics.sentrySdk);

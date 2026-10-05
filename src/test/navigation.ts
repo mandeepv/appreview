@@ -11,7 +11,14 @@ export function makeNavigation() {
     goBack: jest.fn(),
     canGoBack: jest.fn(() => false),
     setOptions: jest.fn(),
+    setParams: jest.fn(),
+    dispatch: jest.fn(),
+    // React Navigation's focus hooks (useFocusEffect, useIsFocused) need these.
+    isFocused: jest.fn(() => true),
     addListener: jest.fn(() => jest.fn()),
+    removeListener: jest.fn(),
+    getParent: jest.fn(() => undefined),
+    getId: jest.fn(() => undefined),
     getState: jest.fn(() => ({ routes: [], index: 0 })),
   };
 }
