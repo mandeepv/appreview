@@ -129,13 +129,28 @@ their own). The app reads `status, current_period_end, product_id` for
 `source = 'dodo'` (`src/services/entitlementService.ts`) and decides
 with the pure `isWebEntitled(row, now)` (`src/store/webEntitlement.ts`):
 entitled only when `status` is `active`, `past_due` or `cancelled`
-**and** `current_period_end` is set and later than now. The app checks
-the date itself; the server only flips stale rows to `expired` hourly,
-with up to 5 days' grace.
+**and** `current_period_end` is set and later than now — or, for
+`active` only, within 6 days after it. The app checks the date itself;
+the server only flips stale rows to `expired` when its sweep runs.
+
+**Why `active` gets 6 days (late renewal webhooks).** Dodo bills at
+period end and *then* sends `subscription.renewed`, which moves
+`current_period_end` forward. If that webhook is late (Dodo retrying, a
+rotated webhook secret, an endpoint outage), a customer who has just paid
+still has an `active` row with the old date. Web review P1-8 made the
+server wait 5 days on such rows, and ask Dodo before expiring them. The
+app now waits too: the server's 5 days plus one, so a late-running
+hourly sweep never leaves a gap. Before 2026-10-05 the app cut access at
+the old date, so for up to those 5 days a paying web subscriber met the
+Apple paywall. `webEntitlement.test` fails if the newest
+`expire_stale_entitlements()` migration ever waits longer than the app.
+`past_due` and `cancelled` get no extra time: the webhook sets their
+dates on purpose (a 3-day floor while a card is retried; never earlier
+than the paid period).
 
 | Status | Meaning | Access |
 |---|---|---|
-| `active` | Paid, renewing | Yes, until `current_period_end` |
+| `active` | Paid, renewing | Yes, until `current_period_end` + 6 days (late-renewal grace) |
 | `past_due` | Renewal card failing, Dodo retrying | Yes, until `current_period_end` |
 | `cancelled` | Cancelled, will not renew | Yes, until `current_period_end` (same as Apple) |
 | `expired` | Period over | No |

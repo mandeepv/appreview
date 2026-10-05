@@ -30,7 +30,9 @@ jest.mock('../../config/sentry', () => ({
 }));
 
 const FUTURE = new Date(Date.now() + 30 * 86400_000).toISOString();
-const PAST = new Date(Date.now() - 86400_000).toISOString();
+// Well past the late-renewal grace an `active` row gets (webEntitlement.ts),
+// so this row has truly lapsed.
+const PAST = new Date(Date.now() - 30 * 86400_000).toISOString();
 
 beforeEach(() => {
   mockEq.mockClear();

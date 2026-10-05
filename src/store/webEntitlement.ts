@@ -22,13 +22,41 @@ export type WebEntitlementRow = {
 // or chargeback) never grant access, whatever the date says.
 const ENTITLING_STATUSES = new Set(['active', 'past_due', 'cancelled']);
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// How long past current_period_end an `active` row still grants access.
+//
+// An `active` row only outlives its period when the renewal webhook hasn't
+// landed. Dodo bills on next_billing_date and sends `subscription.renewed`,
+// which moves current_period_end forward; if that delivery is late (Dodo
+// retrying with backoff, a rotated webhook secret, an endpoint outage) the
+// customer has paid but the row still carries the old date. Web review P1-8
+// fixed the server for exactly this: expire_stale_entitlements() leaves
+// `active` rows alone for 5 days, and the winback sweep asks Dodo about them
+// first and heals the row when the subscription is live. The app was left
+// cutting access at the old date — so for up to those 5 days a customer who
+// had just been billed met the Apple paywall, and could pay a second time.
+//
+// So the app waits too: the server's 5 days plus one, so an hourly sweep that
+// runs late can't open a gap between the app giving up and the server
+// deciding. Once the sweep has decided, the row's status or date carries the
+// answer and this grace stops mattering; the extra day only counts if the
+// sweep itself is down. webEntitlement.test pins it against the newest
+// migration that defines expire_stale_entitlements().
+//
+// Only `active`. The webhook writes `past_due` and `cancelled` dates on
+// purpose — a 3-day floor while Dodo retries a card, and never earlier than
+// the paid period — so for those statuses the date is the answer.
+export const ACTIVE_LATE_RENEWAL_GRACE_MS = 6 * DAY_MS;
+
 /**
  * Is this row an active web entitlement at `now`?
  *
  * The app checks the date ITSELF rather than trusting `status` alone: the server
- * only flips stale rows to `expired` hourly, with up to 5 days' grace, so an
- * `active` row can sit past its period end for a while. An unparseable or null
- * date is not entitled — the safe reading on a money path.
+ * only flips stale rows to `expired` when its sweep runs, so a row can say
+ * `cancelled` or `past_due` after its period has ended. An `active` row keeps
+ * ACTIVE_LATE_RENEWAL_GRACE_MS past its date for a late renewal webhook. An
+ * unparseable or null date is not entitled — the safe reading on a money path.
  */
 export function isWebEntitled(row: WebEntitlementRow | null | undefined, now: Date): boolean {
   if (!row) return false;
@@ -36,7 +64,8 @@ export function isWebEntitled(row: WebEntitlementRow | null | undefined, now: Da
   if (!row.current_period_end) return false;
   const end = Date.parse(row.current_period_end);
   if (Number.isNaN(end)) return false;
-  return end > now.getTime();
+  const grace = row.status === 'active' ? ACTIVE_LATE_RENEWAL_GRACE_MS : 0;
+  return end + grace > now.getTime();
 }
 
 /**
