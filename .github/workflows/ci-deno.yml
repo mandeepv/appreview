@@ -1,0 +1,39 @@
+name: CI (edge functions)
+
+# Lint + type-check the Supabase Edge Functions (SPEC-20 R1). They run on
+# Deno, so the Node-oriented ESLint job skips them (eslint.config.js ignores
+# supabase/functions/) — until this workflow, nothing checked them at all.
+#
+# A separate workflow, not a job in ci.yml, because GitHub's `paths:` filter
+# applies to a whole workflow: this runs only on PRs that touch the functions,
+# so the metered-minutes trade-off in ci.yml is unchanged for everything else.
+on:
+  # Release gate — run it with the main CI workflow on the commit to ship.
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/ci-deno.yml'
+
+jobs:
+  deno:
+    name: Deno lint + type check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # no-import-prefix is excluded because Supabase functions import by URL
+      # (https://esm.sh/…, https://deno.land/…) by design. Excluding it here,
+      # not in a deno.json, keeps any config file out of the deploy bundle.
+      - name: Lint
+        run: deno lint --rules-exclude=no-import-prefix supabase/functions
+
+      - name: Type check
+        run: deno check supabase/functions/*/index.ts
