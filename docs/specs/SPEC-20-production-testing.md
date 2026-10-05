@@ -2,7 +2,7 @@
 
 > ORIGIN: written 2026-10-05 by Claude at the owner's request, from a coverage audit of `feat/web-purchase-unlock` (v1.3.0).
 >
-> **Status (2026-10-05):** Phase 1 (R1, R2, R4, R6) is built, on `release/1.3.0`. 390 tests pass (up from 300), and the lint baseline is unchanged. Each requirement's tests were checked by breaking the code they guard (sabotage items 5–8 and 24, plus the R6 guards). Phases 2–6 have not started. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
+> **Status (2026-10-06):** Phases 1 and 2 (R1–R6) are built, on `release/1.3.0`. 460 tests pass (up from 300), and the lint baseline is unchanged. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–8, 14, 15 and 24, plus the R3, R5 and R6 guards. The gate found no bugs; all 26 R3 cases held. Phases 3–6 have not started. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
 >
 > Numbered 20 because SPEC-15 to SPEC-19 were used by the July 2026 release train. That train was the onboarding A/B experiment through to the streak system, bumped to 1.6.0 but never shipped; its branches were deleted on 2026-10-05. This spec was briefly called SPEC-17, and commit `db0ef73` still uses that name.
 
@@ -105,6 +105,13 @@ Also add a Deno job that runs `deno check` and `deno lint` on `supabase/function
 - **`expo-superwall` mapping:** the package's `exports` map has only an `import` condition, so Jest can't resolve it. `jest.config.js` maps the bare name to its `main` file.
 - **No `require` in mock factories:** `setup.ts` passes the fakes to its `jest.mock` factories as `mock`-prefixed imports.
 - **Superwall fake checked against the real SDK.** The real hooks keep their callbacks in a ref, so they always call the latest render's closures, and the fake does the same. Its `registerPlacement` also documents that the real promise resolves only when access is granted.
+
+*Added in Phase 2:*
+- **`src/test/timers.ts` `advance()`** steps fake time in 50 ms chunks with a render between each. One long `act()` holds re-renders until it ends, so effect-started intervals (the retry loop) and timers scheduled from state updates (the theatre's hand-off) would never run mid-advance.
+- **`src/test/render.tsx` `renderScreen()`** provides the fake navigation as context as well as the prop, for screens whose children call `useNavigation()`, such as `OnboardingScreen`.
+- **The safe-area library's own Jest mock** is installed globally.
+- **A mocked module whose factory reads a test-file variable must read it lazily, through a getter.** The factory runs while the screen is being imported, before the test file's `const`s exist. The first draft of R3 #4 passed for exactly this wrong reason.
+- **A device check for R3 #22** (none of the 26 cases found a bug). After a failed sign-out, "Use a different account" depends on Superwall firing `onDismiss` for the programmatic `dismiss()`. Without it, the gate's in-flight guard is never released, and the user would sit on Loading with no retry. Confirm on device that dismissing reports `declined`.
 
 ### R3 — The Loading gate
 
