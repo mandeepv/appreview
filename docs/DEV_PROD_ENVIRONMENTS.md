@@ -172,7 +172,7 @@ eas submit --profile production --platform ios
 
 1. **Local dev on Mac** — `npx expo start` (dev backend)
 2. **On-device dev** — `npx expo run:ios --device` (dev backend, iPhone)
-3. **Pre-release smoke test** — `eas build --profile preview` and install via TestFlight or ad-hoc (dev backend, release-mode)
+3. **Pre-release smoke test** — `eas build --profile preview` and install ad-hoc on a registered device (dev backend, release-mode). Not TestFlight: `preview` is `distribution: internal`, and the only store-distributed profile, `production`, points at prod Supabase
 4. **Ship** — `eas build --profile production` → `eas submit`
 
 ## Schema migrations — backward compatibility
