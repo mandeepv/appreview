@@ -1,6 +1,10 @@
-# SPEC-17 — Production-grade testing: cover the seams, automate the release gate
+# SPEC-20 — Production-grade testing: cover the seams, automate the release gate
 
-> ORIGIN: written 2026-10-05 by Claude at the owner's request, from a coverage audit of `feat/web-purchase-unlock` (v1.3.0). Not started — starts on owner go. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e. (Numbered 17 because SPEC-16 is the highest number referenced in the repo; renumber if the planning folder already uses 17.)
+> ORIGIN: written 2026-10-05 by Claude at the owner's request, from a coverage audit of `feat/web-purchase-unlock` (v1.3.0).
+>
+> **Status (2026-10-05):** Phase 1 (R1, R2, R4, R6) is built, on `release/1.3.0`. 390 tests pass (up from 300), and the lint baseline is unchanged. Each requirement's tests were checked by breaking the code they guard (sabotage items 5–8 and 24, plus the R6 guards). Phases 2–6 have not started. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
+>
+> Numbered 20 because SPEC-15 to SPEC-19 were used by the July 2026 release train. That train was the onboarding A/B experiment through to the streak system, bumped to 1.6.0 but never shipped; its branches were deleted on 2026-10-05. This spec was briefly called SPEC-17, and commit `db0ef73` still uses that name.
 
 ## Why
 
@@ -60,7 +64,7 @@ Rules for every layer. The existing suite already follows these, from SPEC-04:
 
 ### R1 — Invariants as lint errors, not reviewer memory
 
-Invariant 1 is currently enforced as "grep for it in review." This requirement moves each mechanical invariant into `eslint.config.js` as an **error**. CI fails only on errors, so the ~107-warning baseline doesn't get in the way. Each rule below had **zero current violations** on 2026-10-05, so each can land as an error straight away.
+Invariant 1 is currently enforced as "grep for it in review." This requirement moves each mechanical invariant into `eslint.config.js` as an **error**. CI fails only on errors, so the ~107-warning baseline doesn't get in the way. Each rule below can land as an error straight away. The only existing hits were nine `navigate('Root')` calls in `DevMenuScreen`. INVARIANTS #1's own grep (`replace('Root')`) never saw them. They're harmless because DevMenu is registered only under `__DEV__`, so it's exempt, and a test fails if that guard is ever removed.
 
 | Rule | Invariant | How |
 |---|---|---|
@@ -95,6 +99,12 @@ Also add a Deno job that runs `deno check` and `deno lint` on `supabase/function
 - **Global PII guard (invariant 8).** Add a `setupFilesAfterEnv` hook that runs after every test. It scans every recorded PostHog `capture` / `identify` payload and every Sentry `setUser` / `captureException` context. If it finds anything shaped like an email address, or any child name used in the fixtures, the test fails. That makes invariant 8 a check on every test that touches analytics, not just `analytics.test.ts`.
 
 **Acceptance:** a screen test renders `WelcomeScreen` and finds "Get started".
+
+*As built (Phase 1):*
+- **Library:** `@testing-library/react-native` 14 with `test-renderer`. In this version `render`, `renderHook` and `fireEvent` all return promises, so tests `await` them.
+- **`expo-superwall` mapping:** the package's `exports` map has only an `import` condition, so Jest can't resolve it. `jest.config.js` maps the bare name to its `main` file.
+- **No `require` in mock factories:** `setup.ts` passes the fakes to its `jest.mock` factories as `mock`-prefixed imports.
+- **Superwall fake checked against the real SDK.** The real hooks keep their callbacks in a ref, so they always call the latest render's closures, and the fake does the same. Its `registerPlacement` also documents that the real promise resolves only when access is granted.
 
 ### R3 — The Loading gate
 
@@ -192,14 +202,14 @@ These tests cover `src/store/authStore.ts`, the code that passes the session use
   3. The next launch's `initialize` runs with B's session.
   4. B is **not** subscribed.
 
-The `onSubscriptionStatusChange` listener at `App.tsx:96-113` can't be reached without rendering the whole app. Move it, unchanged, into `src/hooks/useSubscriptionStatusSync.ts` and test the hook:
+The `onSubscriptionStatusChange` listener at `App.tsx:96-113` can't be reached without rendering the whole app. Move it, unchanged, into a `useSubscriptionStatusSync` hook and test the hook. *(As built: the hook lives in `src/store/authStore.ts`, not `src/hooks/`. A new import line in `App.tsx` would add an `import/first` warning, since `App.tsx` initialises Sentry before its imports, and `App.tsx` already imports `authStore`.)* Cases:
 - `ACTIVE` → subscribe, with source `superwall`;
 - `INACTIVE` with source `web` → kept (invariant 25);
 - `INACTIVE` with source `superwall` → cleared;
 - `UNKNOWN` → kept;
 - demo user → ignored.
 
-`App.tsx` needs a one-line change. Keep its imports going through `authStore` as they do now (`authStore.ts:17-20` explains why: extra imports there trigger `import/first` warnings).
+`App.tsx` needs a one-line change: it calls `useSubscriptionStatusSync()`.
 
 ### R5 — Launch and sign-in routing
 
@@ -245,6 +255,7 @@ The `onSubscriptionStatusChange` listener at `App.tsx:96-113` can't be reached w
   - `maybeRecheckConfig` skips within 6 h, re-fetches after, and never overlaps itself;
   - a foreground recheck can move to `force_update` but never back to `ok`.
 - `appConfig.ts`: every parse-guard branch, taking it from 54 % to the Tier A floor.
+- **Kill-switch headroom (found while building R6).** `isBelowMinimumBuild` ignores any minimum above `MIN_SUPPORTED_BUILD_CAP` (40), so once the shipping build nears 40, the kill switch silently stops working. A test now fails while there are still 5 builds of headroom (shipping build + 5 must still be enforceable). When it fires, raise the cap and update RELEASE_CHECKLIST's kill-switch test value. At build 12 the test has 24 builds to go before it fires (it fails from build 36), which could be under a year at a weekly cadence.
 - `onboardingStore`:
   - a save/load round trip works;
   - `clearState` removes all three keys;
@@ -530,13 +541,13 @@ Each phase ships on its own and is useful alone. Estimates are rough, in AI-assi
 
 ### Where the work lives
 
-- **Branch: `test/spec-17`**, cut from `feat/web-purchase-unlock` right after the late-renewal fix was committed, so the tests cover the v1.3.0 code, including web entitlements. When v1.3.0 merges to `main`, rebase `test/spec-17` onto `main`.
-- **Nothing from this spec goes onto the release branch**, with one exception. A bug the new tests find in v1.3.0 code gets fixed as its own `fix(...)` commit on `feat/web-purchase-unlock`, with its regression test, and the test branch rebases onto it. The late-renewal fix was the first of these.
-- **Most of the work doesn't change the app or the server:** lint rules (R1), the harness and its dev dependencies (R2), tests, CI workflows and docs.
-- **Two requirements do change shipped code**, so they stay on `test/spec-17` and reach users only in the release after v1.3.0, unless the owner decides otherwise:
-  - **R4** moves the Superwall status listener from `App.tsx` into `src/hooks/useSubscriptionStatusSync.ts`. This is app code, so it ships in a binary.
-  - **R8** splits `delete-account` into `handler.ts` plus a thin `index.ts`. This is a deployed edge function, so it needs a redeploy (RELEASE_CHECKLIST Phase 5) and the usual dev-first acceptance check.
-  - Both are written as behaviour-preserving moves. The tests that land with them are what show nothing changed.
+- **Branch: `release/1.3.0`.** This is the single 1.3.0 branch: the redesign, web-purchase unlock, the late-renewal fix, and this spec's work, as one line of history. It replaced `design/onboarding-lesson-revamp`, `feat/web-purchase-unlock` and `test/spec-17` on 2026-10-05, owner decision. Those three were a strict stack, so no commit was lost.
+- **Tests go into 1.3.0 too.** 1.3.0 hasn't shipped, and its riskiest change is the paywall gate (web unlock, "Use a different account"), so Phase 2's gate tests are worth the most before it ships. Tests, lint rules, CI and the harness don't go into the app binary.
+- **Two requirements change shipped code.** Each is a behaviour-preserving move in its own commit, and the tests that land with it show nothing changed:
+  - **R4** (done) moves the Superwall status listener from `App.tsx` into `useSubscriptionStatusSync` in `src/store/authStore.ts`. It's app code, so it ships in the 1.3.0 binary.
+  - **R8** splits `delete-account` into `handler.ts` plus a thin `index.ts`. It's a deployed edge function, so it needs a redeploy (RELEASE_CHECKLIST Phase 5) and the usual dev-first acceptance check. Schedule it for after 1.3.0 unless that release is already redeploying the function.
+- **A bug the new tests find in 1.3.0 code** gets its own `fix(...)` commit with its regression test. The late-renewal fix (`b26186f`) was the first.
+- **Shipping:** one PR, `release/1.3.0` → `main`, then build from `main` (runbook `docs/releases/v1.3.0.md` §A).
 
 R13 is a cross-check, not a separate phase. Each of its rows lands with the phase that owns its check. The exception is the contract table, which goes in Phase 3 alongside the backend work.
 
