@@ -3,6 +3,9 @@
 // getCurrentBuildNumber / isBelowMinimumBuild is exercised. We do NOT mock
 // appConfig.ts (the module under test).
 
+import * as fs from 'fs';
+import * as path from 'path';
+
 const appMock = { nativeBuildVersion: '10' as string | null };
 
 // Expose nativeBuildVersion via a GETTER so `Application.nativeBuildVersion`
@@ -83,5 +86,21 @@ describe('isBelowMinimumBuild', () => {
   it('null nativeBuildVersion → 0 → refuses to force-update', () => {
     appMock.nativeBuildVersion = null;
     expect(isBelowMinimumBuild(cfg(5))).toBe(false);
+  });
+
+  // SPEC-20 R6. MIN_SUPPORTED_BUILD_CAP (40) protects against a typo'd
+  // minimum bricking the fleet — but it also means that once the SHIPPING
+  // build nears the cap, no minimum can force anyone off it: the kill switch
+  // goes dead silently, with no error anywhere. At build 12 there's room; at
+  // a weekly release cadence there won't be within a year. This fails while
+  // there are still 5 builds of headroom — raise the cap then (and the
+  // RELEASE_CHECKLIST kill-switch test value with it).
+  it('the shipping build (app.json) still has headroom under the cap', () => {
+    const appJson = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '..', '..', '..', 'app.json'), 'utf8'),
+    );
+    const shipping = Number(appJson.expo.ios.buildNumber);
+    appMock.nativeBuildVersion = String(shipping);
+    expect(isBelowMinimumBuild(cfg(shipping + 5))).toBe(true);
   });
 });
