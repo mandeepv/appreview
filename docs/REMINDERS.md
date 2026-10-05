@@ -56,9 +56,12 @@ checked against the code and the repo, so none of it silently carries forward
 as "not applicable":
 
 - ~~prod migration `add_onboarding_variant_columns`~~ — **not applicable.** The
-  migration exists only on the abandoned branches; `supabase/migrations/` ends
-  at `20260710010000`, which OPS_STATE records as the prod state. Nothing
-  pending.
+  migration exists only on the abandoned branches; `supabase/migrations/` ended
+  at `20260710010000`, which OPS_STATE records as the prod state. **Superseded
+  2026-10-04:** v1.3.0 now also carries web purchases, and with them three
+  pending prod migrations (`20260918000000_web2app`, `…0928_email_opt_outs`,
+  `…0930_webhook_hardening`) — they must reach prod BEFORE the new
+  `delete-account`. See `releases/v1.3.0.md` §F.
 - ~~flip PostHog onboarding `variant_b` to 0%~~ — **inert.** No code on this
   branch reads any feature flag (`grep -rn getFeatureFlag src/` → nothing), so
   whatever the flag is set to changes nothing in the shipping build. Worth
