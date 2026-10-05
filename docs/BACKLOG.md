@@ -1267,7 +1267,13 @@ the app questions first. They still unlock at the gate").
 **Fix**: two independent options. (a) Web side: the Dodo webhook creates the
 buyer's `user_profiles` row from their quiz answers at first payment (planned
 — see the web OPS_RUNBOOK); the app then sees `has_onboarding` and goes
-straight to the gate. (b) App side: at the end of the questions, skip `Auth`
+straight to the gate. ⚠️ Only if the row sets **`user_type`** (`'father' |
+'mother' | 'other'`): `hasUserCompletedOnboarding` counts a profile as
+onboarded on a non-null `user_type` and nothing else, so a web-created row
+without it still sends the buyer through the questions. (Checked 2026-10-05
+for the spec's open question: nothing else in the app assumes it wrote the
+row — the profile reads tolerate nulls, and the app's later save is an
+upsert on `id` that only overwrites the fields it sends.) (b) App side: at the end of the questions, skip `Auth`
 when a session already exists and go to `Loading` (which saves the answers
 and runs the gate) — a routing change, so it belongs in `routingPolicy` with
 tests, and it must keep invariant 1.
