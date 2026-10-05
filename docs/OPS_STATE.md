@@ -81,7 +81,7 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 |---|---|---|---|---|
 | GitHub | canonical repo private | yes (owner) | unverified | GitHub → repo settings |
 | GitHub | branch protection / required checks | **SKIPPED** — paid feature on private repos (owner decision; compensating controls: PR-triggered CI + never-merge-on-red) | 2026-07-10 | GitHub → Settings → Branches |
-| GitHub | public `appreview` copy | pending deletion | unverified | GitHub → appreview repo |
+| GitHub | public `appreview` copy | **KEPT, in use as the REDACTED review mirror** (supersedes "pending deletion"). Its whole history is a rewrite of this repo with keys, project refs, the Sentry DSN, EAS project id, Apple team/key/app ids, emails and names replaced by placeholders (text files only). **Never `git push appreview` a real branch** — it would publish every real value, and the histories don't share commits anyway. To update it: rebuild the new commits with the same replacements on top of its tip, check that the old tip reproduces its tip exactly, then push the rebuilt commits. Last synced 2026-10-05: `design/onboarding-lesson-revamp` → `d08481d`, `feat/web-purchase-unlock` → `ec6f119` | 2026-10-05 | `git ls-remote --heads appreview` |
 
 ## Apple
 
