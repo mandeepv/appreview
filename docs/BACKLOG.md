@@ -599,9 +599,26 @@ IPHONE_TEST_PLAN_V1.1.0.md into RELEASE_CHECKLIST Phase 2 or Phase
 release skips one of these checks because they weren't visible in
 the canonical checklist.
 
+**Status (2026-10-06)**: still open, and now the only blocker to archiving
+`IPHONE_TEST_PLAN_V1.1.0.md`. RELEASE_CHECKLIST Phase 2 still makes its
+Section 12 a must-pass step. Part of it is now automated by the SPEC-20
+simulator E2E flows (`.maestro/`): demo-mode 7-tap (flow 7), delete account
+against the real edge function (flow 6), kill switch (flow 8), progress
+surviving a relaunch (flow 3). The rest is the same ~30 min as below. Map
+each check to its test or keep it as a phone step, then archive. This is
+SPEC-20 R11's leftover.
+
 **Origin**: Fable review 🟡 docs/process bucket.
 
-### 9f. First Jest unit tests 🟡
+### 9f. First Jest unit tests ✅ DONE (2026-10-06)
+
+**Status: shipped, and well past this.** SPEC-20 (`docs/specs/SPEC-20-production-testing.md`)
+took the suite from ~300 to 730 Jest tests, plus Deno edge-function and
+pgTAP database tests, and CI enforces per-file coverage floors. All three
+targets below are covered: `appConfig.test` (the kill-switch cap),
+`onboardingService.test` (the error branch), and `units.test` (every lesson
+on the path). How to test: `docs/TESTING.md`. Original description
+retained below.
 
 **Problem**: Zero test coverage. Reviewer flagged three specific
 targets where a single test would prevent a whole category of
@@ -1264,9 +1281,15 @@ kinderwell.app buyer who signs in before the website creates their profile
 hits it. The spec accepts it ("a web buyer who taps Sign in is sent through
 the app questions first. They still unlock at the gate").
 
+**Status (2026-10-05)**: (a) is **built** in `kinderwell-web` (`a5ebcbc`,
+branch `test/coverage`, PR #1) and sets `user_type` — live once the web
+functions are deployed. One case remains for (b): someone who started the
+app's onboarding (a row with no `user_type`) and THEN bought on the web — the
+webhook only inserts, so their row is left alone and they still meet this.
+
 **Fix**: two independent options. (a) Web side: the Dodo webhook creates the
-buyer's `user_profiles` row from their quiz answers at first payment (planned
-— see the web OPS_RUNBOOK); the app then sees `has_onboarding` and goes
+buyer's `user_profiles` row from their quiz answers at first payment (built
+2026-10-05 — see the web OPS_RUNBOOK); the app then sees `has_onboarding` and goes
 straight to the gate. ⚠️ Only if the row sets **`user_type`** (`'father' |
 'mother' | 'other'`): `hasUserCompletedOnboarding` counts a profile as
 onboarded on a non-null `user_type` and nothing else, so a web-created row
@@ -1278,7 +1301,15 @@ when a session already exists and go to `Loading` (which saves the answers
 and runs the gate) — a routing change, so it belongs in `routingPolicy` with
 tests, and it must keep invariant 1.
 
-**Effort**: (b) ~2h incl. tests. (a) is web-repo work.
+**Confirmed end to end (2026-10-06)**: SPEC-20 E2E flow 2b (a seeded buyer
+whose profile insert failed) shows exactly this on the release build. The
+buyer answers the questions, lands on "Save your progress", signs in a
+second time (a second email code), then reaches Learn. The paywall is
+never shown. The flow does the second sign-in today; once (b) ships, drop
+that step and it becomes a regression test. Recommended for 1.3.1, after
+v1.3.0 ships (the fix is in the gate path); the owner hasn't decided yet.
+
+**Effort**: (b) ~2h incl. tests. (a) is done (web repo).
 
 **Blocks**: nothing — buyers still unlock. But it is friction at the most
 fragile moment of the funnel, so do (a) or (b) before ad spend scales.
