@@ -12,7 +12,7 @@
 // Supabase, Superwall, Sentry and AsyncStorage are the global fakes.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { deleteAccount, SubscriptionCancelError } from '../authService';
+import { deleteAccount, getCurrentSession, signOut, SubscriptionCancelError } from '../authService';
 import { LESSON_PROGRESS_KEYS, STORAGE_KEYS } from '../../constants/storageKeys';
 import { resetSupabaseFake, supabase } from '../../test/supabase';
 import { SuperwallExpoModule, resetSuperwallFake } from '../../test/superwall';
@@ -135,5 +135,29 @@ describe('deleteAccount — success clears every trace, in a safe order', () => 
       context: 'delete_account_clear_lesson_progress',
     });
     expect(supabase.auth.signOut).toHaveBeenCalled();
+  });
+});
+
+// Phase 6 gap-fill: the small session helpers deleteAccount and the screens lean on.
+describe('session helpers', () => {
+  it('a server error with no readable body → rethrown as is (not mistaken for a cancel failure)', async () => {
+    refreshSucceeds();
+    const failure = new Error('FunctionsFetchError: network');
+    supabase.functions.invoke.mockResolvedValue({ data: null, error: failure });
+    await expect(deleteAccount()).rejects.toBe(failure);
+    expect(sentryModule.reportError).toHaveBeenCalledWith(failure, { context: 'delete_account_invoke' });
+  });
+
+  it('getCurrentSession → the session, or null when the read fails (never a throw)', async () => {
+    const current = makeSession(makeUser('user-a'));
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: current }, error: null });
+    await expect(getCurrentSession()).resolves.toBe(current);
+    supabase.auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: new Error('offline') });
+    await expect(getCurrentSession()).resolves.toBeNull();
+  });
+
+  it('signOut → rethrows a failure, so callers keep the user signed in and say so', async () => {
+    supabase.auth.signOut.mockResolvedValue({ error: new Error('offline') });
+    await expect(signOut()).rejects.toThrow('offline');
   });
 });

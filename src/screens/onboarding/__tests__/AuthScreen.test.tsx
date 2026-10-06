@@ -19,7 +19,7 @@ import { Alert } from 'react-native';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthScreen } from '../AuthScreen';
-import { signInWithGoogle } from '../../../services/authService';
+import { signInWithApple, signInWithGoogle } from '../../../services/authService';
 import { useAuthStore } from '../../../store/authStore';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { makeNavigation } from '../../../test/navigation';
@@ -27,6 +27,7 @@ import { renderScreen } from '../../../test/render';
 import { resetSupabaseFake, setTableResult, supabase } from '../../../test/supabase';
 import {
   capturedEvents,
+  lastCapture,
   posthog,
   resetAnalyticsFakes,
   sentryModule,
@@ -63,6 +64,7 @@ type Mode = 'signin' | 'signup';
 
 const userA = makeUser('user-a');
 const googleSignIn = signInWithGoogle as jest.Mock;
+const appleSignIn = signInWithApple as jest.Mock;
 
 const PROFILE = {
   has_onboarding: { data: { id: 'user-a', user_type: 'parent' }, error: null },
@@ -96,6 +98,7 @@ beforeEach(async () => {
   resetSupabaseFake();
   resetAnalyticsFakes();
   googleSignIn.mockReset();
+  appleSignIn.mockReset();
   seedAuthStore();
   seedOnboardingStore();
 });
@@ -167,6 +170,29 @@ describe('after sign-in — the gate or the questionnaire, never Root', () => {
   });
 });
 
+describe('provider sign-in (Phase 6 gap-fill)', () => {
+  it('Apple → signs in and routes through the same gate as Google', async () => {
+    setTableResult('user_profiles', PROFILE.has_onboarding);
+    appleSignIn.mockResolvedValue(makeSession(userA));
+    const navigation = await renderAuth('signin');
+    await fireEvent.press(screen.getByText('Continue with Apple'));
+    expect(appleSignIn).toHaveBeenCalledTimes(1);
+    expect(navigation.replace).toHaveBeenCalledWith('Loading');
+    neverRoot(navigation);
+  });
+
+  it('a provider failure → "Sign In Failed", reported with the provider, nothing routed', async () => {
+    const failure = new Error('network down');
+    googleSignIn.mockRejectedValue(failure);
+    const navigation = await renderAuth('signup');
+    await fireEvent.press(screen.getByText('Continue with Google'));
+    expect(alertSpy).toHaveBeenCalledWith('Sign In Failed', 'network down', expect.any(Array));
+    expect(sentryModule.reportError).toHaveBeenCalledWith(failure, { auth_method: 'google', screen: 'AuthScreen' });
+    expect(lastCapture('auth_abandoned')).toEqual({ auth_method: 'google', context: 'new_user', reason: 'error' });
+    expect(navigation.replace).not.toHaveBeenCalled();
+  });
+});
+
 describe('analytics identity (INVARIANTS #8)', () => {
   // The global PII guard also fails these if the fixture email or name
   // reaches PostHog in any call.
@@ -215,6 +241,16 @@ describe('email sign-in', () => {
     expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({ email: FIXTURE_EMAIL, token: '123456', type: 'email' });
     expect(navigation.replace).toHaveBeenCalledWith('Loading');
     neverRoot(navigation);
+  });
+
+  it('"Use a different email" → back to the address step; backing out → the providers, logged as abandoned', async () => {
+    await requestCode('signin');
+    await fireEvent.press(screen.getByText('Use a different email'));
+    expect(screen.getByLabelText('Your email')).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('Use another way to sign in'));
+    expect(screen.getByText('Continue with Google')).toBeTruthy();
+    expect(lastCapture('auth_abandoned')).toEqual({ auth_method: 'email', context: 'returning_user', reason: 'backed_out' });
   });
 
   it('a wrong or expired code → an inline message, not signed in, not reported', async () => {
