@@ -296,9 +296,11 @@ describe('graded questions', () => {
   // checking that both questions really have this answer — never to silence
   // the test.
   const REVIEWED_REPEATS: Record<string, string> = {
-    // Section 2 ends on this question; section 3 opens by asking it again as a
-    // recap before teaching more ways to stop. Reviewed 2026-10-06 — owner to
-    // confirm.
+    // The quizzes ending sections 2 and 3 both have this answer ("most
+    // effective first step to reduce dissociation?" / "most important first
+    // step when dissociation starts?"). Both have been in the lesson since it
+    // was first written (8cf25c7, 2026-01-09); the owner confirmed on
+    // 2026-10-06 that it stays as a recap.
     'dissociation:notice it and name it': 'recap across sections 2 → 3',
   };
 
