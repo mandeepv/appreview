@@ -576,7 +576,7 @@ merge-blocking on main") for the decision, the compensating controls
 (PR-triggered CI + never-merge-on-red), and the revisit trigger (a
 GitHub Team upgrade). Each risk lives in exactly one place.
 
-### 9e. Fold adversarial tests into RELEASE_CHECKLIST permanently 🟡
+### 9e. Fold adversarial tests into RELEASE_CHECKLIST permanently ✅ DONE (2026-10-06)
 
 **Problem**: The adversarial tests captured in
 `docs/IPHONE_TEST_PLAN_V1.1.0.md` (never-used-credentials sign-in,
@@ -599,14 +599,18 @@ IPHONE_TEST_PLAN_V1.1.0.md into RELEASE_CHECKLIST Phase 2 or Phase
 release skips one of these checks because they weren't visible in
 the canonical checklist.
 
-**Status (2026-10-06)**: still open, and now the only blocker to archiving
-`IPHONE_TEST_PLAN_V1.1.0.md`. RELEASE_CHECKLIST Phase 2 still makes its
-Section 12 a must-pass step. Part of it is now automated by the SPEC-20
-simulator E2E flows (`.maestro/`): demo-mode 7-tap (flow 7), delete account
-against the real edge function (flow 6), kill switch (flow 8), progress
-surviving a relaunch (flow 3). The rest is the same ~30 min as below. Map
-each check to its test or keep it as a phone step, then archive. This is
-SPEC-20 R11's leftover.
+**Status: done (2026-10-06).** RELEASE_CHECKLIST Phase 2 now runs the E2E
+suite, then a short device pass of what a machine can't do: native sign-in
+sheets, a sandbox purchase and restore, web-buyer sign-in variants, an
+offline launch, a subscriber deleting ≥1 h after sign-in, the smallest
+iPhone, the version line, PostHog, and prod untouched. The plan moved to
+`docs/archive/IPHONE_TEST_PLAN_V1.1.0.md`, whose header maps every old
+check to its replacement. Of the adversarial checks listed below:
+- never-used credentials and delete-after-1h are in the device pass;
+- demo mode is E2E flow 7;
+- the post-onboarding DB row is covered by E2E flow 6's database check and
+  the onboarding service tests;
+- the small-screen pass is in the device pass.
 
 **Origin**: Fable review 🟡 docs/process bucket.
 

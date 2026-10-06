@@ -438,8 +438,9 @@ have the fallback ready.
 - `docs/DEMO_MODE.md` — 7-tap Apple reviewer bypass
 - `docs/RELEASE_CHECKLIST.md` Phase 7.5 — Superwall dashboard
   verification for every release
-- `docs/IPHONE_TEST_PLAN_V1.1.0.md` Section 3 — smoke test for the
-  paywall model
+- `docs/TESTING.md` — the paywall model's automated checks (E2E flows
+  1, 2, 2b, 5, 10; the gate's unit tests); the release device pass is in
+  `docs/RELEASE_CHECKLIST.md` Phase 2
 - `docs/BACKLOG.md` #20 — Paywall UX polish (post-launch A/B testing,
   headline iteration, etc.)
 - `docs/archive/FABLE_RE_REVIEW_2026-07-05.md` — the review that flagged the

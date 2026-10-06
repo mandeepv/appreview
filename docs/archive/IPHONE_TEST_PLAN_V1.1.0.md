@@ -1,3 +1,26 @@
+> **SNAPSHOT — frozen as of 2026-10-06. Do not follow as current process; see docs/README.md for the live docs.**
+> Written 2026-07-04 for v1.1.0 (Section 12 added 2026-07-05). Archived when its checks moved into RELEASE_CHECKLIST Phase 2 ("Run the end-to-end tests" + "Device pass") and the automated suites (SPEC-20 R11, BACKLOG 9e).
+>
+> **Where each check went:**
+>
+> | Old check | Now |
+> |---|---|
+> | 12.1 delete account (one confirmation, warning, cleanup, server deletion) | E2E flow 6 (deleted for real, checked in the DB); `SettingsScreen.test`, `deleteAccount.test`, `authStore.test`, `delete-account/handler_test.ts`; device pass: an App Store subscriber deleting ≥1 h after sign-in |
+> | 12.2a returning user signs in → Learn | E2E flow 2; `AuthScreen.test` |
+> | 12.2b fresh answers discarded for an existing profile | `AuthScreen.test` ("profile exists → the gate, local questionnaire cleared") |
+> | 12.2c auth flag cleared on sign-out | `onboardingStore.test`, `SplashScreen.test`, `routingPolicy.test` |
+> | 12.2d sign-in without a profile → the questions | E2E flow 2b; `AuthScreen.test`, `routingPolicy.test` |
+> | 12.3 onboarding-check error ≠ no profile | `onboardingService.test`, `routingPolicy.test`, `AuthScreen.test` (INVARIANTS #6) |
+> | 12.4–12.5 lesson progress after the storage-key refactor | the hand-built lesson screens are gone (SPEC-09 lesson engine); `lessonCompletion`/`progressStore` tests, `content.test`, E2E flow 3 |
+> | 12.6 ChildrenCount hydration on "Restart onboarding" | that entry is only in the dev menu now; the screen mounts in `everyScreenRenders` |
+> | 12.7 Google and Apple sign-in behave alike | `providerSignIn.test`, `AuthScreen.test`; device pass: both native sheets |
+> | 12.8 typed Supabase client | `tsc` in CI |
+> | 12.9 no "Parent" placeholder name | `onboardingService.test`, `profileSummary.test`, `LoadingScreen.test` (INVARIANTS #7); device pass: a never-used Apple ID |
+> | 12.10 kill-switch cap | `appConfig.test`; the live switch: E2E flow 8 |
+> | 12.11 version in Settings | device pass |
+> | 12.12 Restore Purchases outcomes | `purchaseService.test`, `SettingsScreen.test`; device pass: live "Restored" and "No Purchases Found" |
+> | Sections 0–11 (build, install, paywall, Apple sign-in, restore, kill switch, demo, Sentry, PostHog, prod untouched) | RELEASE_CHECKLIST Phase 2 build/install steps, CI, E2E flows 1, 7, 8, and the device pass |
+
 # iPhone Smoke Test Plan — v1.1.0 Dev Build
 
 **Purpose:** end-to-end verification of every meaningful change we've made this weekend before merging `setup/dev-environment` to `main`. If ANY test fails, we fix and re-verify before the merge.

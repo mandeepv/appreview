@@ -4,6 +4,11 @@ Docs that were once actively used but are now historical. **Nothing has been del
 
 ## What's here and why it was archived
 
+### `IPHONE_TEST_PLAN_V1.1.0.md`
+- **Original purpose:** the manual iPhone smoke-test plan for v1.1.0 (July 2026), plus the Section 12 post-review regression addendum.
+- **Why archived (2026-10-06):** its checks now live in RELEASE_CHECKLIST Phase 2 (the E2E run and a short device pass) and in the automated suites (SPEC-20). Its header maps each old check to its replacement.
+- **Still useful for:** the reasoning behind individual checks (e.g. the Restore Purchases outcome matrix in 12.12).
+
 ### `LAUNCH_CHECKLIST.md`
 - **Original purpose:** Pre-v1.0.0 launch checklist (January 2026)
 - **Why archived:** Info now covered by `RELEASE_CHECKLIST.md` (the ongoing per-release checklist). This one was a one-time snapshot of "what shipped in v1.0.0."

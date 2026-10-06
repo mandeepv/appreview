@@ -39,7 +39,6 @@ The live process docs live here. **Everything in this folder (outside `archive/`
 
 | File | What it's for |
 |---|---|
-| `IPHONE_TEST_PLAN_V1.1.0.md` | Manual smoke-test plan for v1.1.0 on iPhone XR. **After 1.1.1 ships**, extract its reusable regression sections into an evergreen `TEST_PLAN_TEMPLATE.md`, then archive this file. |
 
 ## Historical context (rarely needed)
 
