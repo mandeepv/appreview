@@ -2,7 +2,7 @@
 
 > ORIGIN: written 2026-10-05 by Claude at the owner's request, from a coverage audit of `feat/web-purchase-unlock` (v1.3.0).
 >
-> **Status (2026-10-06):** Phases 1 and 2 (R1–R6) are built, on `release/1.3.0`. 460 tests pass (up from 300), and the lint baseline is unchanged. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–8, 14, 15 and 24, plus the R3, R5 and R6 guards. The gate found no bugs; all 26 R3 cases held. Phases 3–6 have not started. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
+> **Status (2026-10-06):** Phases 1–3 (R1–R9, R13) are built, on `release/1.3.0`. 601 Jest tests, 31 Deno tests and 65 database tests pass (Jest was 300 at the start), and the lint baseline is unchanged. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–12, 14, 15 and 24, plus the R3, R5, R6, R8 and R9 guards. Neither the gate nor delete-account had a bug; all 26 R3 cases held. Phases 4–6 have not started. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
 >
 > Numbered 20 because SPEC-15 to SPEC-19 were used by the July 2026 release train. That train was the onboarding A/B experiment through to the streak system, bumped to 1.6.0 but never shipped; its branches were deleted on 2026-10-05. This spec was briefly called SPEC-17, and commit `db0ef73` still uses that name.
 
@@ -330,6 +330,13 @@ The `onSubscriptionStatusChange` listener at `App.tsx:96-113` can't be reached w
   - parse `supabase/config.toml` and assert `verify_jwt = true` for `delete-account`;
   - scan `src/`, `app.config.js` and `eas.json` (read only) for service-role key names.
 
+*As built (Phase 3):*
+- **The split ships with 1.3.0.** `delete-account` is `handler.ts` (all the logic, taking `{ env, fetch, createAdminClient, remoteJwks }` as arguments) plus `index.ts` (the live wiring). 1.3.0 already redeploys the function for the Dodo cancel, so the split rides along; the runbook's deploy step says so.
+- **`handler_test.ts`, 31 tests.** Tokens are really signed with jose and verified by the handler's own code against an in-memory key set. That covers ES256, HS256, a wrong key, expiry, `alg: none`, HS512, HS256 relabelled as ES256, a wrong secret, no `sub`, and the fail-closed 500.
+- **One sabotage that can't be caught:** removing the algorithm pin on the asymmetric path. The explicit ES256/RS256 check just before it already rejects every other algorithm, so the pin is a redundant second layer.
+- **Invariant 9** is in `src/config/__tests__/edgeFunctionGuards.test.ts`.
+- **`deno.lock` is gitignored.** The URL imports are version-pinned.
+
 ### R9 — Database: RLS and migrations
 
 RLS is the only thing that stops a signed-in user from writing their own `entitlements` row, which would mean free access. Nothing in this repo tests it.
@@ -354,6 +361,14 @@ RLS is the only thing that stops a signed-in user from writing their own `entitl
 - **Type drift.** After the reset, `supabase gen types typescript --local` must match `src/types/supabase.ts`. This catches a skipped `npm run gen:supabase-types` (RELEASE_CHECKLIST Phase 1). Check output parity on the first run, because the committed file was generated from dev with `--linked`.
 - **First-run check.** If dev or prod hold objects created in the dashboard rather than in `supabase/migrations/`, the local stack won't have them. Record any gap in `OPS_STATE.md`.
 - **Cost.** A few minutes per run. It runs on PRs that touch `supabase/**`, and on the release-gate dispatch.
+
+*As built (Phase 3):*
+- **`supabase/tests/database/`** holds `access_test.sql` and `functions_test.sql`, ported unchanged from the web repo, plus `app_tables_test.sql` for `user_profiles`, `lesson_progress` and `app_config`. That's 65 tests.
+- **CI:** `.github/workflows/ci-db.yml` mirrors the web repo's proven job: `supabase start`, then `supabase test db`, then a type-drift diff. The diff is advisory until a first run shows the types agree.
+- **Without Docker:** `scripts/db-test-local/run.sh` builds pgTAP from source, starts a throwaway Homebrew Postgres 17 on a private socket, loads a Supabase stand-in (`bootstrap.sql`: the API roles, `auth.users`, `auth.uid()`, and Supabase's default grants), applies the migrations and runs the files. It's a fast check; CI is the authority.
+- **Gotcha: an UPDATE `WITH CHECK` test must not use `WHERE`.** When an UPDATE reads columns, Postgres also checks the new row against the SELECT policy, which blocks the move by itself and hides a missing `WITH CHECK`. Tests A4 and A7 issue the move unconditionally.
+- **Each of 9 loosened policies, added as a throwaway migration, failed a test.** They were: user-insertable entitlements; a table without RLS; both UPDATE `WITH CHECK`s; public read of profiles; writable kill switch (two ways); anon lookup of accounts by email.
+- **`scripts/check-migration-parity.sh`.** On 2026-10-06 it reports the web repo's `20261005000000_event_ordering.sql` missing here (still the owner's call to copy it in).
 
 ### R10 — End to end on the iOS simulator
 
@@ -520,6 +535,7 @@ The server side of leakage: a client can't write `entitlements` or read another 
 - This repo's test runs every entry through `isWebEntitled`.
 - The web repo's webhook tests should assert the same rows. That's a task for that repo.
 - A release-time script diffs the two copies of the table.
+- *As built (Phase 3):* `src/store/__tests__/webEntitlementContract.test.ts` covers 9 Dodo events, with 21 access checks around the billing date. When the web repo is checked out next to this one, the test also re-reads its code (the event → status map, the 3-day past_due floor, revoke on refund and dispute, the sweep's grace). That replaces the copied-table diff. In CI the cross-check is skipped.
 
 **Fixed 2026-10-05 — a late renewal webhook locked paying web subscribers out.**
 - Web review P1-8 (fixed 2026-09-30) found that a late `subscription.renewed` webhook locked out customers who had just been billed. The fix was on the server: the sweep now waits 5 days for `active` rows and checks with Dodo before expiring them.
