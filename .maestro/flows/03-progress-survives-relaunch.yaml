@@ -1,0 +1,47 @@
+# A web buyer finishes tonight's section, then the app is killed and
+# relaunched: the section stays checked, the card moves on, and no paywall
+# flashes on the way (SPEC-20 R10 flow 3). The answers follow lesson1.ts's
+# first section; if that content changes, this flow changes with it. Its quiz
+# reveals the answer on tap (no "Check answer" step), then Continue.
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Sign in"
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${BUYER_EMAIL}
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- assertNotVisible:
+    id: "learn-done-node"
+- tapOn:
+    id: "learn-current-card"
+- repeat:
+    times: 11
+    commands:
+      - tapOn: "Next"
+- tapOn: "Start"
+- tapOn: "The thinking / reasoning center"
+- tapOn: "Continue"
+- tapOn: "Skill-building over time"
+- tapOn: "Continue"
+- tapOn: "Acknowledge feelings while holding the boundary"
+- tapOn: "Continue"
+- tapOn: "Stop for tonight"
+- extendedWaitUntil:
+    visible:
+      id: "learn-done-node"
+    timeout: 15000
+- assertVisible: "What changed in parenting science\\?"
+- runFlow: ../subflows/relaunch.yaml
+- extendedWaitUntil:
+    visible:
+      id: "learn-done-node"
+    timeout: 30000
+- assertVisible: "What changed in parenting science\\?"
+- assertVisible:
+    id: "learn-current-card"
+- assertNotVisible: "(?i).*restore.*"

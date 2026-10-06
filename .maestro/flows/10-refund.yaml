@@ -1,0 +1,31 @@
+# A web buyer is refunded (the webhook marks their entitlement `revoked`).
+# Next launch: still in, on the cached unlock, while the background re-check
+# learns of the refund. The launch after: the paywall (SPEC-20 R10 flow 10).
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Sign in"
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${BUYER_EMAIL}
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- runScript:
+    file: ../scripts/revoke.js
+    env:
+      USER_ID: ${BUYER_ID}
+- runFlow: ../subflows/relaunch.yaml
+- extendedWaitUntil:
+    visible:
+      id: "learn-screen"
+    timeout: 30000
+# Give the background re-check time to land before the next launch.
+- extendedWaitUntil:
+    visible: "never-on-screen-e2e-pause"
+    timeout: 8000
+    optional: true
+- runFlow: ../subflows/relaunch.yaml
+- runFlow: ../subflows/paywall-shown.yaml

@@ -1,0 +1,6 @@
+# Kill the app and open it again, keeping its data — a parent coming back.
+appId: ${APP_ID}
+---
+- stopApp
+- launchApp
+- runFlow: dismiss-store-prompts.yaml

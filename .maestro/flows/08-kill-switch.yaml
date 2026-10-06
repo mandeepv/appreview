@@ -1,0 +1,15 @@
+# The runner raises dev's min_supported_ios_build one above this build: the
+# app must show the undismissable update screen and never the paywall or the
+# app (SPEC-20 R10 flow 8). The runner restores the value afterwards.
+# RUNNER: raise-min-build
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/dismiss-store-prompts.yaml
+- extendedWaitUntil:
+    visible: "Update required"
+    timeout: 30000
+- assertNotVisible: "(?i).*restore.*"
+- assertNotVisible:
+    id: "learn-screen"

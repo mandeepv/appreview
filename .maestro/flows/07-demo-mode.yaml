@@ -1,0 +1,20 @@
+# Demo mode, the App Review path: seven taps on the sign-in title unlock the
+# app with no account and no purchase (docs/DEMO_MODE.md). Also a smoke test
+# of the build itself: launch, onboarding stack, gate, Learn.
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Sign in"
+- repeat:
+    times: 7
+    commands:
+      - tapOn:
+          id: "auth-title"
+- extendedWaitUntil:
+    visible: "Demo Mode Activated"
+    timeout: 5000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000

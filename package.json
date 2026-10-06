@@ -12,6 +12,8 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "test": "jest",
+    "build:e2e": "scripts/e2e/build.sh",
+    "test:e2e": "scripts/e2e/run.sh",
     "gen:supabase-types": "supabase gen types typescript --linked > src/types/supabase.ts"
   },
   "dependencies": {

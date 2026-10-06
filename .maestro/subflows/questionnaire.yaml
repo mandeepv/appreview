@@ -1,0 +1,28 @@
+# The onboarding questions, from "Who are you parenting as?" to the sign-in
+# screen, answering each with the first sensible choice.
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "Who are you parenting as?"
+    timeout: 15000
+- tapOn: "Mother"
+- tapOn: "Continue"
+- tapOn:
+    id: "onboarding-name-input"
+- inputText: "Ada"
+# Return closes the keyboard (a single-line field blurs on submit), uncovering
+# Continue. Maestro's hideKeyboard is unreliable on iOS.
+- pressKey: Enter
+- tapOn: "Continue"
+- tapOn: "More children"
+- tapOn: "2–4"
+- tapOn: "Continue"
+- tapOn: "Closer relationship"
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Involved sometimes"
+- tapOn: "Continue"
+- tapOn: "I know a lot about parenting science"
+- tapOn: "Continue"
+- tapOn: "Feeling overwhelmed"
+- tapOn: "Continue"

@@ -1,0 +1,41 @@
+# An entitled web buyer deletes their account from Settings: the app lands on
+# Welcome, and the runner then checks the user is really gone from dev — the
+# delete-account edge function against the real gateway (SPEC-20 R10 flow 6).
+# RUNNER: buyer-must-be-deleted
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Sign in"
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${BUYER_EMAIL}
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- tapOn: "Profile, tab.*"
+# Centred: at the bottom of the list the row sits under the tab bar.
+- scrollUntilVisible:
+    element:
+      id: "settings-delete-account"
+    centerElement: true
+- tapOn:
+    id: "settings-delete-account"
+- extendedWaitUntil:
+    visible: "Delete your account\\?"
+    timeout: 5000
+# The confirm button. Maestro matches text case-insensitively, so plain
+# "Delete Account" would also hit the "Delete account" row behind the dialog;
+# (?-i) makes it exact. iOS stacks these buttons (Delete Account above
+# Cancel); "below the message" holds for either layout.
+- tapOn:
+    text: "(?-i)Delete Account"
+    below: "This permanently deletes.*"
+- extendedWaitUntil:
+    visible: "Account deleted"
+    timeout: 30000
+- tapOn: "OK"
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 15000

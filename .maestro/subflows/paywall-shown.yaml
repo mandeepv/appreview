@@ -1,0 +1,9 @@
+# The hard paywall is up and the app is not. "Restore" is on every Superwall
+# paywall (Apple requires it), so it's the stable thing to look for.
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible: "(?i).*restore.*"
+    timeout: 30000
+- assertNotVisible:
+    id: "learn-screen"

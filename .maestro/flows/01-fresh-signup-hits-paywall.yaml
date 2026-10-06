@@ -1,0 +1,12 @@
+# Fresh install → onboarding questions → email sign-up → the hard paywall,
+# never the app (SPEC-20 R10 flow 1; invariant 1 end to end).
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Get started"
+- runFlow: ../subflows/questionnaire.yaml
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${FRESH_EMAIL}
+- runFlow: ../subflows/paywall-shown.yaml

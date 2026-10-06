@@ -1,0 +1,39 @@
+# A web buyer signs out and an unentitled user signs in on the same phone:
+# the buyer's unlock must not carry over (SPEC-20 R10 flow 5; invariant 3).
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Sign in"
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${BUYER_EMAIL}
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- tapOn: "Profile, tab.*"
+# Centred: at the bottom of the list the row sits under the tab bar, and a
+# tap there lands on the tab bar instead.
+- scrollUntilVisible:
+    element:
+      id: "settings-log-out"
+    centerElement: true
+- tapOn:
+    id: "settings-log-out"
+# The confirm button. Maestro matches text case-insensitively, so plain
+# "Log Out" would also hit the "Log out" row behind the dialog; (?-i) makes it
+# exact, and "below the message" skips the dialog's own "Log Out" title. iOS
+# may lay the buttons out side by side or stacked; this holds either way.
+- tapOn:
+    text: "(?-i)Log Out"
+    below: "Are you sure.*"
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 15000
+- tapOn: "Sign in"
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${UNENTITLED_EMAIL}
+- runFlow: ../subflows/paywall-shown.yaml

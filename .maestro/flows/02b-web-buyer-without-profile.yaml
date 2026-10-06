@@ -1,0 +1,55 @@
+# A web buyer whose webhook paid but failed to write the profile signs in:
+# they may answer the questions, but they reach the app WITHOUT ever seeing
+# the paywall — they must never be asked to pay twice (SPEC-20 R10 flow 2b).
+# A hard paywall would stop them short of Learn, so reaching it is the proof.
+# (Superwall shows its paywall over the app, so "Restore" is also checked.)
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Sign in"
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${BUYER_NO_PROFILE_EMAIL}
+- extendedWaitUntil:
+    visible: "Who are you parenting as?"
+    timeout: 30000
+- runFlow: ../subflows/questionnaire.yaml
+# The app then asks this already-signed-in buyer to sign in AGAIN ("Save your
+# progress": the questions end on Auth in sign-up mode). Clumsy, but nobody is
+# charged; found by this flow 2026-10-06 and reported to the owner. The flow
+# signs in again, so the money assertion still holds: no paywall, then Learn.
+- extendedWaitUntil:
+    visible: "Continue with Email"
+    timeout: 10000
+- assertNotVisible: "(?i).*restore.*"
+- tapOn: "Continue with Email"
+- tapOn: "Your email"
+- inputText: ${BUYER_NO_PROFILE_EMAIL}
+- tapOn: "Send code"
+# Same address twice: Supabase sends one code per address per minute, so the
+# second Send code can be refused for a while. Retry until it goes through.
+- repeat:
+    while:
+      visible: "Too many codes requested.*"
+    times: 6
+    commands:
+      - extendedWaitUntil:
+          visible: "never-on-screen-e2e-pause"
+          timeout: 15000
+          optional: true
+      - tapOn: "Send code"
+- extendedWaitUntil:
+    visible: "6-digit code"
+    timeout: 15000
+- runScript:
+    file: ../scripts/otp.js
+    env:
+      EMAIL: ${BUYER_NO_PROFILE_EMAIL}
+- tapOn: "6-digit code"
+- inputText: ${output.otp}
+- tapOn: "Verify"
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000

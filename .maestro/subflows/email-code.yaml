@@ -1,0 +1,24 @@
+# On the sign-in screen (either mode): sign in with an email code — the only
+# sign-in a machine can drive (Apple and Google open native sheets).
+appId: ${APP_ID}
+---
+- tapOn: "Continue with Email"
+- tapOn: "Your email"
+- inputText: ${EMAIL}
+- tapOn: "Send code"
+- extendedWaitUntil:
+    visible: "6-digit code|Too many codes requested.*"
+    timeout: 15000
+# Dev's emails-per-hour limit (Supabase → Authentication → Rate Limits) is
+# shared by every run. When it's used up the app is behaving correctly; the
+# run.sh summary says so and doesn't spend a retry on it.
+- assertNotVisible:
+    text: "Too many codes requested.*"
+    label: "E2E-EMAIL-LIMIT: dev's email rate limit is used up"
+- runScript:
+    file: ../scripts/otp.js
+    env:
+      EMAIL: ${EMAIL}
+- tapOn: "6-digit code"
+- inputText: ${output.otp}
+- tapOn: "Verify"

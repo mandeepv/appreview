@@ -1,0 +1,31 @@
+# SIMULATOR ONLY. At launch the Superwall SDK asks StoreKit for the App Store
+# storefront; a simulator signed in to no Apple account answers with a system
+# "Sign in to Apple Account" prompt — two, stacked — that covers the app.
+# Phones are signed in, so parents never see this. Cancel every one.
+#
+# The prompt's title isn't exposed to Maestro as text, only its buttons, so
+# it is found as "Cancel left of OK" — a pair none of the app's own dialogs
+# uses (theirs are Cancel / Log Out and Cancel / Delete Account).
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible:
+      text: "Cancel"
+      leftOf: "OK"
+    timeout: 8000
+    optional: true
+- repeat:
+    while:
+      visible:
+        text: "Cancel"
+        leftOf: "OK"
+    commands:
+      - tapOn:
+          text: "Cancel"
+          leftOf: "OK"
+      - extendedWaitUntil:
+          visible:
+            text: "Cancel"
+            leftOf: "OK"
+          timeout: 2000
+          optional: true
