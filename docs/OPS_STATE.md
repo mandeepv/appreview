@@ -47,6 +47,12 @@ Code is trackable from git; **non-code state is not** (DB migrations applied, da
 | Sentry | new-issue alert rule | prod-scoped, notifies owner email — **VERIFIED** | 2026-07-10 | Sentry → Alerts |
 | Sentry | spike-regression rule | "Spike / regression (prod)" — escalation + resolved→unresolved → owner email — **CREATED** | 2026-07-10 | Sentry → Alerts |
 | Sentry | spike protection | **ON** — VERIFIED | 2026-07-10 | Sentry → Settings → Quotas |
+| Sentry | crash-free release alert (SPEC-20 R12) | **required, not yet created** — alert when crash-free sessions on the newest release fall below 99% (the RELEASE_CHECKLIST Phase 11 pause threshold, automated) | unverified | Sentry → Alerts → Release health |
+| PostHog | alert: `paywall_placement_not_found` (SPEC-20 R12) | **required, not yet created** — any occurrence in prod within an hour → owner email. A missing `subscription_gate` placement now locks users OUT (INVARIANTS #2) | unverified | PostHog → Alerts |
+| PostHog | alert: paywall skips (SPEC-20 R12) | **required, not yet created** — `paywall_skipped_by_superwall` above 1% of `paywall_presented` (Phase 11 pause threshold, automated) | unverified | PostHog → Alerts |
+| PostHog | alert: purchases down (SPEC-20 R12) | **required, not yet created** — day-over-day `subscription_purchased` down more than 50% (Phase 11 threshold) | unverified | PostHog → Alerts |
+| PostHog | alert: web check failing (SPEC-20 R12) | **required, not yet created** — `web_entitlement_checked` with result `error`/`timeout` well above baseline; a failing check sends web buyers without a cached flag to the Apple paywall | unverified | PostHog → Alerts |
+| PostHog | alert: demo mode discovered (SPEC-20 R12) | **required, not yet created** — `demo_mode_activated` above ~20 a week in prod (today a weekly manual count) | unverified | PostHog → Alerts |
 | Sentry | client-key rate limit | 100 events per 1 hour — SET | 2026-07-10 | Sentry → Settings → Client Keys |
 | Sentry | sourcemaps for live build | **STALE — last verified for 1.1.0 (dist 9), two releases ago.** v1.2.0 (build 11) shipped without this row being re-checked. Verify for 1.3.0 (build 12) at release: invariant 21 makes sourcemap upload release evidence, and without it a prod stack trace is unreadable. | **unverified (1.1.0 evidence only)** | Sentry → Releases → artifacts |
 

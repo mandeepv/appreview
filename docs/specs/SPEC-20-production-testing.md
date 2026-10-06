@@ -2,7 +2,7 @@
 
 > ORIGIN: written 2026-10-05 by Claude at the owner's request, from a coverage audit of `feat/web-purchase-unlock` (v1.3.0).
 >
-> **Status (2026-10-06):** Phases 1–4 (R1–R9, R13) are built, on `release/1.3.0`. 703 Jest tests, 31 Deno tests and 65 database tests pass (Jest was 300 at the start), and the lint baseline is unchanged. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–12, 14–16, 18 and 24, plus the R3–R9 guards. Items 16 and 18 were planned for E2E but are caught by Jest. Neither the gate nor delete-account had a bug; all 26 R3 cases held. Phase 5 (E2E) is waiting on the owner prerequisites, and Phase 6 has not started. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
+> **Status (2026-10-06):** Phases 1–4 and 6 are built, on `release/1.3.0`. That's R1–R9, R11 and R13, with R12's alerts recorded in OPS_STATE for the owner to create. 730 Jest tests, 31 Deno tests and 65 database tests pass (Jest was 300 at the start), and line coverage went from 16% to 74%. CI now enforces per-file coverage floors, and every Tier A file is at or above 80% branch coverage with `__DEV__` guards excluded. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–12, 14–16, 18 and 24, plus the R3–R9 guards. Neither the gate nor delete-account had a bug; all 26 R3 cases held. **Not done:** Phase 5 (E2E, R10) is waiting on the owner prerequisites. Two R11 items wait on it: mapping and archiving `IPHONE_TEST_PLAN_V1.1.0.md`, and slimming the manual device pass. BACKLOG 9e/9f also weren't updated, because another session holds uncommitted BACKLOG edits. The working reference is `docs/TESTING.md`. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
 >
 > Numbered 20 because SPEC-15 to SPEC-19 were used by the July 2026 release train. That train was the onboarding A/B experiment through to the streak system, bumped to 1.6.0 but never shipped; its branches were deleted on 2026-10-05. This spec was briefly called SPEC-17, and commit `db0ef73` still uses that name.
 
@@ -483,6 +483,12 @@ Map each item in `IPHONE_TEST_PLAN_V1.1.0.md` Section 12 and the Phase 2 smoke l
 - Create an evergreen `docs/TESTING.md` covering how to run each layer, the harness, the rules above, and Appendix A's matrix as the living copy.
 - Add it to the core table in `docs/README.md`.
 - Add one line to CLAUDE.md "Commands", and one to "Conventions": *every bug fix ships with a regression test at the lowest layer that reproduces it.*
+
+*As built (Phase 6):*
+- **Floors.** `jest.config.js` has 16 Tier A per-file floors plus a Tier B global floor. Jest subtracts path-listed files from the global figure, so the global floor was measured over Tier B alone: statements 55, branches 35, functions 40, lines 55.
+- **CI.** The Jest job runs with `--coverage`. Dropping the auth-store tests fails the run on all four of that file's floors.
+- **Gap-fills to reach 80% (excl. `__DEV__`).** Google and Apple sign-in, including Apple getting the hashed nonce and Supabase the raw one. Provider failure and email back-out on AuthScreen. Session helpers. progressStore's storage failures and cross-device sign-in merge.
+- **Docs.** RELEASE_CHECKLIST Phase 2 and Phase 7 gate on all three workflows, and Phase 4 starts with the migration-parity check. `docs/TESTING.md` is new and in the docs index. CLAUDE.md lists the commands and the regression-test rule.
 
 ### R12 — Catch what still gets through, fast
 

@@ -23,6 +23,7 @@ The live process docs live here. **Everything in this folder (outside `archive/`
 | `DEMO_MODE.md` | 🚨 7-tap Apple-reviewer bypass invariants — read before touching auth/subscription code |
 | `APPLE_JWT_ROTATION.md` | 6-month Apple JWT rotation procedure |
 | `STOREKIT_SETUP_GUIDE.md` | StoreKit Xcode setup + sandbox Apple ID |
+| `TESTING.md` | How the app is tested: running each layer (Jest, Deno, database, migration parity), the harness, the rules, coverage floors, and the invariant → test map |
 
 ## Living docs (trackers)
 

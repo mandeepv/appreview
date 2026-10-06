@@ -102,10 +102,12 @@ jobs:
         run: npm ci
 
       # --ci makes Jest fail (rather than write) on a missing snapshot, and
-      # disables watch. Our suite is pure policy-kernel tests (SPEC-04) — no
-      # simulator, fast (<1s locally).
+      # disables watch. --coverage enforces the per-tier floors in
+      # jest.config.js (SPEC-20 R11): a PR that drops coverage below one fails
+      # here. Kernels, stores, services and screens, no simulator — a few
+      # seconds locally.
       - name: Run tests
-        run: npm test -- --ci
+        run: npm test -- --ci --coverage --coverageReporters=text-summary
 
   audit:
     name: Dependency audit (advisory)

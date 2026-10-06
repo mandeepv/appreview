@@ -70,14 +70,27 @@ PRs into main auto-gate, and you STILL do one manual run at release time — a
 clean, independent confirmation from a fresh environment on the exact code
 you're about to ship.
 
-- [ ] Trigger the CI workflow on `main` (the commit you're releasing):
-  - GitHub → **Actions** tab → **CI** workflow → **Run workflow** → pick
-    `main` → **Run workflow**. Or from a terminal: `gh workflow run CI --ref main`.
-- [ ] Confirm the run is green. Jobs: **TypeScript type check**, **ESLint**,
-  **Version drift**, **Jest tests** must all pass. **Dependency audit** is
-  advisory (yellow/failure is allowed — it never blocks).
-- [ ] If any of the four gating jobs is red, fix before building the IPA — do
-  NOT proceed to a device build on a red CI.
+- [ ] Trigger all three CI workflows on `main` (the commit you're releasing):
+  ```bash
+  gh workflow run CI --ref main
+  gh workflow run "CI (edge functions)" --ref main
+  gh workflow run "CI (database)" --ref main
+  ```
+  Or GitHub → **Actions** → each workflow → **Run workflow** → `main`.
+  GitHub only offers **Run workflow** for a workflow whose file is already on
+  `main`, so the two newer ones (SPEC-20) become dispatchable after the release
+  that added them merges. Until then they run on the PR into `main`.
+- [ ] Confirm every run is green:
+  - **CI:** **TypeScript type check**, **ESLint**, **Version drift** and
+    **Jest tests** must pass. Jest runs with `--coverage`, so a test that fails
+    OR a file that drops below its coverage floor (`jest.config.js`) turns it
+    red. **Dependency audit** is advisory: yellow or red is allowed.
+  - **CI (edge functions):** Deno lint, type check and the function tests.
+  - **CI (database):** the RLS, grants and SQL-function tests on a fresh local
+    Supabase built from the migrations. Its type-drift step is advisory.
+- [ ] If any gating job is red, fix before building the IPA. Do NOT proceed to
+  a device build on a red CI. See `docs/TESTING.md` for running each layer
+  locally.
 
 > Why this shape: per-push/per-merge runs were redundant (tsc, lint, and the
 > jest suite are run locally before every merge) and burned Actions minutes on a
@@ -157,6 +170,11 @@ stale.
 ---
 
 ## Phase 4: Apply schema migrations to prod
+
+- [ ] `scripts/check-migration-parity.sh` passes. Every migration the web repo
+      (kinderwell-web) has must be in this repo's `supabase/migrations/`,
+      unchanged. This repo is what the prod push uses, so a web migration
+      missing here would never reach prod.
 
 **Highest-risk step. Slow down.**
 
@@ -262,13 +280,18 @@ that CI validated, so re-run the gate here on the current tip.
 - [ ] `git fetch && git log <last-CI-commit>..main --oneline -- src/ supabase/functions/ app.json package.json`
       — if that lists ANY commit, the shipping code differs from what CI last
       checked. (Docs-only changes since don't require a re-run.)
-- [ ] Re-run CI on the current `main` and confirm the 4 gating jobs are green:
+- [ ] Re-run the three CI workflows on the current `main` and confirm they are green:
   ```bash
-  gh workflow run CI --ref main && sleep 5 && gh run watch
+  gh workflow run CI --ref main
+  gh workflow run "CI (edge functions)" --ref main
+  gh workflow run "CI (database)" --ref main
+  gh run watch
   ```
-  Gating: **TypeScript**, **ESLint**, **Version drift**, **Jest**. (Dependency
-  audit is advisory — red allowed.) The **Version drift** job is especially
-  load-bearing right after a Phase-3 version bump.
+  Gating: **TypeScript**, **ESLint**, **Version drift**, **Jest** (with the
+  coverage floors), the edge-function tests and the database tests.
+  (Dependency audit and type drift are advisory — red allowed.) The
+  **Version drift** job is especially load-bearing right after a Phase-3
+  version bump.
 - [ ] Do NOT `eas build` until this run is green on the commit you're shipping.
 
 _Added 2026-07-11 after a real near-miss: the v1.2.0 delete-account fix +

@@ -30,12 +30,13 @@ Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-educat
 
 ## Commands
 
-- Typecheck: `npx tsc --noEmit` · Lint: `npx eslint .` (baseline ~107 warnings — add zero new ones) · Tests: `npm test`
+- Typecheck: `npx tsc --noEmit` · Lint: `npx eslint .` (baseline ~110 warnings — add zero new ones) · Tests: `npm test` (CI adds `--coverage`: per-file floors) · Edge functions: `deno test supabase/functions` · DB/RLS: `scripts/db-test-local/run.sh` · How to test: `docs/TESTING.md`
 - Version bump: `scripts/bump-version.sh <version> <build>` (buildNumber must be a bare integer)
 - Node 20 (see `.nvmrc`); lint crashes on Node 16.
 
 ## Conventions
 
+- Tests: every bug fix ships with a regression test at the lowest layer that reproduces it; prove a new test fails when the code it guards breaks (`docs/TESTING.md`).
 - Comments: narrative why-comments are house style — they document trust models and past bugs. Match them; never delete one unless the code it explains is gone; update comments your change makes stale.
 - Commits: conventional (`fix(scope): ...`), causal, one concern per commit.
 - Analytics: events only via `safeCapture` / the typed registry (`src/lib/events.ts` once it exists) — never raw `posthog.capture` in screens. Errors go to Sentry (`reportError`), not PostHog.
