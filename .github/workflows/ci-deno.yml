@@ -1,6 +1,6 @@
 name: CI (edge functions)
 
-# Lint + type-check the Supabase Edge Functions (SPEC-20 R1). They run on
+# Lint, type-check and test the Supabase Edge Functions (SPEC-20 R1, R8). They run on
 # Deno, so the Node-oriented ESLint job skips them (eslint.config.js ignores
 # supabase/functions/) — until this workflow, nothing checked them at all.
 #
@@ -18,7 +18,7 @@ on:
 
 jobs:
   deno:
-    name: Deno lint + type check
+    name: Deno lint + type check + tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,3 +37,8 @@ jobs:
 
       - name: Type check
         run: deno check supabase/functions/*/index.ts
+
+      # Each function's *_test.ts runs its handler against fakes — no network
+      # or env permissions needed (SPEC-20 R8).
+      - name: Tests
+        run: deno test supabase/functions

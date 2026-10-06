@@ -53,3 +53,7 @@ backups/
 # All native config lives in app.config.js. See docs/DEV_PROD_ENVIRONMENTS.md.
 ios/
 android/
+
+# Written by `deno check` / `deno test` when run from the repo root. The edge
+# functions pin every URL import to a version, so the lockfile adds nothing.
+deno.lock
