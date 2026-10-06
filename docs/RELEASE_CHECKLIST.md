@@ -431,6 +431,13 @@ Legacy placement handling:
 - [ ] **Restore Purchases** button visible — required by 3.1.1, and
       the only way a reinstalling paying user recovers their sub
       without re-purchasing.
+- [ ] **"Use a different account"** text button present, tap action
+      **Custom action `switch_account`** (exact name: the app matches it,
+      `LoadingScreen` `handleSwitchAccount`). It's the only way off the
+      hard paywall for someone signed in to the wrong account, e.g. a
+      web buyer who used Apple's Hide My Email. Without it they pay
+      twice or delete the app. It signs out; it is not a dismiss
+      control, so the no-dismiss rule above still holds.
 - [ ] **7-tap demo mode reachable** — reviewer must be able to
       complete onboarding and tap the "Save your progress" title 7
       times to bypass. If demo is broken and this is the only paywall,

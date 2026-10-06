@@ -193,6 +193,13 @@ dashboard, custom action `switch_account`) signs them out and opens Auth
 in sign-in mode. Email (6-digit code) and Google with the same Gmail
 both reach the buyer's real user.
 
+Since SPEC-21 (purchase handoff, v1.3.0) most web buyers never meet this.
+The welcome page's link signs them in to the paying account on first
+launch, via the clipboard or a link after install. The button stays as
+the safety net for those who skip the handoff. An incoming handoff link
+while another user is signed in also switches accounts: sign out, then
+redeem.
+
 **Management and deletion.** Settings shows a web subscriber "Your
 subscription is managed at kinderwell.app/manage" (Dodo's portal) — the
 only website link in the app, shown only to them. `delete-account`
