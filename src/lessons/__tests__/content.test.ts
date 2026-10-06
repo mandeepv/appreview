@@ -264,3 +264,82 @@ describe('every lesson ends with one thing to try tonight', () => {
     });
   }
 });
+
+// SPEC-20 R7 — graded questions are answerable, and right.
+//
+// A question with no correct option can't be passed; one with two correct
+// options in a single-answer question marks a parent wrong for a right
+// answer. And two questions in one lesson with the exact same correct answer
+// are usually a copy-paste slip. These can't judge meaning — content review
+// stays human. In particular, a939018 (Sprinklers' Phase 2 question marked
+// with a paraphrase of the Phase 3 answer) is NOT caught: measured
+// 2026-10-06, its word overlap was 0.57, while a dozen legitimate pairs in
+// other lessons score as high or higher, so no threshold separates them.
+describe('graded questions', () => {
+  type Option = { text?: string; label?: string; isCorrect: boolean };
+  type Question = { type: string; question: string; options: Option[] };
+  const SINGLE_ANSWER = new Set(['interactiveQuiz', 'quiz']);
+  const GRADED = new Set([...SINGLE_ANSWER, 'multiSelectQuiz']);
+
+  const questionsOf = (lesson: (typeof LESSON_REGISTRY)[string]): Question[] =>
+    lesson.sections.flatMap((section) =>
+      section.screens.flatMap((screen) =>
+        screen.kind === 'content'
+          ? (screen.blocks.filter((block) => GRADED.has(block.type)) as unknown as Question[])
+          : [],
+      ),
+    );
+  const optionText = (o: Option) => (o.text ?? o.label ?? '').trim();
+  // Answers that any number of questions can legitimately share.
+  const GENERIC = /^(true|false|yes|no|all of the above|none of the above|both)\.?$/i;
+  // Repeats a person has read and judged intentional. Add one only after
+  // checking that both questions really have this answer — never to silence
+  // the test.
+  const REVIEWED_REPEATS: Record<string, string> = {
+    // Section 2 ends on this question; section 3 opens by asking it again as a
+    // recap before teaching more ways to stop. Reviewed 2026-10-06 — owner to
+    // confirm.
+    'dissociation:notice it and name it': 'recap across sections 2 → 3',
+  };
+
+  for (const [slug, lesson] of Object.entries(LESSON_REGISTRY)) {
+    const questions = questionsOf(lesson);
+    if (questions.length === 0) continue;
+
+    it(`${slug}: every single-answer question has exactly one correct option`, () => {
+      const wrong = questions
+        .filter((q) => SINGLE_ANSWER.has(q.type))
+        .filter((q) => q.options.filter((o) => o.isCorrect).length !== 1)
+        .map((q) => q.question);
+      expect(wrong).toEqual([]);
+    });
+
+    it(`${slug}: every check-all-that-apply question has a correct option`, () => {
+      const wrong = questions
+        .filter((q) => q.type === 'multiSelectQuiz')
+        .filter((q) => !q.options.some((o) => o.isCorrect))
+        .map((q) => q.question);
+      expect(wrong).toEqual([]);
+    });
+
+    it(`${slug}: no question offers the same option twice`, () => {
+      const wrong = questions
+        .filter((q) => new Set(q.options.map(optionText)).size !== q.options.length)
+        .map((q) => q.question);
+      expect(wrong).toEqual([]);
+    });
+
+    it(`${slug}: no two single-answer questions share their correct answer`, () => {
+      const seen = new Map<string, string>();
+      const clashes: string[] = [];
+      for (const q of questions.filter((q) => SINGLE_ANSWER.has(q.type))) {
+        const answer = optionText(q.options.find((o) => o.isCorrect) ?? { isCorrect: true });
+        if (GENERIC.test(answer) || `${slug}:${answer.toLowerCase()}` in REVIEWED_REPEATS) continue;
+        const earlier = seen.get(answer.toLowerCase());
+        if (earlier) clashes.push(`"${answer}" answers both "${earlier}" and "${q.question}"`);
+        else seen.set(answer.toLowerCase(), q.question);
+      }
+      expect(clashes).toEqual([]);
+    });
+  }
+});

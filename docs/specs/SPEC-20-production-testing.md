@@ -2,7 +2,7 @@
 
 > ORIGIN: written 2026-10-05 by Claude at the owner's request, from a coverage audit of `feat/web-purchase-unlock` (v1.3.0).
 >
-> **Status (2026-10-06):** Phases 1–3 (R1–R9, R13) are built, on `release/1.3.0`. 601 Jest tests, 31 Deno tests and 65 database tests pass (Jest was 300 at the start), and the lint baseline is unchanged. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–12, 14, 15 and 24, plus the R3, R5, R6, R8 and R9 guards. Neither the gate nor delete-account had a bug; all 26 R3 cases held. Phases 4–6 have not started. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
+> **Status (2026-10-06):** Phases 1–4 (R1–R9, R13) are built, on `release/1.3.0`. 703 Jest tests, 31 Deno tests and 65 database tests pass (Jest was 300 at the start), and the lint baseline is unchanged. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–12, 14–16, 18 and 24, plus the R3–R9 guards. Items 16 and 18 were planned for E2E but are caught by Jest. Neither the gate nor delete-account had a bug; all 26 R3 cases held. Phase 5 (E2E) is waiting on the owner prerequisites, and Phase 6 has not started. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
 >
 > Numbered 20 because SPEC-15 to SPEC-19 were used by the July 2026 release train. That train was the onboarding A/B experiment through to the streak system, bumped to 1.6.0 but never shipped; its branches were deleted on 2026-10-05. This spec was briefly called SPEC-17, and commit `db0ef73` still uses that name.
 
@@ -299,7 +299,19 @@ The `onSubscriptionStatusChange` listener at `App.tsx:96-113` can't be reached w
   - no two graded questions in one lesson share a correct-answer text.
 
   The last rule targets the kind of bug fixed in a939018, where Sprinklers' Phase 2 correct answer was the Phase 3 answer. It can't judge meaning, so content review stays human.
+
+  *As built (Phase 4):* only **exact** repeats are caught, plus generic answers such as True/False or "All of the above" being excluded. a939018 itself was a paraphrase, with a word overlap of 0.57; a dozen legitimate pairs elsewhere score as high or higher, so no threshold separates the two. One exact repeat is a recorded, reviewed exception: dissociation's "Notice it and name it", asked at the end of section 2 and again as the opener of section 3. The owner should confirm it.
 - **Allowed URLs (invariant 26).** A source-scan test lists every `http(s)://` URL in `src/` and fails on any URL missing from an explicit allowlist. Today's allowlist would be: the two legal pages, kinderwell.app/manage, the two apps.apple.com links, play.google.com, the PostHog host and one Supabase docs link. A link to the web funnel can't slip in unreviewed.
+
+*As built (Phase 4):*
+- **Settings: 14 tests.** The manage row and its link, every restore alert, both delete warnings, the cancel-failed message, the demo-user delete, and log-out order.
+- **Learn: 8 tests.** These cover the progress read, the earliest gap, `entry: true`, the locked hint and the closing note.
+  - One thing isn't tested here: the rail opening scrolled to the card when two or more sections are done. React Native's FlatList then draws rows only after the device reports the content's size, which the test renderer never does. That's left to R10.
+- **`LessonScreen.test`: 4 tests**, through the real screen and controller. `lesson_started` fires once per visit; `lesson_completed` fires only on the completing write and not on replay.
+- **`everyScreenRenders.test`:** all 29 screen files, plus a completeness check against the folders.
+- **`allowedUrls.test`:** 8 reviewed URLs, plus a stale-entry check.
+- **`renderScreen()`** now provides the route as context too, for screens that call `useRoute()`.
+- **Gotcha:** React Native's Jest setup already makes `Linking.openURL` a mock, so `jest.spyOn` returns that same function and calls carry across tests. Clear it in `beforeEach`.
 
 ### R8 — The `delete-account` edge function
 
