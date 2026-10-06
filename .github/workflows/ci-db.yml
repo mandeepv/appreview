@@ -1,0 +1,60 @@
+name: CI (database)
+
+# Row-level security, grants and SQL functions, tested against a real local
+# Supabase stack built from supabase/migrations (SPEC-20 R9). RLS is the only
+# thing between the public key the app ships and every other parent's data —
+# or a free entitlement row — so it gets its own gate.
+#
+# Mirrors the web repo's proven `backend` job (kinderwell-web ci.yml). Docker
+# is built into GitHub's Ubuntu runners. Without Docker, run the same test
+# files locally with scripts/db-test-local/run.sh.
+#
+# A separate workflow so its `paths:` filter applies: it runs only on PRs that
+# touch the schema, its tests or the generated types (a few minutes each).
+on:
+  # Release gate — run it with the other CI workflows on the commit to ship.
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'supabase/config.toml'
+      - 'src/types/supabase.ts'
+      - '.github/workflows/ci-db.yml'
+
+jobs:
+  db:
+    name: Database tests (RLS, grants, SQL functions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Applies every migration to an empty database, so this step alone
+      # proves the whole chain still applies from scratch.
+      - name: Start local Supabase
+        id: supabase
+        run: supabase start
+
+      - name: Database tests
+        if: ${{ !cancelled() && steps.supabase.outcome == 'success' }}
+        run: supabase test db
+
+      # src/types/supabase.ts is generated from dev (--linked); the local stack
+      # is built from migrations alone. A difference means a skipped
+      # `npm run gen:supabase-types`, or an object created in the dashboard
+      # that no migration has (record those in OPS_STATE). Advisory until a
+      # first run shows the two outputs agree; then drop continue-on-error.
+      - name: Generated types match the migrations (advisory)
+        if: ${{ !cancelled() && steps.supabase.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          supabase gen types typescript --local > "$RUNNER_TEMP/supabase.ts"
+          diff -u src/types/supabase.ts "$RUNNER_TEMP/supabase.ts"
