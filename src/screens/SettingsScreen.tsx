@@ -502,7 +502,12 @@ export const SettingsScreen: React.FC = () => {
 
         <View style={styles.spacer} />
 
+        {/* testIDs: the E2E flows tap these rows (.maestro/). Maestro matches
+            text case-insensitively, so "Log out" / "Delete account" would also
+            hit the confirm buttons' "Log Out" / "Delete Account". Static
+            strings: PostHog autocapture records testID. */}
         <Pressable
+          testID="settings-log-out"
           onPress={handleLogout}
           disabled={isLoading}
           accessibilityRole="button"
@@ -513,6 +518,7 @@ export const SettingsScreen: React.FC = () => {
 
         {/* Findable, deliberately not the weight of Log out. */}
         <Pressable
+          testID="settings-delete-account"
           onPress={handleDeleteAccount}
           disabled={isLoading}
           accessibilityRole="button"

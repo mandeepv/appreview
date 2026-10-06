@@ -439,7 +439,8 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
       onBack={() => navigation.goBack()}
     >
       <View style={styles.container}>
-        <Pressable onPress={handleTitlePress} style={styles.heading}>
+        {/* testID: the E2E demo-mode flow taps this seven times (.maestro/). */}
+        <Pressable testID="auth-title" onPress={handleTitlePress} style={styles.heading}>
           <RichHeadline style={styles.title}>{title}</RichHeadline>
           <Text style={styles.blurb}>{blurb}</Text>
         </Pressable>

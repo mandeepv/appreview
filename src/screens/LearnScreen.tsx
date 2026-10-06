@@ -342,7 +342,9 @@ export default function LearnScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    // testIDs here and on the path's rows are for the simulator E2E flows
+    // (.maestro/). Static strings only: PostHog autocapture records testID.
+    <SafeAreaView testID="learn-screen" style={styles.screen} edges={['top']}>
       {/* App.tsx sets `dark` globally, which is right for the cream screens but
           renders black glyphs on this screen's forestDeep masthead — the clock
           and battery were nearly invisible against it. expo-status-bar applies
@@ -517,6 +519,7 @@ function PathRow({
         </View>
         <View style={styles.cardWrap}>
           <Pressable
+            testID="learn-current-card"
             onPress={() => onOpen(node)}
             accessibilityRole="button"
             accessibilityLabel={`${shortLessonName(node.lessonSlug)}: ${node.title}. Five minutes.`}
@@ -549,6 +552,7 @@ function PathRow({
   if (state === 'done') {
     return (
       <Pressable
+        testID="learn-done-node"
         onPress={() => onOpen(node)}
         accessibilityRole="button"
         accessibilityLabel={node.title}

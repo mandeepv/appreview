@@ -119,7 +119,11 @@ export const NameAgeScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.nameBlock}>
         <Text style={styles.fieldLabel}>Your name</Text>
         <View style={[styles.fieldRule, ruleActive ? styles.fieldRuleActive : null]}>
+          {/* testID: the E2E questionnaire flow types here (.maestro/). Tapping
+              "Your name" finds the label above it first, which never focuses
+              the field. Static string: PostHog autocapture records testID. */}
           <TextInput
+            testID="onboarding-name-input"
             value={name}
             onChangeText={setName}
             onFocus={() => setFocused(true)}
