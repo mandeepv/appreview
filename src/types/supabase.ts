@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   graphql_public: {
     Tables: {
@@ -57,11 +57,30 @@ export type Database = {
         }
         Relationships: []
       }
+      email_opt_outs: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       entitlements: {
         Row: {
+          activated_at: string | null
+          activated_subscription_id: string | null
+          cancel_pending: boolean
           current_period_end: string | null
           dodo_customer_id: string | null
           dodo_subscription_id: string | null
+          last_event_at: string | null
           nudge_stage: number
           product_id: string
           source: string
@@ -70,9 +89,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activated_at?: string | null
+          activated_subscription_id?: string | null
+          cancel_pending?: boolean
           current_period_end?: string | null
           dodo_customer_id?: string | null
           dodo_subscription_id?: string | null
+          last_event_at?: string | null
           nudge_stage?: number
           product_id: string
           source: string
@@ -81,9 +104,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activated_at?: string | null
+          activated_subscription_id?: string | null
+          cancel_pending?: boolean
           current_period_end?: string | null
           dodo_customer_id?: string | null
           dodo_subscription_id?: string | null
+          last_event_at?: string | null
           nudge_stage?: number
           product_id?: string
           source?: string
@@ -162,6 +189,24 @@ export type Database = {
           lesson_id?: string
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      rate_limit_hits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
         }
         Relationships: []
       }
@@ -281,16 +326,19 @@ export type Database = {
           event_type: string | null
           id: string
           received_at: string
+          status: string
         }
         Insert: {
           event_type?: string | null
           id: string
           received_at?: string
+          status?: string
         }
         Update: {
           event_type?: string | null
           id?: string
           received_at?: string
+          status?: string
         }
         Relationships: []
       }
@@ -301,6 +349,10 @@ export type Database = {
     Functions: {
       expire_stale_entitlements: { Args: never; Returns: number }
       get_user_id_by_email: { Args: { p_email: string }; Returns: string }
+      hit_rate_limit: {
+        Args: { p_key: string; p_max: number; p_window_seconds: number }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
