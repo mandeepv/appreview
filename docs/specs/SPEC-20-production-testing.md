@@ -2,7 +2,7 @@
 
 > ORIGIN: written 2026-10-05 by Claude at the owner's request, from a coverage audit of `feat/web-purchase-unlock` (v1.3.0).
 >
-> **Status (2026-10-06):** Phases 1–4 and 6 are built, on `release/1.3.0`. That's R1–R9, R11 and R13, with R12's alerts recorded in OPS_STATE for the owner to create. 730 Jest tests, 31 Deno tests and 65 database tests pass (Jest was 300 at the start), and line coverage went from 16% to 74%. CI now enforces per-file coverage floors, and every Tier A file is at or above 80% branch coverage with `__DEV__` guards excluded. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–12, 14–16, 18 and 24, plus the R3–R9 guards. Neither the gate nor delete-account had a bug; all 26 R3 cases held. **Not done:** Phase 5 (E2E, R10) is waiting on the owner prerequisites. Two R11 items wait on it: mapping and archiving `IPHONE_TEST_PLAN_V1.1.0.md`, and slimming the manual device pass. BACKLOG 9e/9f also weren't updated, because another session holds uncommitted BACKLOG edits. The working reference is `docs/TESTING.md`. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
+> **Status (2026-10-06):** Phases 1–6 are built, on `release/1.3.0`. That's R1–R11 and R13, with R12's alerts recorded in OPS_STATE for the owner to create. 730 Jest tests, 31 Deno tests and 65 database tests pass (Jest was 300 at the start), and line coverage went from 16% to 74%. CI now enforces per-file coverage floors, and every Tier A file is at or above 80% branch coverage with `__DEV__` guards excluded. Each requirement's tests were checked by breaking the code they guard: sabotage items 1–12, 14–16, 18 and 24, plus the R3–R9 guards. Neither the gate nor delete-account had a bug; all 26 R3 cases held. Phase 5 (E2E, R10): 9 Maestro flows pass together against the real release build on the simulator. A deliberate paywall leak failed flows 1 and 5. **Not done:** flow 9 (upgrade) starts with the release after v1.3.0, and flow 11 (the whole Dodo chain) stays a manual release step. Two R11 items can now go ahead: mapping and archiving `IPHONE_TEST_PLAN_V1.1.0.md`, and slimming the manual device pass. BACKLOG 9e/9f also weren't updated, because another session holds uncommitted BACKLOG edits. The working reference is `docs/TESTING.md`. Supersedes the deliberately narrow scope SPEC-04 set in `jest.config.js`, and closes BACKLOG 9f and 9e.
 >
 > Numbered 20 because SPEC-15 to SPEC-19 were used by the July 2026 release train. That train was the onboarding A/B experiment through to the streak system, bumped to 1.6.0 but never shipped; its branches were deleted on 2026-10-05. This spec was briefly called SPEC-17, and commit `db0ef73` still uses that name.
 
@@ -448,6 +448,21 @@ Flow 9 needs the previous release's `e2e` simulator build. From now on, build `e
 - Revisit CI after three releases: GitHub macOS runners, or the Maestro job in EAS Workflows (check plan pricing).
 
 **Flake budget.** At most one automatic retry per flow. A flow that passes only on retry is reported as flaky in the run summary. Two flaky runs in a row count as a bug.
+
+*As built (Phase 5, 2026-10-06):*
+- **Result:** flows 1, 2 (with 4 folded in), 2b, 3, 5, 6, 7, 8 and 10 all pass together in one run on build 12, on dev. To prove they bite, the web check was sabotaged to let everyone in: flows 1 and 5 failed, because the paywall never showed. The code was then restored.
+- **Build:** local, not an `eas.json` `e2e` profile. `scripts/e2e/build.sh` uses prebuild, `xcodebuild` and `simctl`, needs no EAS minutes, and avoids an owner-only file. Xcode 27 here has no Simulator.app, so `expo run:ios` can't be used. Flow 9 will need the previous release's simulator `.app` kept at each release tag.
+- **Spike S1 held:** an admin `generate_link` code is accepted by the app's `verifyOtp`. Resend's `delivered+label@resend.dev` works.
+- **Keys:** Maestro writes its `-e` env into its debug log. The first run put the dev service key there; the log was deleted, and the owner was told. `seed.mjs serve` now holds the key on 127.0.0.1, serves only the run's own test users, and Maestro never gets it.
+- **testIDs** (static): `learn-screen`, `learn-current-card`, `learn-done-node`, `auth-title`, `onboarding-name-input`, `settings-log-out`, `settings-delete-account`. Everything else is found by text, since flows read like the screen does.
+- **Simulator-only:** at launch, StoreKit (via Superwall) raises "Sign in to Apple Account" twice. A shared launch step cancels them.
+- **Flake budget:** one retry on fresh accounts; a pass on the retry is reported as flaky, and the run fails. A flow stopped by dev's email limit isn't retried and is reported as such.
+- **Found by building it:**
+  - Dev's email OTP length was 8 against the app's 6, so email sign-in on dev was impossible. The owner set it to 6.
+  - Dev was on Supabase's built-in mailer, at 2 emails an hour. The owner set up Resend SMTP (30 an hour; 100 requested).
+  - Both are open on prod: OPS_STATE.
+  - **A web buyer whose webhook profile insert failed is asked to sign in twice.** The questions end on Auth in sign-up mode. Nobody is charged; reported to the owner as a UX gap, not fixed here (the gate path).
+- **Not covered:** the rail opening scrolled to the card after two or more finished sections (R7's leftover). Flow 3 finishes one section.
 
 ### R11 — Thresholds, CI and the release gate
 
