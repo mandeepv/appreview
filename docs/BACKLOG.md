@@ -1310,8 +1310,11 @@ whose profile insert failed) shows exactly this on the release build. The
 buyer answers the questions, lands on "Save your progress", signs in a
 second time (a second email code), then reaches Learn. The paywall is
 never shown. The flow does the second sign-in today; once (b) ships, drop
-that step and it becomes a regression test. Recommended for 1.3.1, after
-v1.3.0 ships (the fix is in the gate path); the owner hasn't decided yet.
+that step and it becomes a regression test. **Superseded for web buyers by
+SPEC-21 (purchase handoff, in v1.3.0):** a buyer signed in by the handoff goes
+straight to Loading, with no questions and no second sign-in. Fix (b) is still
+open for the rare app-only case (a signed-in user without a profile who tapped
+"Already have an account" by mistake).
 
 **Effort**: (b) ~2h incl. tests. (a) is done (web repo).
 
