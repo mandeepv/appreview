@@ -110,10 +110,21 @@ function getServiceRoleKey(env: Deps['env']): string {
   return env('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 }
 
-/** The caller's IP as Supabase's edge reports it; one shared bucket if absent. */
+/**
+ * The caller's IP as Supabase's edge reports it; one shared bucket if absent.
+ *
+ * NOT the first X-Forwarded-For hop: Supabase's edge APPENDS the real address
+ * to whatever the client sent ("spoofed, 203.0.113.7"), so the first hop is
+ * the caller's to choose, and rotating it gave every attempt a fresh bucket
+ * (web2app review 2026-10-07, P3). Cloudflare's cf-connecting-ip is set at
+ * the edge; failing that, the rightmost X-Forwarded-For hop is the one the
+ * infrastructure added.
+ */
 function clientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwarded || req.headers.get('x-real-ip')?.trim() || 'unknown';
+  const cf = req.headers.get('cf-connecting-ip')?.trim();
+  if (cf) return cf;
+  const hops = (req.headers.get('x-forwarded-for') ?? '').split(',').map((h) => h.trim()).filter(Boolean);
+  return hops.at(-1) || req.headers.get('x-real-ip')?.trim() || 'unknown';
 }
 
 /** Lowercase hex sha256 of the key's UTF-8 bytes — what the website stores. */

@@ -180,7 +180,7 @@ for (const level of ['log', 'error', 'warn', 'info', 'debug'] as const) {
   };
 }
 
-function post(body: unknown, headers: Record<string, string> = { 'x-forwarded-for': '203.0.113.7, 10.0.0.1' }) {
+function post(body: unknown, headers: Record<string, string> = { 'cf-connecting-ip': '203.0.113.7', 'x-forwarded-for': '203.0.113.7' }) {
   return new Request('https://example.functions.supabase.co/redeem-handoff', {
     method: 'POST',
     headers,
@@ -317,6 +317,20 @@ Deno.test('malformed attempts count against the limit too', async () => {
   const backend = makeBackend({});
   await redeem(backend, post({ key: 'nope' }));
   assertEquals(backend.rpcCalls.length, 1);
+});
+
+Deno.test('a client-chosen X-Forwarded-For first hop never picks the bucket (web2app review P3)', async () => {
+  // Supabase's edge appends the real address to what the client sent.
+  const cases: Record<string, string>[] = [
+    { 'x-forwarded-for': 'spoofed-1, 203.0.113.7' },
+    { 'x-forwarded-for': '198.51.100.99, 203.0.113.7', 'cf-connecting-ip': '203.0.113.7' },
+    { 'x-forwarded-for': 'anything-at-all', 'cf-connecting-ip': '203.0.113.7' },
+  ];
+  for (const headers of cases) {
+    const backend = makeBackend({});
+    await redeem(backend, post({ key: KEY }, headers));
+    assertEquals(backend.rpcCalls[0].p_key, 'rh:ip:203.0.113.7', JSON.stringify(headers));
+  }
 });
 
 Deno.test('no forwarded IP → one shared bucket, never no limit', async () => {
