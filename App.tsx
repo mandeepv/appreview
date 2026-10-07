@@ -15,6 +15,7 @@ import {
   useHandoffLinks,
   openHandoffIfPending,
   resetToWelcomeOnSignOut,
+  maybeRecheckWebOnForeground,
 } from './src/navigation/OnboardingNavigator';
 import { useAuthStore, useSubscriptionStatusSync } from './src/store/authStore';
 import { SuperwallProvider } from 'expo-superwall';
@@ -113,6 +114,10 @@ function AppContent() {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         maybeRecheckConfig();
+        // A web subscriber's cached flag is re-checked too (at most hourly),
+        // so a refund reaches an app that is never killed (web2app review
+        // AP-5). It only clears the flag; the next launch gates.
+        void maybeRecheckWebOnForeground();
       }
     });
     return () => sub.remove();

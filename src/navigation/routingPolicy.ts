@@ -299,8 +299,10 @@ export function webCheckEventResult(
 /**
  * The background re-check (2026-10). A launch on a cached 'web' flag skips the
  * gate, so without this a refunded web buyer would stay in forever. The
- * re-check runs once Root is entered and only ever CLEARS the flag, so the
- * NEXT launch gates — the current session is never interrupted.
+ * re-check runs once Root is entered, and again whenever the app returns to
+ * the foreground (at most hourly — services/webRecheck.ts, web2app review
+ * AP-5), and only ever CLEARS the flag, so the NEXT launch gates — the
+ * current session is never interrupted.
  *
  *   not_entitled → clear (revoked, expired, period over, row gone)
  *   error        → keep: offline web subscribers get the same leniency Apple

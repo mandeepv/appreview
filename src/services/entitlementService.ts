@@ -19,13 +19,14 @@ const TIMEOUT = Symbol('timeout');
  * "not proven" and hands to Superwall — an error is never entitlement, and
  * never blocks the paywall path either.
  *
- * Money path, so failures go to Sentry (reportError). The timeout is NOT
- * reported: a slow network at launch is expected, and the gate's
- * web_entitlement_checked event already counts it.
+ * Money path, so failures go to Sentry (reportError) unless the caller asks
+ * otherwise. The timeout is NOT reported: a slow network at launch is
+ * expected, and the gate's web_entitlement_checked event already counts it.
  */
 export async function checkWebEntitlement(
   userId: string,
   timeoutMs: number = WEB_CHECK_TIMEOUT_MS,
+  { report = true }: { report?: boolean } = {},
 ): Promise<WebCheckResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -57,9 +58,13 @@ export async function checkWebEntitlement(
     return { kind: 'not_entitled' };
   } catch (error) {
     if (__DEV__) console.error('[entitlementService] web check failed:', error);
-    reportError(error instanceof Error ? error : new Error(String(error)), {
-      context: 'web_entitlement_check',
-    });
+    // `report: false` for the foreground re-check (services/webRecheck.ts):
+    // it runs hourly and a phone offline for a day would report each time.
+    if (report) {
+      reportError(error instanceof Error ? error : new Error(String(error)), {
+        context: 'web_entitlement_check',
+      });
+    }
     return { kind: 'error', timedOut: false };
   } finally {
     if (timer) clearTimeout(timer);

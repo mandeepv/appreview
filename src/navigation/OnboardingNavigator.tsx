@@ -30,6 +30,8 @@ export type { OnboardingStackParamList };
 // before its imports, so every extra import line there is an import/first
 // lint warning (the same reason authStore hosts useSubscriptionStatusSync).
 export { useHandoffLinks, openHandoffIfPending, resetToWelcomeOnSignOut } from './handoffNavigation';
+// Same reason: the web subscriber's foreground re-check (web2app review AP-5).
+export { maybeRecheckWebOnForeground } from '../services/webRecheck';
 
 const Stack = createNativeStackNavigator<OnboardingStackParamList>();
 

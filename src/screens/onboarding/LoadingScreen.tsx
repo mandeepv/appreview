@@ -24,10 +24,10 @@ import {
   resolveGateOutcome,
   resolveGateOutcomeWhileSwitching,
   resolveWebCheckOutcome,
-  resolveWebRecheck,
   webCheckEventResult,
 } from '../../navigation/routingPolicy';
 import { checkWebEntitlement } from '../../services/entitlementService';
+import { recheckWebEntitlement } from '../../services/webRecheck';
 import { saveUserOnboardingData } from '../../services/onboardingService';
 import { restorePurchases } from '../../services/purchaseService';
 import { usePlacement, useUser, useSuperwall, useSuperwallEvents } from 'expo-superwall';
@@ -65,24 +65,6 @@ const THEATER_HOLD_AT_END = __DEV__ ? false : false;
 const PRESENT_WATCHDOG_MS = 5000;
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, "Loading">;
-
-/**
- * The background re-check for a launch that entered Root on a cached 'web'
- * flag (see resolveWebRecheck). Fire-and-forget — it outlives this screen,
- * which unmounts on the replace('Root') that precedes it, so it touches only
- * the store. It clears the flag only if the same user is still signed in on
- * a 'web' flag when the answer arrives: a sign-out, an account switch or an
- * Apple purchase in the meantime makes the answer moot.
- */
-async function recheckWebEntitlement(userId: string): Promise<void> {
-  const result = await checkWebEntitlement(userId);
-  if (resolveWebRecheck(result) !== "clear") return;
-  const { user, subscriptionSource, setIsSubscribed } = useAuthStore.getState();
-  if (user?.id !== userId || subscriptionSource !== "web") return;
-  if (__DEV__)
-    console.log("[LoadingScreen] web entitlement gone — next launch will gate");
-  setIsSubscribed(false);
-}
 
 /**
  * LoadingScreen is the subscription gate. Every route to Root passes through
