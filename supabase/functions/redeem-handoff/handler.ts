@@ -78,10 +78,13 @@ const RATE_LIMIT = { windowSeconds: 600, max: 20 };
 // an import — edge functions can't import the app. If they ever disagree the
 // cost is small and safe: a buyer told not_entitled here signs in by email
 // instead, and the Loading gate still decides access with the app's own rule.
+// All three copies (this, the app's, the website's hasAccess) run over one
+// table of cases, ../_shared/access_rule_cases.json, kept byte-identical with
+// the website's by scripts/check-migration-parity.sh (web2app review AP-3).
 const ENTITLING_STATUSES = new Set(['active', 'past_due', 'cancelled']);
 const ACTIVE_LATE_RENEWAL_GRACE_MS = 6 * 24 * 60 * 60 * 1000;
 
-function hasWebAccess(
+export function hasWebAccess(
   row: { status: string; current_period_end: string | null } | null,
   now: Date,
 ): boolean {

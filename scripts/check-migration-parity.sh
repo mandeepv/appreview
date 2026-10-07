@@ -10,7 +10,8 @@
 #   scripts/check-migration-parity.sh [path/to/kinderwell-web]
 #
 # Fails if a web-repo migration is missing here or differs from this repo's
-# copy. Migrations only this repo has (the app's own tables) are expected.
+# copy, or if the two copies of supabase/functions/_shared/access_rule_cases.json
+# differ. Migrations only this repo has (the app's own tables) are expected.
 # Run before any prod db push and at release time.
 
 set -euo pipefail
@@ -35,5 +36,18 @@ for web_file in "$WEB_DIR"/*.sql; do
   fi
 done
 
-[ $status -eq 0 ] && echo "OK: every web-repo migration is here, unchanged."
+# The web access rule's table of cases (web2app review 2026-10-07, AP-3):
+# the website's hasAccess, the app's isWebEntitled and redeem-handoff's
+# hasWebAccess each run over their repo's copy, so the copies must agree.
+CASES=supabase/functions/_shared/access_rule_cases.json
+if [ ! -f "$WEB/$CASES" ] || [ ! -f "$ROOT/$CASES" ]; then
+  echo "MISSING: $CASES (in one of the repos)"
+  status=1
+elif ! cmp -s "$WEB/$CASES" "$ROOT/$CASES"; then
+  echo "DIFFERS: $CASES — the access rule's cases disagree between the repos"
+  diff -u "$ROOT/$CASES" "$WEB/$CASES" | head -20 || true
+  status=1
+fi
+
+[ $status -eq 0 ] && echo "OK: every web-repo migration is here, unchanged, and the access-rule cases match."
 exit $status
