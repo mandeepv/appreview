@@ -48,6 +48,25 @@ to the app. See PAYWALL_MODEL "Web entitlements".)*
 27. The labels **'Get started'**, **'Already have an account?'**, **'Sign in'** and **'Continue with Email'** are quoted word for word by the website's /welcome page and emails. Change both in the same release.
 28. `delete-account` cancels a renewing Dodo subscription **before** deleting anything, and a failed cancel means nothing is deleted — deleting the user does not stop Dodo charging the card.
 
+## Purchase handoff
+
+*(Added 2026-10-06 with SPEC-21, v1.3.0 — a kinderwell.app buyer opens the
+app already signed in, through a one-time key in a link. See
+`specs/SPEC-21-purchase-handoff.md` and PAYWALL_MODEL "The purchase
+handoff".)*
+
+29. A handoff key is a login credential: whoever holds it signs in as the buyer.
+    - Single use, 7 days at most, stored only as its sha256 (`handoff_keys`: service role only; the 7-day limit is a table constraint).
+    - Never in PostHog, Sentry, logs (`__DEV__` included), navigation params or Maestro env. In the app it lives in memory only (`store/handoffStore.ts`) and goes only to `redeem-handoff`.
+    - Never in the URL of a page that loads analytics, and never sent to an analytics tool. On such a page (the welcome page) it may sit only in memory or in a link's `href`, and only while automatic collection is off: Meta `autoConfig` false, PostHog autocapture and session replay off. Those three settings are part of this rule: turning one on puts the key in front of a tracker.
+    - Checked by: the Jest PII guard (`src/test/setup.ts` fails on a `/k/<43 chars>` link, `kinderwell://k/` or the fixture key), `handoff_test.sql`, and `redeem-handoff`'s "the key never appears in a log line" test.
+30. `redeem-handoff` is the one app-facing edge function with `verify_jwt` off (the app calls it before it has a session). It must keep:
+    - the atomic single-use claim (one conditional UPDATE: `used_at is null and expires_at > now()`);
+    - the entitlement check before a session is minted;
+    - the per-IP rate limit (`hit_rate_limit`, 20 per 10 min).
+    `edgeFunctionGuards.test` fails if any other function turns the check off; `handler_test.ts` fails if any of the three goes.
+- **#1** already covers routing (the handoff enters Root only through Loading), **#3** the account switch (someone else signed in is signed out before the buyer signs in, and only after the link proves good), and **#26** the copy (no web-purchase wording on the handoff screens).
+
 ## Process
 
 19. No prod `db push` without a same-day backup (the script enforces it — don't bypass the script).

@@ -197,8 +197,39 @@ Since SPEC-21 (purchase handoff, v1.3.0) most web buyers never meet this.
 The welcome page's link signs them in to the paying account on first
 launch, via the clipboard or a link after install. The button stays as
 the safety net for those who skip the handoff. An incoming handoff link
-while another user is signed in also switches accounts: sign out, then
-redeem.
+while another user is signed in also switches accounts: the link is
+checked first, and only a good one signs the other user out.
+
+**The purchase handoff (SPEC-21, INVARIANTS 29–30).** It grants a
+SESSION, never access: every path ends at Loading, and the gate's web
+step decides as for any other sign-in.
+
+1. A key reaches the app. Either Splash, on a fresh install with a URL
+   on the clipboard, offers Apple's Paste button (`HandoffScreen`, no
+   paste alert), or a handoff link opens the app, cold or warm
+   (`listenForHandoffLinks`). The forms accepted are the universal links
+   `https://open.kinderwell.app/k/<key>` and `https://kinderwell.app/k/<key>`
+   (each domain's pages link to the other: a universal link tapped on its
+   own domain opens Safari), plus `kinderwell://k/<key>` for the simulator
+   flows only.
+   A link over the paywall resets navigation first, then dismisses the
+   paywall (`openHandoffIfPending`).
+2. `redeem-handoff` (gateway JWT check off) claims the key once, checks
+   the buyer's entitlement, and returns a magic-link `token_hash` and the
+   buyer's user id.
+3. The app compares the user id with whoever is signed in
+   (`resolveHandoffAccount`): the buyer already → Loading; someone else
+   or the demo user → sign out (clears the user-bound cache, invariant 3),
+   then `verifyOtp`; nobody → `verifyOtp`.
+4. `navigation.replace('Loading')`. The gate finds the web entitlement
+   (or, for a buyer refunded since, shows the paywall). Learn says
+   "You're all set" once.
+
+Every non-`ok` result (`expired`, `used`, `unknown`, `not_entitled`,
+`rate_limited`, `error`) ends at email sign-in, today's path, with its
+own message. The paste offer is made at most once per install
+(`HANDOFF_PROMPT_DONE`), and never to someone who has already been
+signed in on the device or is partway through the questions.
 
 **Management and deletion.** Settings shows a web subscriber "Your
 subscription is managed at kinderwell.app/manage" (Dodo's portal) — the

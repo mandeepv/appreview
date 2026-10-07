@@ -68,6 +68,10 @@ In App Store Connect → App Store tab → App Review Information → Notes, inc
 >
 > Both paths land you at the LearnScreen with all 13 lesson modules unlocked.
 
+> **If a "Tap Paste to finish setting up" screen appears on first launch** (v1.3.0+; it shows only when the clipboard holds a link on a fresh install), tap **Not now**. It is for customers who bought on our website; a setup link from the website signs them in.
+
+Why the Paste note: the purchase handoff (SPEC-21) offers that screen to any fresh install with a link on the clipboard, a reviewer's included. "Not now" goes to Welcome and the paths above are unchanged. The demo user is also treated as "someone else" by a handoff link: opening one signs demo mode out (INVARIANTS #3), which no reviewer path does.
+
 Why both: Apple's Guideline 2.1 requires reviewers can test paid features. Sandbox purchase is Apple's documented testing path for auto-renewing subscription apps. The 7-tap is a Kinderwell-specific fallback for reviewers who prefer not to do the sandbox purchase.
 
 ---

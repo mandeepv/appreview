@@ -1312,8 +1312,9 @@ second time (a second email code), then reaches Learn. The paywall is
 never shown. The flow does the second sign-in today; once (b) ships, drop
 that step and it becomes a regression test. **Superseded for web buyers by
 SPEC-21 (purchase handoff, in v1.3.0):** a buyer signed in by the handoff goes
-straight to Loading, with no questions and no second sign-in. Fix (b) is still
-open for the rare app-only case (a signed-in user without a profile who tapped
+straight to Loading, with no questions and no second sign-in (built 2026-10-06;
+E2E flow 12 uses the buyer whose profile write failed). Fix (b) is still
+open for the email-code path and the rare app-only case (a signed-in user without a profile who tapped
 "Already have an account" by mistake).
 
 **Effort**: (b) ~2h incl. tests. (a) is done (web repo).

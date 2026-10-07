@@ -1,6 +1,12 @@
 # SPEC-21 — Purchase handoff: web buyers open the app already signed in
 
-> **Status (2026-10-06):** written, not built. Ships **in v1.3.0**, because paid ads go live with v1.3.0 (owner, 2026-10-06). Two halves: the app (this repo, including the redeem edge function and migration) and the website (`kinderwell-web`). Who builds the website half is still open.
+> **Status (2026-10-06):** **app half built** on `release/1.3.0` (not yet committed): migration, `redeem-handoff`, the app screens and links, Jest/Deno/pgTAP tests, E2E flows 12–15. Migration applied and function deployed on **dev**; all four spikes passed, and the full E2E suite passed on the simulator on 2026-10-07 (14 of 14 flows, handoff flows 12–15 included). **Website half not built** — this session builds it next, on the owner's go. Ships **in v1.3.0**, because paid ads go live with v1.3.0 (owner, 2026-10-06). Runbook: `releases/v1.3.0.md` section H.
+>
+> **Decided while building (owner, 2026-10-06):** the copy in §10 Q1 as proposed; 7-day keys (Q2); this session builds the website half (Q3). And one change to §4.4: the key is redeemed BEFORE anyone is signed out, so a dead link leaves whoever is signed in alone. `redeem-handoff` also returns the buyer's `user_id`, which is how "the same user" is recognised without a second session.
+>
+> **Found while building:** the native build never registered the `kinderwell://` scheme. `app.config.js`'s explicit `CFBundleURLTypes` replaces app.json's `scheme`, so only the bundle ID was there. Google sign-in never noticed, because its sheet catches its own redirect. The simulator flows' `kinderwell://k/…` would have done nothing. Fixed in `app.config.js`, with a test.
+>
+> **Changed 2026-10-06 (owner):** the link page links to `https://kinderwell.app/k/<key>` instead of the custom scheme, and the app claims both domains (§4.1). The app still accepts `kinderwell://k/<key>`, only so the simulator flows can open a link; the website never issues it. Invariant #29's analytics rule is now precise about which pages may hold a key (§7).
 
 ## 1. Problem
 
@@ -57,9 +63,11 @@ When they miss the fast lane:
 - **Lifetime:** 7 days, and single use. Redeeming marks it used atomically:
   `update … set used_at = now() where key_hash = $1 and used_at is null and expires_at > now() returning user_id`.
   Two simultaneous redeems: exactly one wins.
-- **Link forms:**
-  - `https://open.kinderwell.app/k/<key>` is a universal link and the only form ever copied or emailed.
-  - `kinderwell://k/<key>` is the custom scheme. The link page uses it, because a universal link tapped on its own domain opens Safari, not the app.
+- **Link forms** (both universal links; the app claims both domains):
+  - `https://open.kinderwell.app/k/<key>` is the form copied, emailed, shown as a QR code, and linked from kinderwell.app's pages.
+  - `https://kinderwell.app/k/<key>` is the form the link page on open.kinderwell.app links to. A universal link tapped on a page of its **own** domain opens Safari, not the app. A link to the **other** domain opens the app directly. So each domain's pages link to the other one.
+  - Both AASA files list only `/k/*`, so the rest of kinderwell.app (the funnel, `/manage`) still opens in Safari.
+  - The app also accepts `kinderwell://k/<key>`, only for the simulator E2E flows (S4). The website never issues it.
 
 ### 4.2 Minting (website)
 
@@ -71,12 +79,13 @@ When they miss the fast lane:
     - it is never sent to any third party.
   - **When `mint-handoff` issues a key:** it requires that `sessionId` and the nonce match, that `purchased_at` is within 24 h, and that the user's web entitlement is active. It mints at most 5 keys per session (`hit_rate_limit`).
 - **Welcome page:**
-  - **iPhone:** a **"Get Kinderwell"** button. In the tap handler, a user gesture, it calls `navigator.clipboard.writeText(link)` and then navigates to the App Store URL. Below it, **"Already installed? Open Kinderwell"** points at the universal link.
+  - **iPhone:** a **"Get Kinderwell"** button. In the tap handler, a user gesture, it calls `navigator.clipboard.writeText(link)` and then navigates to the App Store URL. `writeText` of the bare link is what makes iOS see a URL on the clipboard (spike S1); don't wrap it in other text. Below it, **"Already installed? Open Kinderwell"** points at the `open.kinderwell.app` universal link (another domain from this page's, so it opens the app).
   - **Desktop:** the QR code encodes the link.
 - **Link page** (`open.kinderwell.app/k/[key]`, served when the app isn't installed):
-  - A "Get Kinderwell" button (copy + App Store), "Already have it? Open Kinderwell" (custom scheme), and the manual steps.
+  - A "Get Kinderwell" button (copy + App Store), "Already have it? Open Kinderwell" (`https://kinderwell.app/k/<key>`, the other domain), and the manual steps.
   - **No Meta Pixel, no PostHog**, because the key is in the URL. `Referrer-Policy: no-referrer`, `noindex`.
-- **`open.kinderwell.app/.well-known/apple-app-site-association`:** `applinks` for team `APPLETEAMID`, bundles `com.kinderwell.app` and `com.kinderwell.app.dev`, path `/k/*`.
+- **Retention** (added while building the app half): used and expired keys are dead weight that still name a user, so the website's existing data-retention sweep deletes `handoff_keys` rows a few days past `expires_at`. Nothing in the app reads old keys.
+- **`apple-app-site-association` on BOTH `open.kinderwell.app` and `kinderwell.app`** (`/.well-known/`): `applinks` for team `APPLETEAMID`, bundles `com.kinderwell.app` and `com.kinderwell.app.dev`, path `/k/*` only.
 
 ### 4.3 Redeeming (this repo: edge function `redeem-handoff`)
 
@@ -96,9 +105,11 @@ When they miss the fast lane:
 
 - **Dependency:** `expo-clipboard`, a native module, so a new native build (v1.3.0 needs one anyway). Use `ClipboardPasteButton` (`UIPasteControl`, iOS 16+). Before rendering it, call `hasUrlAsync()`, which doesn't trigger the paste alert. On iOS < 16, use a normal button that calls `getStringAsync()` (one system alert).
 - **When the paste screen shows:** only on a fresh launch with **no session**, before Welcome, when the clipboard holds a URL. It never shows again after a redeem or a "Not now" (a new key in `storageKeys.ts`, per INVARIANTS #10).
+  - *As built:* "fresh" also means no onboarding progress on the device and no earlier signed-in launch (Splash sets the same flag then). A returning user who signed out, or a parent halfway through the questions, gets their usual route, never this screen (`shouldOfferHandoffPaste`).
   - **Copy must not mention buying on the web** (INVARIANTS #26 outside the US): "Welcome to Kinderwell. Tap Paste to finish setting up." and "Not now".
   - A pasted URL that isn't ours → straight to Welcome.
 - **Incoming links:** `Linking.getInitialURL()` plus the `url` listener, in a small module outside navigation. A `/k/<key>` link at any time (cold or warm) opens the handoff screen in its "signing you in" state; no paste needed.
+  - *As built* (`lib/handoffSources.ts`, `navigation/handoffNavigation.ts`): Splash and the handoff screen read a waiting key themselves; anywhere else a link takes over. Over the paywall, navigation resets first and the paywall is dismissed after, so the gate can't re-present it. A link tapped while another is being checked is tried if the first fails.
 - **Who's already signed in:**
   - **Someone else** (including the demo user) → sign them out first, which clears the user-bound cache (INVARIANTS #3), then redeem.
   - **The same user** → go to Loading.
@@ -119,7 +130,7 @@ When they miss the fast lane:
 | `handoff_paste_offered` | the paste screen is shown |
 | `handoff_paste_result` | `{ matched: boolean }` |
 | `handoff_redeemed` | `{ result, source: 'clipboard' \| 'link' }` |
-| `handoff_welcome_shown` | the "You're all set" greeting |
+| `handoff_welcome_shown` | the "You're all set" greeting; `{ with_name: boolean }` (whether a name was shown, never the name) |
 
 Errors other than `expired`, `used` and `unknown` go to Sentry (`reportError`; auth/money path).
 
@@ -130,7 +141,12 @@ Errors other than `expired`, `used` and `unknown` go to Sentry (`reportError`; a
 - **S1:** `ClipboardPasteButton` works in an Expo SDK 54 release build on the simulator, and Maestro can tap it. If Maestro can't, E2E seeds the clipboard and taps a test-only fallback **in dev builds only** (never an auth bypass; see SPEC-20's rule).
 - **S2:** `generateLink(magiclink)` + `verifyOtp({ token_hash, type: 'magiclink' })` gives a session for an existing email user on dev. That's spike S1 from SPEC-20 with `token_hash` instead of the 6-digit code.
 - **S3:** Loading → Root with a session, no local onboarding answers and no profile: no crash, no questions, Learn and Settings render.
-- **S4:** universal links in the simulator need the AASA file reachable. E2E uses the custom scheme (`openLink kinderwell://k/…`), and the real universal link is checked once on a device.
+- **S4:** universal links in the simulator need the AASA file reachable. E2E uses the custom scheme (`kinderwell://k/…`, opened by the E2E helper with `xcrun simctl openurl`, so the key never enters Maestro), and the real universal links are checked once on a device.
+- *Results (2026-10-06/07, all passed):*
+  - **S1:** a link copied in simulator Safari with `navigator.clipboard.writeText`, as the welcome page will do it, counts as a URL to iOS: `hasUrlAsync()` is true, so the paste screen shows. Apple's Paste button renders and pastes with no alert, and Maestro can tap it. A link written as bare text (`simctl pbcopy`) does NOT count, so the website must copy with `writeText` of the link itself, which is the plan. Flow 12 copies through Safari for this reason.
+  - **S2:** passed on dev against the deployed function (a fresh key → a session for the buyer; used, expired, unknown and refunded refused; three at once → one `ok`).
+  - **S3:** flow 12's buyer has no profile and no local answers; it reaches Learn, and Profile renders.
+  - **S4:** the custom scheme works through `simctl openurl`. iOS asks "Open in “Kinderwell Dev”?" once per simulator; the flows accept it. Universal links stay a device check.
 
 ## 6. Tests
 
@@ -139,7 +155,7 @@ Errors other than `expired`, `used` and `unknown` go to Sentry (`reportError`; a
 | Deno (`redeem-handoff/handler_test.ts`) | `ok`; `expired`; `used`; `unknown`; `not_entitled`; rate limited; a race (two redeems, one `ok`); `generateLink` failure → `error`; the key never appears in a log line |
 | pgTAP | `handoff_keys`: RLS on, no anon/authenticated access; `funnel_sessions.handoff_nonce_hash` is not client-readable |
 | Jest | link parsing (both forms, junk rejected); the redeem service → `verifyOtp`; handoff screen states; Splash shows the paste screen only on first launch with no session and a URL on the clipboard; incoming link → Loading, never Root; another user signed in → sign-out first; the greeting shows once and never says "Parent"; analytics carry no key (the PII guard bites) |
-| E2E (Maestro, extends SPEC-20) | **flow 12:** `xcrun simctl pbcopy` a seeded link → fresh install → Paste → Learn with "You're all set". **flow 13:** app installed, `openLink` the link → signed in. **flow 14:** an expired/used key → the email-sign-in fallback with the message. **flow 15:** another user signed in + link → switched to the buyer. **flow 2c:** a buyer who ignores everything and taps Get started, then signs in with the paid email → Learn, no paywall. `seed.mjs` gains `create-handoff-key`, which writes exactly what the website writes. |
+| E2E (Maestro, extends SPEC-20) | **flow 12:** a seeded link copied in simulator Safari with `writeText` (as the welcome page does; `simctl pbcopy` writes bare text, which iOS doesn't count as a URL) → fresh install → Paste → Learn with "You're all set" (the buyer without a profile; Profile renders too, spike S3). **flow 13:** app installed, the link opened (`xcrun simctl openurl`, by the helper) → signed in. **flow 14:** an expired/used key → the email-sign-in fallback with the message. **flow 15:** another user signed in + link → switched to the buyer. **flow 2c:** a buyer who ignores everything and taps Get started, then signs in with the paid email → Learn, no paywall. `seed.mjs` gains `create-handoff-key`, which writes exactly what the website writes. |
 | Website (kinderwell-web) | `mint-handoff` (nonce, 24 h window, entitlement, limit); the webhook mints the email key and the email contains the link; the link page has no analytics scripts; the welcome button copies, then navigates |
 | Device pass (RELEASE_CHECKLIST) | real install from the welcome page on an iPhone: Get Kinderwell → install the build → open → Paste → Learn; tapping the universal link in Mail opens the app |
 
@@ -149,7 +165,8 @@ Every guard is proven by sabotage, as in SPEC-20 rule 5. For example: make `rede
 
 - **29.** A handoff key is a login credential:
   - single use, 7 days at most, stored only as its sha256;
-  - never in PostHog, Sentry, logs, navigation params, Maestro env, or any page carrying analytics scripts.
+  - never in PostHog, Sentry, logs, navigation params or Maestro env;
+  - never in the URL of a page that loads analytics, and never sent to an analytics tool. On such a page it may sit only in memory or in a link's `href`, and only while automatic collection is off: Meta `autoConfig` false, PostHog autocapture and session replay off.
 - **30.** `redeem-handoff` is the one app-facing edge function with `verify_jwt` off. It must keep:
   - the atomic single-use update;
   - the entitlement check before minting a session;
@@ -159,7 +176,7 @@ Every guard is proven by sabotage, as in SPEC-20 rule 5. For example: make `rede
 ## 8. Owner steps
 
 1. **Vercel:** add the domain `open.kinderwell.app` to the kinderwell-web project, and the DNS record Vercel shows. About 5 minutes; exact clicks to be given when building.
-2. **Nothing in Apple's portal:** the App ID already has Associated Domains (applinks to the Supabase host), and EAS syncs the new domain at build time. Confirm the first build's entitlements include `applinks:open.kinderwell.app`.
+2. **Nothing in Apple's portal:** the App ID already has Associated Domains (applinks to the Supabase host), and EAS syncs the new domains at build time. Confirm the first build's entitlements include `applinks:open.kinderwell.app` and `applinks:kinderwell.app`.
 3. **App Review notes:** "a setup link from our website signs the customer in". No change to the demo-mode notes.
 4. **Prod:** the migration goes through `scripts/db-push-prod.sh`; deploy `redeem-handoff` to prod after the migration.
 
@@ -174,6 +191,8 @@ Every guard is proven by sabotage, as in SPEC-20 rule 5. For example: make `rede
 **Estimate:** about 3 working days. Day 1: spikes, migration, `redeem-handoff`. Day 2: app screens, links, Jest, E2E. Day 3: website half, then the full chain and the device check. v1.3.0 moves by that much.
 
 ## 10. Open questions for the owner
+
+*All three answered 2026-10-06: the proposed copy, 7 days, and this session builds the website half (see the status note at the top).*
 
 1. The paste screen's words, and the greeting. Proposed: "Welcome to Kinderwell. Tap Paste to finish setting up." / "You're all set, Ada."
 2. Is a 7-day key lifetime right? It's long enough for "installed on the weekend"; the email code covers anything later.

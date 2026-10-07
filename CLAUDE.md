@@ -12,7 +12,7 @@ Kinderwell is a React Native / Expo (managed workflow) iOS app: parenting-educat
   - An `error` result from the onboarding check is never treated as `no_onboarding`.
   - No email, child names, or free-text PII to PostHog/Sentry, ever. Identify by Supabase user ID only.
   - AsyncStorage keys only via `src/constants/storageKeys.ts`; never rename a shipped key without a migration.
-- `docs/PAYWALL_MODEL.md` — before touching anything in the launch/auth/gate path. Since v1.3.0 the gate also unlocks kinderwell.app (web) purchases — read its "Web entitlements" section and INVARIANTS 23–28 (Superwall must never clear a `'web'` flag).
+- `docs/PAYWALL_MODEL.md` — before touching anything in the launch/auth/gate path. Since v1.3.0 the gate also unlocks kinderwell.app (web) purchases — read its "Web entitlements" section and INVARIANTS 23–28 (Superwall must never clear a `'web'` flag). The purchase handoff (SPEC-21) signs web buyers in from a one-time link: INVARIANTS 29–30 (the key is a login credential; `redeem-handoff` is the one function with `verify_jwt` off).
 - `docs/DEV_PROD_ENVIRONMENTS.md` — before touching env config, migrations, or the Supabase CLI.
 - `docs/OPS_STATE.md` — the living register of external state (DB/dashboard/secrets/ASC). Check it before asking the owner "is X done?"; `unverified` means genuinely unknown, not "no".
 

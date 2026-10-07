@@ -8,7 +8,7 @@ How this app is tested, how to run each layer, and the rules new tests follow. E
 |---|---|---|---|
 | Static | types, lint, invariant lint rules | `npx tsc --noEmit` · `npx eslint .` | CI |
 | Unit + screen | decision functions, stores, services, screens (Jest + React Native Testing Library) | `npm test` (with floors: `npm test -- --coverage`) | CI → Jest tests |
-| Edge functions | `delete-account` and any future function's `*_test.ts` | `deno test supabase/functions` | CI (edge functions) |
+| Edge functions | `delete-account`, `redeem-handoff` and any future function's `*_test.ts` | `deno test supabase/functions` | CI (edge functions) |
 | Database | RLS, grants, SQL functions (pgTAP) | `scripts/db-test-local/run.sh` (no Docker) or `supabase test db` (Docker) | CI (database) |
 | Migration parity | this repo has every web-repo migration, unchanged | `scripts/check-migration-parity.sh` | — (run before any prod db push) |
 | End to end | the real release build on the iOS simulator, against dev Supabase (Maestro) | `npm run build:e2e` after a code change, then `npm run test:e2e` | — (local, before every release; see below) |
@@ -36,9 +36,10 @@ The only layer that runs the real binary: real navigation, the real Superwall SD
 **How it works.**
 - **Accounts.** Every flow gets fresh dev users from `scripts/e2e/seed.mjs`: a web buyer seeded with exactly what the Dodo webhook writes, a buyer whose profile insert failed, and a returning unentitled user. All are deleted on exit, pass or fail. Addresses are `delivered+<run>-<kind>@resend.dev`, Resend's test inbox, so nobody real is ever emailed.
 - **Sign-in.** Email code only; Apple and Google open native sheets. After the app sends the code, `.maestro/scripts/otp.js` gets a fresh one, which is what a parent reads from their inbox. There is no auth bypass in the app.
-- **The helper: Maestro never holds a key.** Maestro writes every `-e` variable into its debug log in plain text. So `run.sh` starts `seed.mjs serve` on 127.0.0.1, and that holds the service key. The flows call it to get a code (`generate_link`) and to revoke a purchase. It serves only this run's own test addresses and users.
+- **The helper: Maestro never holds a key.** Maestro writes every `-e` variable into its debug log in plain text. So `run.sh` starts `seed.mjs serve` on 127.0.0.1, and that holds the service key. The flows call it to get a code (`generate_link`), to revoke a purchase, and to hand over a purchase-handoff link. It serves only this run's own test addresses and users.
+- **Handoff links (flows 12–15).** A handoff key is a login credential, so it never reaches Maestro either. The helper mints one exactly as the website does, then either serves a one-time page whose "Get Kinderwell" copies the link in Safari (`navigator.clipboard.writeText`, as the welcome page does; Maestro gets only the page's address), or opens the custom-scheme form in the app (`xcrun simctl openurl booted kinderwell://k/…`). The universal links (`https://open.kinderwell.app/k/…`, `https://kinderwell.app/k/…`) need the website's AASA files, which the simulator can't verify, so they are a device-pass check; the app accepts `kinderwell://k/…` only for these flows. To try a link by hand on dev: `node scripts/e2e/seed.mjs create-handoff-key <userId> [fresh|expired|used]`.
 - **Markers.** A flow asks the runner for work it can't do itself with a `# RUNNER:` line. `raise-min-build` sets dev's kill switch one above the installed build for that flow and restores it straight after, and on exit. That is **shared dev config**: a dev build on a phone sees the update screen while flow 8 runs. `buyer-must-be-deleted` checks the database after the flow.
-- **testIDs.** Static strings only, because PostHog autocapture records `testID`: `learn-screen`, `learn-current-card`, `learn-done-node`, `auth-title`. Anything else is found by its visible text or accessibility label.
+- **testIDs.** Static strings only, because PostHog autocapture records `testID`: `learn-screen`, `learn-current-card`, `learn-done-node`, `auth-title`, `handoff-paste`. Anything else is found by its visible text or accessibility label.
 
 **Limits to know.**
 - **Dev's email limits apply:** one code per address per minute, and the project's emails per hour. A full run sends about 12 codes. At 30 an hour, the setting since dev got SMTP (2026-10-06), two runs in an hour won't fit. OPS_STATE asks for 100. When the limit is hit, the runner says so in plain words.
@@ -59,7 +60,7 @@ The only layer that runs the real binary: real navigation, the real Superwall SD
 - **`supabase/functions/<name>/handler.ts` + `handler_test.ts`:** logic separated from wiring (`index.ts`). The handler takes its outside world as `deps`.
 - **`supabase/tests/database/*.sql`:** pgTAP. `access_test.sql` and `functions_test.sql` are shared with the web repo; keep them identical there.
 - **`scripts/db-test-local/`:** the no-Docker runner and its Supabase stand-in.
-- **`.maestro/flows/`:** one file per SPEC-20 R10 flow, numbered as in the spec. `subflows/` holds shared steps (email code, the questionnaire, "the paywall is up"); `scripts/` holds the JavaScript Maestro runs (fetch a code, revoke an entitlement).
+- **`.maestro/flows/`:** one file per SPEC-20 R10 flow (1–10) or SPEC-21 §6 flow (2c, 12–15: the purchase handoff), numbered as in its spec. `subflows/` holds shared steps (email code, the questionnaire, "the paywall is up"); `scripts/` holds the JavaScript Maestro runs (fetch a code, revoke an entitlement, hand over a purchase-handoff link).
 - **`scripts/e2e/`:** `build.sh`, `run.sh` and `seed.mjs`.
 
 ## Rules
@@ -75,7 +76,9 @@ The only layer that runs the real binary: real navigation, the real Superwall SD
 9. **New URL in the app →** add it, with a reason, to `src/config/__tests__/allowedUrls.test.ts`. App Store 3.1.3: never a link to the web funnel.
 10. **New table →** RLS on (database test D1 fails otherwise), plus a policy test in `supabase/tests/database/`.
 
-**The PII guard (INVARIANTS #8).** After every Jest test, `setup.ts` scans every payload sent to PostHog and Sentry. The test fails on an email address or the fixture name. Use `factories.ts`' `FIXTURE_EMAIL` / `FIXTURE_NAME` in fixtures so the guard has something real to catch.
+**The PII guard (INVARIANTS #8, #29).** After every Jest test, `setup.ts` scans every payload sent to PostHog and Sentry. The test fails on an email address, the fixture name, a purchase-handoff link (`/k/<43 chars>`, `kinderwell://k/`) or the fixture handoff key. Use `factories.ts`' `FIXTURE_EMAIL` / `FIXTURE_NAME` / `FIXTURE_HANDOFF_KEY` in fixtures so the guard has something real to catch.
+
+**expo-clipboard is a global fake** (`src/test/clipboard.tsx`): `copyToClipboard(text)` sets what the device holds, and the fake Paste button hands it over as Apple's does. Apple's real button (`UIPasteControl`) is native-only.
 
 ## Coverage floors
 
@@ -99,6 +102,8 @@ The only layer that runs the real binary: real navigation, the real Superwall SD
 - **Kill a backgrounded `node`, not a shell function wrapping it.** Killing the function's subshell orphans `node`, which keeps the run's output open.
 - **Maestro matches text case-insensitively.** "Log Out" also matches a "Log out" row behind the dialog. Make a selector exact with `(?-i)`, anchor it with `below:` (or use a testID), and don't rely on button order: iOS stacks some two-button dialogs.
 - **A row at the bottom of a list can sit under the tab bar** while Maestro counts it as visible. Use `scrollUntilVisible` with `centerElement: true` before tapping.
+- **`xcrun simctl pbcopy` is not how a link gets copied.** It writes bare text, and iOS doesn't count bare text as a URL (`UIPasteboard.hasURLs` is false), so the app's paste offer never shows. Safari's `navigator.clipboard.writeText` of a link does count. Flow 12 therefore copies through a page in Safari, as a buyer's welcome page does (found 2026-10-07).
+- **iOS asks "Open in “Kinderwell Dev”?"** the first time `simctl openurl` hands the app a `kinderwell://` link, then remembers the answer. `subflows/confirm-open-in-app.yaml` taps Open only if asked, and waits for the prompt only briefly: a long wait sits through the sign-in and the 3.6 s "You're all set" line after it. Parents never see the prompt; their links are universal links.
 - **Single-answer quiz questions reveal on tap.** There's no "Check answer" step; that button belongs to the other question types.
 
 ## Invariants → checks (living copy of SPEC-20 Appendix A)
@@ -130,4 +135,7 @@ The only layer that runs the real binary: real navigation, the real Superwall SD
 | 26 | App Store 3.1.3 | `allowedUrls.test`; `SettingsScreen.test`; `AuthScreen.test` (Apple offered) | copy review |
 | 27 | Labels quoted by the website | `WelcomeScreen.test`; `AuthScreen.test` | — |
 | 28 | Cancel Dodo before delete | `handler_test.ts`; `deleteAccount.test`; `SettingsScreen.test`; E2E flow 6 (delete against the real gateway; the seeded buyer has no Dodo subscription) | — |
+| 29 | A handoff key is a login credential | `redeem-handoff/handler_test.ts` (single use, race, expiry, key never logged); `handoff_test.sql` (service role only, 7-day constraint); the global PII guard; `handoffStore.test` (never on disk); `HandoffScreen.test` | — |
+| 30 | `redeem-handoff`: the one function with `verify_jwt` off, keeping its claim, entitlement check and rate limit | `edgeFunctionGuards.test` (only it is off); `redeem-handoff/handler_test.ts` | the flag on each actual deploy (`functions list`) |
+| — | Handoff routing: Loading never Root; another account signed out only after a good link | `HandoffScreen.test`; `SplashScreen.test`; `handoffNavigation.test`; `routingPolicy.test`; E2E flows 12–15 | universal link from Mail: device pass |
 | — | Web purchase ↔ app agreement | `webEntitlement.test`; `webEntitlementContract.test` (cross-checks the web repo when present); E2E flows 2, 2b, 10 (seeded webhook rows) | full purchase chain: E2E flow 11, a manual release step |

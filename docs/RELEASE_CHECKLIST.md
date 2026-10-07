@@ -102,7 +102,7 @@ you're about to ship.
 ### Run the end-to-end tests (simulator, dev) — before the device build
 
 - [ ] `npm run build:e2e`, then `npm run test:e2e`, on the release commit: all flows pass and none is flaky. Paste the summary line into the release runbook. Setup and troubleshooting: `docs/TESTING.md` → "End to end".
-  - The flows cover, on the real release build: sign-up → paywall, web-buyer sign-in (with and without a profile), progress across a relaunch, account switch, delete account, demo mode, kill switch and refund.
+  - The flows cover, on the real release build: sign-up → paywall, web-buyer sign-in (with and without a profile), progress across a relaunch, account switch, delete account, demo mode, kill switch and refund, and the purchase handoff: Paste on a fresh install, a link after install, a dead link, and a link over the wrong account's paywall.
   - Don't repeat those by hand; the device pass below covers only what they can't.
 
 ### Build a real-device dev IPA first
@@ -145,6 +145,11 @@ If you see `Internal Server Error from Apple's App Store Connect / Developer Por
     - signs in with Google on the purchase Gmail → Learn;
     - with Apple sharing the purchase email → Learn;
     - with Apple **Hide My Email** → paywall → "Use a different account" → sign in by email → Learn.
+  - [ ] **Purchase handoff** (SPEC-21; the simulator can't verify universal-link domains, so these links are only checked here):
+    - buy on the iPhone in Safari → the welcome page's **Get Kinderwell** → install this build → open → **Paste** → Learn with "You're all set", no questions, no code;
+    - app installed: tap **Open Kinderwell** in the purchase email in Mail (`open.kinderwell.app`) → the app opens (not Safari) and signs in;
+    - a handoff link page's **Open Kinderwell** (`kinderwell.app/k/…`) → the app opens;
+    - Settings → Manage subscription (`kinderwell.app/manage`) still opens in Safari.
   - [ ] **Offline subscriber:** airplane mode on, kill and reopen the app → Learn. The simulator can't toggle airplane mode.
   - [ ] **Delete account as an App Store subscriber,** at least an hour after signing in (that exercises the session refresh): the warning mentions the subscription, there's one confirmation, and you land on Welcome.
   - [ ] **Smallest supported iPhone:** the changed screens fit, with no clipped text and every button reachable.
@@ -250,6 +255,7 @@ stale.
 - [ ] For each changed function, re-read the source in `supabase/functions/<name>/index.ts` before deploying. The prod version is about to become this exact code — no time to catch a typo after `functions deploy` runs.
 - [ ] `supabase link --project-ref prodprojectref00000x`
 - [ ] `supabase functions deploy <name> --project-ref prodprojectref00000x`
+  - **`redeem-handoff` is the one exception that takes `--no-verify-jwt`** (the purchase handoff runs before the app has a session; INVARIANTS #30). Never add the flag to any other function, `delete-account` above all. Afterwards `supabase functions list --project-ref prodprojectref00000x` must show `verify_jwt=false` for redeem-handoff only, among the app's functions.
 - [ ] **IMMEDIATELY re-link back to dev** so accidental commands hit dev, not prod:
   ```bash
   supabase link --project-ref devprojectref000000x

@@ -13,7 +13,7 @@ We run two Supabase projects with identical schemas:
 
 Both projects have:
 - Same tables (`user_profiles`, `lesson_progress`) with same RLS policies
-- Same Edge Functions (`delete-account`)
+- Same app Edge Functions: `delete-account` (gateway JWT check on) and, from v1.3.0, `redeem-handoff` (check off: the one exception, INVARIANTS #30). The website's functions live on the same projects; `kinderwell-web` owns them
 - Same Auth providers (Apple + Google, dev has its own iOS OAuth client and allowed Apple bundle)
 - Same allowed redirect URLs (`kinderwell://*`)
 
@@ -252,6 +252,8 @@ supabase functions deploy delete-account --project-ref prodprojectref00000x
 ```
 
 Always link back to dev after prod work so accidental commands hit dev, not prod.
+
+`redeem-handoff` (the purchase handoff, SPEC-21) is the one function deployed with `--no-verify-jwt`, and only after its `handoff_keys` migration is on that project. Commands and checks: `supabase/EDGE_FUNCTION_DEPLOYMENT.md`.
 
 ## Auth provider changes
 

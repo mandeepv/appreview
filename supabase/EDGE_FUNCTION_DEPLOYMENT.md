@@ -21,6 +21,29 @@
 > in depth), but that second layer needs the `JWT_SECRET` secret to be set —
 > see "One-time secret setup" below. Do not rely on either layer alone.
 
+> ## The one exception: `redeem-handoff` deploys WITH `--no-verify-jwt`
+>
+> The purchase handoff (SPEC-21) swaps a one-time key from kinderwell.app
+> for a sign-in. The app calls it BEFORE it has a session, and the app's
+> publishable key is not a JWT, so a gateway check would refuse every
+> caller. It is the only app-facing function with the check off
+> (INVARIANTS #30); `supabase/config.toml` says so too, and
+> `edgeFunctionGuards.test` fails if any other function joins it. What
+> protects it lives in its `handler.ts` and is tested in `handler_test.ts`:
+> the 256-bit single-use key, the entitlement check before a session is
+> minted, and the per-IP rate limit.
+>
+> ```bash
+> deno test supabase/functions                                    # first
+> supabase functions deploy redeem-handoff --no-verify-jwt        # dev (linked)
+> supabase functions deploy redeem-handoff --no-verify-jwt --project-ref prodprojectref00000x   # prod, owner-run, AFTER the handoff_keys migration
+> supabase functions list --project-ref <ref>   # redeem-handoff verify_jwt=false, delete-account true
+> ```
+>
+> No secrets of its own (it uses the project's injected URL and service key).
+> Deployed before the `handoff_keys` migration, every redeem answers `error`
+> and buyers fall back to the email code.
+
 ## JWT verification — two signing systems (SPEC-FIX-06, 2026-07-11)
 
 `delete-account` verifies the caller's token in-code (defense in depth,
