@@ -1,4 +1,6 @@
+import { FIXTURE_EMAIL } from '../../test/factories';
 import {
+  authErrorForReport,
   classifyEmailOtpError,
   emailOtpErrorMessage,
   isPlausibleEmail,
@@ -62,5 +64,27 @@ describe('emailOtpErrorMessage', () => {
   it('says something specific and different for send and verify where it matters', () => {
     expect(emailOtpErrorMessage('rate_limited', 'send')).not.toBe(emailOtpErrorMessage('rate_limited', 'verify'));
     expect(emailOtpErrorMessage('invalid_email', 'verify')).toBe(emailOtpErrorMessage('invalid_code', 'verify'));
+  });
+});
+
+describe('authErrorForReport (web2app review B-5)', () => {
+  it('keeps the code and status, never the message GoTrue wrote the address into', () => {
+    const goTrue = Object.assign(new Error(`Email address "${FIXTURE_EMAIL}" cannot be used as it is not authorized`), {
+      code: 'email_address_not_authorized',
+      status: 400,
+      name: 'AuthApiError',
+    });
+    const report = authErrorForReport(goTrue, 'send');
+    expect(report.message).toBe('Email code send failed: email_address_not_authorized (HTTP 400)');
+    expect(report.name).toBe('AuthApiError');
+    expect(JSON.stringify({ m: report.message, n: report.name, s: report.stack })).not.toContain(FIXTURE_EMAIL);
+  });
+
+  it('copes with errors that are not GoTrue errors, and never copies odd strings through', () => {
+    expect(authErrorForReport(undefined, 'verify').message).toBe('Email code verify failed: no_code (HTTP 0)');
+    expect(authErrorForReport(new Error(FIXTURE_EMAIL), 'verify').message).not.toContain(FIXTURE_EMAIL);
+    expect(authErrorForReport({ code: FIXTURE_EMAIL, name: FIXTURE_EMAIL }, 'send').message).toBe(
+      'Email code send failed: no_code (HTTP 0)',
+    );
   });
 });

@@ -65,6 +65,24 @@ export function classifyEmailOtpError(error: unknown): EmailOtpErrorKind {
   return 'unknown';
 }
 
+/**
+ * The error to REPORT for a failed send or verify: its code and status only,
+ * never its message (INVARIANTS #8). GoTrue writes the address into some
+ * messages — `Email address "parent@…" cannot be used as it is not
+ * authorized` is exactly the "custom SMTP not configured" failure OPS_STATE
+ * says to watch Sentry for — so reporting the raw error sent the customer's
+ * email to Sentry (web2app review 2026-10-07, B-5). The code says everything
+ * a fix needs; the address is in the auth logs if ever wanted.
+ */
+export function authErrorForReport(error: unknown, step: 'send' | 'verify'): Error {
+  const e = (error ?? {}) as { code?: unknown; status?: unknown; name?: unknown };
+  const code = typeof e.code === 'string' && /^[a-z0-9_]{1,64}$/i.test(e.code) ? e.code : 'no_code';
+  const status = typeof e.status === 'number' ? e.status : 0;
+  const report = new Error(`Email code ${step} failed: ${code} (HTTP ${status})`);
+  report.name = typeof e.name === 'string' && /^[A-Za-z]{1,64}$/.test(e.name) ? e.name : 'AuthError';
+  return report;
+}
+
 /** The inline message for a failed send or verify. Plain words, no codes. */
 export function emailOtpErrorMessage(kind: EmailOtpErrorKind, step: 'send' | 'verify'): string {
   switch (kind) {

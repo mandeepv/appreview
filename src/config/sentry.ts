@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
 import { env as environment } from '../lib/env';
+import { scrubEmails } from '../lib/redactPii';
 
 // `environment` is imported from ../lib/env — single source of truth for
 // dev/prod detection (Fable review 🟡, previously duplicated in sentry.ts /
@@ -58,6 +59,11 @@ export function initSentry(): void {
     // Strip common PII (IP addresses) — we don't need it and it's cleaner
     // for GDPR / privacy manifest alignment.
     sendDefaultPii: false,
+    // INVARIANTS #8, last line of defence: no email address leaves in an
+    // event or a breadcrumb, whatever message carried it (lib/redactPii.ts;
+    // GoTrue puts addresses in some auth errors — web2app review B-5).
+    beforeSend: (event) => scrubEmails(event),
+    beforeBreadcrumb: (breadcrumb) => scrubEmails(breadcrumb),
   });
 
   if (__DEV__) console.log(`[Sentry] initialized (env=${environment}, release=${release})`);

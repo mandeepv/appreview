@@ -10,7 +10,7 @@ import { reportError } from '../config/sentry';
 import { useOnboardingStore } from '../store/onboardingStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, LESSON_PROGRESS_KEYS } from '../constants/storageKeys';
-import { classifyEmailOtpError, normalizeEmail } from '../lib/emailOtp';
+import { authErrorForReport, classifyEmailOtpError, normalizeEmail } from '../lib/emailOtp';
 import type { Session } from '@supabase/supabase-js';
 
 // Required for web browser authentication
@@ -229,7 +229,8 @@ export const signInWithApple = async () => {
  * for this address (the website created it, confirmed), so they sign into it.
  *
  * Rethrows for AuthScreen to show inline. Only `unknown` failures go to
- * Sentry — a rate limit or no connection is not a bug. No email in the report.
+ * Sentry — a rate limit or no connection is not a bug — and only as their
+ * code and status (authErrorForReport): GoTrue's messages can hold the email.
  */
 export const sendEmailOtp = async (email: string): Promise<void> => {
   try {
@@ -238,7 +239,7 @@ export const sendEmailOtp = async (email: string): Promise<void> => {
   } catch (error) {
     if (__DEV__) console.error('Error sending email code:', error);
     if (classifyEmailOtpError(error) === 'unknown') {
-      reportError(error, { context: 'email_otp_send' });
+      reportError(authErrorForReport(error, 'send'), { context: 'email_otp_send' });
     }
     throw error;
   }
@@ -261,7 +262,7 @@ export const verifyEmailOtp = async (email: string, token: string): Promise<Sess
   } catch (error) {
     if (__DEV__) console.error('Error verifying email code:', error);
     if (classifyEmailOtpError(error) === 'unknown') {
-      reportError(error, { context: 'email_otp_verify' });
+      reportError(authErrorForReport(error, 'verify'), { context: 'email_otp_verify' });
     }
     throw error;
   }

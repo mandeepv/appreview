@@ -281,13 +281,34 @@ describe('email sign-in', () => {
   // Supabase's built-in mailer refuses anyone outside the project team: that
   // means custom SMTP is not configured, and every customer's code fails.
   it('the mailer refuses the address (email_address_not_authorized) → a message AND a Sentry report', async () => {
+    // GoTrue's real message carries the address. The report must not: the
+    // PII guard (src/test/setup.ts) fails this test if it reaches Sentry
+    // (web2app review 2026-10-07, B-5).
     supabase.auth.signInWithOtp.mockResolvedValue({
       data: {},
-      error: Object.assign(new Error('Email address not authorized'), { code: 'email_address_not_authorized', status: 400 }),
+      error: Object.assign(
+        new Error(`Email address "${FIXTURE_EMAIL}" cannot be used as it is not authorized`),
+        { code: 'email_address_not_authorized', status: 400, name: 'AuthApiError' },
+      ),
     });
     await requestCode('signin');
     expect(screen.getByText("We couldn't send a code. Please try again.")).toBeTruthy();
     expect(sentryModule.reportError).toHaveBeenCalledWith(expect.any(Error), { context: 'email_otp_send' });
+    const [reported] = sentryModule.reportError.mock.calls.at(-1)!;
+    expect((reported as Error).message).toBe('Email code send failed: email_address_not_authorized (HTTP 400)');
+  });
+
+  it('an unexpected verify failure is reported by its code, never its message (B-5)', async () => {
+    supabase.auth.verifyOtp.mockResolvedValue({
+      data: { session: null },
+      error: Object.assign(new Error(`Something about ${FIXTURE_EMAIL} went wrong`), { code: 'unexpected_failure', status: 500 }),
+    });
+    await requestCode('signin');
+    await fireEvent.changeText(screen.getByLabelText('6-digit code'), '123456');
+    await fireEvent.press(screen.getByText('Verify'));
+    expect(sentryModule.reportError).toHaveBeenCalledWith(expect.any(Error), { context: 'email_otp_verify' });
+    const [reported] = sentryModule.reportError.mock.calls.at(-1)!;
+    expect((reported as Error).message).toBe('Email code verify failed: unexpected_failure (HTTP 500)');
   });
 
   it('rate limited → a message, not a Sentry report (waiting is not a bug)', async () => {
