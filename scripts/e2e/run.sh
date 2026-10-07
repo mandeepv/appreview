@@ -94,6 +94,7 @@ attempt() {
     -e APP_ID="$APP_ID" -e HELPER_URL="$HELPER_URL" \
     -e BUYER_EMAIL="$(field email "$BUYER")" -e BUYER_ID="$(field userId "$BUYER")" \
     -e BUYER_NO_PROFILE_EMAIL="$(field email "$BUYER_NO_PROFILE")" \
+    -e BUYER_NO_PROFILE_ID="$(field userId "$BUYER_NO_PROFILE")" \
     -e UNENTITLED_EMAIL="$(field email "$UNENTITLED")" \
     -e FRESH_EMAIL="delivered+$id-fresh@resend.dev" \
     | tee "$out"

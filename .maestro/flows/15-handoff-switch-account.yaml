@@ -1,0 +1,35 @@
+# The wrong account (SPEC-21 flow 15): someone signed in another way — Apple's
+# Hide My Email makes a second account with no purchase — and is stuck on the
+# paywall. They tap their link. The paywall goes, that account is signed out
+# (its cached unlock with it, INVARIANTS #3), and the buyer is signed in.
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Sign in"
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${UNENTITLED_EMAIL}
+- runFlow: ../subflows/paywall-shown.yaml
+- runScript:
+    file: ../scripts/handoff.js
+    env:
+      USER_ID: ${BUYER_ID}
+      STATE: fresh
+      DELIVER: open
+- runFlow: ../subflows/confirm-open-in-app.yaml
+# The outcome this flow exists for: Learn, and no paywall. (The one-time
+# "You're all set" line is checked by flows 12 and 13; here the paywall's
+# teardown can outlast it.)
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- assertNotVisible: "(?i).*restore.*"
+# The unlock belongs to the buyer: a relaunch is still in, no paywall.
+- runFlow: ../subflows/relaunch.yaml
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- assertNotVisible: "(?i).*restore.*"

@@ -1,0 +1,25 @@
+# The link after install (SPEC-21 flow 13): the app is installed and sits on
+# Welcome; the buyer taps "Open Kinderwell" in their email. The link opens the
+# app and signs them in — no paste, no questions, no paywall.
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- runScript:
+    file: ../scripts/handoff.js
+    env:
+      USER_ID: ${BUYER_ID}
+      STATE: fresh
+      DELIVER: open
+- runFlow: ../subflows/confirm-open-in-app.yaml
+- extendedWaitUntil:
+    visible: "You're all set.*"
+    timeout: 30000
+- assertVisible:
+    id: "learn-current-card"
+- assertNotVisible: "(?i).*restore.*"
+# Signed in for real, not for one screen: a relaunch is still in.
+- runFlow: ../subflows/relaunch.yaml
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000

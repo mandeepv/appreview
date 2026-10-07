@@ -1,0 +1,22 @@
+# SIMULATOR ONLY. The helper opens a handoff link with `simctl openurl` and
+# the custom scheme (kinderwell://k/…), and iOS may ask "Open in “Kinderwell
+# Dev”?" before handing a scheme URL to an app from outside one. It asks once
+# and then remembers, so later links in a run open without asking. A parent
+# never sees it: their links are universal links (open.kinderwell.app,
+# kinderwell.app), which open the app without asking. Tap Open if asked. The
+# title is matched by its start only — the curly quotes around the name vary.
+appId: ${APP_ID}
+---
+# Short: when iOS asks, it asks within a second. A long wait here would sit
+# through the whole sign-in and the "You're all set" line after it.
+- extendedWaitUntil:
+    visible: "Open in .*"
+    timeout: 3000
+    optional: true
+- runFlow:
+    when:
+      visible: "Open in .*"
+    commands:
+      - tapOn:
+          text: "Open"
+          below: "Open in .*"

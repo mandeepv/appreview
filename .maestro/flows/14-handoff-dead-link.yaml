@@ -1,0 +1,52 @@
+# A dead link (SPEC-21 flow 14): expired, then already used. Each says which,
+# signs nobody in, and offers today's path — the email the buyer paid with —
+# which still ends in the app.
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- runScript:
+    file: ../scripts/handoff.js
+    env:
+      USER_ID: ${BUYER_ID}
+      STATE: expired
+      DELIVER: open
+- runFlow: ../subflows/confirm-open-in-app.yaml
+- extendedWaitUntil:
+    visible: "This link has expired."
+    timeout: 30000
+- assertVisible: "Sign in with the email you used."
+# A second link while the first one's message is up is picked up too.
+- runScript:
+    file: ../scripts/handoff.js
+    env:
+      USER_ID: ${BUYER_ID}
+      STATE: used
+      DELIVER: open
+- runFlow: ../subflows/confirm-open-in-app.yaml
+- extendedWaitUntil:
+    visible: "This link has already been used."
+    timeout: 30000
+- tapOn: "Continue with Email"
+# Straight at the address field: the rest of email-code.yaml, minus its
+# first tap.
+- tapOn: "Your email"
+- inputText: ${BUYER_EMAIL}
+- tapOn: "Send code"
+- extendedWaitUntil:
+    visible: "6-digit code|Too many codes requested.*"
+    timeout: 15000
+- assertNotVisible:
+    text: "Too many codes requested.*"
+    label: "E2E-EMAIL-LIMIT: dev's email rate limit is used up"
+- runScript:
+    file: ../scripts/otp.js
+    env:
+      EMAIL: ${BUYER_EMAIL}
+- tapOn: "6-digit code"
+- inputText: ${output.otp}
+- tapOn: "Verify"
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- assertNotVisible: "(?i).*restore.*"

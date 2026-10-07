@@ -1,0 +1,54 @@
+# The purchase handoff's fast lane (SPEC-21 flow 12): the welcome page copied
+# the buyer's setup link, they installed the app, and on its first launch one
+# tap on Paste signs them in — no questions, no code, no paywall, and Learn
+# says "You're all set". The buyer here is the one whose profile the webhook
+# failed to write: the handoff must reach Learn without the questions, which
+# is what closes BACKLOG #27 for every handoff buyer.
+appId: ${APP_ID}
+---
+# The welcome page's "Get Kinderwell": Safari copies the link (writeText).
+# Copied any other way — `simctl pbcopy` writes bare text — iOS doesn't count
+# it as a URL, and the app rightly doesn't offer the paste screen.
+- runScript:
+    file: ../scripts/handoff.js
+    env:
+      USER_ID: ${BUYER_NO_PROFILE_ID}
+      STATE: fresh
+      DELIVER: page
+- launchApp:
+    appId: com.apple.mobilesafari
+- openLink: ${output.handoffPage}
+- tapOn: "Get Kinderwell"
+- extendedWaitUntil:
+    visible: "Copied"
+    timeout: 10000
+- launchApp:
+    clearState: true
+- runFlow: ../subflows/dismiss-store-prompts.yaml
+- extendedWaitUntil:
+    visible: "Tap Paste to finish setting up."
+    timeout: 20000
+# Apple's UIPasteControl: a real tap is the permission, so no paste alert.
+- tapOn:
+    id: "handoff-paste"
+- extendedWaitUntil:
+    visible: "You're all set.*"
+    timeout: 30000
+- assertVisible:
+    id: "learn-current-card"
+- assertNotVisible: "Who are you parenting as?"
+- assertNotVisible: "(?i).*restore.*"
+# SPEC-21 spike S3: no profile row and no local answers, and Profile still
+# renders, all the way down.
+- tapOn: "Profile, tab.*"
+- scrollUntilVisible:
+    element:
+      id: "settings-log-out"
+    centerElement: true
+# The offer is made once per install: a relaunch goes straight in.
+- runFlow: ../subflows/relaunch.yaml
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- assertNotVisible: "Tap Paste to finish setting up."

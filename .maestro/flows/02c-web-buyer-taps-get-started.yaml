@@ -1,0 +1,45 @@
+# A web buyer who doesn't realise they already have an account taps "Get
+# started" instead of "Sign in", answers the questions, then signs in at
+# "Save your progress" with the email they paid with. Either door must lead
+# to the app with no paywall: first a buyer whose profile the webhook wrote,
+# then one whose profile write failed (SPEC-20 R10; the owner's worry,
+# 2026-10-06, that buyers won't know which button to press).
+appId: ${APP_ID}
+---
+- runFlow: ../subflows/launch-fresh.yaml
+- tapOn: "Get started"
+- runFlow: ../subflows/questionnaire.yaml
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${BUYER_EMAIL}
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- assertNotVisible: "(?i).*restore.*"
+# Same door, the buyer without a profile.
+- tapOn: "Profile, tab.*"
+- scrollUntilVisible:
+    element:
+      id: "settings-log-out"
+    centerElement: true
+- tapOn:
+    id: "settings-log-out"
+- tapOn:
+    text: "(?-i)Log Out"
+    below: "Are you sure.*"
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 15000
+- tapOn: "Get started"
+- runFlow: ../subflows/questionnaire.yaml
+- runFlow:
+    file: ../subflows/email-code.yaml
+    env:
+      EMAIL: ${BUYER_NO_PROFILE_EMAIL}
+- extendedWaitUntil:
+    visible:
+      id: "learn-current-card"
+    timeout: 30000
+- assertNotVisible: "(?i).*restore.*"

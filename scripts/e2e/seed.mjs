@@ -6,6 +6,8 @@
 //   node scripts/e2e/seed.mjs exists <email>          → prints true / false
 //   node scripts/e2e/seed.mjs cleanup <runId>         → deletes every user of that run
 //   node scripts/e2e/seed.mjs min-build [n]           → prints dev's min_supported_ios_build; sets it first if n given
+//   node scripts/e2e/seed.mjs create-handoff-key <userId> [fresh|expired|used]
+//                                                     → a purchase-handoff key, as the website mints it; prints {"link","scheme"}
 //   node scripts/e2e/seed.mjs serve <runId> <portFile> → the flows' helper (below); runs until killed
 //
 // Kinds:
@@ -29,9 +31,18 @@
 // `-e` variable it is given into its debug log in plain text
 // (~/.maestro/tests/…/maestro.log); the first run of these flows put the
 // service key there. So the key stays in this process. The flows call a
-// helper on 127.0.0.1 for the two privileged steps — read a sign-in code,
-// revoke a purchase — and the helper serves only this run's own test users.
+// helper on 127.0.0.1 for the privileged steps — read a sign-in code, revoke
+// a purchase, hand over a purchase-handoff link — and the helper serves only
+// this run's own test users.
+//
+// A handoff key is a login credential too (INVARIANTS #29), so the helper
+// never returns one. It puts the link where a parent's link would be: on a
+// one-time page whose "Get Kinderwell" copies it in Safari (what the welcome
+// page does), or opened straight into the app (what "Open Kinderwell" does).
+// The page's address carries a throwaway page id, never the key.
 
+import { execFileSync } from 'node:child_process';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -90,6 +101,34 @@ async function create(kind, runId) {
   return { email, userId: user.id };
 }
 
+// A purchase-handoff key, written EXACTLY as the website writes one
+// (kinderwell-web's mint-handoff and dodo-webhook; SPEC-21 §4.1): 32 random
+// bytes as base64url, stored only as the lowercase-hex sha256 of that
+// string, 7 days, single use. `expired` and `used` are the two ways a real
+// link goes dead.
+const DAY_MS = 24 * 3600 * 1000;
+
+async function mintHandoffKey(userId, state = 'fresh') {
+  if (!['fresh', 'expired', 'used'].includes(state)) throw new Error(`unknown handoff state: ${state}`);
+  const key = randomBytes(32).toString('base64url');
+  const now = Date.now();
+  const createdAt = state === 'expired' ? now - 8 * DAY_MS : now;
+  await must(
+    admin.from('handoff_keys').insert({
+      key_hash: createHash('sha256').update(key, 'utf8').digest('hex'),
+      user_id: userId,
+      source: 'welcome',
+      created_at: new Date(createdAt).toISOString(),
+      expires_at: new Date(createdAt + 7 * DAY_MS).toISOString(),
+      used_at: state === 'used' ? new Date(now - 3600 * 1000).toISOString() : null,
+    }),
+  );
+  return key;
+}
+
+const universalLink = (key) => `https://open.kinderwell.app/k/${key}`;
+const schemeLink = (key) => `kinderwell://k/${key}`;
+
 async function listAll() {
   const users = [];
   for (let page = 1; ; page += 1) {
@@ -128,8 +167,50 @@ function serve(runId, portFile) {
       await must(admin.from('entitlements').update({ status: 'revoked' }).eq('user_id', userId));
       return [200, { revoked: true }];
     },
+    // A purchase-handoff link for one of this run's buyers (flows 12–15),
+    // delivered the way a parent gets it and never returned (see the header):
+    //   page → a one-time page for Safari whose "Get Kinderwell" copies the
+    //          universal link with navigator.clipboard.writeText, exactly as
+    //          the welcome page does. Not `simctl pbcopy`: that writes bare
+    //          text, which iOS does not count as a URL, while Safari's copy of
+    //          a link does (found 2026-10-07; the paste offer depends on it).
+    //          Answers { page }: its address, with no key in it.
+    //   open → the custom-scheme link, opened in the app, as "Open
+    //          Kinderwell" does. Not the universal link: the simulator can't
+    //          verify open.kinderwell.app (SPEC-21 S4).
+    async handoff({ userId, state = 'fresh', deliver }) {
+      const { user } = await must(admin.auth.admin.getUserById(userId ?? ''));
+      if (!ours.test(user.email ?? '')) return [403, { error: 'not a test user of this run' }];
+      if (!['page', 'open'].includes(deliver)) return [400, { error: 'deliver is page or open' }];
+      const key = await mintHandoffKey(userId, state);
+      if (deliver === 'page') {
+        const pageId = randomUUID();
+        copyPages.set(pageId, universalLink(key));
+        return [200, { page: `http://localhost:${server.address().port}/copy/${pageId}` }];
+      }
+      execFileSync('xcrun', ['simctl', 'openurl', 'booted', schemeLink(key)]);
+      return [200, { delivered: deliver }];
+    },
   };
+  // One-time copy pages: served once, then forgotten.
+  const copyPages = new Map();
+  const copyPage = (link) => `<!doctype html><meta name="viewport" content="width=device-width">
+<style>body{font-family:-apple-system;text-align:center}button{font-size:26px;margin-top:40vh;padding:18px 28px}</style>
+<p id="state"></p><button id="get">Get Kinderwell</button>
+<script>
+document.getElementById('get').onclick = async () => {
+  try { await navigator.clipboard.writeText(${JSON.stringify(link)}); state.textContent = 'Copied'; }
+  catch (e) { state.textContent = 'Copy failed: ' + e; }
+};
+</script>`;
   const server = createServer((req, res) => {
+    const pageId = req.method === 'GET' ? req.url.match(/^\/copy\/([0-9a-f-]{36})$/)?.[1] : undefined;
+    if (pageId) {
+      const link = copyPages.get(pageId);
+      copyPages.delete(pageId);
+      if (!link) return res.writeHead(404).end('gone');
+      return res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' }).end(copyPage(link));
+    }
     let body = '';
     req.on('data', (chunk) => (body += chunk));
     req.on('end', async () => {
@@ -166,10 +247,21 @@ const run = {
   exists: () => exists(args[0]),
   cleanup: () => cleanup(args[0]),
   'min-build': () => minBuild(args[0]),
+  // For trying the handoff by hand on dev, dev test users only. In the
+  // simulator: `xcrun simctl openurl booted <scheme>` opens it in the app. To
+  // see the paste screen, copy <link> from a page in Safari instead —
+  // `simctl pbcopy` writes bare text, which iOS doesn't count as a URL.
+  'create-handoff-key': async () => {
+    const key = await mintHandoffKey(args[0], args[1]);
+    return { link: universalLink(key), scheme: schemeLink(key) };
+  },
   serve: () => serve(args[0], args[1]),
 }[command];
 if (!run) {
-  console.error('usage: seed.mjs create <kind> <runId> | exists <email> | cleanup <runId> | min-build [n] | serve <runId> <portFile>');
+  console.error(
+    'usage: seed.mjs create <kind> <runId> | exists <email> | cleanup <runId> | min-build [n]' +
+      ' | create-handoff-key <userId> [fresh|expired|used] | serve <runId> <portFile>',
+  );
   process.exit(2);
 }
 run()
