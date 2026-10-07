@@ -363,7 +363,7 @@ That drops a `supabase/migrations/YYYYMMDDHHMMSS_add_subscription_status_to_user
 
 ### Applying a migration
 
-**To dev** (CLI should already be linked to dev by default — see `supabase/.temp/project-ref`):
+**To dev** (CLI should already be linked to dev by default — `supabase/.temp/linked-project.json` shows `"ref":"devprojectref000000x"`; the older `project-ref` file is no longer written by this CLI and can be stale):
 
 ```bash
 supabase db push --linked --dry-run   # sanity-check: shows what will apply

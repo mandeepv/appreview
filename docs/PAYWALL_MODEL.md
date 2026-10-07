@@ -148,6 +148,17 @@ Apple paywall. `webEntitlement.test` fails if the newest
 dates on purpose (a 3-day floor while a card is retried; never earlier
 than the paid period).
 
+**One rule, three copies.** The website's `hasAccess` (checkout's
+duplicate guard, the welcome page's sign-in key, resume links) and
+`redeem-handoff`'s `hasWebAccess` apply the same rule; until 2026-10-07 the
+website allowed no late-renewal grace, so during a late renewal checkout
+would sell a second subscription to someone the app still let in
+(web2app review AP-3). All three now run over one table of cases,
+`supabase/functions/_shared/access_rule_cases.json`, byte-identical in
+both repos (`scripts/check-migration-parity.sh` compares it). The
+webhook's duplicate-vs-replacement decision deliberately does NOT use the
+grace: a second purchase while the first is past its date replaces it.
+
 | Status | Meaning | Access |
 |---|---|---|
 | `active` | Paid, renewing | Yes, until `current_period_end` + 6 days (late-renewal grace) |
@@ -181,17 +192,25 @@ paying customer as unsubscribed. Records written before v1.3.0 carry no
 source and read as `'superwall'`.
 
 **Background re-check.** A launch on a cached `'web'` flag skips the gate,
-so it re-checks the row once Root is entered (`resolveWebRecheck`).
-`not_entitled` clears the flag and the NEXT launch gates — the session in
-progress is never interrupted. `error` keeps the flag: offline web
-subscribers get the same leniency Apple subscribers get.
+so it re-checks the row once Root is entered (`resolveWebRecheck`,
+`src/services/webRecheck.ts`), and again whenever the app returns to the
+foreground, at most hourly. `not_entitled` clears the flag and the NEXT
+launch gates — the session in progress is never interrupted. `error` and
+a timeout keep the flag: offline web subscribers get the same leniency
+Apple subscribers get. The re-check is off the launch path, so it waits
+20 s, not the gate's 4. *(Before 2026-10-07 it ran only at a cold launch
+with the 4 s timeout: on a slow network it never cleared, and an app that
+was never killed never re-checked — web2app review AP-5.)*
 
 **The wrong account.** Sign in with Apple + Hide My Email mints a
 different Supabase user with no purchase, so a web buyer who signs in that
 way meets the paywall. Its "Use a different account" button (Superwall
 dashboard, custom action `switch_account`) signs them out and opens Auth
 in sign-in mode. Email (6-digit code) and Google with the same Gmail
-both reach the buyer's real user.
+both reach the buyer's real user. LoadingScreen claims that sign-out
+(`navigation/signOutRouting.ts`) so App.tsx's usual reset to Welcome
+stands down; the two used to race and the parent often landed on Welcome
+(web2app review AP-4).
 
 Since SPEC-21 (purchase handoff, v1.3.0) most web buyers never meet this.
 The welcome page's link signs them in to the paying account on first
@@ -224,6 +243,14 @@ step decides as for any other sign-in.
 4. `navigation.replace('Loading')`. The gate finds the web entitlement
    (or, for a buyer refunded since, shows the paywall). Learn says
    "You're all set" once.
+
+Who gets a key is the website's decision (web2app review 2026-10-07,
+B-1/B-3): the welcome page only for the browser that created the checkout
+that was PAID (its nonce's hash rides in that checkout's Dodo metadata),
+and neither the welcome page nor the email for a purchase that landed on
+an account older than its funnel session — someone may have paid with
+another person's email, and a key is a login credential. Those buyers
+(often existing app users buying on the web) sign in with the email code.
 
 Every non-`ok` result (`expired`, `used`, `unknown`, `not_entitled`,
 `rate_limited`, `error`) ends at email sign-in, today's path, with its

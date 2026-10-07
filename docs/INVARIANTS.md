@@ -59,11 +59,12 @@ handoff".)*
     - Single use, 7 days at most, stored only as its sha256 (`handoff_keys`: service role only; the 7-day limit is a table constraint).
     - Never in PostHog, Sentry, logs (`__DEV__` included), navigation params or Maestro env. In the app it lives in memory only (`store/handoffStore.ts`) and goes only to `redeem-handoff`.
     - Never in the URL of a page that loads analytics, and never sent to an analytics tool. On such a page (the welcome page) it may sit only in memory or in a link's `href`, and only while automatic collection is off: Meta `autoConfig` false, PostHog autocapture and session replay off. Those three settings are part of this rule: turning one on puts the key in front of a tracker.
-    - Checked by: the Jest PII guard (`src/test/setup.ts` fails on a `/k/<43 chars>` link, `kinderwell://k/` or the fixture key), `handoff_test.sql`, and `redeem-handoff`'s "the key never appears in a log line" test.
+    - Minted only for the account the funnel created for that purchase: the website's welcome page needs the nonce of the browser that created the checkout that was PAID, and neither it nor the email mints for a purchase on an account older than its funnel session (`_shared/accounts.ts` there; web2app review 2026-10-07, B-1/B-3 — otherwise paying with someone else's email bought a sign-in to their account).
+    - Checked by: the Jest PII guard (`src/test/setup.ts` fails on a `/k/<43 chars>` link, `kinderwell://k/` or the fixture key), `handoff_test.sql`, and `redeem-handoff`'s "the key never appears in a log line" test; on the website, `handoff_test.ts`, the M/W integration tests and the tests pinning the three automatic-collection settings.
 30. `redeem-handoff` is the one app-facing edge function with `verify_jwt` off (the app calls it before it has a session). It must keep:
     - the atomic single-use claim (one conditional UPDATE: `used_at is null and expires_at > now()`);
     - the entitlement check before a session is minted;
-    - the per-IP rate limit (`hit_rate_limit`, 20 per 10 min).
+    - the per-IP rate limit (`hit_rate_limit`, 20 per 10 min), keyed on the address the edge saw (`cf-connecting-ip`, else the rightmost X-Forwarded-For hop) — never the first XFF hop, which the caller writes (web2app review 2026-10-07).
     `edgeFunctionGuards.test` fails if any other function turns the check off; `handler_test.ts` fails if any of the three goes.
 - **#1** already covers routing (the handoff enters Root only through Loading), **#3** the account switch (someone else signed in is signed out before the buyer signs in, and only after the link proves good), and **#26** the copy (no web-purchase wording on the handoff screens).
 

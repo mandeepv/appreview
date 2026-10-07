@@ -17,6 +17,37 @@ up being >1 day or blocks another item, promote it to its own doc.
 
 ---
 
+## Left open by the web2app production-readiness review (2026-10-07)
+
+The review (`~/kinderwell-web2app/kinderwell-web/reviews/WEB2APP_PROD_READINESS_REVIEW.md`)
+is fixed in code on both sides; these are the app-side items it raised that
+were left as they are, on purpose or for the owner.
+
+### W1. The gate trusts the device clock 🟢
+**Problem**: `isWebEntitled` (and the cached-flag logic) compare
+`current_period_end` with the phone's clock. A clock set ahead locks a payer
+out early; one set back extends access past a lapse (never past a refund:
+`revoked` is never entitled, whatever the date).
+**Fix**: if it ever matters, compare against the server's `Date` header from
+the entitlements read instead of `new Date()`.
+**Effort**: ~2h. **Blocks**: nothing.
+
+### W2. Public mirrors disagree on what they redact 🟢 (owner decision)
+**Problem**: the `appreview` mirror exposes the Google OAuth client id and
+three Apple key ids while redacting the team id; the web mirror publishes the
+team id. None is a secret, but the two policies contradict each other.
+**Fix**: pick one redaction list for both mirrors and record it in OPS_STATE's
+GitHub section.
+
+### W3. Web purchases on an existing account sign in by email code only 🟢 (owner decision)
+**Problem**: since the B-1 fix, a purchase that lands on an account older
+than its funnel session (an app user buying on the web, a returning lead)
+gets no one-tap sign-in link — whoever paid may not own the account. Those
+buyers use "Continue with Email".
+**Fix, if it ever costs conversions**: an email code on the website's /email
+step when the address already has an account, then the link as usual.
+**Effort**: ~1 day across both repos.
+
 ## Parked by the 2026-09 redesign
 
 Written while the onboarding / Learn / You redesign was in flight, so the
@@ -203,6 +234,14 @@ that is supposed to hold it. `grep -rn "error:" src/ | grep safeCapture` finds
 the call sites.
 
 **Effort**: ~2h including deciding the code vocabulary.
+
+**Update 2026-10-07 (web2app review B-5):** that shape DID leak once, to
+Sentry: GoTrue's `email_address_not_authorized` message embeds the address.
+Fixed for Sentry (`authErrorForReport` + a `beforeSend` email scrubber), but
+the PostHog side is unchanged: `account_delete_failed` still sends
+`error.message` (its errors come from the session refresh and the function
+call, which have not been seen to carry an address). Same fix as above;
+reuse `lib/redactPii.ts` at the least.
 
 ### R3. The in-lesson player is still on the old teal palette 🟡 — DONE (2026-09-28; committed 2026-10-04, `24d486f`)
 

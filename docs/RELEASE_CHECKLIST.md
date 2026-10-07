@@ -241,7 +241,7 @@ stale.
 - [ ] Only if the old app works cleanly → proceed.
 - [ ] During a low-traffic window, run **`./scripts/db-push-prod.sh`** (owner). It is the only sanctioned way to push migrations to prod; never `supabase link` to the prod ref by hand (CLAUDE.md). In order it: takes a same-day prod backup, shows prod's migration list, dry-runs, waits for you to type `apply`, pushes, and re-links the CLI to dev on exit, even when a step fails.
 - [ ] At its prompt, check the dry-run lists only the migrations you expect. If it lists something unfamiliar, don't type `apply` → STOP.
-- [ ] Afterwards: `cat supabase/.temp/project-ref` prints the dev ref (`devprojectref000000x`), and OPS_STATE's "prod migrations applied through" row is updated.
+- [ ] Afterwards: `cat supabase/.temp/linked-project.json` shows the dev ref (`"ref":"devprojectref000000x"`, `kinderwell-dev`), and OPS_STATE's "prod migrations applied through" row is updated.
 - [ ] **Verify prod still works** — open the currently-live App Store app on your phone, test the affected feature. If broken, roll back before submitting.
 
 ---
@@ -252,7 +252,7 @@ stale.
 - [ ] For each changed function, re-read the source in `supabase/functions/<name>/index.ts` before deploying. The prod version is about to become this exact code — no time to catch a typo after `functions deploy` runs.
 - [ ] `supabase functions deploy <name> --project-ref prodprojectref00000x` — the flag names prod for this one command. Do NOT `supabase link` to the prod ref first (CLAUDE.md): a link outlives the command, and the next routine command would hit prod.
   - **`redeem-handoff` is the one exception that takes `--no-verify-jwt`** (the purchase handoff runs before the app has a session; INVARIANTS #30). Never add the flag to any other function, `delete-account` above all. Afterwards `supabase functions list --project-ref prodprojectref00000x` must show `verify_jwt=false` for redeem-handoff only, among the app's functions.
-- [ ] Check the CLI is still on dev: `cat supabase/.temp/project-ref` prints `devprojectref000000x`.
+- [ ] Check the CLI is still on dev: `cat supabase/.temp/linked-project.json` shows `"ref":"devprojectref000000x"`. (Not `project-ref`: this CLI no longer writes that file, so it can hold an old value — web2app review 2026-10-07, B-8; `scripts/backup-prod.sh` reads the same JSON.)
 - [ ] **Re-test the affected feature from the app** after deploy. For `delete-account` specifically, sign in on the shipped iOS build, tap Settings → Delete Account, verify: single confirmation, subscription warning, success alert, session cleared, **and no 401 or 500**. A 401 = the refresh + Edge Function auth chain broke. A 500 = `JWT_SECRET` is missing on that environment (the hardened function fails closed) — set it and redeploy. Either code: do NOT ship until fixed.
 
 ### If an Edge Function changed this release (generic)
