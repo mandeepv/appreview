@@ -125,6 +125,7 @@ export type Database = {
           answers: Json
           capi: Json | null
           created_at: string
+          handoff_nonce_hash: string | null
           id: string
           landing_variant: string | null
           purchased_at: string | null
@@ -137,6 +138,7 @@ export type Database = {
           answers?: Json
           capi?: Json | null
           created_at?: string
+          handoff_nonce_hash?: string | null
           id: string
           landing_variant?: string | null
           purchased_at?: string | null
@@ -149,6 +151,7 @@ export type Database = {
           answers?: Json
           capi?: Json | null
           created_at?: string
+          handoff_nonce_hash?: string | null
           id?: string
           landing_variant?: string | null
           purchased_at?: string | null
@@ -156,6 +159,33 @@ export type Database = {
           user_id?: string | null
           utm?: Json | null
           winback_stage?: number
+        }
+        Relationships: []
+      }
+      handoff_keys: {
+        Row: {
+          created_at: string
+          expires_at: string
+          key_hash: string
+          source: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          key_hash: string
+          source: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          key_hash?: string
+          source?: string
+          used_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
