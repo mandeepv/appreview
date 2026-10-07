@@ -57,3 +57,6 @@ android/
 # Written by `deno check` / `deno test` when run from the repo root. The edge
 # functions pin every URL import to a version, so the lockfile adds nothing.
 deno.lock
+
+# Jest --coverage output (npm test -- --coverage)
+coverage/
