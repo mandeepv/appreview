@@ -23,7 +23,7 @@ The review (`~/kinderwell-web2app/kinderwell-web/reviews/WEB2APP_PROD_READINESS_
 is fixed in code on both sides; these are the app-side items it raised that
 were left as they are, on purpose or for the owner.
 
-### W1. The gate trusts the device clock 🟢
+### W1. The gate trusts the device clock 🟢 — owner: skip (2026-10-07)
 **Problem**: `isWebEntitled` (and the cached-flag logic) compare
 `current_period_end` with the phone's clock. A clock set ahead locks a payer
 out early; one set back extends access past a lapse (never past a refund:
