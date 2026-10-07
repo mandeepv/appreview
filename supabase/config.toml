@@ -1,9 +1,10 @@
-# Supabase project config, committed so the delete-account Edge Function's
+# Supabase project config, committed so each Edge Function's
 # JWT-verification setting is version-controlled rather than living only as
 # an uncommitted gateway toggle in the dashboard.
 #
 # Why this file is intentionally minimal: it exists to codify ONE thing —
-# that the delete-account function requires a valid JWT at the gateway. We
+# the gateway JWT check per function: on for delete-account, and off for
+# redeem-handoff, the single deliberate exception (INVARIANTS #30). We
 # deliberately do NOT mirror the full `supabase init` output (the local
 # dev-stack config for api/db/auth/storage/etc.) here: every extra section is
 # another thing that can drift from the hosted project. `project_id` is the
@@ -13,7 +14,7 @@
 # for everything not set here.
 #
 # See supabase/EDGE_FUNCTION_DEPLOYMENT.md for the deploy rules — in
-# particular, NEVER deploy this function with --no-verify-jwt.
+# particular, NEVER deploy delete-account with --no-verify-jwt.
 project_id = "kinderwell"
 
 # Gateway-level JWT verification for the account-deletion function. With
@@ -25,3 +26,16 @@ project_id = "kinderwell"
 # with verification turned off.
 [functions.delete-account]
 verify_jwt = true
+
+# The purchase handoff (SPEC-21): swaps a one-time key from kinderwell.app for
+# a sign-in. The ONE app-facing function with the gateway JWT check OFF
+# (INVARIANTS #30): the app calls it before it has a session, and the app's
+# publishable key is not a JWT, so the gateway would refuse every caller.
+# What protects it instead lives in the function and is tested in its
+# handler_test.ts: the 256-bit single-use key, the entitlement check before a
+# session is minted, and a per-IP rate limit. Deploy:
+#   supabase functions deploy redeem-handoff --no-verify-jwt
+# (this block makes the flag explicit even when it is forgotten).
+# edgeFunctionGuards.test fails if any OTHER function turns its check off.
+[functions.redeem-handoff]
+verify_jwt = false
