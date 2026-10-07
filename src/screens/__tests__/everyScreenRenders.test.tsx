@@ -35,6 +35,7 @@ import { ChildrenCountScreen } from '../onboarding/ChildrenCountScreen';
 import { EducationalScreen } from '../onboarding/EducationalScreen';
 import { EmotionalChallengesScreen } from '../onboarding/EmotionalChallengesScreen';
 import { ExperienceLevelScreen } from '../onboarding/ExperienceLevelScreen';
+import { HandoffScreen } from '../onboarding/HandoffScreen';
 import { ImprovementGoalsScreen } from '../onboarding/ImprovementGoalsScreen';
 import { LoadingScreen } from '../onboarding/LoadingScreen';
 import { NameAgeScreen } from '../onboarding/NameAgeScreen';
@@ -90,6 +91,7 @@ const SCREENS: Record<string, Row> = {
   'src/screens/onboarding/EducationalScreen.tsx': { Screen: EducationalScreen, route: { name: 'Educational' } },
   'src/screens/onboarding/EmotionalChallengesScreen.tsx': { Screen: EmotionalChallengesScreen, route: { name: 'EmotionalChallenges' } },
   'src/screens/onboarding/ExperienceLevelScreen.tsx': { Screen: ExperienceLevelScreen, route: { name: 'ExperienceLevel' } },
+  'src/screens/onboarding/HandoffScreen.tsx': { Screen: HandoffScreen, route: { name: 'Handoff' } },
   'src/screens/onboarding/ImprovementGoalsScreen.tsx': { Screen: ImprovementGoalsScreen, route: { name: 'ImprovementGoals' } },
   'src/screens/onboarding/LoadingScreen.tsx': { Screen: LoadingScreen, route: { name: 'Loading' } },
   'src/screens/onboarding/NameAgeScreen.tsx': { Screen: NameAgeScreen, route: { name: 'NameAge' } },

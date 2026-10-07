@@ -11,6 +11,10 @@ import {
   resolveGateOutcomeWhileSwitching,
   resolveWebRecheck,
   webCheckEventResult,
+  shouldOfferHandoffPaste,
+  resolveHandoffAccount,
+  shouldOpenHandoff,
+  shouldResetToWelcomeOnSignOut,
 } from '../routingPolicy';
 import type { WebCheckResult } from '../../store/webEntitlement';
 
@@ -310,5 +314,85 @@ describe('resolveGateOutcomeWhileSwitching — "Use a different account"', () =>
     expect(resolveGateOutcomeWhileSwitching('re_present', false)).toBe('re_present');
     expect(resolveGateOutcomeWhileSwitching('retry', false)).toBe('retry');
     expect(resolveGateOutcomeWhileSwitching('enter_root', false)).toBe('enter_root');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The purchase handoff (SPEC-21)
+// ---------------------------------------------------------------------------
+
+describe('shouldOfferHandoffPaste — the paste screen is for a fresh install only', () => {
+  const fresh = { promptDone: false, hasReachedAuth: false, lastScreen: null };
+
+  it('a fresh install → offer (Splash then asks the clipboard)', () => {
+    expect(shouldOfferHandoffPaste(fresh)).toBe(true);
+  });
+
+  it('already answered, or someone signed in here before → never again', () => {
+    expect(shouldOfferHandoffPaste({ ...fresh, promptDone: true })).toBe(false);
+  });
+
+  it('partway through the questions → their resume, not a puzzling screen', () => {
+    expect(shouldOfferHandoffPaste({ ...fresh, lastScreen: 'NameAge' })).toBe(false);
+  });
+
+  it('reached the sign-in screen → back to it, not the paste screen', () => {
+    expect(shouldOfferHandoffPaste({ ...fresh, hasReachedAuth: true })).toBe(false);
+  });
+});
+
+describe('resolveHandoffAccount — who is signed in when a key comes back good', () => {
+  const buyer = 'buyer-1';
+
+  it('nobody → sign the buyer in', () => {
+    expect(resolveHandoffAccount({ currentUserId: null, isDemoUser: false, buyerUserId: buyer })).toBe('sign_in');
+  });
+
+  it('the buyer already → straight to the gate, no second session', () => {
+    expect(resolveHandoffAccount({ currentUserId: buyer, isDemoUser: false, buyerUserId: buyer })).toBe(
+      'already_signed_in',
+    );
+  });
+
+  it('someone else (the Hide My Email account) → sign them out first (INVARIANTS #3)', () => {
+    expect(resolveHandoffAccount({ currentUserId: 'apple-relay', isDemoUser: false, buyerUserId: buyer })).toBe(
+      'switch_account',
+    );
+  });
+
+  it('the demo user → switch, whatever its id says', () => {
+    expect(resolveHandoffAccount({ currentUserId: buyer, isDemoUser: true, buyerUserId: buyer })).toBe(
+      'switch_account',
+    );
+  });
+});
+
+describe('shouldOpenHandoff — a link takes over every screen but the two that read it themselves', () => {
+  it.each(['Welcome', 'UserType', 'Auth', 'Loading', 'Root', 'DevMenu'])('%s → open Handoff', (route) => {
+    expect(shouldOpenHandoff(route)).toBe(true);
+  });
+
+  it('Splash reads the pending key when its timer fires', () => {
+    expect(shouldOpenHandoff('Splash')).toBe(false);
+  });
+
+  it('Handoff picks a new key up itself', () => {
+    expect(shouldOpenHandoff('Handoff')).toBe(false);
+  });
+
+  it('navigation not ready → not yet (onReady asks again)', () => {
+    expect(shouldOpenHandoff(undefined)).toBe(false);
+  });
+});
+
+describe('shouldResetToWelcomeOnSignOut — the handoff routes its own sign-out', () => {
+  it('a sign-out anywhere else → Welcome, as before', () => {
+    expect(shouldResetToWelcomeOnSignOut('Root')).toBe(true);
+    expect(shouldResetToWelcomeOnSignOut('Loading')).toBe(true);
+    expect(shouldResetToWelcomeOnSignOut(undefined)).toBe(true);
+  });
+
+  it('while Handoff switches accounts → left alone', () => {
+    expect(shouldResetToWelcomeOnSignOut('Handoff')).toBe(false);
   });
 });

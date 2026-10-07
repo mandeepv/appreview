@@ -310,3 +310,85 @@ export function webCheckEventResult(
 export function resolveWebRecheck(result: WebCheckResult): 'clear' | 'keep' {
   return result.kind === 'not_entitled' ? 'clear' : 'keep';
 }
+
+// ---------------------------------------------------------------------------
+// The purchase handoff (SPEC-21)
+// ---------------------------------------------------------------------------
+
+export interface HandoffOfferInput {
+  /** STORAGE_KEYS.HANDOFF_PROMPT_DONE: answered once, or someone signed in here before. */
+  promptDone: boolean;
+  /** The question flow got as far as Auth on this install. */
+  hasReachedAuth: boolean;
+  /** Deepest question screen reached, or null. */
+  lastScreen: string | null;
+}
+
+/**
+ * Should a signed-out launch even look at the clipboard for a handoff link?
+ * Only on a FRESH install: no answered prompt, no earlier sign-in, no
+ * onboarding progress. Splash then asks the clipboard (whether it holds a
+ * URL, which shows no alert) and offers "Tap Paste" only if it does.
+ *
+ * Why so narrow: anyone with any link on their clipboard sees the screen,
+ * and it says "finish setting up" — right for a buyer arriving from the
+ * welcome page, puzzling for anyone else. A returning user or a parent
+ * halfway through the questions must never meet it; they get their resume.
+ */
+export function shouldOfferHandoffPaste(input: HandoffOfferInput): boolean {
+  return !input.promptDone && !input.hasReachedAuth && !input.lastScreen;
+}
+
+export interface HandoffAccountInput {
+  /** Who is signed in on the device right now (the demo user included), or null. */
+  currentUserId: string | null;
+  isDemoUser: boolean;
+  /** The account the redeemed key belongs to. */
+  buyerUserId: string;
+}
+
+/**
+ * A key has been redeemed. What happens to whoever is signed in?
+ *
+ *   - 'sign_in'           → nobody is; sign the buyer in.
+ *   - 'already_signed_in' → the buyer already is; straight to the gate, no
+ *                           second session.
+ *   - 'switch_account'    → someone ELSE is (the demo user always counts as
+ *                           someone else): sign them out first — that is what
+ *                           clears the user-bound subscription cache
+ *                           (INVARIANTS #3) — then sign the buyer in. A
+ *                           session simply swapped underneath would leave the
+ *                           previous user's in-memory unlock in place for the
+ *                           gate to read.
+ *
+ * Only ever asked AFTER a successful redeem: a dead link never signs anyone out.
+ */
+export function resolveHandoffAccount(
+  input: HandoffAccountInput,
+): 'sign_in' | 'already_signed_in' | 'switch_account' {
+  if (!input.currentUserId) return 'sign_in';
+  if (!input.isDemoUser && input.currentUserId === input.buyerUserId) return 'already_signed_in';
+  return 'switch_account';
+}
+
+/**
+ * A handoff link opened the app. Does App.tsx bring HandoffScreen up over
+ * the current screen? Not over Splash (it reads the pending key itself when
+ * its timer fires) or HandoffScreen (it picks up a new key itself), and not
+ * before navigation is ready (onReady asks again). Anywhere else — Welcome,
+ * the questions, the gate, a lesson — the link wins: a buyer tapping their
+ * link wants that account, wherever they were.
+ */
+export function shouldOpenHandoff(currentRoute: string | undefined): boolean {
+  return currentRoute !== undefined && currentRoute !== 'Splash' && currentRoute !== 'Handoff';
+}
+
+/**
+ * App.tsx resets to Welcome whenever the user signs out. Not while
+ * HandoffScreen is the one signing out: it is switching accounts (or leaving
+ * for email sign-in) and routes on its own; the reset would throw the buyer
+ * onto Welcome halfway through being signed in.
+ */
+export function shouldResetToWelcomeOnSignOut(currentRoute: string | undefined): boolean {
+  return currentRoute !== 'Handoff';
+}

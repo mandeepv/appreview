@@ -12,7 +12,13 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { trackOnboardingStarted } from '../../lib/analytics';
-import { resolveResumeStack, resolveSignedInLaunch } from '../../navigation/routingPolicy';
+import {
+  resolveResumeStack,
+  resolveSignedInLaunch,
+  shouldOfferHandoffPaste,
+} from '../../navigation/routingPolicy';
+import { useHandoffStore, isHandoffPromptDone, markHandoffPromptDone } from '../../store/handoffStore';
+import { clipboardMayHoldLink, handoffLaunchLinkRead } from '../../lib/handoffSources';
 
 /**
  * SplashScreen is the mandatory first-launch surface. It fires the entrance
@@ -60,7 +66,20 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     if (!isLoading) {
       const timer = setTimeout(async () => {
+        // A purchase-handoff link opened the app (SPEC-21): it outranks every
+        // other launch decision, signed in or not — HandoffScreen redeems it,
+        // deals with whoever is signed in, and hands over to the gate.
+        await handoffLaunchLinkRead();
+        if (useHandoffStore.getState().pendingKey) {
+          navigation.replace('Handoff');
+          return;
+        }
+
         if (user) {
+          // Someone has been signed in on this install, so it isn't fresh:
+          // never offer the handoff's paste screen here (see the signed-out
+          // branch below).
+          void markHandoffPromptDone();
           // User is signed in. Route through Loading, which is the
           // subscription-gate checkpoint. Loading examines isSubscribed +
           // isDemoUser and either presents the mandatory paywall or
@@ -112,6 +131,24 @@ export const SplashScreen: React.FC<Props> = ({ navigation }) => {
           // User not logged in - check onboarding state
           const hasReachedAuthScreen = await hasReachedAuth();
           const lastScreen = await getLastScreen();
+
+          // The purchase handoff's fast lane (SPEC-21). A buyer's welcome page
+          // copied a one-time setup link before sending them to the App Store,
+          // so a fresh install with a URL on the clipboard offers Apple's
+          // Paste button before Welcome. Only on a FRESH install (see
+          // shouldOfferHandoffPaste), and the clipboard is only asked whether
+          // it holds a URL — reading it would raise iOS's paste alert.
+          if (
+            shouldOfferHandoffPaste({
+              promptDone: await isHandoffPromptDone(),
+              hasReachedAuth: hasReachedAuthScreen,
+              lastScreen,
+            }) &&
+            (await clipboardMayHoldLink())
+          ) {
+            navigation.replace('Handoff');
+            return;
+          }
 
           if (hasReachedAuthScreen) {
             // User completed onboarding before, go to Auth screen

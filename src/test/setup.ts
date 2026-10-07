@@ -4,16 +4,18 @@
 //    different shape jest.mocks the same module itself; its factory wins.
 //    The module under test is never mocked here.
 // 2. The PII guard (INVARIANTS #8): after every test, scan what reached
-//    PostHog and Sentry, and fail the test on an email address or the
-//    fixture name. This makes "no PII to analytics" a check on every test
-//    that touches analytics, not just analytics.test.ts.
+//    PostHog and Sentry, and fail the test on an email address, the
+//    fixture name, or a purchase-handoff key or link (INVARIANTS #29).
+//    This makes "no PII to analytics" a check on every test that touches
+//    analytics, not just analytics.test.ts.
 
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock';
 import mockSafeAreaContext from 'react-native-safe-area-context/jest/mock';
 import * as mockAnalytics from './analytics';
 import * as mockSupabase from './supabase';
 import * as mockSuperwall from './superwall';
-import { FIXTURE_NAME } from './factories';
+import * as mockClipboard from './clipboard';
+import { FIXTURE_HANDOFF_KEY, FIXTURE_NAME } from './factories';
 
 // Factories may reference only `mock`-prefixed bindings (jest.mock is hoisted
 // above the imports). They run lazily, on the first require of the mocked
@@ -28,12 +30,18 @@ jest.mock('../config/sentry', () => mockAnalytics.sentryModule);
 jest.mock('@sentry/react-native', () => mockAnalytics.sentrySdk);
 jest.mock('../lib/supabase', () => mockSupabase.supabaseModule);
 jest.mock('expo-superwall', () => mockSuperwall.superwallModule);
+jest.mock('expo-clipboard', () => mockClipboard.clipboardModule);
 
 // ── PII guard ───────────────────────────────────────────────────────────────
 
 const PII_PATTERNS: { what: string; pattern: RegExp }[] = [
   { what: 'an email address', pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i },
   { what: 'the fixture name', pattern: new RegExp(FIXTURE_NAME.split(' ')[0], 'i') },
+  // A purchase-handoff key is a login credential (INVARIANTS #29): neither a
+  // link carrying one nor the bare key may reach analytics or Sentry.
+  { what: 'a handoff link', pattern: /\/k\/[A-Za-z0-9_-]{43}/ },
+  { what: 'a handoff link', pattern: /kinderwell:\/\/k\//i },
+  { what: 'the fixture handoff key', pattern: new RegExp(FIXTURE_HANDOFF_KEY) },
 ];
 
 const WATCHED: { label: string; module: string; object?: string; methods: string[] }[] = [

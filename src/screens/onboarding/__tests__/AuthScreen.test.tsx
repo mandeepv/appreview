@@ -228,6 +228,17 @@ describe('email sign-in', () => {
     supabase.auth.verifyOtp.mockResolvedValue({ data: { session: makeSession(userA) }, error: null });
   });
 
+  // SPEC-21: the purchase handoff's fallback says "Sign in with the email you
+  // used" — so its Continue with Email lands on the address field, not on the
+  // provider list where Apple's Hide My Email waits.
+  it('opened from the handoff fallback (startWith email) → straight at the address field', async () => {
+    await renderScreen(AuthScreen, { name: 'Auth', params: { mode: 'signin', startWith: 'email' } });
+    expect(screen.getByLabelText('Your email')).toBeTruthy();
+    expect(screen.queryByText('Continue with Google')).toBeNull();
+    await fireEvent.press(screen.getByText('Use another way to sign in'));
+    expect(screen.getByText('Continue with Google')).toBeTruthy();
+  });
+
   it('send → verify → the gate; the address is normalised before it is sent', async () => {
     setTableResult('user_profiles', PROFILE.has_onboarding);
     const navigation = await requestCode('signin');

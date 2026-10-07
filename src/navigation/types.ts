@@ -77,7 +77,13 @@ export type OnboardingStackParamList = {
   PartnerInvolvement: undefined;
   ExperienceLevel: undefined;
   EmotionalChallenges: undefined;
-  Auth: { mode?: 'signin' | 'signup' } | undefined;
+  // startWith 'email' opens the sign-in screen at the email field: the purchase
+  // handoff's fallback ("Sign in with the email you used") lands there.
+  Auth: { mode?: 'signin' | 'signup'; startWith?: 'email' } | undefined;
+  // SPEC-21 purchase handoff. Deliberately no params: the key it redeems is a
+  // login credential, and navigation state is recorded by analytics and crash
+  // tooling — the key travels in memory (store/handoffStore.ts) instead.
+  Handoff: undefined;
   Loading: undefined;
   Root: NavigatorScreenParams<RootStackParamList> | undefined;
   // Dev-only preview of a data-driven lesson (SPEC-09). Registered under

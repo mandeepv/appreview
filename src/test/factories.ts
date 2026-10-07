@@ -11,6 +11,21 @@ import type { Session, User } from '@supabase/supabase-js';
 export const FIXTURE_EMAIL = 'parent.fixture@example.com';
 export const FIXTURE_NAME = 'Priyanka Fixturewala';
 
+// A purchase-handoff key (SPEC-21): 43 base64url characters, the shape the
+// website mints. It is a login credential, so the PII guard watches for it
+// too (INVARIANTS #29) — use it for every handoff fixture.
+export const FIXTURE_HANDOFF_KEY = 'FixtureHandoffKey_ThisIsALoginCredential-01';
+
+/** A handoff link, in any of the forms the app accepts (src/lib/handoffLink.ts). */
+export function handoffLink(
+  key = FIXTURE_HANDOFF_KEY,
+  form: 'universal' | 'main-domain' | 'scheme' = 'universal',
+): string {
+  if (form === 'universal') return `https://open.kinderwell.app/k/${key}`;
+  if (form === 'main-domain') return `https://kinderwell.app/k/${key}`;
+  return `kinderwell://k/${key}`;
+}
+
 export function makeUser(id = 'user-a', overrides: Partial<User> = {}): User {
   return {
     id,

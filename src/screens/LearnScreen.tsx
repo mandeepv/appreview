@@ -39,6 +39,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useLessonGate } from '../hooks/useLessonGate';
 import { safeCapture } from '../lib/analytics';
+import { displayName } from '../lib/profileSummary';
+import { getUserOnboardingData } from '../services/onboardingService';
+import { useAuthStore } from '../store/authStore';
+import { useHandoffStore } from '../store/handoffStore';
 import { getCompletedPathKeys } from '../lessons/pathProgress';
 import { getLesson } from '../lessons/registry';
 import {
@@ -174,6 +178,7 @@ export default function LearnScreen() {
   // a locked row used to do NOTHING — no movement, no message — so the rail
   // read as broken rather than sequential, and nothing anywhere explained the
   // lock rule. Held here (not per-row) so only one hint is ever on screen.
+  // The purchase handoff's one-time "You're all set" uses it too.
   const [lockedHint, setLockedHint] = useState<string | null>(null);
   const lockedHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Drives both opacity and a small rise. Snapping the hint in and out read as
@@ -283,34 +288,72 @@ export default function LearnScreen() {
   const initialScrollIndex =
     loaded && nodes.length > 0 && currentPos > 0 ? Math.max(0, currentPos - 1) : undefined;
 
+  // Show a line in the floating hint, then let it go.
+  const showHint = (text: string, holdMs: number) => {
+    if (lockedHintTimer.current) clearTimeout(lockedHintTimer.current);
+    setLockedHint(text);
+    // Rise + fade in quickly (the tap should feel answered at once), hold
+    // long enough to read the sentence, then fade out rather than cut.
+    // Re-tapping restarts the hold, so a second tap re-reads instead of
+    // stacking timers.
+    lockedHintAnim.stopAnimation();
+    Animated.timing(lockedHintAnim, {
+      toValue: 1,
+      duration: Animation.duration.fast,
+      useNativeDriver: true,
+    }).start();
+    lockedHintTimer.current = setTimeout(() => {
+      Animated.timing(lockedHintAnim, {
+        toValue: 0,
+        duration: Animation.duration.normal,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        // Only unmount if the fade actually completed — a tap during the
+        // fade restarts it, and clearing the text then would blank a hint
+        // that is on its way back in.
+        if (finished) setLockedHint(null);
+      });
+    }, holdMs);
+  };
+
+  // A parent who just arrived through the purchase handoff (SPEC-21) is told,
+  // once, that they made it: the last thing they did was pay on a website and
+  // follow a link, and this is the first screen of an app they have never
+  // used. Through the same floating line as the lock hint — no new chrome,
+  // gone in a few seconds. The name is what they typed into the website's
+  // quiz (user_profiles.name), filtered by displayName so the 'Parent'
+  // placeholder is never read back to them (INVARIANTS #7); no name, no
+  // comma. On screen only — the name never goes to analytics (INVARIANTS #8).
+  useFocusEffect(
+    useCallback(() => {
+      if (!useHandoffStore.getState().consumeGreeting()) return undefined;
+      let alive = true;
+      void (async () => {
+        let name: string | null = null;
+        const userId = useAuthStore.getState().user?.id;
+        if (userId) {
+          try {
+            name = displayName({ name: (await getUserOnboardingData(userId))?.name });
+          } catch {
+            // No name, still a welcome.
+          }
+        }
+        if (!alive) return;
+        showHint(name ? `You're all set, ${name}.` : "You're all set.", 3600);
+        safeCapture('handoff_welcome_shown', { with_name: name !== null });
+      })();
+      return () => {
+        alive = false;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
+
   const openNode = (node: PathNode) => {
     if (!canOpen(node, completed)) {
       // Say why. The path is deliberately sequential — one section at a time,
       // in order — but that rule was invisible: the tap simply did nothing.
-      if (lockedHintTimer.current) clearTimeout(lockedHintTimer.current);
-      setLockedHint('Finish the section you’re on to unlock this one.');
-      // Rise + fade in quickly (the tap should feel answered at once), hold
-      // long enough to read the sentence, then fade out rather than cut.
-      // Re-tapping restarts the hold, so a second tap re-reads instead of
-      // stacking timers.
-      lockedHintAnim.stopAnimation();
-      Animated.timing(lockedHintAnim, {
-        toValue: 1,
-        duration: Animation.duration.fast,
-        useNativeDriver: true,
-      }).start();
-      lockedHintTimer.current = setTimeout(() => {
-        Animated.timing(lockedHintAnim, {
-          toValue: 0,
-          duration: Animation.duration.normal,
-          useNativeDriver: true,
-        }).start(({ finished }) => {
-          // Only unmount if the fade actually completed — a tap during the
-          // fade restarts it, and clearing the text then would blank a hint
-          // that is on its way back in.
-          if (finished) setLockedHint(null);
-        });
-      }, 2600);
+      showHint('Finish the section you’re on to unlock this one.', 2600);
       return;
     }
 

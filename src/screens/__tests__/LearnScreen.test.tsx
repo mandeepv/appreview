@@ -18,7 +18,11 @@ import LearnScreen from '../LearnScreen';
 import { getCompletedPathKeys } from '../../lessons/pathProgress';
 import { PATH_NODES, shortLessonName, type PathNode } from '../../lessons/units';
 import { renderScreen } from '../../test/render';
-import { lastCapture, resetAnalyticsFakes } from '../../test/analytics';
+import { capturedEvents, lastCapture, resetAnalyticsFakes } from '../../test/analytics';
+import { resetSupabaseFake, setTableResult } from '../../test/supabase';
+import { seedAuthStore } from '../../test/stores';
+import { FIXTURE_NAME, makeUser } from '../../test/factories';
+import { useHandoffStore } from '../../store/handoffStore';
 
 jest.mock('../../lessons/pathProgress', () => ({
   ...jest.requireActual('../../lessons/pathProgress'),
@@ -105,4 +109,72 @@ it('a locked section opens nothing, and says why', async () => {
 it('every section finished → the closing note', async () => {
   await openLearn(PATH_NODES);
   expect(await screen.findByText("You've finished every one — for now.")).toBeTruthy();
+});
+
+// SPEC-21 — a parent who arrives through the purchase handoff is told, once,
+// that they made it. The name is what they typed into the website's quiz;
+// the 'Parent' placeholder is never read back (INVARIANTS #7), and the name
+// never reaches analytics (INVARIANTS #8 — the PII guard checks).
+describe('the purchase handoff greeting', () => {
+  beforeEach(() => {
+    resetSupabaseFake();
+    seedAuthStore({ user: makeUser('buyer-1') });
+    useHandoffStore.setState({ greetingPending: false });
+  });
+
+  const profile = (name: string | null) => setTableResult('user_profiles', { data: { id: 'buyer-1', name }, error: null });
+
+  it("right after a handoff → \"You're all set, <name>.\"", async () => {
+    profile(FIXTURE_NAME);
+    useHandoffStore.getState().setGreetingPending();
+    await openLearn([]);
+    expect(await screen.findByText(`You're all set, ${FIXTURE_NAME}.`)).toBeTruthy();
+    expect(lastCapture('handoff_welcome_shown')).toEqual({ with_name: true });
+  });
+
+  it("the 'Parent' placeholder is never read back as a name", async () => {
+    profile('Parent');
+    useHandoffStore.getState().setGreetingPending();
+    await openLearn([]);
+    expect(await screen.findByText("You're all set.")).toBeTruthy();
+    expect(screen.queryByText(/Parent/)).toBeNull();
+    expect(lastCapture('handoff_welcome_shown')).toEqual({ with_name: false });
+  });
+
+  it('no profile row (the webhook could not write one) → still welcomed, without a name', async () => {
+    setTableResult('user_profiles', { data: null, error: { code: 'PGRST116', message: 'no rows' } });
+    useHandoffStore.getState().setGreetingPending();
+    await openLearn([]);
+    expect(await screen.findByText("You're all set.")).toBeTruthy();
+  });
+
+  it('the profile read failing → still welcomed, without a name', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    setTableResult('user_profiles', { data: null, error: { code: '500', message: 'down' } });
+    useHandoffStore.getState().setGreetingPending();
+    await openLearn([]);
+    expect(await screen.findByText("You're all set.")).toBeTruthy();
+    jest.restoreAllMocks();
+  });
+
+  it('shown once: the next visit has no greeting', async () => {
+    profile(FIXTURE_NAME);
+    useHandoffStore.getState().setGreetingPending();
+    await openLearn([]);
+    await screen.findByText(`You're all set, ${FIXTURE_NAME}.`);
+    expect(useHandoffStore.getState().greetingPending).toBe(false);
+
+    resetAnalyticsFakes();
+    await openLearn([]);
+    await screen.findByLabelText(tonightLabel(n0));
+    expect(screen.queryByText(/You're all set/)).toBeNull();
+    expect(capturedEvents()).not.toContain('handoff_welcome_shown');
+  });
+
+  it('no handoff → no greeting', async () => {
+    profile(FIXTURE_NAME);
+    await openLearn([]);
+    await screen.findByLabelText(tonightLabel(n0));
+    expect(screen.queryByText(/You're all set/)).toBeNull();
+  });
 });

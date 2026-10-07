@@ -105,9 +105,17 @@ module.exports = ({ config }) => {
       usesAppleSignIn: true,
       infoPlist: {
         ...config.ios?.infoPlist,
-        // URL scheme for deep linking / OAuth callbacks. Matches bundle ID.
+        // URL schemes the app answers to. The bundle ID, and `kinderwell` —
+        // app.json's `scheme`, which this explicit list REPLACES rather than
+        // adds to: until SPEC-21 the native build registered no `kinderwell`
+        // scheme at all. Google sign-in never noticed (its sign-in sheet
+        // catches kinderwell://auth/callback itself, registered or not). The
+        // purchase handoff's simulator E2E flows open kinderwell://k/<key>
+        // (the simulator can't verify a universal-link domain), and iOS only
+        // routes a scheme some app has registered. The website never issues
+        // that form; it uses the universal links below.
         CFBundleURLTypes: [
-          { CFBundleURLSchemes: [iosBundleId] },
+          { CFBundleURLSchemes: [iosBundleId, 'kinderwell'] },
         ],
         // Match the pre-managed-workflow config we shipped in v1.0.0.
         NSAppTransportSecurity: {
@@ -124,7 +132,19 @@ module.exports = ({ config }) => {
         // custom encryption. See US export regulations.
         ITSAppUsesNonExemptEncryption: false,
       },
-      associatedDomains: [`applinks:${supabaseHost}`],
+      // The purchase handoff's universal links (SPEC-21):
+      // https://open.kinderwell.app/k/<key> and https://kinderwell.app/k/<key>.
+      // Two domains because a universal link tapped on a page of its own
+      // domain opens Safari, not the app: each domain's pages link to the
+      // OTHER one, which opens the app directly. kinderwell-web serves both
+      // apple-app-site-association files, listing only /k/* — so the funnel
+      // and kinderwell.app/manage (the one link Settings shows) still open in
+      // Safari. EAS syncs the capability to the App ID at build time.
+      associatedDomains: [
+        `applinks:${supabaseHost}`,
+        'applinks:open.kinderwell.app',
+        'applinks:kinderwell.app',
+      ],
       // Full privacy manifest — reflects everything the app actually collects
       // (email, user ID, device ID, product interaction, crash data, purchase
       // history, name, other user content). Data types must be declared here

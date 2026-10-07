@@ -21,7 +21,9 @@ import { useAuthStore } from '../../../store/authStore';
 import { useOnboardingStore } from '../../../store/onboardingStore';
 import { STORAGE_KEYS } from '../../../constants/storageKeys';
 import { asNavigationProp, makeNavigation } from '../../../test/navigation';
-import { makeUser, onboardingAnswers } from '../../../test/factories';
+import { FIXTURE_HANDOFF_KEY, handoffLink, makeUser, onboardingAnswers } from '../../../test/factories';
+import { useHandoffStore } from '../../../store/handoffStore';
+import { clipboardModule, copyToClipboard, resetClipboardFake } from '../../../test/clipboard';
 import { seedAuthStore, seedOnboardingStore } from '../../../test/stores';
 import { advance } from '../../../test/timers';
 
@@ -77,6 +79,8 @@ beforeEach(async () => {
   await AsyncStorage.clear();
   seedOnboardingStore(); // a cold launch: nothing in memory
   seedAuthStore({ isLoading: false });
+  resetClipboardFake();
+  useHandoffStore.setState({ pendingKey: null, pendingSource: null });
 });
 
 afterEach(() => {
@@ -164,5 +168,71 @@ describe('timing', () => {
     expect(navigation.replace).not.toHaveBeenCalled();
     await advance(50);
     expect(navigation.replace).toHaveBeenCalledWith('Loading');
+  });
+});
+
+// SPEC-21 — the purchase handoff comes before the ordinary launch decisions,
+// and the paste offer only ever meets a fresh install.
+describe('the purchase handoff', () => {
+  it('a handoff link opened the app → Handoff, before anything else (signed out)', async () => {
+    useHandoffStore.getState().receive(FIXTURE_HANDOFF_KEY, 'link');
+    await persisted({ lastScreen: 'NameAge' });
+    const { navigation } = await launch();
+    expect(navigation.replace).toHaveBeenCalledWith('Handoff');
+    expect(navigation.reset).not.toHaveBeenCalled();
+  });
+
+  it('a handoff link opened the app while signed in → Handoff, which deals with the account', async () => {
+    seedAuthStore({ user: userA, isLoading: false });
+    useHandoffStore.getState().receive(FIXTURE_HANDOFF_KEY, 'link');
+    const { navigation } = await launch();
+    expect(navigation.replace).toHaveBeenCalledWith('Handoff');
+    expect(navigation.replace).not.toHaveBeenCalledWith('Loading');
+  });
+
+  it('a fresh install with a link on the clipboard → the paste offer, before Welcome', async () => {
+    copyToClipboard(handoffLink());
+    const { navigation } = await launch();
+    expect(navigation.replace).toHaveBeenCalledWith('Handoff');
+    expect(navigation.replace).not.toHaveBeenCalledWith('Welcome');
+    // Asked whether there is a URL; never read (that would raise the alert).
+    expect(clipboardModule.getStringAsync).not.toHaveBeenCalled();
+  });
+
+  it('a fresh install with no URL on the clipboard → Welcome', async () => {
+    copyToClipboard('some words');
+    const { navigation } = await launch();
+    expect(navigation.replace).toHaveBeenCalledWith('Welcome');
+    expect(clipboardModule.hasUrlAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('the offer already answered → Welcome, and the clipboard is not even asked', async () => {
+    await AsyncStorage.setItem(STORAGE_KEYS.HANDOFF_PROMPT_DONE, 'true');
+    copyToClipboard(handoffLink());
+    const { navigation } = await launch();
+    expect(navigation.replace).toHaveBeenCalledWith('Welcome');
+    expect(clipboardModule.hasUrlAsync).not.toHaveBeenCalled();
+  });
+
+  it('partway through the questions with a link on the clipboard → their resume, not the offer', async () => {
+    await persisted({ lastScreen: 'NameAge', answers: true });
+    copyToClipboard(handoffLink());
+    const { navigation } = await launch();
+    expect(navigation.reset).toHaveBeenCalledWith(stackOf('Welcome', 'UserType', 'NameAge'));
+    expect(navigation.replace).not.toHaveBeenCalledWith('Handoff');
+    expect(clipboardModule.hasUrlAsync).not.toHaveBeenCalled();
+  });
+
+  it('reached the sign-in screen, link on the clipboard → back to Auth', async () => {
+    await persisted({ lastScreen: 'EmotionalChallenges', reachedAuth: true });
+    copyToClipboard(handoffLink());
+    const { navigation } = await launch();
+    expect(navigation.replace).toHaveBeenCalledWith('Auth');
+  });
+
+  it('a signed-in launch marks the install as not fresh — the offer never shows after a later sign-out', async () => {
+    seedAuthStore({ user: userA, isLoading: false });
+    await launch();
+    expect(await AsyncStorage.getItem(STORAGE_KEYS.HANDOFF_PROMPT_DONE)).toBe('true');
   });
 });

@@ -74,3 +74,28 @@ describe('app.config.js build guards', () => {
     expect(appJson.ios.buildNumber).toMatch(/^\d+$/);
   });
 });
+
+// SPEC-21: the purchase handoff's links must open the app. The custom scheme
+// was never registered before — app.json's `scheme` is replaced by the
+// explicit CFBundleURLTypes list, so the native build had only the bundle ID
+// — and the simulator flows' kinderwell://k/<key> would have done nothing.
+describe('the purchase handoff can open the app', () => {
+  const prod = () => withEnv(FULL_PROD_ENV, build) as Record<string, any>;
+
+  it('registers the kinderwell:// scheme (kinderwell://k/<key>, the simulator flows)', () => {
+    const schemes = prod().ios.infoPlist.CFBundleURLTypes.flatMap(
+      (type: { CFBundleURLSchemes: string[] }) => type.CFBundleURLSchemes,
+    );
+    expect(schemes).toEqual(expect.arrayContaining(['kinderwell', 'com.kinderwell.app']));
+  });
+
+  // Both domains: a universal link tapped on its own domain opens Safari, so
+  // each domain's pages link to the other one.
+  it('claims open.kinderwell.app AND kinderwell.app for universal links, alongside the Supabase host', () => {
+    expect(prod().ios.associatedDomains).toEqual([
+      'applinks:prodprojectref00000x.supabase.co',
+      'applinks:open.kinderwell.app',
+      'applinks:kinderwell.app',
+    ]);
+  });
+});

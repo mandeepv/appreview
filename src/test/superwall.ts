@@ -29,6 +29,7 @@ export const superwall = {
 
 export const SuperwallExpoModule = {
   reset: jest.fn(() => Promise.resolve()),
+  dismiss: jest.fn(() => Promise.resolve()),
   restorePurchases: jest.fn(() => Promise.resolve({ result: 'restored' as string, errorMessage: null as string | null })),
   getSubscriptionStatus: jest.fn(() => Promise.resolve({ status: 'INACTIVE' as string })),
   identify: jest.fn(() => Promise.resolve()),
@@ -69,6 +70,7 @@ export function resetSuperwallFake(): void {
   superwall.dismiss.mockImplementation(() => Promise.resolve());
   for (const fn of Object.values(SuperwallExpoModule)) fn.mockReset();
   SuperwallExpoModule.reset.mockImplementation(() => Promise.resolve());
+  SuperwallExpoModule.dismiss.mockImplementation(() => Promise.resolve());
   SuperwallExpoModule.restorePurchases.mockImplementation(() =>
     Promise.resolve({ result: 'restored', errorMessage: null }),
   );

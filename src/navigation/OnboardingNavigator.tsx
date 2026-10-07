@@ -13,6 +13,7 @@ import { PartnerInvolvementScreen } from '../screens/onboarding/PartnerInvolveme
 import { ExperienceLevelScreen } from '../screens/onboarding/ExperienceLevelScreen';
 import { EmotionalChallengesScreen } from '../screens/onboarding/EmotionalChallengesScreen';
 import { AuthScreen } from '../screens/onboarding/AuthScreen';
+import { HandoffScreen } from '../screens/onboarding/HandoffScreen';
 import { LoadingScreen } from '../screens/onboarding/LoadingScreen';
 import { RootNavigator } from './RootNavigator';
 import { LessonPreviewRoute } from '../lessons/LessonPreviewRoute';
@@ -23,6 +24,12 @@ import type { OnboardingStackParamList } from './types';
 // new code. This re-export only keeps existing importers compiling; it dies
 // with the SPEC-09 screen-deletion dead-code pass (plan 5.5).
 export type { OnboardingStackParamList };
+
+// The purchase handoff's app-level wiring (SPEC-21), re-exported so App.tsx
+// can take it from an import it already has: App.tsx initialises Sentry
+// before its imports, so every extra import line there is an import/first
+// lint warning (the same reason authStore hosts useSubscriptionStatusSync).
+export { useHandoffLinks, openHandoffIfPending, resetToWelcomeOnSignOut } from './handoffNavigation';
 
 const Stack = createNativeStackNavigator<OnboardingStackParamList>();
 
@@ -62,6 +69,12 @@ export const OnboardingNavigator: React.FC = () => {
           headerBackVisible: false,
         })}
       />
+      {/* The purchase handoff (SPEC-21). Always the root of the stack when it
+          shows — Splash replaces itself with it, and a link that opens the app
+          resets to it — so there is nothing to swipe back to; and while it
+          signs one account out and another in, a swipe must not strand the
+          parent between them. */}
+      <Stack.Screen name="Handoff" component={HandoffScreen} options={{ gestureEnabled: false }} />
       {/* Loading and Root are the far side of the gate, and every route into
           them is a `replace` — which swaps only the TOP stack entry. The nine
           screens beneath (Welcome + the eight questions) are pushed, so they

@@ -52,6 +52,14 @@ module.exports = {
     './src/screens/onboarding/LoadingScreen.tsx':    { statements: 95, branches: 70, functions: 95, lines: 95 }, // 86.3%
     './src/screens/onboarding/SplashScreen.tsx':     { statements: 95, branches: 75, functions: 100, lines: 95 }, // 94.7%
     './src/screens/onboarding/AuthScreen.tsx':       { statements: 85, branches: 75, functions: 75, lines: 90 }, // 82.5%
+    // The purchase handoff (SPEC-21): a key is a login credential, so these
+    // are auth-path files.
+    './src/lib/handoffLink.ts':                      { statements: 100, branches: 100, functions: 100, lines: 100 }, // 100%
+    './src/lib/handoffSources.ts':                   { statements: 100, branches: 100, functions: 100, lines: 100 }, // 100%
+    './src/store/handoffStore.ts':                   { statements: 100, branches: 85, functions: 100, lines: 100 }, // 87.5%
+    './src/services/handoffService.ts':              { statements: 95, branches: 90, functions: 100, lines: 95 }, // 91.7%
+    './src/navigation/handoffNavigation.ts':         { statements: 100, branches: 90, functions: 100, lines: 100 }, // 90.0%
+    './src/screens/onboarding/HandoffScreen.tsx':    { statements: 95, branches: 85, functions: 100, lines: 95 }, // 87.9%
   },
   moduleNameMapper: {
     // expo-superwall's package.json `exports` map declares only an `import`

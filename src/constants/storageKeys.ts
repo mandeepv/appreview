@@ -35,6 +35,14 @@ export const STORAGE_KEYS = {
   // sign-out. See docs/PAYWALL_MODEL.md.
   IS_SUBSCRIBED: '@kinderwell_is_subscribed',
 
+  // SPEC-21 purchase handoff: set once this install has answered the "Tap
+  // Paste to finish setting up" screen (pasted, or Not now), redeemed a
+  // handoff link, or launched with someone signed in. After that the paste
+  // screen is never offered again, so an ordinary user with a link on their
+  // clipboard meets it at most once, on a fresh install. A device flag, not
+  // user data: it survives sign-out and account deletion on purpose.
+  HANDOFF_PROMPT_DONE: '@kinderwell_handoff_prompt_done',
+
   // Local calendar days on which the parent finished a section, as a JSON
   // array of YYYY-MM-DD. The only place any TIMESTAMP is kept — the per-lesson
   // progress stores hold section ids and nothing else, so a streak cannot be

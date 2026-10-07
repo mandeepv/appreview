@@ -9,7 +9,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import * as Sentry from '@sentry/react-native';
 import { PostHogProvider } from 'posthog-react-native';
-import { OnboardingNavigator, OnboardingStackParamList } from './src/navigation/OnboardingNavigator';
+import {
+  OnboardingNavigator,
+  OnboardingStackParamList,
+  useHandoffLinks,
+  openHandoffIfPending,
+  resetToWelcomeOnSignOut,
+} from './src/navigation/OnboardingNavigator';
 import { useAuthStore, useSubscriptionStatusSync } from './src/store/authStore';
 import { SuperwallProvider } from 'expo-superwall';
 import Constants from 'expo-constants';
@@ -112,6 +118,10 @@ function AppContent() {
     return () => sub.remove();
   }, []);
 
+  // Purchase handoff links (SPEC-21): a link that opens the app — cold or
+  // warm — brings HandoffScreen up. See src/navigation/handoffNavigation.ts.
+  useHandoffLinks(navigationRef);
+
   // Listen for auth state changes and navigate accordingly
   useEffect(() => {
     // Skip on initial mount
@@ -121,8 +131,15 @@ function AppContent() {
       return;
     }
 
-    // User signed out (had user before, now null)
-    if (prevUserRef.current && !user && navigationRef.current?.isReady()) {
+    // User signed out (had user before, now null). Not while HandoffScreen
+    // is switching accounts: it signed this user out on purpose and routes
+    // on its own.
+    if (
+      prevUserRef.current &&
+      !user &&
+      navigationRef.current?.isReady() &&
+      resetToWelcomeOnSignOut(navigationRef.current)
+    ) {
       if (__DEV__) console.log('User signed out, navigating to Welcome screen');
       navigationRef.current.reset({
         index: 0,
@@ -138,6 +155,8 @@ function AppContent() {
       ref={navigationRef}
       onReady={() => {
         routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name;
+        // A cold-start handoff link can be read before navigation exists.
+        openHandoffIfPending(navigationRef.current);
       }}
       onStateChange={() => {
         const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
@@ -145,6 +164,9 @@ function AppContent() {
           posthog.screen(currentRouteName);
           routeNameRef.current = currentRouteName;
         }
+        // A link that landed while Splash was already routing away: Splash
+        // had stopped looking and nothing else would pick the key up.
+        openHandoffIfPending(navigationRef.current);
       }}
     >
       <PostHogProvider

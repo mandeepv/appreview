@@ -17,6 +17,11 @@ const ALLOWED: Record<string, string> = {
   'https://mandeepv.github.io/kinderwell-legal/privacy.html': 'privacy policy (Settings, sign-in screen)',
   'https://mandeepv.github.io/kinderwell-legal/terms.html': 'terms of service (Settings, sign-in screen)',
   'https://us.i.posthog.com': 'PostHog ingestion host (config, not a link)',
+  // Accepted, never shown: the purchase handoff (SPEC-21) parses this link
+  // when it opens the app or is pasted. The app displays no link to the
+  // website and says nothing about buying there.
+  'https://open.kinderwell.app/k/': 'purchase handoff links the app ACCEPTS (a code comment; never displayed)',
+  'https://kinderwell.app/k/': 'purchase handoff links the app ACCEPTS (a code comment; never displayed)',
   'https://supabase.com/docs/guides/auth/social-login/auth-apple': 'a code comment',
 };
 

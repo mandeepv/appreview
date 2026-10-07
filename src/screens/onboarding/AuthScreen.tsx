@@ -43,7 +43,11 @@ export const AuthScreen: React.FC<Props> = ({ navigation, route }) => {
   const { setUser, setSession, setDemoUser, signOut } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<AuthProvider | null>(null);
-  const [emailStep, setEmailStep] = useState<EmailStep>('providers');
+  // The purchase handoff's fallback opens straight at the address field: the
+  // parent was just told "Sign in with the email you used".
+  const [emailStep, setEmailStep] = useState<EmailStep>(
+    route.params?.startWith === 'email' ? 'email' : 'providers',
+  );
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
