@@ -19,6 +19,7 @@ import { Linking } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoadingScreen } from '../LoadingScreen';
+import { takeSignOutRouting } from '../../../navigation/signOutRouting';
 import { useAuthStore } from '../../../store/authStore';
 import { useConfigStore } from '../../../store/configStore';
 import { useOnboardingStore } from '../../../store/onboardingStore';
@@ -500,6 +501,9 @@ describe('"Use a different account" (switch_account)', () => {
     });
     expect(registerCount()).toBe(1);
     expect(enteredRoot(navigation)).toBe(false);
+    // AP-4: the sign-out was claimed, so App.tsx's sign-out listener stands
+    // down instead of racing this reset to Welcome.
+    expect(takeSignOutRouting()).toBe('switch_account');
   });
 
   it('22b. sign-out fails → still the unentitled account, so the gate goes back up', async () => {
@@ -518,6 +522,8 @@ describe('"Use a different account" (switch_account)', () => {
     await advance(300);
     expect(registerCount()).toBe(2);
     expect(enteredRoot(navigation)).toBe(false);
+    // Nothing was signed out, so nothing is left claimed.
+    expect(takeSignOutRouting()).toBeNull();
   });
 });
 

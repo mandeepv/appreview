@@ -14,6 +14,7 @@
 import { renderHook } from '@testing-library/react-native';
 import { Linking } from 'react-native';
 import { openHandoffIfPending, resetToWelcomeOnSignOut, useHandoffLinks } from '../handoffNavigation';
+import { claimSignOutRouting, releaseSignOutRouting } from '../signOutRouting';
 import { useHandoffStore } from '../../store/handoffStore';
 import { resetSuperwallFake, SuperwallExpoModule } from '../../test/superwall';
 import { resetAnalyticsFakes, sentryModule } from '../../test/analytics';
@@ -126,5 +127,26 @@ describe('resetToWelcomeOnSignOut', () => {
   it('any other sign-out → Welcome, as before', () => {
     expect(resetToWelcomeOnSignOut(container('Root'))).toBe(true);
     expect(resetToWelcomeOnSignOut(null)).toBe(true);
+  });
+
+  // AP-4: "Use a different account" signs out and resets to Auth itself.
+  // App's reset to Welcome used to race it — before or after, from Loading
+  // or from Auth — and often won.
+  it('a sign-out a screen claimed → no reset, from wherever App sees it, and only once', () => {
+    for (const where of ['Loading', 'Auth']) {
+      claimSignOutRouting('switch_account');
+      expect(resetToWelcomeOnSignOut(container(where))).toBe(false);
+      // The claim is spent: the next sign-out resets as usual.
+      expect(resetToWelcomeOnSignOut(container(where))).toBe(true);
+    }
+  });
+
+  it('a released or stale claim does not swallow a later sign-out', () => {
+    claimSignOutRouting('switch_account');
+    releaseSignOutRouting();
+    expect(resetToWelcomeOnSignOut(container('Root'))).toBe(true);
+
+    claimSignOutRouting('switch_account', Date.now() - 10_000); // claimed long ago
+    expect(resetToWelcomeOnSignOut(container('Root'))).toBe(true);
   });
 });

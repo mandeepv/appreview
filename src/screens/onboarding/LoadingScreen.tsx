@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { OnboardingStackParamList } from '../../navigation/OnboardingNavigator';
+import { claimSignOutRouting, releaseSignOutRouting } from '../../navigation/signOutRouting';
 import { Button } from '../../components/Button';
 import { Caption } from '../../components/Typography';
 import {
@@ -939,12 +940,16 @@ export const LoadingScreen: React.FC<Props> = ({ navigation }) => {
     }
     try {
       resetPostHog();
+      // This screen routes the sign-out itself: without the claim, App.tsx's
+      // reset to Welcome raced the reset below and often won (AP-4).
+      claimSignOutRouting("switch_account");
       await signOut();
       navigation.reset({
         index: 1,
         routes: [{ name: "Welcome" }, { name: "Auth", params: { mode: "signin" } }],
       });
     } catch (error) {
+      releaseSignOutRouting();
       if (__DEV__) console.error("Switch-account sign-out failed:", error);
       reportError(error instanceof Error ? error : new Error(String(error)), {
         screen: "LoadingScreen",

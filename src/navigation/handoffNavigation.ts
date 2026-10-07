@@ -8,6 +8,7 @@ import type { NavigationContainerRef } from '@react-navigation/native';
 import { SuperwallExpoModule } from 'expo-superwall';
 import type { OnboardingStackParamList } from './types';
 import { shouldOpenHandoff, shouldResetToWelcomeOnSignOut } from './routingPolicy';
+import { takeSignOutRouting } from './signOutRouting';
 import { useHandoffStore } from '../store/handoffStore';
 import { listenForHandoffLinks } from '../lib/handoffSources';
 import { reportError } from '../config/sentry';
@@ -52,8 +53,12 @@ export function useHandoffLinks(navigationRef: { current: Navigation | null }): 
 
 /**
  * Should a sign-out send the app back to Welcome? Yes, except while
- * HandoffScreen is the one signing out (see shouldResetToWelcomeOnSignOut).
+ * HandoffScreen is the one signing out (see shouldResetToWelcomeOnSignOut),
+ * or when a screen claimed this sign-out to route it itself (signOutRouting:
+ * LoadingScreen's "Use a different account", AP-4). Call it once per
+ * sign-out: it consumes the claim.
  */
 export function resetToWelcomeOnSignOut(navigation: Navigation | null): boolean {
+  if (takeSignOutRouting()) return false;
   return shouldResetToWelcomeOnSignOut(navigation?.getCurrentRoute()?.name);
 }
