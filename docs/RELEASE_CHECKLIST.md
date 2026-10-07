@@ -198,10 +198,13 @@ stale.
 
 ### Which migrations does this specific release need?
 
-- [ ] Run `supabase migration list --linked` — copy the diff between
-      Local and Remote. Every "Local only" migration will apply on
-      the next `db push`. Only proceed if the list matches your
-      expectations for THIS release.
+- [ ] Know the list before you start: every file in
+      `supabase/migrations/` newer than OPS_STATE's "prod migrations
+      applied through" row will apply. (The CLI stays linked to dev,
+      so a plain `supabase migration list --linked` shows DEV, not
+      prod.) `./scripts/db-push-prod.sh` prints prod's own Local vs
+      Remote list before it pushes; only go on if it matches THIS
+      release.
 - [ ] For each migration file about to apply, re-read the SQL. In
       particular: `CREATE POLICY` statements must be
       `DROP POLICY IF EXISTS` first, else a half-applied migration
@@ -236,15 +239,9 @@ stale.
 - [ ] Verify no visible errors, no data corruption, no crashes
 - [ ] **This is testing the OLD app against the NEW schema.** If the old app breaks, users on the old version WILL break the moment you push the migration.
 - [ ] Only if the old app works cleanly → proceed.
-- [ ] Link CLI to prod: `supabase link --project-ref prodprojectref00000x`
-- [ ] Dry-run to see what will apply: `supabase db push --linked --dry-run`
-- [ ] Confirm the dry-run lists only the migrations you expect. If it lists something unfamiliar → STOP.
-- [ ] Apply to prod during a low-traffic window: `supabase db push --linked`
-- [ ] Verify: `supabase migration list --linked` shows both Local and Remote in sync
-- [ ] **IMMEDIATELY re-link back to dev** so accidental follow-up commands hit dev, not prod:
-  ```bash
-  supabase link --project-ref devprojectref000000x
-  ```
+- [ ] During a low-traffic window, run **`./scripts/db-push-prod.sh`** (owner). It is the only sanctioned way to push migrations to prod; never `supabase link` to the prod ref by hand (CLAUDE.md). In order it: takes a same-day prod backup, shows prod's migration list, dry-runs, waits for you to type `apply`, pushes, and re-links the CLI to dev on exit, even when a step fails.
+- [ ] At its prompt, check the dry-run lists only the migrations you expect. If it lists something unfamiliar, don't type `apply` → STOP.
+- [ ] Afterwards: `cat supabase/.temp/project-ref` prints the dev ref (`devprojectref000000x`), and OPS_STATE's "prod migrations applied through" row is updated.
 - [ ] **Verify prod still works** — open the currently-live App Store app on your phone, test the affected feature. If broken, roll back before submitting.
 
 ---
@@ -253,13 +250,9 @@ stale.
 
 - [ ] Identify every Edge Function under `supabase/functions/` that changed on this branch. `git diff <last-release-tag>..HEAD -- supabase/functions/` will show the list.
 - [ ] For each changed function, re-read the source in `supabase/functions/<name>/index.ts` before deploying. The prod version is about to become this exact code — no time to catch a typo after `functions deploy` runs.
-- [ ] `supabase link --project-ref prodprojectref00000x`
-- [ ] `supabase functions deploy <name> --project-ref prodprojectref00000x`
+- [ ] `supabase functions deploy <name> --project-ref prodprojectref00000x` — the flag names prod for this one command. Do NOT `supabase link` to the prod ref first (CLAUDE.md): a link outlives the command, and the next routine command would hit prod.
   - **`redeem-handoff` is the one exception that takes `--no-verify-jwt`** (the purchase handoff runs before the app has a session; INVARIANTS #30). Never add the flag to any other function, `delete-account` above all. Afterwards `supabase functions list --project-ref prodprojectref00000x` must show `verify_jwt=false` for redeem-handoff only, among the app's functions.
-- [ ] **IMMEDIATELY re-link back to dev** so accidental commands hit dev, not prod:
-  ```bash
-  supabase link --project-ref devprojectref000000x
-  ```
+- [ ] Check the CLI is still on dev: `cat supabase/.temp/project-ref` prints `devprojectref000000x`.
 - [ ] **Re-test the affected feature from the app** after deploy. For `delete-account` specifically, sign in on the shipped iOS build, tap Settings → Delete Account, verify: single confirmation, subscription warning, success alert, session cleared, **and no 401 or 500**. A 401 = the refresh + Edge Function auth chain broke. A 500 = `JWT_SECRET` is missing on that environment (the hardened function fails closed) — set it and redeploy. Either code: do NOT ship until fixed.
 
 ### If an Edge Function changed this release (generic)

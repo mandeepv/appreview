@@ -242,16 +242,14 @@ If you truly need a fresh dev DB from scratch, re-run all migrations against a n
 Deploy to dev first, verify, then deploy to prod.
 
 ```bash
-# Deploy to dev
-supabase link --project-ref devprojectref000000x
+# Deploy to dev (the CLI is always linked to dev)
 supabase functions deploy delete-account --project-ref devprojectref000000x
 
-# Deploy to prod (after verifying on dev)
-supabase link --project-ref prodprojectref00000x
+# Deploy to prod (after verifying on dev) — owner, at release time
 supabase functions deploy delete-account --project-ref prodprojectref00000x
 ```
 
-Always link back to dev after prod work so accidental commands hit dev, not prod.
+`--project-ref` names the project for that one command. Never `supabase link` to the prod ref (CLAUDE.md): a link outlives the command, so the next routine command would hit prod. Schema pushes to prod go only through `scripts/db-push-prod.sh`, which links to prod for the push and always re-links to dev on exit.
 
 `redeem-handoff` (the purchase handoff, SPEC-21) is the one function deployed with `--no-verify-jwt`, and only after its `handoff_keys` migration is on that project. Commands and checks: `supabase/EDGE_FUNCTION_DEPLOYMENT.md`.
 

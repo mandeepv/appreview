@@ -108,7 +108,7 @@ migrations against prod.
 
 - **Dev deploys** (routine): [`docs/DEV_PROD_ENVIRONMENTS.md`](../docs/DEV_PROD_ENVIRONMENTS.md) → "Migration tracking" section. CLI stays linked to dev; `supabase functions deploy <name>` targets dev via the linked project.
 
-- **Prod deploys** (per-release): [`docs/RELEASE_CHECKLIST.md`](../docs/RELEASE_CHECKLIST.md) → Phase 5 (Deploy Edge Functions to prod if changed). Explicitly re-links to prod (`--project-ref prodprojectref00000x`), deploys, verifies, and re-links back to dev.
+- **Prod deploys** (per-release): [`docs/RELEASE_CHECKLIST.md`](../docs/RELEASE_CHECKLIST.md) → Phase 5 (Deploy Edge Functions to prod if changed). Deploys with `--project-ref prodprojectref00000x` on the command itself, never by linking the CLI to prod, then verifies.
 
 ## The one-liner for reference
 
@@ -117,12 +117,14 @@ Dev deploy (CLI already linked to dev):
 supabase functions deploy delete-account
 ```
 
-Prod deploy (per-release, follow RELEASE_CHECKLIST Phase 5):
+Prod deploy (per-release, owner, follow RELEASE_CHECKLIST Phase 5):
 ```bash
-supabase link --project-ref prodprojectref00000x
-supabase functions deploy delete-account
-supabase link --project-ref devprojectref000000x   # re-link to dev
+supabase functions deploy delete-account --project-ref prodprojectref00000x
 ```
+
+`--project-ref` names prod for that one command; the CLI stays linked to dev.
+Never `supabase link` to the prod ref (CLAUDE.md): a link outlives the
+command, and the next routine command would hit prod.
 
 ## Environment variables inside Edge Functions
 
